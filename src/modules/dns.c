@@ -251,7 +251,7 @@ static void dns_check_log_results(struct dns_check_info *ci) {
   double rtt;
   char buff[48];
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, ci->check->last_fire_time, &duration);
   rtt = duration.tv_sec * 1000.0 + duration.tv_usec / 1000.0;
 
@@ -346,7 +346,7 @@ nc_printf_dns_handle_brief(mtev_console_closure_t ncct,
   nc_printf(ncct, " e: %d\n", h->e ? h->e->fd : -1);
   if(h->timeout) {
     struct timeval now, diff;
-    gettimeofday(&now, NULL);
+    mtev_gettimeofday(&now, NULL);
     sub_timeval(h->timeout->whence, now, &diff);
     nc_printf(ncct, " timeout: %f\n",
               diff.tv_sec + (double)diff.tv_usec/1000000.0);
@@ -485,7 +485,7 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
       newe->mask = EVENTER_TIMER;
       newe->callback = dns_module_invoke_timeouts;
       newe->closure = h;
-      gettimeofday(&newe->whence, NULL);
+      mtev_gettimeofday(&newe->whence, NULL);
       newe->whence.tv_sec += timeout;
     }
   }
@@ -759,7 +759,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   memcpy(&check->last_fire_time, &now, sizeof(now));
   noit_stats_set_state(ci->check, NP_BAD);
   noit_stats_set_available(ci->check, NP_UNAVAILABLE);
@@ -888,7 +888,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
 
   newe = eventer_alloc();
   newe->mask = EVENTER_TIMER;
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   add_timeval(now, p_int, &newe->whence);

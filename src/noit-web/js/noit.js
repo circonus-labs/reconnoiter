@@ -1,9 +1,12 @@
+var hist = CirconusHistogram({ minbarwidth: 5, width: 600, height: 200, yaxis: true, xaxis: true, hudlegend: true });
+var stop_ui = false;
 var local_skew = 0;
 var check_search = "";
 var capa = {};
 var startTime = +new Date();
 var noit_api_base = "/";
 function refresh_capa() {
+  if(stop_ui) return;
   $.ajax(noit_api_base + "capa.json").done(function (x) {
     capa = x;
     var endTime = +new Date();
@@ -106,11 +109,14 @@ function nice_time(s) {
 }
 
 function $badge(n) {
-  return $("<span class=\"badge\"/>").text(n);
+  return $("<span class=\"tag tag-pill tag-default\"/>").text(n);
+}
+function $modalButton(n, id) {
+  return $('<button type="button" class="tag tag-primary" data-toggle="modal" data-target="#' + id + '"/>').html(n);
 }
 function $label(n, type) {
   if(!type) type = "default";
-  return $("<span class=\"label label-"+type+"\"/>").text(n);
+  return $("<span class=\"tag tag-"+type+"\"/>").text(n);
 }
 function $nice_type(t) {
   if(t == "s") t = "string";
@@ -146,10 +152,40 @@ function $flags(which, flag) {
   }
   return $d;
 }
+var active_histogram = null;
+function displayHistogram(name, data, subname) {
+  var d = {}
+  if (data && data._value && Array.isArray(data._value)) {
+    for(var i=0;i<data._value.length;i++) {
+      var bin = data._value[i]
+      var eidx = bin.indexOf('=');
+      if(eidx > 0) {
+        d[bin.substring(2,eidx-1)] = parseInt(bin.substring(eidx+1));
+      }
+    }
+  }
+  $("span#histogram-name").text(name + " " + subname);
+  $("#modal-histogram").empty();
+  hist.render("#modal-histogram", d);
+}
+function $hist_button(name, stats, subname) {
+  if(stats.hasOwnProperty(name)) {
+    var $perf = $modalButton(" ", "histModal").on('click', function() {
+      var v = stats[name];
+      if(subname) v = v[subname];
+      displayHistogram(name, v, subname || "");
+    });
+    $perf.addClass("glyphicon");
+    $perf.addClass("glyphicon-stats");
+    return $perf;
+  }
+  return null;
+}
 function mk_jobq_row(jobq,detail) {
   var $tr = $("<tr/>");
   $tr.append($("<td/>").html($badge(detail.backlog+detail.inflight)));
-  $tr.append($("<td/>").text(jobq));
+  var $cb = $("<span/>").text(jobq);
+  $tr.append($("<td/>").html($cb));
   var $conc = $("<td class=\"text-center\"/>");
   if(detail.desired_concurrency == 0)
     $conc.text("N/A");
@@ -159,15 +195,31 @@ function mk_jobq_row(jobq,detail) {
     $conc.html(detail.concurrency + " &rarr; " + detail.desired_concurrency);
   $tr.append($conc);
   $tr.append($("<td class=\"text-right\"/>").append($badge(detail.total_jobs)));
-  $tr.append($("<td class=\"text-right\"/>").append($("<small/>").text(parseFloat(detail.avg_wait_ms).toFixed(3) + "ms")));
+  $cb = $("<small/>").text(parseFloat(detail.avg_wait_ms).toFixed(3) + "ms");
+  var $perf, $td;
+  $td = $("<td class=\"text-right\"/>");
+  $perf = $hist_button(jobq, eventer_stats.jobq, "wait");
+  if($perf) $td.append($perf);
+  $td.append($cb);
+  $tr.append($td);
   $tr.append($("<td class=\"text-left\"/>").append($badge(detail.backlog)));
-  $tr.append($("<td class=\"text-right\"/>").append($("<small/>").text(parseFloat(detail.avg_run_ms).toFixed(3) + "ms")));
+  $cb = $("<small/>").text(parseFloat(detail.avg_run_ms).toFixed(3) + "ms");
+  $perf = $hist_button(jobq, eventer_stats.jobq, "latency");
+  $td = $("<td class=\"text-right\"/>");
+  if($perf) $td.append($perf);
+  $td.append($cb);
+  $tr.append($td);
   $tr.append($("<td class=\"text-left\"/>").append($badge(detail.inflight)));
   return $tr;
 }
 function mk_timer_row(event) {
   var $tr = $("<tr/>");
-  $tr.append($("<td/>").text(event.callback));
+  var $cb = $("<span/>").text(event.callback);
+  var $perf = $hist_button(event.callback, eventer_stats.callbacks);
+  var $td = $("<td/>");
+  if ($perf !== null) { $td.append($perf); }
+  $td.append($cb)
+  $tr.append($td);
   $tr.append($("<td/>").text(new Date(event.whence)));
   return $tr;
 }
@@ -179,7 +231,12 @@ function mk_socket_row(event) {
   if(event.mask & 4) mask.push("E");
   $tr.append($("<td/>").html(event.fd + "&nbsp").append($badge(mask.join("|")).addClass('pull-right')));
   $tr.append($("<td/>").html('<small>'+event.impl+'</small>'));
-  $tr.append($("<td/>").text(event.callback));
+  var $td = $("<td/>");
+  var $cb = $("<span/>").text(event.callback);
+  var $perf = $hist_button(event.callback, eventer_stats.callbacks);
+  if ($perf !== null) { $td.append($perf); }
+  $td.append($cb);
+  $tr.append($td);
   $tr.append($("<td/>").text(event.local ? event.local.address+":"+event.local.port : "-"));
   $tr.append($("<td/>").text(event.remote ? event.remote.address+":"+event.remote.port : "-"));
   return $tr;
@@ -187,6 +244,7 @@ function mk_socket_row(event) {
 
 function update_eventer(uri, id, mkrow) {
   return function(force) {
+    if(stop_ui) return;
     var $table = $("div#"+id+" table" + (force ? "" : ":visible"));
     if($table.length == 0) return;
     var st = jQuery.ajax(uri);
@@ -208,34 +266,36 @@ function update_eventer(uri, id, mkrow) {
   };
 }
 
-setInterval(update_eventer(noit_api_base + "eventer/sockets.json",
-                           "eventer-sockets", mk_socket_row),
-            5000);
-$('#eventer-sockets').on('shown.bs.collapse', function () {
+function startInternals() {
+  setInterval(update_eventer(noit_api_base + "eventer/sockets.json",
+                             "eventer-sockets", mk_socket_row),
+              5000);
+  $('#eventer-sockets').on('shown.bs.collapse', function () {
+    update_eventer(noit_api_base + "eventer/sockets.json",
+                   "eventer-sockets", mk_socket_row)();
+  });
   update_eventer(noit_api_base + "eventer/sockets.json",
-                 "eventer-sockets", mk_socket_row)();
-});
-update_eventer(noit_api_base + "eventer/sockets.json",
-               "eventer-sockets", mk_socket_row)(true);
-
-setInterval(update_eventer(noit_api_base + "eventer/timers.json",
-                           "eventer-timers", mk_timer_row),
-            5000);
-$('#eventer-timers').on('shown.bs.collapse', function () {
-  update_eventer(noit_api_base + "eventer/timers.json",
-                 "eventer-timers", mk_timer_row)();
-});
-
-setInterval(update_eventer(noit_api_base + "eventer/jobq.json",
-                           "eventer-jobq", mk_jobq_row),
-            5000);
-$('#eventer-jobq').on('shown.bs.collapse', function () {
-  update_eventer(noit_api_base + "eventer/jobq.json",
-                 "eventer-jobq", mk_jobq_row)();
-});
+                 "eventer-sockets", mk_socket_row)(true);
+  
+  setInterval(update_eventer(noit_api_base + "eventer/timers.json",
+                             "eventer-timers", mk_timer_row),
+              5000);
+  $('#eventer-timers').on('shown.bs.collapse', function () {
+    update_eventer(noit_api_base + "eventer/timers.json",
+                   "eventer-timers", mk_timer_row)();
+  });
+  setInterval(update_eventer(noit_api_base + "eventer/jobq.json",
+                             "eventer-jobq", mk_jobq_row),
+              5000);
+  $('#eventer-jobq').on('shown.bs.collapse', function () {
+    update_eventer(noit_api_base + "eventer/jobq.json",
+                   "eventer-jobq", mk_jobq_row)();
+  });
+}
 
 function check_refresh(check) {
   return function() {
+    if(stop_ui) return;
     if($("tr#check-details-" + check.id + ":visible").length == 0) {
       clearInterval(check.intervalId);
       return;
@@ -316,6 +376,7 @@ function start_check_details(x) {
 }
 
 function refresh_checks() {
+  if(stop_ui) return;
   var st = jQuery.ajax(noit_api_base + "checks/show.json");
   st.done(function( checks ) {
     // First unmark all our rows
@@ -326,6 +387,7 @@ function refresh_checks() {
       $tr = $tbody.find("tr#check-" + id);
       if($tr.length == 0) {
         $tr = $("<tr/>").attr("id", "check-" + id);
+        $tr.addClass("check");
         $tr.addClass("accordion-toggle");
         $tr.append($("<td class=\"check-state\"/>").html($flags(1, check.flags)));
         $tr.append($("<td class=\"check-uuid\"/>").text(id));
@@ -438,6 +500,7 @@ $("input#check-search").on('input', function(x) {
 
 var last_log_idx;
 function refresh_logs(force) {
+  if(stop_ui) return;
   var qs = "";
   var $c = $("#main-log-window");
   if(typeof(last_log_idx) !== 'undefined')
@@ -467,3 +530,30 @@ function refresh_logs(force) {
 }
 refresh_logs(1);
 setInterval(refresh_logs, 1000);
+
+var eventer_stats = { callbacks: {}, jobq: {}};
+function refresh_stats(cb) {
+  if(stop_ui) return;
+  $.ajax(noit_api_base + "mtev/stats.json").done(function (stats) {
+    eventer_stats = stats.mtev.eventer;
+    if(cb) cb();
+  });
+}
+refresh_stats(startInternals)
+setInterval(refresh_stats, 5000);
+
+
+$(document).ready(function() {
+  $('.navbar-nav a.nav-link').click(function (e) {
+    $(this).tab('show');
+    var scrollmem = $('body').scrollTop();
+    window.location.hash = this.hash;
+    $('html,body').scrollTop(scrollmem);
+  });
+
+  var hash = window.location.hash.substring(1);
+  if(!hash) return;
+  var nav = hash.split(/:/);
+
+  if(nav[0]) $('ul.nav a[href="#' + nav[0] + '"]').tab('show');
+});

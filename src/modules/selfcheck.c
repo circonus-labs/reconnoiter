@@ -101,7 +101,7 @@ static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
   uint64_t ms;
   struct timeval now, diff;
   struct threadq_crutch *crutch = (struct threadq_crutch *)closure;
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
 
   if(s->last_connection.tv_sec > 0) {
     sub_timeval(now, s->last_connection, &diff);
@@ -129,7 +129,7 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
 
   crutch.check = check;
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(check, &now);
   noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
@@ -231,7 +231,7 @@ static int selfcheck_initiate(noit_module_t *self, noit_check_t *check,
 
   ci->timed_out = 1;
   noit_check_make_attrs(check, &ci->attrs);
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   /* Register a handler for the worker */

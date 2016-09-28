@@ -267,7 +267,7 @@ handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_ms
   return MTEV_HOOK_CONTINUE;
 }
 static mtev_hook_return_t
-handle_log_line(void *closure, mtev_log_stream_t ls, struct timeval *whence,
+handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whence,
                 const char *timebuf, int timebuflen,
                 const char *debugbuf, int debugbuflen,
                 const char *line, size_t len) {

@@ -114,7 +114,7 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
   struct timeval now, *whence;
   stats_t *c = noit_check_get_stats_current(check);
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   state = xmlNewNode(NULL, (xmlChar *)"state");
   NODE_CONTENT(state, "running", NOIT_CHECK_RUNNING(check)?"true":"false");
   NODE_CONTENT(state, "killed", NOIT_CHECK_KILLED(check)?"true":"false");

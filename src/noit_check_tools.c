@@ -140,7 +140,7 @@ noit_check_schedule_next(noit_module_t *self,
   if(now)
     memcpy(&earliest, now, sizeof(earliest));
   else
-    gettimeofday(&earliest, NULL);
+    mtev_gettimeofday(&earliest, NULL);
 
   /* If the check is unconfigured and needs resolving, we'll set the
    * period down a bit lower so we can pick up the resolution quickly.
@@ -205,7 +205,7 @@ noit_check_run_full_asynch_opts(noit_check_t *check, eventer_func_t callback,
   e = eventer_alloc();
   e->fd = -1;
   e->mask = EVENTER_ASYNCH | mask;
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&e->whence, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
@@ -301,7 +301,13 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
           int i, alen = json_object_array_length(has_value);
           for(i=0;i<alen;i++) {
             struct json_object *item = json_object_array_get_idx(has_value, i);
-            COERCE_JSON_OBJECT(*type_str, item);
+            if (item) {
+              COERCE_JSON_OBJECT(*type_str, item);
+            }
+            else {
+              noit_stats_set_metric_coerce(check, prefix, (metric_type_t)*type_str, NULL);
+              count++;
+            }
           }
         }
         else {

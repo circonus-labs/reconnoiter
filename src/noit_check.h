@@ -46,6 +46,8 @@
 #include <mtev_conf.h>
 #include <mtev_console.h>
 
+#include <libxml/tree.h>
+
 #include "noit_metric.h"
 
 /*
@@ -233,9 +235,18 @@ API_EXPORT(int)
    noit_poller_do(int (*f)(noit_check_t *, void *),
                   void *closure);
 
+API_EXPORT(xmlNodePtr)
+  noit_get_check_xml_node(noit_check_t *check);
+
+API_EXPORT(int)
+  noit_check_xpath_check(char *xpath, int len,
+                  noit_check_t *check);
+
 API_EXPORT(int)
   noit_check_xpath(char *xpath, int len,
                    const char *base, const char *arg);
+API_EXPORT(char*)
+  noit_check_path(noit_check_t *check);
 
 struct _noit_module;
 
@@ -284,6 +295,15 @@ API_EXPORT(void)
   noit_stats_log_immediate_metric(noit_check_t *check,
                                   const char *name, metric_type_t type,
                                   const void *value);
+API_EXPORT(void)
+  noit_stats_log_immediate_metric_timed(noit_check_t *check,
+                                  const char *name, metric_type_t type,
+                                  const void *value, const struct timeval *whence);
+API_EXPORT(mtev_boolean)
+  noit_stats_log_immediate_histo(noit_check_t *check, const char *name,
+                                  const char *hist_encoded,
+                                  size_t hist_encoded_len,
+                                  u_int64_t whence_s);
 
 API_EXPORT(const char *)
   noit_check_available_string(int16_t available);
@@ -345,13 +365,14 @@ API_EXPORT(void) noit_check_log_delete(noit_check_t *check);
 API_EXPORT(void) noit_check_log_bundle(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metric(noit_check_t *check,
-                                       struct timeval *whence, metric_t *m);
+                                       const struct timeval *whence, metric_t *m);
+API_EXPORT(void) noit_check_log_histo(noit_check_t *check, u_int64_t whence_s,
+          const char *metric_name, const char *b64_histo, ssize_t b64_histo_len);
 API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
                                               char *target, int target_len,
                                               char *module, int module_len,
                                               char *name, int name_len,
                                               char *uuid, int uuid_len);
-
 
 API_EXPORT(char *)
   noit_console_check_opts(mtev_console_closure_t ncct,
@@ -368,7 +389,7 @@ API_EXPORT(void) check_slots_inc_tv(struct timeval *tv);
 API_EXPORT(void) check_slots_dec_tv(struct timeval *tv);
 
 API_EXPORT(struct timeval *)
-  noit_check_stats_whence(stats_t *s, struct timeval *n);
+  noit_check_stats_whence(stats_t *s, const struct timeval *n);
 API_EXPORT(int8_t)
   noit_check_stats_available(stats_t *s, int8_t *n);
 API_EXPORT(int8_t)

@@ -39,6 +39,8 @@
 #include <mtev_dso.h>
 #include <mtev_log.h>
 
+#include <circllhist.h>
+
 #include "noit_config.h"
 #include "noit_module.h"
 #include "noit_check.h"
@@ -392,13 +394,14 @@ noit_lua_set_metric_json(lua_State *L) {
 }
 
 static int
-noit_lua_set_metric_f(lua_State *L,
+noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
                       void(*set)(noit_check_t *,
                                  const char *, metric_type_t,
-                                 const void *)) {
+                                 const void *, const struct timeval *)) {
   noit_check_t *check;
   const char *metric_name;
   metric_type_t metric_type;
+  struct timeval whence;
 
   double __n = 0.0;
   int32_t __i = 0;
@@ -406,13 +409,23 @@ noit_lua_set_metric_f(lua_State *L,
   int64_t __l = 0;
   u_int64_t __L = 0;
 
-  if(lua_gettop(L) != 2) luaL_error(L, "wrong number of arguments");
+  if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
   metric_name = lua_tostring(L, 1);
   metric_type = lua_tointeger(L, lua_upvalueindex(2));
+
+  if(allow_whence == mtev_true && lua_gettop(L) >= 3) {
+    whence.tv_sec = lua_tointeger(L, 3);
+    if(lua_gettop(L) == 4) {
+      whence.tv_usec = lua_tointeger(L, 4);
+    }
+  } else {
+    gettimeofday(&whence, NULL);
+  }
+
   if(lua_isnil(L, 2)) {
-    set(check, metric_name, metric_type, NULL);
+    set(check, metric_name, metric_type, NULL, &whence);
     lua_pushboolean(L, 1);
     return 1;
   }
@@ -423,7 +436,7 @@ noit_lua_set_metric_f(lua_State *L,
     case METRIC_UINT64:
     case METRIC_DOUBLE:
       if(!lua_isnumber(L, 2)) {
-        set(check, metric_name, metric_type, NULL);
+        set(check, metric_name, metric_type, NULL, &whence);
         lua_pushboolean(L, 0);
         return 1;
       }
@@ -434,27 +447,27 @@ noit_lua_set_metric_f(lua_State *L,
     case METRIC_GUESS:
     case METRIC_STRING:
       set(check, metric_name, metric_type,
-                            (void *)lua_tostring(L, 2));
+                            (void *)lua_tostring(L, 2), &whence);
       break;
     case METRIC_INT32:
       __i = strtol(lua_tostring(L, 2), NULL, 10);
-      set(check, metric_name, metric_type, &__i);
+      set(check, metric_name, metric_type, &__i, &whence);
       break;
     case METRIC_UINT32:
       __I = strtoul(lua_tostring(L, 2), NULL, 10);
-      set(check, metric_name, metric_type, &__I);
+      set(check, metric_name, metric_type, &__I, &whence);
       break;
     case METRIC_INT64:
       __l = strtoll(lua_tostring(L, 2), NULL, 10);
-      set(check, metric_name, metric_type, &__l);
+      set(check, metric_name, metric_type, &__l, &whence);
       break;
     case METRIC_UINT64:
       __L = strtoull(lua_tostring(L, 2), NULL, 10);
-      set(check, metric_name, metric_type, &__L);
+      set(check, metric_name, metric_type, &__L, &whence);
       break;
     case METRIC_DOUBLE:
       __n = luaL_optnumber(L, 2, 0);
-      set(check, metric_name, metric_type, &__n);
+      set(check, metric_name, metric_type, &__n, &whence);
       break;
     case METRIC_NULL:
     case METRIC_ABSENT:
@@ -465,13 +478,52 @@ noit_lua_set_metric_f(lua_State *L,
 }
 
 static int
+noit_lua_set_histo_metric(lua_State *L) {
+  noit_check_t *check;
+  const char *metric_name;
+  size_t hist_encoded_len;
+  const char *hist_encoded;
+  u_int64_t whence_s;
+
+  if(lua_gettop(L) != 3) luaL_error(L, "need 3 arguments: <metric_name> <encoded_histo> <whence_s>");
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
+  if(!lua_isstring(L, 2)) luaL_error(L, "argument #2 must be a string");
+  if(!lua_isnumber(L, 3)) luaL_error(L, "argument #3 must be a number");
+
+  metric_name = lua_tostring(L, 1);
+  if(lua_isnil(L, 2)) {
+    return luaL_error(L, "argument #2 must not be nil");
+  }
+
+  hist_encoded = lua_tolstring(L, 2, &hist_encoded_len);
+  whence_s = lua_tointeger(L, 3);
+
+  if(noit_stats_log_immediate_histo(check, metric_name, hist_encoded,
+      hist_encoded_len, whence_s) == mtev_false) {
+    return luaL_error(L,
+        "Unable to invoke noit_log_histo_encoded! Did you load the histogram module?!");
+  }
+
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+static void
+noit_stats_set_metric_ignore_whence(noit_check_t *check,
+                      const char *name, metric_type_t type,
+                      const void *value, const struct timeval *ignored) {
+  noit_stats_set_metric(check, name, type, value);
+}
+
+static int
 noit_lua_set_metric(lua_State *L) {
-  return noit_lua_set_metric_f(L, noit_stats_set_metric);
+  return noit_lua_set_metric_f(L, mtev_false, noit_stats_set_metric_ignore_whence);
 }
 
 static int
 noit_lua_log_immediate_metric(lua_State *L) {
-  return noit_lua_set_metric_f(L, noit_stats_log_immediate_metric);
+  return noit_lua_set_metric_f(L, mtev_true, noit_stats_log_immediate_metric_timed);
 }
 
 static int
@@ -606,6 +658,10 @@ noit_check_index_func(lua_State *L) {
       else IF_METRIC_IMMEDIATE_BLOCK("metric_int64", METRIC_INT64)
       else IF_METRIC_IMMEDIATE_BLOCK("metric_uint64", METRIC_UINT64)
       else IF_METRIC_IMMEDIATE_BLOCK("metric_double", METRIC_DOUBLE)
+      else if(!strcmp(k, "immediate_histogram")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_set_histo_metric, 1);
+      }
       else break;
 
       return 1;
@@ -639,6 +695,11 @@ noit_check_index_func(lua_State *L) {
       return 1;
     case 'p':
       if(!strcmp(k, "period")) lua_pushinteger(L, check->period);
+      else if(!strcmp(k, "path")) {
+        char *path = noit_check_path(check);
+        lua_pushstring(L, path);
+        free(path);
+      }
       else break;
       return 1;
     case 's':
@@ -853,7 +914,7 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   stats_t *inprogress;
 
-  gettimeofday(&ci->finish_time, NULL);
+  mtev_gettimeofday(&ci->finish_time, NULL);
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
   noit_stats_set_whence(check, &ci->finish_time);
@@ -1027,7 +1088,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ci->check = check;
   ci->cause = cause;
 
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   e = eventer_alloc();

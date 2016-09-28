@@ -114,7 +114,7 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
 
       if(ci->ignore_signals) { /* compuational loop */
         double trash = 1.0;
-        gettimeofday(&now, NULL);
+        mtev_gettimeofday(&now, NULL);
         diff.tv_sec = (int)i;
         diff.tv_usec = (int)(r * 1000000.0);
         add_timeval(now, diff, &target_time);
@@ -126,7 +126,7 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
             trash += 1.1;
             trash = exp(trash);
           }
-          gettimeofday(&now, NULL);
+          mtev_gettimeofday(&now, NULL);
           sub_timeval(target_time, now, &diff);
         } while(diff.tv_sec >= 0 && diff.tv_usec >= 0);
       }
@@ -179,7 +179,7 @@ static int test_abort_initiate(noit_module_t *self, noit_check_t *check,
     else if(!strcmp(v, "deferred")) ci->method = EVENTER_CANCEL_DEFERRED;
     else if(!strcmp(v, "asynch")) ci->method = EVENTER_CANCEL_ASYNCH;
   }
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   /* Register a handler for the worker */

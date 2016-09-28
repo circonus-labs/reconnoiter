@@ -291,7 +291,7 @@ check_test_schedule_sweeper() {
   sweeper_event->callback = check_test_sweeper;
   diff.tv_sec = 0L;
   diff.tv_usec = default_sweep_interval * 1000L;
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   add_timeval(now, diff, &sweeper_event->whence);
   eventer_add(sweeper_event);
 }

@@ -280,7 +280,7 @@ noit_jlog_thread_main(void *e_vptr) {
               jcl->chkpt.log, jcl->chkpt.marker);
         goto alldone;
       }
-      gettimeofday(&jcl->feed_stats->last_checkpoint, NULL);
+      mtev_gettimeofday(&jcl->feed_stats->last_checkpoint, NULL);
       jlog_ctx_read_checkpoint(jcl->jlog, &jcl->chkpt);
     }
     else {
@@ -439,7 +439,7 @@ socket_error:
   memcpy(newe, e, sizeof(*e));
   pthread_attr_init(&tattr);
   pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-  gettimeofday(&jcl->feed_stats->last_connection, NULL);
+  mtev_gettimeofday(&jcl->feed_stats->last_connection, NULL);
   mtev_atomic_inc32(&jcl->feed_stats->connections);
   if(pthread_create(&tid, &tattr, noit_jlog_thread_main, newe) == 0) {
     return 0;

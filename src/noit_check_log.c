@@ -165,7 +165,7 @@ _noit_check_log_check(mtev_log_stream_t ls,
   SETUP_LOG(check, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
 
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   return mtev_log(ls, &__now, __FILE__, __LINE__,
                   "C\t%lu.%03lu\t%s\t%s\t%s\t%s\n",
                   SECPART(&__now), MSECPART(&__now),
@@ -189,7 +189,7 @@ _noit_filterset_log_auto_add(mtev_log_stream_t ls,
   SETUP_LOG(check, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
 
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   return mtev_log(ls, &__now, __FILE__, __LINE__,
                   "F1\t%lu.%03lu\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
                   SECPART(&__now), MSECPART(&__now),
@@ -357,7 +357,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize(mtev_log_stream_t ls,
 static int
 noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
                                        noit_check_t *check,
-                                       struct timeval *whence,
+                                       const struct timeval *whence,
                                        metric_t *m) {
   int size, rv = 0;
   unsigned int out_size;
@@ -428,7 +428,7 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
 static int
 _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
                        const char *uuid_str,
-                       struct timeval *whence, metric_t *m) {
+                       const struct timeval *whence, metric_t *m) {
   return noit_check_log_bundle_metric_serialize(ls, check, whence, m);
 }
 static int
@@ -766,7 +766,7 @@ noit_check_log_bundle(noit_check_t *check) {
 }
 
 void
-noit_check_log_metric(noit_check_t *check, struct timeval *whence,
+noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
                       metric_t *m) {
   char uuid_str[256*3+37];
 #if defined(NOIT_CHECK_LOG_M)
@@ -817,4 +817,3 @@ noit_stats_snprint_metric(char *b, int l, metric_t *m) {
     rv = snprintf(b+nl, l-nl, "[[unknown type]]");
   return rv + nl;
 }
-

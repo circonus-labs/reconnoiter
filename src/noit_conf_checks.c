@@ -572,7 +572,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
       nc_write(ncct, "\n", 1);
       if (check->fire_event != NULL) {
         struct timeval now, diff;
-        gettimeofday(&now, NULL);
+        mtev_gettimeofday(&now, NULL);
         sub_timeval(check->fire_event->whence, now, &diff);
         nc_printf(ncct, " next run: %0.3f seconds\n",
                 diff.tv_sec + (diff.tv_usec / 1000000.0));
@@ -589,7 +589,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
       else {
         const char *status;
         struct timeval now, *then, diff;
-        gettimeofday(&now, NULL);
+        mtev_gettimeofday(&now, NULL);
         then = noit_check_stats_whence(c, NULL);
         sub_timeval(now, *then, &diff);
         nc_printf(ncct, " last run: %0.3f seconds ago\n",

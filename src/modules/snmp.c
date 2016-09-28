@@ -366,7 +366,7 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check, cons
   struct timeval duration, now;
   char buff[128];
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(check, &now);
   noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
@@ -436,7 +436,7 @@ static void _set_ts_timeout(struct target_session *ts, struct timeval *t) {
   }
   if(!t) return;
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   if(!e) e = eventer_alloc();
   e->callback = noit_snmp_session_timeout;
   e->closure = ts;
@@ -819,7 +819,7 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
   }
 
   /* We have a check. The trap is authorized. Now, extract everything. */
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   noit_stats_set_whence(check, &now);
   noit_stats_set_available(check, NP_AVAILABLE);
 
@@ -830,7 +830,7 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
        check->last_fire_time.tv_usec / 1000)) < check->period) goto cleanup;
 
   /* update the last fire time... */
-  gettimeofday(&check->last_fire_time, NULL);
+  mtev_gettimeofday(&check->last_fire_time, NULL);
 
   for(; var != NULL; var = var->next_variable)
     if(noit_snmp_trapvars_to_stats(check, var) == 0) success++;
@@ -1001,7 +1001,7 @@ final String walk_base             = config.remove("walk");
   ts->slp = snmp_sess_open_C1(&sess, &transport);
   ts->sess_handle->flags &= ~SNMP_FLAGS_DONT_PROBE;
   ts->fd = transport->sock;
-  gettimeofday(&ts->last_open, NULL);
+  mtev_gettimeofday(&ts->last_open, NULL);
 }
 
 static int noit_snmp_fill_oidinfo(noit_check_t *check) {
@@ -1280,7 +1280,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
-  gettimeofday(&check->last_fire_time, NULL);
+  mtev_gettimeofday(&check->last_fire_time, NULL);
   if(mtev_hash_retr_str(check->config, "separate_queries",
                         strlen("separate_queries"), &sepstr)) {
     if(!strcasecmp(sepstr, "on") || !strcasecmp(sepstr, "true"))
@@ -1298,7 +1298,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   }
   snprintf(target_port, sizeof(target_port), "%s:%d", check->target_ip, port);
   ts = _get_target_session(self, target_port, info->version);
-  gettimeofday(&check->last_fire_time, NULL);
+  mtev_gettimeofday(&check->last_fire_time, NULL);
   if(!ts->refcnt) {
     eventer_t newe;
     noit_snmp_sess_open(ts, check);
@@ -1353,7 +1353,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     magic->timeoutevent->closure = magic;
     magic->timeoutevent->mask = EVENTER_TIMER;
   
-    gettimeofday(&when, NULL);
+    mtev_gettimeofday(&when, NULL);
     to.tv_sec = 5;
     to.tv_usec = 0;
     add_timeval(when, to, &magic->timeoutevent->whence);
@@ -1412,7 +1412,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   info->timeoutevent->closure = info;
   info->timeoutevent->mask = EVENTER_TIMER;
 
-  gettimeofday(&when, NULL);
+  mtev_gettimeofday(&when, NULL);
   to.tv_sec = check->timeout / 1000;
   to.tv_usec = (check->timeout % 1000) * 1000;
   add_timeval(when, to, &info->timeoutevent->whence);
@@ -1490,7 +1490,7 @@ nc_printf_snmpts_brief(mtev_console_closure_t ncct,
   char fd[32];
   struct timeval now, diff;
   const char *snmpvers = "v(unknown)";
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, ts->last_open, &diff);
   if(ts->fd < 0)
     snprintf(fd, sizeof(fd), "%s", "(closed)");

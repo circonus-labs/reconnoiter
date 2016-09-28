@@ -52,6 +52,7 @@
 #include <mtev_conf.h>
 #include <mtev_console.h>
 #include <mtev_cluster.h>
+#include <mtev_str.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_dtrace_probes.h"
@@ -59,9 +60,14 @@
 #include "noit_module.h"
 #include "noit_check_tools.h"
 #include "noit_check_resolver.h"
+#include "modules/histogram.h"
 
 #define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
 #define RECYCLE_INTERVAL 60
+
+#define CHECKS_XPATH_ROOT "/noit"
+#define CHECKS_XPATH_PARENT "checks"
+#define CHECKS_XPATH_BASE CHECKS_XPATH_ROOT "/" CHECKS_XPATH_PARENT
 
 MTEV_HOOK_IMPL(check_config_fixup,
   (noit_check_t *check),
@@ -150,7 +156,7 @@ struct stats_t {
 };
 
 struct timeval *
-noit_check_stats_whence(stats_t *s, struct timeval *n) {
+noit_check_stats_whence(stats_t *s, const struct timeval *n) {
   if(n) memcpy(&s->whence, n, sizeof(*n));
   return &s->whence;
 }
@@ -496,7 +502,7 @@ noit_check_fake_last_check(noit_check_t *check,
   int balance_ms;
 
   if(!_now) {
-    gettimeofday(&now, NULL);
+    mtev_gettimeofday(&now, NULL);
     _now = &now;
   }
   period.tv_sec = check->period / 1000;
@@ -603,7 +609,7 @@ noit_poller_process_checks(const char *xpath) {
 
     if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
       filterset[0] = '\0';
-    
+
     if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype)))
       strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
 
@@ -1347,7 +1353,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
 
   if (checker->flags & NP_PASSIVE_COLLECTION) {
     struct timeval current_time;
-    gettimeofday(&current_time, NULL);
+    mtev_gettimeofday(&current_time, NULL);
     if (checker->last_fire_time.tv_sec == 0) {
       memcpy(&checker->last_fire_time, &current_time, sizeof(struct timeval));
     }
@@ -1431,7 +1437,7 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
     mtev_boolean free_check = mtev_false;
     if (check->flags & NP_PASSIVE_COLLECTION) {
       struct timeval current_time;
-      gettimeofday(&current_time, NULL);
+      mtev_gettimeofday(&current_time, NULL);
       if ((!(check->flags & NP_RUNNING)) &&
           (sub_timeval_ms(current_time,check->last_fire_time) >= (check->period*2))) {
         free_check = mtev_true;
@@ -1658,6 +1664,22 @@ noit_poller_lookup_by_module(const char *ip, const char *mod,
   return noit_poller_target_do(ip, ip_module_collector, &crutch);
 }
 
+xmlNodePtr
+noit_get_check_xml_node(noit_check_t *check) {
+  char xpath[1024];
+  xmlNodePtr node;
+  noit_check_xpath_check(xpath, sizeof(xpath), check);
+  node = mtev_conf_get_section(NULL, xpath);
+  return node;
+}
+
+int
+noit_check_xpath_check(char *xpath, int len,
+                  noit_check_t *check) {
+  char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
+  uuid_unparse_lower(check->checkid, uuid_str);
+  return noit_check_xpath(xpath, len, "/", uuid_str);
+}
 
 int
 noit_check_xpath(char *xpath, int len,
@@ -1696,6 +1718,36 @@ noit_check_xpath(char *xpath, int len,
   return strlen(xpath);
 }
 
+char*
+noit_check_path(noit_check_t *check) {
+  xmlNodePtr node, parent;
+  mtev_prependable_str_buff_t *path;
+  char *path_str;
+  int path_str_len;
+
+  path = mtev_prepend_str_alloc();
+
+  node = noit_get_check_xml_node(check);
+  if(node == NULL) {
+    return NULL;
+  }
+
+  mtev_prepend_str(path, "/", 1);
+  parent = node->parent;
+  while(parent && strcmp((char*)parent->name, CHECKS_XPATH_PARENT)) {
+    mtev_prepend_str(path, (char*)parent->name, strlen((char*)parent->name));
+    mtev_prepend_str(path, "/", 1);
+    parent = parent->parent;
+  }
+
+  path_str_len = mtev_prepend_strlen(path);
+  path_str = malloc(path_str_len+1);
+  memcpy(path_str, path->string, path_str_len);
+  mtev_prepend_str_free(path);
+  path_str[path_str_len] = '\0';
+  return path_str;
+}
+
 static int
 bad_check_initiate(noit_module_t *self, noit_check_t *check,
                    int once, noit_check_t *cause) {
@@ -1709,7 +1761,7 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   mtevAssert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
   inp = noit_check_get_stats_inprogress(check);
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   noit_check_stats_whence(inp, &now);
   snprintf(buff, sizeof(buff), "check[%s] implementation offline",
            check->module);
@@ -1731,12 +1783,18 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 
-static void
-__mark_metric_logged(stats_t *newstate, const char *metric_name) {
+static mtev_boolean
+__mark_metric_logged(stats_t *newstate, metric_t *m) {
   void *vm;
   if(mtev_hash_retrieve(&newstate->metrics,
-                        metric_name, strlen(metric_name), &vm)) {
+      m->metric_name, strlen(m->metric_name), &vm)) {
     ((metric_t *)vm)->logged = mtev_true;
+    return mtev_false;
+  } else {
+    m->logged = mtev_true;
+    mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
+                        m, NULL, (void (*)(void *))mtev_memory_safe_free);
+    return mtev_true;
   }
 }
 
@@ -1967,6 +2025,7 @@ noit_stats_set_metric(noit_check_t *check,
   check_stats_set_metric_hook_invoke(check, c, m);
   __stats_add_metric(c, m);
 }
+
 void
 noit_stats_set_metric_coerce(noit_check_t *check,
                              const char *name, metric_type_t t,
@@ -2033,10 +2092,10 @@ noit_stats_set_metric_coerce(noit_check_t *check,
   }
   check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_true);
 }
-void
-noit_stats_log_immediate_metric(noit_check_t *check,
+static void
+record_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
-                                const void *value) {
+                                const void *value, mtev_boolean do_log, const struct timeval *time) {
   struct timeval now;
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
@@ -2045,11 +2104,48 @@ noit_stats_log_immediate_metric(noit_check_t *check,
     mtev_memory_safe_free(m);
     return;
   }
-  gettimeofday(&now, NULL);
-  noit_check_log_metric(check, &now, m);
-  mtev_memory_safe_free(m);
+  if(time == NULL) {
+    gettimeofday(&now, NULL);
+    time = &now;
+  }
+  if(do_log == mtev_true) {
+    noit_check_log_metric(check, time, m);
+  }
   c = noit_check_get_stats_inprogress(check);
-  __mark_metric_logged(c, name);
+  if(__mark_metric_logged(c, m) == mtev_false) {
+    mtev_memory_safe_free(m);
+  }
+}
+void
+noit_stats_log_immediate_metric(noit_check_t *check,
+                                const char *name, metric_type_t type,
+                                const void *value) {
+  record_immediate_metric(check, name, type, value, mtev_true, NULL);
+}
+
+void
+noit_stats_log_immediate_metric_timed(noit_check_t *check,
+                                const char *name, metric_type_t type,
+                                const void *value, const struct timeval *whence) {
+  record_immediate_metric(check, name, type, value, mtev_true, whence);
+}
+
+mtev_boolean
+noit_stats_log_immediate_histo(noit_check_t *check,
+                                const char *name, const char *hist_encoded, size_t hist_encoded_len,
+                                u_int64_t whence_s) {
+  struct timeval whence;
+  whence.tv_sec = whence_s;
+  whence.tv_usec = 0;
+
+  if (noit_log_histo_encoded_available()) {
+    noit_log_histo_encoded(check, &whence, name, hist_encoded, hist_encoded_len, mtev_false);
+  } else {
+    return mtev_false;
+  }
+
+  record_immediate_metric(check, name, METRIC_INT32, NULL, mtev_false, &whence);
+  return mtev_true;
 }
 
 void

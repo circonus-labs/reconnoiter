@@ -10,14 +10,11 @@
     <title>Circonus Reconnoiter Operational Dashboard</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap theme -->
-    <link href="css/bootstrap-theme.min.css" rel="stylesheet">
-
-    <!-- Custom styles for this template -->
+    <link href="css/b-glyphicons.css" rel="stylesheet">
     <link href="css/colorbrewer.css" rel="stylesheet">
     <link href="css/theme.css" rel="stylesheet">
-
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="js/html5shiv.js"></script>
@@ -27,61 +24,59 @@
 
   <body>
 
+<svg height="6" width="6" xmlns="http://www.w3.org/2000/svg" version="1.1"> <defs> <pattern id="whitecarbon" patternUnits="userSpaceOnUse" width="6" height="6"> <image xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB3aWR0aD0nNicgaGVpZ2h0PSc2Jz4KICA8cmVjdCB3aWR0aD0nNicgaGVpZ2h0PSc2JyBmaWxsPScjZWVlZWVlJy8+CiAgPGcgaWQ9J2MnPgogICAgPHJlY3Qgd2lkdGg9JzMnIGhlaWdodD0nMycgZmlsbD0nI2U2ZTZlNicvPgogICAgPHJlY3QgeT0nMScgd2lkdGg9JzMnIGhlaWdodD0nMicgZmlsbD0nI2Q4ZDhkOCcvPgogIDwvZz4KICA8dXNlIHhsaW5rOmhyZWY9JyNjJyB4PSczJyB5PSczJy8+Cjwvc3ZnPg==" x="0" y="0" width="6" height="6"> </image> </pattern> </defs> </svg>
+<svg height="5" width="5" xmlns="http://www.w3.org/2000/svg" version="1.1"> <defs> <pattern id="lightstripe" patternUnits="userSpaceOnUse" width="5" height="5"> <image xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1JyBoZWlnaHQ9JzUnPgogIDxyZWN0IHdpZHRoPSc1JyBoZWlnaHQ9JzUnIGZpbGw9J3doaXRlJy8+CiAgPHBhdGggZD0nTTAgNUw1IDBaTTYgNEw0IDZaTS0xIDFMMSAtMVonIHN0cm9rZT0nIzg4OCcgc3Ryb2tlLXdpZHRoPScxJy8+Cjwvc3ZnPg==" x="0" y="0" width="5" height="5"> </image> </pattern> </defs> </svg>
+<svg height="5" width="5" xmlns="http://www.w3.org/2000/svg" version="1.1"> <defs> <pattern id="lightstripeflip" patternUnits="userSpaceOnUse" patternTransform="rotate(90)" width="5" height="5"> <image xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1JyBoZWlnaHQ9JzUnPgogIDxyZWN0IHdpZHRoPSc1JyBoZWlnaHQ9JzUnIGZpbGw9J3doaXRlJy8+CiAgPHBhdGggZD0nTTAgNUw1IDBaTTYgNEw0IDZaTS0xIDFMMSAtMVonIHN0cm9rZT0nIzg4OCcgc3Ryb2tlLXdpZHRoPScxJy8+Cjwvc3ZnPg==" x="0" y="0" width="5" height="5"> </image> </pattern> </defs> </svg>
+
     <!-- Fixed navbar -->
-    <div class="navbar navbar-fixed-top">
-      <div class="container">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="#">Circonus Reconnoiter</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="container theme-showcase">
-
-      <ul id="viewTab" class="nav nav-tabs">
-        <li class="active"><a href="#stateview" data-toggle="tab">Overview</a></li>
-        <li class=""><a href="#checksview" data-toggle="tab" id="check-refresh">Checks&nbsp;&nbsp;&nbsp;&nbsp;<span class="glyphicon glyphicon-refresh"></span></a></li>
-        <li class=""><a href="#internals" data-toggle="tab">Internals</a></li>
+    <nav class="navbar navbar-light navbar-fixed-top">
+      <a class="navbar-brand" href="#">Circonus Reconnoiter</a>
+      <ul id="viewTab" class="nav navbar-nav">
+        <li class="nav-item active"><a class="nav-link" href="#stateview" data-toggle="tab">Overview</a></li>
+        <li class="nav-item"><a class="nav-link" href="#checksview" data-toggle="tab" id="check-refresh">Checks&nbsp;&nbsp;&nbsp;&nbsp;<span class="glyphicon glyphicon-refresh"></span></a></li>
+        <li class="nav-item"><a class="nav-link" href="#internals" data-toggle="tab">Internals</a></li>
       </ul>
+    </nav>
+    <div class="container theme-showcase">
       <div id="viewTabContent" class="tab-content">
         <div class="tab-pane fade active in" id="stateview">
           <div class="row">
             <div class="col-md-6">
-              <div class="panel panel-info">
-                <div class="panel-heading">
-                  <h4 class="panel-title">Runtime</h4>
+              <div class="card card-default">
+                <div class="card-header">
+                  <h4 class="card-title">Runtime</h4>
                 </div>
-                <div class="panel-body">
+                <div class="card-block">
                   <h5>Version</h5>
-                  <div id="noit-version"></div>
+                  <p class="card-text" id="noit-version"></p>
                   <h5>Build</h5>
-                  <div id="noit-build"></div>
+                  <p class="card-text" id="noit-build"></p>
                   <h5>Run</h5>
-                  <div id="noit-run"></div>
+                  <p class="card-text" id="noit-run"></p>
                 </div>
               </div>
             </div>
             <div class="col-md-6">
-              <div class="panel panel-info">
-                <div class="panel-heading">
-                  <h4 class="panel-title">Capabilities</h4>
+              <div class="card card-default">
+                <div class="card-header">
+                  <h4 class="card-title">Capabilities</h4>
                 </div>
-                <div class="panel-body">
+                <div class="card-block">
                   <h5>Modules</h5>
-                  <div id="noit-module-list"></div>
+                  <p class="card-text" id="noit-module-list"></p>
                   <h5>Features</h5>
-                  <div id="noit-feature-list"></div>
+                  <p class="card-text" id="noit-feature-list"></p>
                   <h5>Listener Commands</h5>
-                  <div id="noit-services"></div>
+                  <p class="card-text" id="noit-services"></p>
                 </div>
               </div>
             </div>
           </div>
-          <div class="panel panel-default">
-            <div class="panel-heading">
-              <h4 class="panel-title">Log</h4>
+          <div class="card card-default">
+            <div class="card-header">
+              <h4 class="card-title">Log</h4>
             </div>
-            <div class="panel-body">
+            <div class="card-block">
               <div id="main-log-window">
               </div>
             </div>
@@ -94,24 +89,24 @@
           </div>
           <table class="table table-condensed">
             <thead>
-              <tr><th><span class="label label-none">running</span></th><th>UUID</th><th>Name</th><th>Module</th><th>Target</th><th>IP</th><th>Frequency</th><th>Flags</th></tr>
+              <tr><th><span class="tag tag-none">running</span></th><th>UUID</th><th>Name</th><th>Module</th><th>Target</th><th>IP</th><th>Frequency</th><th>Flags</th></tr>
             </thead>
             <tbody id="check-table">
             </tbody>
           </table>
         </div>
         <div class="tab-pane fade" id="internals">
-          <div class="panel-group" id="eventer">
+          <div class="card card-default panel-group" id="eventer">
             <div class="panel panel-default">
-              <div class="panel-heading">
-                <h4 class="panel-title">
+              <div class="card-header">
+                <h4 class="card-title">
                   <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-sockets">
                     Sockets
                   </a>
                 </h4>
               </div>
               <div id="eventer-sockets" class="panel-collapse collapse in">
-                <div class="panel-body">
+                <div class="panel-block">
                   <table class="table table-condensed">
                     <thead>
                       <tr><th>FD</th><th>Opset</th><th>Callback</th><th>Local</th><th>Remote</th></tr>
@@ -123,15 +118,15 @@
               </div>
             </div>
             <div class="panel panel-default">
-              <div class="panel-heading">
-                <h4 class="panel-title">
+              <div class="card-header">
+                <h4 class="card-title">
                   <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-jobq">
                     Job Queues
                   </a>
                 </h4>
               </div>
               <div id="eventer-jobq" class="panel-collapse collapse">
-                <div class="panel-body">
+                <div class="panel-block">
                   <table class="table table-condensed">
                     <thead>
                       <tr><th></th><th>Queue</th><th class="text-center">Concurrency</th><th class="text-right">Processed</th><th colspan=2 class="text-center">Waiting</th><th colspan=2 class="text-center">Running</th></tr>
@@ -143,15 +138,15 @@
               </div>
             </div>
             <div class="panel panel-default">
-              <div class="panel-heading">
-                <h4 class="panel-title">
+              <div class="card-header">
+                <h4 class="card-title">
                   <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-timers">
                     Timers
                   </a>
                 </h4>
               </div>
               <div id="eventer-timers" class="panel-collapse collapse">
-                <div class="panel-body">
+                <div class="panel-block">
                   <table class="table table-condensed">
                     <thead>
                       <tr><th>Callback</th><th>When</th></tr>
@@ -170,9 +165,9 @@
     <div id="checktemplate" class="well well-lg">
       <div class="row">
         <div class="col-md-6">
-          <div class="panel panel-default check-details-main">
-            <div class="panel-heading">Check Details</div>
-            <div class="panel-body">
+          <div class="card card-default check-details-main">
+            <div class="card-header">Check Details</div>
+            <div class="card-block">
               <dl class="dl-horizontal">
                 <dt>ID</dt><dd class="check-detail-uuid"></dd>
                 <dt>Target</dt><dd class="check-detail-target"></dd>
@@ -191,18 +186,18 @@
           </div>
         </div>
         <div class="col-md-6">
-          <div class="panel panel-default">
-            <div class="panel-heading">Check Config</div>
-            <div class="panel-body">
+          <div class="card card-default">
+            <div class="card-header">Check Config</div>
+            <div class="card-block">
               <dl class="dl-horizontal check-config-container">
               </dl>
             </div>
           </div>
         </div>
       </div>
-      <div class="panel panel-default">
-        <div class="panel-heading">Metrics</div>
-        <div class="panel-body">
+      <div class="card card-default">
+        <div class="card-header">Metrics</div>
+        <div class="card-block">
           <table class="table table-condensed check-metrics">
             <thead>
               <tr><th>Name</th><th>Type</th><th>Value</th></tr>
@@ -215,15 +210,40 @@
     </div>
   </div>
 
+
+<!-- Modal -->
+<div id="histModal" class="modal fade" role="dialog">
+  <div class="modal-dialog modal-lg">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Latency of <span id="histogram-name"></span></h4>
+      </div>
+      <div class="modal-body text-center">
+        <div style="width:600px; margin-left:auto; margin-right:auto">
+        <div id="modal-histogram"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+
+  </div>
+</div>
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="js/jquery-2.0.3.min.js"></script>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/tether.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
-    <script src="js/d3.min.js"></script>
+    <script src="js/d3.v4.min.js"></script>
     <script src="js/colorbrewer.js"></script>
+    <script src="js/circllhist.js"></script>
+    <script src="js/circhistd3.js"></script>
     <script src="js/noit.js"></script>
-
   </body>
 </html>
 

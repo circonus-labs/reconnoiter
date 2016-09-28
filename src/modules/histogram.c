@@ -29,7 +29,6 @@
  */
 
 #include <inttypes.h>
-#include <mtev_defines.h>
 
 #include <mtev_log.h>
 #include <mtev_b64.h>
@@ -40,6 +39,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "histogram.h"
 
 static mtev_log_stream_t metrics_log = NULL;
 static int histogram_module_id = -1;
@@ -123,22 +123,14 @@ debug_print_hist(histogram_t *ht) {
     }
   }
 }
-static void
-log_histo(struct histogram_config *conf,
-          noit_check_t *check, u_int64_t whence_s,
-          const char *metric_name, histogram_t *h,
+
+void
+noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
+          const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
           mtev_boolean live_feed) {
   mtev_boolean extended_id = mtev_false;
   char uuid_str[256*3+37];
   const char *v;
-  char *hist_serial = NULL;
-  char *hist_encode = NULL;
-  struct timeval whence;
-  ssize_t est, enc_est;
-  whence.tv_sec = whence_s;
-  whence.tv_usec = 0;
-
-  if(!conf->histogram) return;
 
   SETUP_LOG(metrics, );
   if(metrics_log) {
@@ -158,6 +150,43 @@ log_histo(struct histogram_config *conf,
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
+
+  if(live_feed && check->feeds) {
+    mtev_skiplist_node *curr, *next;
+    curr = next = mtev_skiplist_getlist(check->feeds);
+    while(curr) {
+      const char *feed_name = (char *)curr->data;
+      mtev_log_stream_t ls = mtev_log_stream_find(feed_name);
+      mtev_skiplist_next(check->feeds, &next);
+      if(!ls ||
+         mtev_log(ls, whence, __FILE__, __LINE__,
+           "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
+           SECPART(whence), MSECPART(whence),
+           uuid_str, metric_name, (int)hist_encode_len, hist_encode))
+        noit_check_transient_remove_feed(check, feed_name);
+      curr = next;
+    }
+  }
+
+  if(!live_feed) {
+    SETUP_LOG(metrics, return);
+    mtev_log(metrics_log, whence, __FILE__, __LINE__,
+             "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
+             SECPART(whence), MSECPART(whence),
+             uuid_str, metric_name, (int)hist_encode_len, hist_encode);
+  }
+}
+
+static void
+log_histo(noit_check_t *check, u_int64_t whence_s,
+          const char *metric_name, histogram_t *h,
+          mtev_boolean live_feed) {
+  char *hist_serial = NULL;
+  char *hist_encode = NULL;
+  ssize_t est, enc_est;
+  struct timeval whence;
+  whence.tv_sec = whence_s;
+  whence.tv_usec = 0;
 
   est = hist_serialize_estimate(h);
   hist_serial = malloc(est);
@@ -182,30 +211,10 @@ log_histo(struct histogram_config *conf,
     goto cleanup;
   }
 
-  if(live_feed && check->feeds) {
-    mtev_skiplist_node *curr, *next;
-    curr = next = mtev_skiplist_getlist(check->feeds);
-    while(curr) {
-      const char *feed_name = (char *)curr->data;
-      mtev_log_stream_t ls = mtev_log_stream_find(feed_name);
-      mtev_skiplist_next(check->feeds, &next);
-      if(!ls ||
-         mtev_log(ls, &whence, __FILE__, __LINE__,
-           "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
-           SECPART(&whence), MSECPART(&whence),
-           uuid_str, metric_name, (int)enc_est, hist_encode))
-        noit_check_transient_remove_feed(check, feed_name);
-      curr = next;
-    }
-  }
 
-  if(!live_feed) {
-    SETUP_LOG(metrics, goto cleanup);
-    mtev_log(metrics_log, &whence, __FILE__, __LINE__,
-             "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
-             SECPART(&whence), MSECPART(&whence),
-             uuid_str, metric_name, (int)enc_est, hist_encode);
-  }
+
+  noit_log_histo_encoded_function(check, &whence, metric_name, hist_encode, enc_est, live_feed);
+
  cleanup:
   if(hist_serial) free(hist_serial);
   if(hist_encode) free(hist_encode);
@@ -247,7 +256,8 @@ sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *
   }
 
   /* push this out to the log streams */
-  log_histo(conf, check, aligned_seconds, name, tgt, mtev_false);
+  if(conf->histogram)
+    log_histo(check, aligned_seconds, name, tgt, mtev_false);
   debug_print_hist(tgt);
 
   /* drop the tgt, it's ours */
@@ -303,9 +313,10 @@ update_histotier(histotier *ht, u_int64_t s,
       }
     }
     last_bucket = last_second % 10;
-    if(ht->secs[last_bucket] && hist_num_buckets(ht->secs[last_bucket]))
-      log_histo(conf, check, last_minute * 60 + last_second,
-                name, ht->secs[last_bucket], mtev_true);
+    if(ht->secs[last_bucket] && hist_num_buckets(ht->secs[last_bucket])
+        && conf->histogram)
+      log_histo(check, last_minute * 60 + last_second, name,
+          ht->secs[last_bucket], mtev_true);
   }
   if(minute > ht->last_minute) {
     sweep_roll_n_log(conf, check, ht, name);

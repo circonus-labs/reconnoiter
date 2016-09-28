@@ -217,7 +217,7 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
   /* Lookup the interim journal within the working set */
   if(!mtev_hash_retrieve(working_set, fqdn, strlen(fqdn), &vij)) {
     ij = calloc(1, sizeof(*ij));
-    gettimeofday(&now, NULL);
+    mtev_gettimeofday(&now, NULL);
     snprintf(jpath, sizeof(jpath), "%s/%s/%s/%d/%08x%08x.tmp",
              basejpath, remote_str, remote_cn, storagenode_id,
              (unsigned int)now.tv_sec, (unsigned int)now.tv_usec);

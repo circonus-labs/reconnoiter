@@ -316,7 +316,7 @@ static void dns_cache_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
       newe->mask = EVENTER_TIMER;
       newe->callback = dns_invoke_timeouts;
       newe->closure = dns_ctx;
-      gettimeofday(&newe->whence, NULL);
+      mtev_gettimeofday(&newe->whence, NULL);
       newe->whence.tv_sec += timeout;
     }
   }
@@ -773,7 +773,7 @@ void noit_check_resolver_init() {
     char *key;
     void *data;
     int len;
-    gettimeofday(&now, NULL);
+    mtev_gettimeofday(&now, NULL);
     while(noit_resolver_cache_load_hook_invoke(&key, &data, &len) == MTEV_HOOK_CONTINUE) {
       dns_cache_node *n;
       n = calloc(1, sizeof(*n));
