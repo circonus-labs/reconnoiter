@@ -360,6 +360,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   if(line[0] != 'B' || line[1] != 'F' || line[2] != '\t') return 0;
 
   line += 3; len -= 3;
+  cp1 = line;
 #define SET_FIELD_FROM_BUNDLE(tgt) do { \
   if(*cp1 == '\0') { error_str = "short line @ " #tgt; goto bad_line; } \
   cp2 = strnstrn("\t", 1, cp1, len - (cp1 - line)); \
