@@ -43,6 +43,7 @@
 #include <mtev_hash.h>
 #include <mtev_json.h>
 
+#include "noit_metric.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"

@@ -42,6 +42,7 @@
 #include "noit_filters.h"
 #include "bundle.pb-c.h"
 #include "noit_check_log_helpers.h"
+#include "flatbuffers/metric_builder.h"
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_conf.c):
@@ -61,8 +62,16 @@
  *
  * BUNDLE
  *  'B#' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ * 
+ * BINARY
+ *  'BF' strlen(base64(flatbuffer payload)) base64(flatbuffer payload)
  *  
  */
+
+#undef ns
+#define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
+#undef nsc
+#define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
 
 static mtev_log_stream_t check_log = NULL;
 static mtev_log_stream_t filterset_log = NULL;
@@ -219,6 +228,130 @@ noit_check_log_status(noit_check_t *check) {
     SETUP_LOG(status, return);
     _noit_check_log_status(status_log, check);
   }
+}
+
+static void
+flatbuffer_encode_metric(mtev_log_stream_t ls, flatcc_builder_t *B, struct timeval *whence, noit_check_t* check, metric_t *m)
+{
+  char uuid_str[256*3+37];
+  int len = sizeof(uuid_str);
+
+  ns(Message_metrics_push_start(B));
+  ns(Metric_type_add)(B, ns(Type_Numeric));
+  ns(Metric_metric_name_create_str(B, m->metric_name));
+
+#define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD) \
+  ns(Numeric_type_add(B, ns(NumericType_ ## FBNAME )));  \
+  ns(Numeric_value_ ## FBTYPE ## _start(B)); \
+  if (m->metric_value.MFIELD != NULL) { \
+    ns(FBTYPE ## _v_add(B, *m->metric_value.MFIELD )); \
+  } \
+  ns(Numeric_value_ ## FBTYPE ## _end(B));
+
+
+  /* any of these types can be null */
+  ns(Metric_metric_value_Numeric_start(B));
+  switch(m->metric_type) {
+  case METRIC_INT32:
+    ENCODE_TYPE(int32, IntValue, i);
+    break;
+  case METRIC_UINT32:
+    ENCODE_TYPE(uint32, UintValue, I);
+    break;
+  case METRIC_INT64:
+    ENCODE_TYPE(int64, LongValue, l);
+    break;
+  case METRIC_UINT64:
+    ENCODE_TYPE(uint64, UlongValue, L);
+    break;
+  case METRIC_DOUBLE:
+    ENCODE_TYPE(dubs, DoubleValue, n);
+    break;
+  case METRIC_STRING:
+    ns(Numeric_type_add(B, ns(NumericType_str)));
+    ns(Numeric_value_StringValue_start(B));
+    if (m->metric_value.s != NULL) {
+      nsc(string_ref_t) mv = nsc(string_create_str(B, m->metric_value.s));
+      ns(StringValue_v_add(B, mv));
+    }
+    ns(Numeric_value_StringValue_end(B));
+    break;
+  case METRIC_ABSENT:
+  case METRIC_NULL:
+  case METRIC_GUESS:
+    break;
+  };
+
+#undef ENCODE_TYPE
+
+  ns(Metric_metric_value_Numeric_end(B));
+
+  ns(Message_metrics_push_end(B));
+}
+
+static int 
+noit_check_log_bundle_metric_flatbuffer_serialize(mtev_log_stream_t ls,
+                                                  noit_check_t *check,
+                                                  struct timeval *whence,
+                                                  metric_t *m)
+{
+  int rv = 0;
+  char uuid_str[256 * 3] = {0};
+  int len = sizeof(uuid_str);
+  
+  static char *ip_str = "ip";
+
+  if(!noit_apply_filterset(check->filterset, check, m)) return 0;
+  if(m->logged) return 0;
+
+  flatcc_builder_t builder, *B;
+  B = &builder;
+  flatcc_builder_init(B);
+
+  ns(Message_start_as_root(B));
+
+  ns(Message_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
+  
+  const char *v; 
+  mtev_boolean extended_id = mtev_false; 
+  v = mtev_log_stream_get_property(ls, "extended_id"); 
+  if(v && !strcmp(v, "on")) extended_id = mtev_true; 
+  uuid_str[0] = '\0'; 
+  if(extended_id) { 
+    strlcat(uuid_str, check->target, len); 
+    strlcat(uuid_str, "`", len); 
+    strlcat(uuid_str, check->module, len); 
+    strlcat(uuid_str, "`", len); 
+    strlcat(uuid_str, check->name, len); 
+    strlcat(uuid_str, "`", len); 
+  }
+  ns(Message_check_name_create_str(B, uuid_str));
+ 
+  uuid_str[0] = '\0';
+  uuid_unparse_lower(check->checkid, uuid_str); 
+  ns(Message_check_uuid_create_str(B, uuid_str));
+
+
+  flatbuffer_encode_metric(ls, B, whence, check, m);
+  
+  ns(Message_metrics_end(B));
+  ns(Message_end_as_root(B));
+ 
+  {
+    size_t size;
+    void *buffer = flatcc_builder_finalize_buffer(B, &size);
+    char *outbuf;
+    unsigned int outsize;
+    noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, size, &outbuf, &outsize);
+
+    rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                  "BF\t%d\t%.*s\n", (int)size, 
+                  (unsigned int)outsize, outbuf);
+    free(outbuf);
+    free(buffer);
+  }
+  return rv;
+
 }
 
 static int
@@ -444,6 +577,81 @@ _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m)
   return 0;
 }
 
+static int 
+noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
+  int rv = 0;
+  static char *ip_str = "ip";
+  char uuid_str[256*3+37];
+  int len = sizeof(uuid_str);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
+  const char *key;
+  int klen, i=0, size, j;
+  unsigned int out_size;
+  stats_t *c;
+  void *vm;
+  struct timeval *whence;
+  char *buf, *out_buf;
+  mtev_hash_table *metrics;
+
+  c = noit_check_get_stats_current(check);
+  whence = noit_check_stats_whence(c, NULL);
+
+  flatcc_builder_t builder, *B;
+  B = &builder;
+  flatcc_builder_init(B);
+
+  ns(Message_start_as_root(B));
+
+  ns(Message_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
+  
+  const char *v; 
+  mtev_boolean extended_id = mtev_false; 
+  v = mtev_log_stream_get_property(ls, "extended_id"); 
+  if(v && !strcmp(v, "on")) extended_id = mtev_true; 
+  uuid_str[0] = '\0'; 
+  if(extended_id) { 
+    strlcat(uuid_str, check->target, len); 
+    strlcat(uuid_str, "`", len); 
+    strlcat(uuid_str, check->module, len); 
+    strlcat(uuid_str, "`", len); 
+    strlcat(uuid_str, check->name, len); 
+    strlcat(uuid_str, "`", len); 
+  }
+  ns(Message_check_name_create_str(B, uuid_str));
+ 
+  uuid_str[0] = '\0';
+  uuid_unparse_lower(check->checkid, uuid_str); 
+  ns(Message_check_uuid_create_str(B, uuid_str));
+
+  metrics = noit_check_stats_metrics(c);
+  while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
+    /* If we apply the filter set and it returns false, we don't log */
+    metric_t *m = (metric_t *)vm;
+    if(!noit_apply_filterset(check->filterset, check, m)) continue;
+    if(m->logged) continue;
+    flatbuffer_encode_metric(ls, B, whence, check, m);
+  }
+  
+  ns(Message_metrics_end(B));
+  ns(Message_end_as_root(B));
+ 
+  {
+    size_t size;
+    void *buffer = flatcc_builder_finalize_buffer(B, &size);
+    char *outbuf;
+    unsigned int outsize;
+    noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, size, &outbuf, &outsize);
+
+    rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                  "BF\t%d\t%.*s\n", (int)size, 
+                  (unsigned int)outsize, outbuf);
+    free(outbuf);
+    free(buffer);
+  }
+  return rv;
+}
+
 static int
 noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
@@ -552,7 +760,8 @@ noit_check_log_bundle(noit_check_t *check) {
   handle_extra_feeds(check, noit_check_log_bundle_serialize);
   if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_STATUS | NP_SUPPRESS_METRICS))) {
     SETUP_LOG(bundle, return);
-    noit_check_log_bundle_serialize(bundle_log, check);
+    //    noit_check_log_bundle_serialize(bundle_log, check);
+    noit_check_log_bundle_fb_serialize(bundle_log, check);
   }
 }
 

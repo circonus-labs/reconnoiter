@@ -35,6 +35,7 @@
 
 #include <stdio.h>
 #include <zlib.h>
+#include <lz4.h>
 
 #include <mtev_b64.h>
 #include <mtev_str.h>
@@ -44,6 +45,12 @@
 #include "bundle.pb-c.h"
 #include "noit_metric.h"
 #include "noit_check_log_helpers.h"
+#include "flatbuffers/metric_reader.h"
+
+#undef ns
+#define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
+#undef nsc
+#define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
 
 int
 noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
@@ -68,6 +75,19 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
         return -1;
       }
       break;
+  case NOIT_COMPRESS_LZ4:
+    {
+      initial_dlen = dlen = LZ4_compressBound((uLong)len_in);
+      compbuff = malloc(initial_dlen);
+      if (!compbuff) return -1;
+      dlen = LZ4_compress_default(buf_in, compbuff, len_in, initial_dlen);
+      if (dlen == 0) {
+        mtevL(noit_error, "Error compressing bundled metrics.\n");
+        free(compbuff);
+        return -1;
+      }
+      break;
+    }
     case NOIT_COMPRESS_NONE:
       // Or don't
       dlen = (uLong)len_in;
@@ -80,12 +100,12 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
   initial_dlen = ((dlen + 2) / 3 * 4);
   b64buff = malloc(initial_dlen);
   if (!b64buff) {
-    if(ctype == NOIT_COMPRESS_ZLIB) free(compbuff);
+    if(ctype != NOIT_COMPRESS_NONE) free(compbuff);
     return -1;
   }
   dlen = mtev_b64_encode((unsigned char *)compbuff, dlen,
                          (char *)b64buff, initial_dlen);
-  if(ctype == NOIT_COMPRESS_ZLIB) free(compbuff);
+  if(ctype != NOIT_COMPRESS_NONE) free(compbuff);
   if(dlen == 0) {
     mtevL(noit_error, "Error base64'ing bundled metrics.\n");
     free(b64buff);
@@ -102,7 +122,7 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
                                      unsigned int len_in,
                                      char *buf_out,
                                      unsigned int len_out) {
-  int rv;
+  int rv = 0;
   uLong initial_dlen, dlen, rawlen;
   char *compbuff, *rawbuff;
 
@@ -125,6 +145,17 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
       if(Z_OK != (rv = uncompress((Bytef *)buf_out, &rawlen,
                                   (Bytef *)compbuff, dlen)) ||
          rawlen != len_out) {
+        mtevL(noit_error, "Error decompressing bundle: %d (%u != %u).\n",
+              rv, (unsigned int)rawlen, (unsigned int)len_out);
+        free(compbuff);
+        return -1;
+      }
+      break;
+    case NOIT_COMPRESS_LZ4:
+      /* Decompress */
+      rawlen = len_out;
+      rawlen = LZ4_decompress_safe(compbuff, buf_out, dlen, len_out);
+      if(rawlen == 0 || rawlen != len_out) {
         mtevL(noit_error, "Error decompressing bundle: %d (%u != %u).\n",
               rv, (unsigned int)rawlen, (unsigned int)len_out);
         free(compbuff);
@@ -175,10 +206,9 @@ noit_stats_snprint_metric_value(char *b, int l, metric_t *m) {
   return rv;
 }
 
-int
-noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
+static int
+noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, noit_compression_type_t ctype) {
   Bundle *bundle = NULL;
-  noit_compression_type_t ctype;
   unsigned int ulen;
   int i, size, cnt = 0, has_status = 0;
   const char *cp1, *cp2, *rest, *error_str = NULL;
@@ -314,4 +344,106 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);
   return cnt + has_status;
+}
+
+static int 
+noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
+{
+  unsigned int ulen;
+  int i, size, cnt = 0, has_status = 0;
+  const char *cp1, *cp2, *rest, *error_str = NULL;
+  char *uuid_str, *target, *module, *name, *ulen_str, *nipstr = NULL;
+  unsigned char *raw_data = NULL;
+
+  *out = NULL;
+  if(len < 3) return 0;
+  if(line[0] != 'B' || line[1] != 'F' || line[2] != '\t') return 0;
+
+  line += 3; len -= 3;
+#define SET_FIELD_FROM_BUNDLE(tgt) do { \
+  if(*cp1 == '\0') { error_str = "short line @ " #tgt; goto bad_line; } \
+  cp2 = strnstrn("\t", 1, cp1, len - (cp1 - line)); \
+  if(cp2 == NULL) { error_str = "no tab after " #tgt; goto bad_line; } \
+  tgt = (char *)alloca(cp2 - cp1 + 1); \
+  if(!tgt) { error_str = "alloca failed for " #tgt; goto bad_line; } \
+  memcpy(tgt, cp1, cp2 - cp1); \
+  tgt[cp2 - cp1] = '\0'; \
+  cp1 = cp2 + 1; \
+} while(0)
+  SET_FIELD_FROM_BUNDLE(ulen_str);
+  rest = cp1;
+  
+  ulen = strtoul(ulen_str, NULL, 10);
+  raw_data = malloc(ulen);
+  if(!raw_data) {
+    mtevL(noit_error, "bundle decode: memory exhausted\n");
+    goto bad_line;
+  }
+  if(noit_check_log_bundle_decompress_b64(NOIT_COMPRESS_LZ4,
+                                          rest, len - (rest - line),
+                                          (char *)raw_data,
+                                          ulen)) {
+    mtevL(noit_error, "bundle decode: failed to decompress\n");
+    goto bad_line;
+  }
+
+  /* flatbuffers reader */
+  ns(Message_table_t) message = ns(Message_as_root(raw_data));
+
+  mtevAssert(message != NULL);
+
+  uint64_t timestamp = ns(Message_timestamp(message));
+  flatbuffers_string_t check_name = ns(Message_check_name(message));
+  flatbuffers_string_t check_uuid = ns(Message_check_uuid(message));
+  ns(Metric_vec_t) metrics = ns(Message_metrics(message));
+  size_t metrics_len = ns(Metric_vec_len(metrics));
+  
+  *out = calloc(sizeof(**out), metrics_len);
+  if(!*out) { error_str = "memory exhaustion"; goto bad_line; }
+  
+  for (int i = 0; i < metrics_len; i++) {
+    ns(Metric_table_t) m = ns(Metric_vec_at(metrics, i));
+    flatbuffers_string_t metric_name = ns(Metric_metric_name(m));
+    char ts[15];
+    size_t uuid_len = flatbuffers_string_len(check_name) + flatbuffers_string_len(check_uuid) + 2;
+    char *uuid_str = alloca(uuid_len);
+    snprintf(uuid_str, uuid_len, "%s`%s", check_name, check_uuid);
+    sprintf(ts, "%.03f", (double) timestamp / 1000.0);
+    size = 2 /* M\t */ + strlen(ts) + 1 /* \t */ +
+      flatbuffers_string_len(check_uuid) + 1 /* \t */ + flatbuffers_string_len(metric_name) +
+           3 /* \t<type>\t */ + 1 + 1 /* \0 */;
+    (*out)[i+has_status] = malloc(size);
+    ns(Numeric_table_t) nv = ns(Metric_metric_value(m));
+    snprintf((*out)[i], size, "M\t%s\t%s\t%s\t%c\t%s",
+             ts, uuid_str, metric_name, ns(Numeric_type(nv)), "1");
+    
+  }
+
+ bad_line:
+  if(*out) {
+    int i;
+    for(i=0; i<cnt + has_status; i++) if((*out)[i]) free((*out)[i]);
+    free(*out);
+    *out = NULL;
+  }
+  if(error_str) mtevL(noit_error, "bundle: bad line due to %s\n", error_str);
+ good_line:
+  return cnt + has_status;
+ 
+}
+
+int
+noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) 
+{
+  if(len < 3) return 0;
+  if(line[0] != 'B' || line[2] != '\t') return 0;
+  switch(line[1]) {
+    case '1':
+      return noit_check_log_b12_to_sm(line, len, out, noit_ip, NOIT_COMPRESS_ZLIB);
+    case '2':
+      return noit_check_log_b12_to_sm(line, len, out, noit_ip, NOIT_COMPRESS_NONE);
+    case 'F':
+      return noit_check_log_bf_to_sm(line, len, out, noit_ip);
+    default: return 0;
+  }
 }

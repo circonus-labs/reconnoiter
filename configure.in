@@ -302,6 +302,7 @@ AC_CHECK_LIB(rt, sem_init, , [
 ])
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
+AC_CHECK_LIB(flatccrt, flatcc_builder_init, , )
 
 AC_CHECK_HEADERS(priv.h)
 AC_CHECK_FUNCS(setppriv)

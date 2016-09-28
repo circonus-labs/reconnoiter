@@ -119,6 +119,26 @@ FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
 FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 FINAL_LIBNOIT_OBJS=$(LIBNOIT_OBJS:%.lo=libnoit-objs/%.lo)
 
+FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
+	flatbuffers/flatbuffers_common_reader.h \
+	flatbuffers/metric_builder.h \
+	flatbuffers/metric_json_parser.h \
+	flatbuffers/metric_json_printer.h \
+	flatbuffers/metric_reader.h \
+	flatbuffers/metric_verifier.h 
+
+flatbuffers/metric_builder.h: flatbuffers/metric.fbs
+	flatcc -a -o flatbuffers --json flatbuffers/metric.fbs
+
+flatbuffers/metric.fbs:
+
+flatbuffers/flatbuffers_common_builder.h: flatbuffers/metric_builder.h
+flatbuffers/flatbuffers_common_reader.h: flatbuffers/metric_builder.h
+flatbuffers/metric_json_parser.h: flatbuffers/metric_builder.h
+flatbuffers/metric_json_printer.h: flatbuffers/metric_builder.h
+flatbuffers/metric_reader.h: flatbuffers/metric_builder.h
+flatbuffers/metric_verifier.h: flatbuffers/metric_builder.h
+
 noit-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
@@ -175,8 +195,8 @@ man/noitd.usage.h:	make-man
 man/stratcond.usage.h:	make-man
 
 
-noitd.o:	man/noitd.usage.h
-stratcond.o:	man/stratcond.usage.h
+noitd.o:	$(FLATBUFFERS_HEADERS) man/noitd.usage.h
+stratcond.o:	$(FLATBUFFERS_HEADERS) man/stratcond.usage.h
 
 stratcon_jlog_streamer.o:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
 noit_check_tools.o:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
@@ -188,7 +208,7 @@ $(LIBNOIT):	$(LIBNOIT_V)
 
 $(LIBNOIT_V):	$(FINAL_LIBNOIT_OBJS)
 	@echo "- linking $@"
-	$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. -lmtev
+	$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. -lmtev -llz4 -lflatccrt
 
 stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 	@echo "- assembling $@" && \
@@ -222,7 +242,7 @@ noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(MAPFLAGS) \
-		$(LIBS) -L. -lmtev $(LUALIBS) -ljlog
+		$(LIBS) -L. -lmtev $(LUALIBS) -ljlog -lflatccrt -llz4
 	@if test -x "$(CTFMERGE)" ; then \
 		$(CTFMERGE) $(CTFNOSTRIP) -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
 	fi
@@ -233,7 +253,7 @@ stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 		$(STRATCOND_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(MAPFLAGS) \
-		$(LIBS) -L. -lmtev
+		$(LIBS) -L. -lmtev -lflatccrt -llz4
 	@if test -x "$(CTFMERGE)" ; then \
 		$(CTFMERGE) $(CTFNOSTRIP) -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
 	fi
@@ -381,6 +401,7 @@ clean:
 	rm -f module-online.h noit.env
 	rm -rf noit-objs stratcon-objs libnoit-objs
 	rm -rf mdb-support/*.lo mdb-support/*.so
+	rm -rf $(FLATBUFFERS_HEADERS)
 	(cd man && $(MAKE) clean)
 	(cd modules && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
