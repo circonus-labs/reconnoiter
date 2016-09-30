@@ -708,6 +708,10 @@ noit_module_t ping_icmp = {
   ping_icmp_config,
   ping_icmp_init,
   ping_icmp_initiate_check,
-  ping_check_cleanup
+  ping_check_cleanup,
+  /* all ping checks share a single socket, so we're operationally
+   * mostly single-threaded already. no benefit to having checks
+   * run in multiple threads. */
+  .thread_unsafe = 1
 };
 
