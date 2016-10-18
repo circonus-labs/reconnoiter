@@ -231,14 +231,6 @@ function initiate(module, check)
             stat_table = namespace_table[name]
           end
         end
-        for k, v in ipairs(stat_table) do
-          local met_name = name
-          if v ~= 'Average' then
-            met_name = name .. "_" .. v
-          end
-          check.metric_double(met_name, nil)
-          metric_count = metric_count + 1
-        end
       end
     end
   end
