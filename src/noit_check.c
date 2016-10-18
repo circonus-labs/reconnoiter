@@ -541,6 +541,32 @@ noit_check_fake_last_check(noit_check_t *check,
   /* now, we're going to do an even distribution using the slots */
   if(!(check->flags & NP_TRANSIENT)) check_slots_inc_tv(&lc_copy);
 }
+char*
+noit_check_section_path(mtev_conf_section_t sec) {
+  xmlNodePtr node, parent;
+  mtev_prependable_str_buff_t *path;
+
+  node = (xmlNodePtr) sec;
+  char *path_str;
+  int path_str_len;
+
+  path = mtev_prepend_str_alloc();
+
+  mtev_prepend_str(path, "/", 1);
+  parent = node->parent;
+  while (parent && strcmp((char*) parent->name, CHECKS_XPATH_PARENT)) {
+    mtev_prepend_str(path, (char*) parent->name, strlen((char*) parent->name));
+    mtev_prepend_str(path, "/", 1);
+    parent = parent->parent;
+  }
+
+  path_str_len = mtev_prepend_strlen(path);
+  path_str = malloc(path_str_len + 1);
+  memcpy(path_str, path->string, path_str_len);
+  mtev_prepend_str_free(path);
+  path_str[path_str_len] = '\0';
+  return path_str;
+}
 void
 noit_poller_process_checks(const char *xpath) {
   int i, flags, cnt = 0, found;
@@ -678,10 +704,12 @@ noit_poller_process_checks(const char *xpath) {
       if(found) noit_check_log_delete((noit_check_t *)vcheck);
     }
     else {
+      char *path = noit_check_section_path(sec[i]);
       noit_poller_schedule(target, module, name, filterset, options,
                            moptions_used ? moptions : NULL,
                            period, timeout, oncheck[0] ? oncheck : NULL,
-                           config_seq, flags, uuid, out_uuid);
+                           config_seq, flags, uuid, out_uuid, path);
+      free(path);
       mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
     }
     for(ridx=0; ridx<reg_module_id; ridx++) {
@@ -1166,7 +1194,8 @@ noit_check_update(noit_check_t *new_check,
                   u_int32_t timeout,
                   const char *oncheck,
                   int64_t seq,
-                  int flags) {
+                  int flags,
+                  char *path) {
   char uuid_str[37];
   int mask = NP_DISABLED | NP_UNCONFIG;
 
@@ -1197,7 +1226,7 @@ noit_check_update(noit_check_t *new_check,
     noit_poller_deschedule(id, mtev_false);
     return noit_poller_schedule(target, module, name, filterset,
                                 config, mconfigs, period, timeout, oncheck,
-                                seq, flags, id, dummy);
+                                seq, flags, id, dummy, path);
   }
 
   new_check->generation = __config_load_generation;
@@ -1308,7 +1337,8 @@ noit_poller_schedule(const char *target,
                      int64_t seq,
                      int flags,
                      uuid_t in,
-                     uuid_t out) {
+                     uuid_t out,
+                     char *path) {
   noit_check_t *new_check;
   new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
   mtevAssert(new_check != NULL);
@@ -1319,10 +1349,11 @@ noit_poller_schedule(const char *target,
     uuid_generate(new_check->checkid);
   else
     uuid_copy(new_check->checkid, in);
+  new_check->path = strdup(path);
 
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
-                    period, timeout, oncheck, seq, flags);
+                    period, timeout, oncheck, seq, flags, path);
   mtevAssert(mtev_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
@@ -1419,6 +1450,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
   mtev_memory_safe_free(stats_previous(checker));
 
   free(checker->statistics);
+  free(checker->path);
 
   mtev_memory_safe_free(checker);
 }
@@ -1666,18 +1698,6 @@ noit_poller_lookup_by_module(const char *ip, const char *mod,
   return noit_poller_target_do(ip, ip_module_collector, &crutch);
 }
 
-xmlNodePtr
-noit_get_check_xml_node(noit_check_t *check) {
-  char xpath[1024];
-  xmlNodePtr node;
-  noit_check_xpath_check(xpath, sizeof(xpath), check);
-
-  pthread_mutex_lock(&conf_lock);
-  node = mtev_conf_get_section(NULL, xpath);
-  pthread_mutex_unlock(&conf_lock);
-  return node;
-}
-
 int
 noit_check_xpath_check(char *xpath, int len,
                   noit_check_t *check) {
@@ -1721,36 +1741,6 @@ noit_check_xpath(char *xpath, int len,
              base, base_trailing_slash ? "" : "/", uuid_str);
   }
   return strlen(xpath);
-}
-
-char*
-noit_check_path(noit_check_t *check) {
-  xmlNodePtr node, parent;
-  mtev_prependable_str_buff_t *path;
-  char *path_str;
-  int path_str_len;
-
-  path = mtev_prepend_str_alloc();
-
-  node = noit_get_check_xml_node(check);
-  if(node == NULL) {
-    return NULL;
-  }
-
-  mtev_prepend_str(path, "/", 1);
-  parent = node->parent;
-  while(parent && strcmp((char*)parent->name, CHECKS_XPATH_PARENT)) {
-    mtev_prepend_str(path, (char*)parent->name, strlen((char*)parent->name));
-    mtev_prepend_str(path, "/", 1);
-    parent = parent->parent;
-  }
-
-  path_str_len = mtev_prepend_strlen(path);
-  path_str = malloc(path_str_len+1);
-  memcpy(path_str, path->string, path_str_len);
-  mtev_prepend_str_free(path);
-  path_str[path_str_len] = '\0';
-  return path_str;
 }
 
 static int

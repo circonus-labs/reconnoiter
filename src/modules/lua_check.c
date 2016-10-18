@@ -696,9 +696,7 @@ noit_check_index_func(lua_State *L) {
     case 'p':
       if(!strcmp(k, "period")) lua_pushinteger(L, check->period);
       else if(!strcmp(k, "path")) {
-        char *path = noit_check_path(check);
-        lua_pushstring(L, path);
-        free(path);
+        lua_pushstring(L, check->path);
       }
       else break;
       return 1;

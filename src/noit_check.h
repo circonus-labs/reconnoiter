@@ -143,6 +143,8 @@ typedef struct noit_check {
   int64_t config_seq;          /* If non-zero, must increase */
 
   void *statistics;
+
+  char *path;
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
@@ -184,7 +186,8 @@ API_EXPORT(int)
                        int64_t seq,
                        int flags,
                        uuid_t in,
-                       uuid_t out);
+                       uuid_t out,
+                       char *path);
 
 API_EXPORT(int)
   noit_check_resolve(noit_check_t *check);
@@ -200,7 +203,8 @@ API_EXPORT(int)
                     u_int32_t timeout,
                     const char *oncheck,
                     int64_t seq,
-                    int flags);
+                    int flags,
+                    char *path);
 
 API_EXPORT(mtev_boolean)
   noit_check_is_valid_target(const char *str);
