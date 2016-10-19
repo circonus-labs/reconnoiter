@@ -69,8 +69,6 @@
 #define CHECKS_XPATH_PARENT "checks"
 #define CHECKS_XPATH_BASE CHECKS_XPATH_ROOT "/" CHECKS_XPATH_PARENT
 
-static pthread_mutex_t conf_lock = PTHREAD_MUTEX_INITIALIZER;
-
 MTEV_HOOK_IMPL(check_config_fixup,
   (noit_check_t *check),
   void *, closure,
@@ -1672,9 +1670,7 @@ noit_get_check_xml_node(noit_check_t *check) {
   xmlNodePtr node;
   noit_check_xpath_check(xpath, sizeof(xpath), check);
 
-  pthread_mutex_lock(&conf_lock);
   node = mtev_conf_get_section(NULL, xpath);
-  pthread_mutex_unlock(&conf_lock);
   return node;
 }
 
