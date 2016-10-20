@@ -422,6 +422,8 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   if(!uuid_conf || uuid_parse(uuid_conf, checkid)) goto error;
 
   if(npats == 3 && !strcmp(pats[2], ".json")) {
+    if(uuid_conf) xmlFree(uuid_conf);
+    if(pobj) xmlXPathFreeObject(pobj);
     return rest_show_check_json(restc, checkid);
   }
 
