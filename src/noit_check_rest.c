@@ -396,7 +396,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   xmlNodePtr node, root, attr, config, state, tmp, anode;
   uuid_t checkid;
   noit_check_t *check;
-  char xpath[1024], *uuid_conf, *module = NULL, *value = NULL;
+  char xpath[1024], *uuid_conf = NULL, *module = NULL, *value = NULL;
   int rv, mod, mod_cnt, cnt, error_code = 500;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
@@ -543,6 +543,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
@@ -791,7 +792,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   uuid_t checkid;
   noit_check_t *check;
   const char *error;
-  char xpath[1024], *uuid_conf;
+  char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
 
@@ -843,6 +844,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   (void)error;
   return 0;
@@ -858,7 +860,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   xmlNodePtr node, root, attr, config, parent;
   uuid_t checkid;
   noit_check_t *check;
-  char xpath[1024], *uuid_conf;
+  char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
@@ -980,6 +982,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
