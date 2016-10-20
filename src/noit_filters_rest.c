@@ -118,18 +118,26 @@ make_conf_path(char *path) {
   return start;
 }
 static xmlNodePtr
-validate_filter_post(xmlDocPtr doc) {
+validate_filter_post(xmlDocPtr doc, char *name) {
   xmlNodePtr root, r;
+  char *old_name;
   root = xmlDocGetRootElement(doc);
   if(!root) return NULL;
   if(strcmp((char *)root->name, "filterset")) return NULL;
-  if(xmlHasProp(root, (xmlChar *)"name")) return NULL;
+
+  old_name = (char *)xmlGetProp(root, (xmlChar *)"name");
+  if(old_name == NULL) {
+    xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
+  } else if(strcmp(old_name, name)) {
+    return NULL;
+  }
+
   if(!root->children) return NULL;
   for(r = root->children; r; r = r->next) {
     char *type;
     if(strcmp((char *)r->name, "rule")) return NULL;
     type = (char *)xmlGetProp(r, (xmlChar *)"type");
-    if(!type || (strcmp(type, "deny") && strcmp(type, "accept"))) {
+    if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow"))) {
       if(type) xmlFree(type);
       return NULL;
     }
@@ -218,8 +226,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
     goto error;
   }
 
-  if((newfilter = validate_filter_post(indoc)) == NULL) goto error;
-  xmlSetProp(newfilter, (xmlChar *)"name", (xmlChar *)pats[1]);
+  if((newfilter = validate_filter_post(indoc, pats[1])) == NULL) goto error;
 
   parent = make_conf_path(pats[0]);
   if(!parent) FAIL("invalid path");
