@@ -264,6 +264,8 @@ noit_filter_remove(mtev_conf_section_t vnode) {
   removed = mtev_hash_delete(filtersets, name, strlen(name),
                              NULL, filterset_free);
   UNLOCKFS();
+  xmlFree(name);
+
   return removed;
 }
 void

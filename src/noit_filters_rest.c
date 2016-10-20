@@ -128,9 +128,11 @@ validate_filter_post(xmlDocPtr doc, char *name) {
   old_name = (char *)xmlGetProp(root, (xmlChar *)"name");
   if(old_name == NULL) {
     xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
-  } else if(strcmp(old_name, name)) {
+  } else if(name == NULL || strcmp(old_name, name)) {
+    xmlFree(old_name);
     return NULL;
   }
+  if(old_name) xmlFree(old_name);
 
   if(!root->children) return NULL;
   for(r = root->children; r; r = r->next) {

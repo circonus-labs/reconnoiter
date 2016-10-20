@@ -386,6 +386,7 @@ noit_console_watch_check(mtev_console_closure_t ncct,
                 (char *)xmlGetNodePath(node) + strlen("/noit"));
       continue;
     }
+    xmlFree(uuid_conf);
     if(period == 0) {
       check = noit_poller_lookup(checkid);
       if(!check) continue;
@@ -515,7 +516,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
       continue;
     }
     nc_printf(ncct, "==== %s ====\n", uuid_conf);
-    free(uuid_conf);
+    xmlFree(uuid_conf);
 
 #define MYATTR(a,n,b) _mtev_conf_get_string(node, &(n), "@" #a, &(b))
 #define INHERIT(a,n,b) \
@@ -680,6 +681,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
       }
       mtev_conf_mark_changed();
     }
+    xmlFree(uuid_conf);
   }
   if(argc > 1) {
     noit_poller_process_checks(xpath);
