@@ -60,6 +60,9 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_filter_exists(const char *name);
 
+API_EXPORT(int)
+  noit_filter_get_seq(const char *name, int64_t *seq);
+
 API_EXPORT(void)
   noit_filters_rest_init();
 

@@ -118,9 +118,11 @@ make_conf_path(char *path) {
   return start;
 }
 static xmlNodePtr
-validate_filter_post(xmlDocPtr doc, char *name) {
-  xmlNodePtr root, r;
+validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq) {
+  xmlNodePtr root, r, previous_child;
   char *old_name;
+
+  if(seq) *seq = 0;
   root = xmlDocGetRootElement(doc);
   if(!root) return NULL;
   if(strcmp((char *)root->name, "filterset")) return NULL;
@@ -135,16 +137,36 @@ validate_filter_post(xmlDocPtr doc, char *name) {
   if(old_name) xmlFree(old_name);
 
   if(!root->children) return NULL;
+  previous_child = root;
   for(r = root->children; r; r = r->next) {
+#define CHECK_N_SET(a) if(!strcmp((char *)r->name, #a))
     char *type;
-    if(strcmp((char *)r->name, "rule")) return NULL;
-    type = (char *)xmlGetProp(r, (xmlChar *)"type");
-    if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow"))) {
+    CHECK_N_SET(rule) {
+      type = (char *)xmlGetProp(r, (xmlChar *)"type");
+      if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow"))) {
+        if(type) xmlFree(type);
+        return NULL;
+      }
       if(type) xmlFree(type);
+    }
+    else CHECK_N_SET(seq) {
+      xmlChar *v = xmlNodeGetContent(r);
+      if(v) xmlSetProp(root, r->name, v);
+      else xmlUnsetProp(root, r->name);
+      xmlUnlinkNode(r);
+      xmlFreeNode(r);
+      r = previous_child;
+
+      *seq = strtoll((const char *)v, NULL, 10);
+
+      xmlFree(v);
+    }
+    else {
       return NULL;
     }
-    if(type) xmlFree(type);
+    previous_child = r;
   }
+
   return root;
 }
 static int
@@ -211,6 +233,8 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   xmlNodePtr node, parent, root, newfilter;
   char xpath[1024];
   int error_code = 500, complete = 0, mask = 0;
+  mtev_boolean exists;
+  int64_t old_seq, seq;
   const char *error = "internal error";
 
   if(npats != 2) goto error;
@@ -222,13 +246,18 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
   node = mtev_conf_get_section(NULL, xpath);
-  if(!node && noit_filter_exists(pats[1])) {
+  exists = noit_filter_get_seq(pats[1], &old_seq);
+  if(!node && exists == mtev_true) {
     /* It's someone else's */
     error_code = 403;
     goto error;
   }
 
-  if((newfilter = validate_filter_post(indoc, pats[1])) == NULL) goto error;
+  if((newfilter = validate_filter_post(indoc, pats[1], &seq)) == NULL) goto error;
+  if(exists && old_seq > seq) {
+    error_code = 403;
+    goto error;
+  }
 
   parent = make_conf_path(pats[0]);
   if(!parent) FAIL("invalid path");
