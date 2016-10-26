@@ -234,7 +234,8 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   char xpath[1024];
   int error_code = 500, complete = 0, mask = 0;
   mtev_boolean exists;
-  int64_t old_seq, seq;
+  int64_t seq;
+  uint64_t old_seq;
   const char *error = "internal error";
 
   if(npats != 2) goto error;
@@ -254,7 +255,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   }
 
   if((newfilter = validate_filter_post(indoc, pats[1], &seq)) == NULL) goto error;
-  if(exists && old_seq > seq) {
+  if(exists && (old_seq >= seq || seq == 0)) {
     error_code = 403;
     goto error;
   }
