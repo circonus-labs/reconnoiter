@@ -86,6 +86,7 @@ typedef struct _filterrule {
 typedef struct {
   mtev_atomic32_t ref_cnt;
   char *name;
+  uint64_t seq;
   filterrule_t *rules;
 } filterset_t;
 
@@ -129,6 +130,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   int j, fcnt;
   char filterset_name[256];
   filterset_t *set;
+  int64_t seq = 0;
   if(!mtev_conf_get_stringbuf(setinfo, "@name",
                               filterset_name, sizeof(filterset_name))) {
     mtevL(noit_error,
@@ -138,6 +140,9 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   set = calloc(1, sizeof(*set));
   set->ref_cnt = 1;
   set->name = strdup(filterset_name);
+  mtev_conf_get_int64(setinfo, "@seq", &seq);
+  assert(seq>=0);
+  set->seq = seq;
 
   rules = mtev_conf_get_sections(setinfo, "rule", &fcnt);
   /* Here we will work through the list backwards pushing the rules on
@@ -255,6 +260,20 @@ noit_filter_exists(const char *name) {
   UNLOCKFS();
   return exists;
 }
+
+int
+  noit_filter_get_seq(const char *name, uint64_t *seq) {
+  int exists;
+  void *v;
+  LOCKFS();
+  exists = mtev_hash_retrieve(filtersets, name, strlen(name), &v);
+  UNLOCKFS();
+  if(exists && seq != NULL) {
+    *seq = ((filterset_t*)v)->seq;
+  }
+  return exists;
+}
+
 int
 noit_filter_remove(mtev_conf_section_t vnode) {
   int removed;
