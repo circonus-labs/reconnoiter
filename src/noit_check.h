@@ -140,7 +140,7 @@ typedef struct noit_check {
   void **module_metadata;
   mtev_hash_table **module_configs;
   struct timeval initial_schedule_time;
-  int64_t config_seq;          /* If non-zero, must increase */
+  uint64_t config_seq;          /* If non-zero, must increase */
 
   void *statistics;
 } noit_check_t;
