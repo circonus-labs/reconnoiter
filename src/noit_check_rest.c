@@ -889,7 +889,8 @@ rest_set_check(mtev_http_rest_closure_t *restc,
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
     if(exists) { error_code = 403; FAIL("uuid not yours"); }
     else {
-      int64_t seq, old_seq = 0;
+      int64_t seq;
+      uint64_t old_seq = 0;
       char *target = NULL, *name = NULL, *module = NULL;
       noit_module_t *m = NULL;
       noit_check_t *check = NULL;
@@ -917,13 +918,14 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       parent = make_conf_path(pats[0]);
       if(!parent) FAIL("invalid path");
       configure_xml_check(parent, newcheck, attr, config, &seq);
-      if(old_seq > seq) FAIL("invalid sequence");
+      if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
       xmlAddChild(parent, newcheck);
       CONF_DIRTY(newcheck);
     }
   }
   if(exists) {
-    int64_t seq, old_seq = 0;
+    int64_t seq;
+    uint64_t old_seq = 0;
     int module_change;
     char *target = NULL, *name = NULL, *module = NULL;
     xmlNodePtr a;
@@ -956,7 +958,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     if(!parent) FAIL("invalid path");
     configure_xml_check(parent, node, attr, config, &seq);
     if(check) old_seq = check->config_seq;
-    if(old_seq > seq) FAIL("invalid sequence");
+    if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
     CONF_DIRTY(node);
