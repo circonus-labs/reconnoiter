@@ -27,10 +27,11 @@ public class mongodb implements JezebelCheck {
       url = "mongodb://" + user + ":" + pass + "@" + host + ":" + port + "/" + dbname;
     }
 
+    MongoClient client = null;
     try {
       Date t1 = new Date();
       MongoClientURI uri  = new MongoClientURI(url);
-      MongoClient client = new MongoClient(uri);
+      client = new MongoClient(uri);
       DB db = client.getDB(uri.getDatabase());
       Date t2 = new Date();
       rr.set("connect_duration", t2.getTime() - t1.getTime());
@@ -55,6 +56,9 @@ public class mongodb implements JezebelCheck {
     }
     catch (Exception e) {
       rr.set("jezebel_status", e.getMessage());
+    }
+    finally {
+      client.close();
     }
   }
 
