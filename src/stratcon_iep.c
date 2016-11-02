@@ -104,7 +104,7 @@ stratcon_iep_age_from_line(char *data, struct timeval now) {
   if(data && (*data == 'S' || *data == 'M')) {
     if(data[1] != '\t') return 0;
     t = strtod(data + 2, NULL);
-    n = (float)now.tv_sec + (float)now.tv_usec / 1000000.0;
+    n = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
     return n - t;
   }
   return 0;
