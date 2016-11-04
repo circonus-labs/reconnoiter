@@ -100,8 +100,10 @@ public abstract class StratconMessage {
         ms = Long.valueOf(time).longValue() * 1000;
       }
       else {
+        // protect against abnormally precise timestamps by setting the ending offset for the ms
+        int msendoff = (time.length() >= off+4) ? off+4 : time.length();
         ms = Long.valueOf(time.substring(0,off)).longValue() * 1000;
-        ms = ms + Long.valueOf(time.substring(off+1)).longValue();
+        ms = ms + Long.valueOf(time.substring(off+1,msendoff)).longValue();
       }
     }
     catch (NumberFormatException e) {
