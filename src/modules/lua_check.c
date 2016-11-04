@@ -401,7 +401,7 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
   noit_check_t *check;
   const char *metric_name;
   metric_type_t metric_type;
-  struct timeval whence;
+  struct timeval whence = { 0UL, 0UL };
 
   double __n = 0.0;
   int32_t __i = 0;
@@ -420,6 +420,9 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
     if(lua_gettop(L) == 4) {
       whence.tv_usec = lua_tointeger(L, 4);
     }
+    if(whence.tv_sec < 0) whence.tv_sec = 0;
+    if(whence.tv_usec < 0 || whence.tv_usec >= 1000000)
+      whence.tv_usec = 0;
   } else {
     gettimeofday(&whence, NULL);
   }
