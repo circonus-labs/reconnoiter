@@ -34,6 +34,7 @@
 #include <mtev_defines.h>
 
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -793,10 +794,17 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
   
   for(i=0; i<n; i++) {
     char buff[256];
+    char remote_dedup_key[2048];
+    void *vcn;
+    const char *config_cn = NULL;
     const char *feedtype = "unknown", *state = "unknown";
     mtev_connection_ctx_t *ctx = ctxs[i];
     jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
 
+    if(ctx->config &&
+       mtev_hash_retrieve(ctx->config, "cn", strlen("cn"), &vcn)) {
+      config_cn = vcn;
+    }
     feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
 
     /* If the user requested a specific type and we're not it, skip. */
@@ -814,6 +822,9 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
     snprintf(buff, sizeof(buff), "%llu.%06d",
              (long long unsigned)ctx->last_connect.tv_sec,
              (int)ctx->last_connect.tv_usec);
+    if(config_cn) {
+      json_object_object_add(node, "cn", json_object_new_string(config_cn));
+    }
     json_object_object_add(node, "last_connect", json_object_new_string(buff));
     json_object_object_add(node, "state",
          json_object_new_string(ctx->remote_cn ?
@@ -846,7 +857,9 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
         }
       }
     }
-    mtev_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
+    snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s",
+             config_cn ? config_cn : "", ctx->remote_str);
+    mtev_hash_replace(&seen, strdup(remote_dedup_key), strlen(remote_dedup_key),
                       0, free, NULL);
     json_object_object_add(node, "remote", json_object_new_string(ctx->remote_str));
     json_object_object_add(node, "type", json_object_new_string(feedtype));
@@ -906,7 +919,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
     snprintf(path, sizeof(path), "//noits//noit");
     noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
     for(di=0; di<cnt; di++) {
-      char address[64], port_str[32], remote_str[98];
+      char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn_buff, sizeof(expected_cn_buff)))
@@ -923,8 +936,10 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
           if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
             continue;
 
+        snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s:%s",
+                 expected_cn ? expected_cn : "", address, port_str);
         snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
-        if(!mtev_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
+        if(!mtev_hash_retrieve(&seen, remote_dedup_key, strlen(remote_dedup_key), &v)) {
           node = json_object_new_object();
           json_object_object_add(node, "remote", json_object_new_string(remote_str));
           json_object_object_add(node, "type", json_object_new_string("configured"));
@@ -1006,9 +1021,17 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
 
   for(i=0; i<n; i++) {
     char buff[256];
+    char remote_dedup_key[2048];
+    void *vcn;
     const char *feedtype = "unknown", *state = "unknown";
+    const char *config_cn = NULL;
     mtev_connection_ctx_t *ctx = ctxs[i];
     jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
+
+    if(ctx->config &&
+       mtev_hash_retrieve(ctx->config, "cn", strlen("cn"), &vcn)) {
+      config_cn = vcn;
+    }
 
     feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
 
@@ -1027,6 +1050,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
     snprintf(buff, sizeof(buff), "%llu.%06d",
              (long long unsigned)ctx->last_connect.tv_sec,
              (int)ctx->last_connect.tv_usec);
+    if(config_cn) xmlSetProp(node, (xmlChar *)"cn", (xmlChar *)config_cn);
     xmlSetProp(node, (xmlChar *)"last_connect", (xmlChar *)buff);
     xmlSetProp(node, (xmlChar *)"state", ctx->remote_cn ?
                (xmlChar *)"connected" :
@@ -1058,7 +1082,9 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
         }
       }
     }
-    mtev_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
+    snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s",
+             config_cn ? config_cn : "", ctx->remote_str);
+    mtev_hash_replace(&seen, strdup(remote_dedup_key), strlen(remote_dedup_key),
                       0, free, NULL);
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
@@ -1119,7 +1145,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
     snprintf(path, sizeof(path), "//noits//noit");
     noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
     for(di=0; di<cnt; di++) {
-      char address[64], port_str[32], remote_str[98];
+      char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn_buff, sizeof(expected_cn_buff)))
@@ -1136,8 +1162,10 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
           if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
             continue;
 
+        snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s:%s",
+                 expected_cn ? expected_cn : "", address, port_str);
         snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
-        if(!mtev_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
+        if(!mtev_hash_retrieve(&seen, remote_dedup_key, strlen(remote_dedup_key), &v)) {
           node = xmlNewNode(NULL, (xmlChar *)"noit");
           xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)remote_str);
           xmlSetProp(node, (xmlChar *)"type", (xmlChar *)"configured");
