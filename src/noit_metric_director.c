@@ -120,7 +120,7 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
     int found;
     uuid_t *copy = malloc(UUID_SIZE);
     level2 = calloc(1,sizeof(*level2));
-    mtev_hash_init(level2);
+    mtev_hash_init_locks(level2, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
     uuid_copy(*copy, id);
     if(!mtev_hash_store(&id_level, (const char *)copy, UUID_SIZE, level2)) {
       free(copy);
@@ -291,5 +291,5 @@ void noit_metric_director_init() {
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
 }
 void noit_metric_director_init_globals(void) {
-  mtev_hash_init(&id_level);
+  mtev_hash_init_locks(&id_level, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
 }
