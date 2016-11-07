@@ -37,6 +37,8 @@
 #include <ck_fifo.h>
 #include <mtev_fq.h>
 
+#include <openssl/md5.h>
+
 #include <noit_metric_director.h>
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
@@ -52,8 +54,10 @@ static __thread struct {
 static int nthreads;
 static volatile void **thread_queues;
 static mtev_hash_table id_level;
+static mtev_hash_table dedupe_hashes;
 typedef unsigned short caql_cnt_t;
 static caql_cnt_t *check_interests;
+static mtev_boolean dedupe = mtev_true;
 
 static void noit_metric_director_free_message(noit_metric_message_t* message) {
   if(message->original_message) {
@@ -189,8 +193,104 @@ distribute_check(noit_metric_message_t *message) {
   distribute_message_with_interests(check_interests, message);
 }
 
+static mtev_hash_table *
+get_dedupe_hash(uint64_t whence_ms)
+{
+  uint64_t ts = whence_ms / 1000;
+
+  mtev_hash_table *hash;
+
+  if (mtev_hash_retrieve(&dedupe_hashes, (const char *)&ts, sizeof(ts), (void **)&hash) == 1) {
+    return hash;
+  } else {
+    hash = calloc(1, sizeof(mtev_hash_table));
+    mtev_hash_init_locks(hash, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+    uint64_t *stored_ts = calloc(1, sizeof(uint64_t));
+    *stored_ts = ts;
+    if (mtev_hash_store(&dedupe_hashes, (const char *)stored_ts, sizeof(*stored_ts), hash) == 0) {
+      /* ugh, someone beat us */
+      free(stored_ts);
+      mtev_hash_destroy(hash, NULL, NULL);
+      free(hash);
+      if (mtev_hash_retrieve(&dedupe_hashes, (const char *)&ts, sizeof(ts), (void **)&hash) == 0) {
+        return NULL;
+      }        
+    }
+  }
+  return hash;
+}
+
+static void
+prune_old_dedupe_hashes()
+{
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  uint64_t now = mtev_gethrtime() / 1000000;
+  const char *k;
+  int klen;
+  void *data;
+
+  struct removable_hashes {
+    uint64_t key;
+    void *data;
+    struct removable_hashes *next;
+  };
+
+  struct removable_hashes *head = NULL;
+  struct removable_hashes *tail = NULL;
+
+  /* build a list of expirable items */
+  while(mtev_hash_next(&dedupe_hashes, &iter, &k, &klen, &data)) {
+    uint64_t *ts = (uint64_t *)k;
+    if (now > *ts && now - *ts > 10) {
+      struct removable_hashes *h = calloc(1, sizeof(struct removable_hashes));
+      h->key = *ts;
+      if (tail != NULL) {
+        tail->next = h;
+      }
+      tail = h;
+
+      if (head == NULL) {
+        head = tail;
+      }
+    }
+  }
+
+  /* expire them */
+  while (head != NULL) {
+    mtev_hash_delete(&dedupe_hashes, (const char *)&head->key, sizeof(head->key), free, NULL);
+    mtev_hash_destroy((mtev_hash_table *)head->data, free, NULL);
+    struct removable_hashes *prev = head;
+    head = head->next;
+    free(prev);
+  }
+  
+}
+
 static void
 distribute_message(noit_metric_message_t *message) {
+
+  if (dedupe && message->original_message_len > 0) {
+    unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
+    MD5((unsigned char*)message->original_message, message->original_message_len, digest);
+
+    mtev_hash_table *hash = get_dedupe_hash(message->value.whence_ms);
+    if (hash) {
+      int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
+      if (x == 0) {
+        /* this is a dupe */
+        free(digest);
+        return;
+      }
+    } else {
+      free(digest);
+    }
+
+    /* TODO, move this to a timer event? */
+    if ((mtev_gethrtime() / 1000000) % 10 == 0) {
+      prune_old_dedupe_hashes();
+    }
+  }
+
   if(message->type == 'H' || message->type == 'M') {
     distribute_metric(message);
   } else {
@@ -230,6 +330,7 @@ handle_metric_buffer(const char *payload, int payload_len,
 
         message->type = copy[0];
         message->original_message = copy;
+        message->original_message_len = payload_len;
         noit_metric_director_message_ref(message);
 
         int rv = noit_message_decoder_parse_line(copy, payload_len,
@@ -281,6 +382,12 @@ handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whenc
   return MTEV_HOOK_CONTINUE;
 }
 
+void
+noit_metric_director_dedupe(mtev_boolean d) 
+{
+  dedupe = d;
+}
+
 void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
@@ -292,4 +399,5 @@ void noit_metric_director_init() {
 }
 void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&id_level, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_locks(&dedupe_hashes, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
 }

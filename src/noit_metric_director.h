@@ -34,7 +34,20 @@
 #include <uuid/uuid.h>
 #include "noit_message_decoder.h"
 
+/**
+ * Funnel metrics to certain threads for processing.
+ * 
+ * The director will de-duplicate the incoming messages on a 10 second window based on an md5 of the incoming
+ * message contents.  If you don't want messages de-deplicated, switch it off using the noit_metric_director_dedupe(mtev_false)
+ * call.
+ * 
+ */
 void noit_metric_director_init();
+
+/**
+ * see init(), will dedupe by default.  Pass mtev_false to switch it off 
+ */
+void noit_metric_directory_dedupe(mtev_boolean dedupe);
 
 /* Tells noit to funnel all observed lines matching this id-metric
  * back to this thread */
