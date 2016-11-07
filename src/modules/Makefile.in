@@ -49,9 +49,7 @@ LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so
 SMODULES=@BUILD_SMODULES@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
-LUA_MODULE_LINKS=noit_binding.so snmp.so
-
-all:	$(MODULES) $(SMODULES) $(LUA_MODULES) $(LUA_MODULE_LINKS) test_abort.@MODULEEXT@
+all:	$(MODULES) $(SMODULES) $(LUA_MODULES) test_abort.@MODULEEXT@
 
 .xml.xmlh:
 	$(Q)$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
@@ -77,12 +75,6 @@ lua.@MODULEEXT@:  $(LUA_MODULE_OBJS)
 	@echo "- linking $@"
 
 # luajit always uses .so
-
-noit_binding.so:	noit_lua/noit_binding.so
-	$(Q)$(LN_S) -s $< $@
-
-snmp.so:	noit_lua/snmp.so
-	$(Q)$(LN_S) $< $@
 
 noit_lua/noit_binding.so:	noit_lua_noit_binding.lo $(LUA_MODULE_OBJS)
 	$(Q)mkdir -p noit_lua

@@ -73,7 +73,10 @@
   </logs>
   <modules directory="%modulesdir%">
     <loader image="lua" name="lua">
-      <config><directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory></config>
+      <config>
+        <directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory>
+        <cpath>{mtev.lua_cpath};{package.cpath};%modulesdir%/noit_lua/?.so</cpath>
+      </config>
     </loader>
     <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>
