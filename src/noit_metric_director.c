@@ -88,7 +88,7 @@ get_my_lane() {
     }
     mtevAssert(new_thread<nthreads);
     my_lane.id = new_thread;
-    mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)pthread_self(), my_lane.id);
+    mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)(uintptr_t)pthread_self(), my_lane.id);
   }
   return my_lane.id;
 }
