@@ -611,7 +611,7 @@ testconfig.prototype.start = function(cb, ntests) {
   self.on('exit', function(code, signal) {
     self.test.ok(code == 0, self._program + ' exited cleanly: ' + code + "/" + signal);
   });
-  self.on('error', function(err) { self.test.fail(self._program + ' booted: ' + err); cb(0,0); });
+  self.on('error', function(err, pid, port) { self.test.fail(self._program + ' booted: ' + err); cb(pid, port); });
   self.on('boot', function(pid, port) {
     self.test.ok(true, self._program + ' booted');
     cb(pid,port);
@@ -659,14 +659,17 @@ testconfig.prototype.start = function(cb, ntests) {
       self.emit('error', 'child is gone');
       return;
     }
-    var m = self.find_in_log(self.logfd, /process starting: (\d+)/);
-    var l = self.find_in_log(self.logfd, /mtev_listener\([^,]+, (\d+), \d+, \d+, control_dispatch,.* success/);
+    if(!self.boot_log_m)
+      self.boot_log_m = self.find_in_log(self.logfd, /process starting: (\d+)/);
+    if(!self.boot_log_l)
+      self.boot_log_l = self.find_in_log(self.logfd, /mtev_listener\([^,]+, (\d+), \d+, \d+, control_dispatch,.* success/);
+    var m = self.boot_log_m, l = self.boot_log_l;
     if(m && l) {
       self.emit('boot', m[0], l[0]);
       return;
     }
     if((new Date() - self.start) < boot_timeout) setTimeout(boot_check, 100);
-    else self.emit('error', 'boot failed');
+    else self.emit('error', 'boot failed', m ? m[0] : 0, l ? l[0] : 0);
   };
   setTimeout(boot_check, 100);
   self.L(_program + " start finished");
