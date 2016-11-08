@@ -28,6 +28,8 @@ XSLTPROC=@XSLTPROC@
 XMLLINT=@XMLLINT@
 MODULES_DIR=@MODULES_DIR@
 
+LUA_MODULES=$(shell find noit/module -name \*.lua)
+
 LUA_FILES=\
 	json.lua \
 	noit.lua \
@@ -35,33 +37,7 @@ LUA_FILES=\
 	web.lua \
 	noit/GoogleAnalytics.lua \
 	noit/AWSClient.lua \
-	noit/module/ec_console.lua \
-	noit/module/varnish.lua \
-	noit/module/smtp.lua \
-	noit/module/ssh2.lua \
-	noit/module/http.lua \
-	noit/module/haproxy.lua \
-	noit/module/jezebel.lua \
-	noit/module/keynote.lua \
-	noit/module/keynote_pulse.lua \
-	noit/module/resmon.lua \
-	noit/module/resmon/elasticsearch.lua \
-	noit/module/memcached.lua \
-	noit/module/munin.lua \
-	noit/module/tcp.lua \
-	noit/module/imap.lua \
-	noit/module/ntp.lua \
-	noit/module/nrpe.lua \
-	noit/module/redis.lua \
-	noit/module/nginx.lua \
-	noit/module/dhcp.lua \
-	noit/module/pop3.lua \
-	noit/module/monit.lua \
-	noit/module/cloudwatch.lua \
-	noit/module/cim.lua \
-	noit/module/circonuswindowsagent.lua \
-	noit/module/googleanalytics.lua \
-	noit/module/newrelic_rpm.lua
+	$(LUA_MODULES)
 
 all:
 
@@ -73,7 +49,8 @@ install:
 	done
 
 alldocs:	../../docs
-	for lua in $(LUA_FILES); do \
+	for lua in $(LUA_MODULES); do \
+		echo " - compiling docs for $$lua" ; \
 		$(LUA) extract_xml.lua $$lua tmp.xml ; \
 		test -f tmp.xml && \
 			$(XSLTPROC) ../modules/module.xsl tmp.xml | \
