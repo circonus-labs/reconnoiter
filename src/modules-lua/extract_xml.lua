@@ -34,7 +34,9 @@ bit = { }
 package.preload['noit'] = { }
 package.loaded.noit = {}
 package.preload['mtev'] = { }
-package.loaded.mtev = {}
+package.loaded.mtev = { }
+package.preload['mtev.HttpClient'] = { }
+package.loaded['mtev.HttpClient'] = { }
 package.preload['snmp'] = { }
 package.loaded.snmp = {}
 
@@ -58,6 +60,13 @@ function extract(file, outfile)
   })
 end
 
+if arg[0] == nil then
+  local newarg = {}
+  for i, v in ipairs(arg) do
+    newarg[i-1] = arg[i]
+  end
+  arg = newarg
+end
 
 if (#arg) ~= 2 then
   print(string.format("%s <module> <outputfile>\n", (arg[0])))
