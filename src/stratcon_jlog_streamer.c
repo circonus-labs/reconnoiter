@@ -1201,6 +1201,13 @@ stratcon_add_noit(const char *target, unsigned short port,
     free(noit_configs);
     if(cnt != 0) return -1;
   }
+  if(cn) {
+    snprintf(path, sizeof(path),
+             "//noits//noit/config/cn[text()=\"%s\"]", cn);
+    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    free(noit_configs);
+    if(cnt != 0) return -1;
+  }
 
   parent = mtev_conf_get_section(NULL, "//noits//include//noits");
   if(!parent) parent = mtev_conf_get_section(NULL, "//noits");
@@ -1222,13 +1229,13 @@ stratcon_add_noit(const char *target, unsigned short port,
     pthread_mutex_unlock(&noit_ip_by_cn_lock);
   }
   if(stratcon_datastore_get_enabled())
-    stratcon_streamer_connection(NULL, target, "noit",
+    stratcon_streamer_connection(NULL, cn ? cn : target, "noit",
                                  stratcon_jlog_recv_handler,
                                  (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
                                  NULL,
                                  jlog_streamer_ctx_free);
   if(stratcon_iep_get_enabled())
-    stratcon_streamer_connection(NULL, target, "noit",
+    stratcon_streamer_connection(NULL, cn ? cn : target, "noit",
                                  stratcon_jlog_recv_handler,
                                  (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
                                  NULL,
@@ -1248,6 +1255,8 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
 
   snprintf(remote_str, sizeof(remote_str), "%s:%d", target, port);
 
+  /* A sweep through the config of all noits with this address,
+   * possibly limited by CN if specified. */
   snprintf(path, sizeof(path),
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
   noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
@@ -1260,7 +1269,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
         mtev_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
                          free, free);
         pthread_mutex_unlock(&noit_ip_by_cn_lock);
-      }
+      } else continue;
     }
     else if(cn) continue;
     CONF_REMOVE(noit_configs[i]);
@@ -1270,12 +1279,35 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
   }
   free(noit_configs);
 
+  /* A sweep through the config of all noits with this CN */
+  if(cn) {
+    snprintf(path, sizeof(path),
+             "//noits/noit[self::node()/config/cn/text()=\"%s\"]", cn);
+    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    for(i=0; i<cnt; i++) {
+      pthread_mutex_lock(&noit_ip_by_cn_lock);
+      mtev_hash_delete(&noit_ip_by_cn, cn, strlen(cn), free, free);
+      pthread_mutex_unlock(&noit_ip_by_cn_lock);
+      CONF_REMOVE(noit_configs[i]);
+      xmlUnlinkNode(noit_configs[i]);
+      xmlFreeNode(noit_configs[i]);
+      n = 0;
+    }
+    free(noit_configs);
+  }
+
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * mtev_hash_size(&noits));
   while(mtev_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
-    if(!strcmp(((mtev_connection_ctx_t *)vconn)->remote_str, remote_str)) {
-      ctx[n] = (mtev_connection_ctx_t *)vconn;
+    const char *expected_cn;
+    mtev_connection_ctx_t *nctx = (mtev_connection_ctx_t *)vconn;
+    /* If the noit matches the CN... or the remote_str, pop it */
+    if((cn &&
+        mtev_hash_retr_str(nctx->config, "cn", strlen("cn"), &expected_cn) &&
+        !strcmp(expected_cn, cn)) ||
+       !strcmp(nctx->remote_str, remote_str)) {
+      ctx[n] = nctx;
       mtev_connection_ctx_ref(ctx[n]);
       n++;
     }
