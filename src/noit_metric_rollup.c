@@ -94,9 +94,8 @@ static void
 calculate_change(noit_metric_value_t *v1, noit_metric_value_t *v2,
                  double *dy, int *dt) {
   *dt = v2->whence_ms - v1->whence_ms;
-  if(v1->type == METRIC_ABSENT || v1->type == METRIC_NULL ||
-     v1->type == METRIC_STRING || v2->type == METRIC_ABSENT ||
-     v2->type == METRIC_NULL || v2->type == METRIC_STRING) {
+  if(v1->type == METRIC_ABSENT || v1->is_null || v1->type == METRIC_STRING ||
+     v2->type == METRIC_ABSENT || v2->is_null || v2->type == METRIC_STRING) {
     *dy = private_nan;
     return;
   }
@@ -275,10 +274,6 @@ static int nnt_multitype_accum_counts(nnt_multitype *a, int a_count,
     }
   }
 
-  /* special case to up-coerce an absent to a NULL */
-  if(a->type == METRIC_ABSENT && v->type == METRIC_NULL)
-    a->type = METRIC_NULL;
-
   return count;
 }
 
@@ -300,15 +295,14 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
     if (accu->first_value_time_ms >= value->whence_ms) {
       /* It's older! */
       return;
-    } else if (last_value.type != METRIC_ABSENT && last_value.type != METRIC_NULL) {
+    } else if (last_value.type != METRIC_ABSENT) {
       /* here we have last_value and value */
       /* Handle the numeric case */
       int drun = 0;
       double dy, derivative = private_nan;
       nnt_multitype current;
 
-      if (value->type == METRIC_NULL
-          || value->type == METRIC_ABSENT)
+      if (value->type == METRIC_ABSENT)
         return;
 
       /* set derivative and drun */
@@ -336,13 +330,12 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
       }
       /* We've added one data point */
       w1->count++;
-    } else { // values.type!==METRIC_NULL
+    } else {
       /* Handle the case where this is the first value */
       w1->type = value->type;
       w1->count = 1;
       accu->first_value_time_ms = value->whence_ms;
       switch (value->type) {
-      case METRIC_NULL:
       case METRIC_ABSENT:
         w1->count = 0;
         break;

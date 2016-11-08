@@ -39,7 +39,6 @@
 
 typedef enum {
   METRIC_ABSENT = 0,
-  METRIC_NULL = 1,
   METRIC_GUESS = '0',
   METRIC_INT32 = 'i',
   METRIC_UINT32 = 'I',
@@ -95,6 +94,7 @@ typedef struct {
     char *v_string;
     metric_type_t v_type_if_absent;
   } value; /* the data itself */
+  mtev_boolean is_null;
 } noit_metric_value_t;
 
 typedef struct {

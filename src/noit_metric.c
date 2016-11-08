@@ -47,7 +47,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 
   mtev_json_object_object_add(o, "check_uuid", mtev_json_object_new_string(uuid_str));
 
-  if (metric->value.type == METRIC_NULL || metric->value.type == METRIC_ABSENT) {
+  if (metric->value.type == METRIC_ABSENT) {
     mtev_json_object_object_add(o, "value_type", NULL);
   } else {
     char value_type[2] = {0};
