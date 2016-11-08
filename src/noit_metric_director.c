@@ -46,6 +46,11 @@
 struct fq_conn_s;
 struct fq_msg;
 
+struct hash_and_time {
+  mtev_hash_table hash;
+  uint32_t last_touched_s;
+};
+
 static __thread struct {
   int id;
   ck_fifo_spsc_t *fifo;
@@ -194,40 +199,45 @@ distribute_check(noit_metric_message_t *message) {
 }
 
 static mtev_hash_table *
-get_dedupe_hash(uint64_t whence_ms)
+get_dedupe_hash(uint64_t whence)
 {
-  uint64_t ts = whence_ms / 1000;
-
+  struct hash_and_time *hash_with_time;
   mtev_hash_table *hash;
 
-  if (mtev_hash_retrieve(&dedupe_hashes, (const char *)&ts, sizeof(ts), (void **)&hash) == 1) {
-    return hash;
+  if (mtev_hash_retrieve(&dedupe_hashes, (const char *)&whence, sizeof(whence), (void **)&hash_with_time) == 1) {
+    hash = &hash_with_time->hash;
   } else {
-    hash = calloc(1, sizeof(mtev_hash_table));
-    mtev_hash_init_locks(hash, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+    hash_with_time = calloc(1, sizeof(struct hash_and_time));
+    hash = &hash_with_time->hash;
+
+    mtev_hash_init_locks(&hash_with_time->hash, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
     uint64_t *stored_ts = calloc(1, sizeof(uint64_t));
-    *stored_ts = ts;
-    if (mtev_hash_store(&dedupe_hashes, (const char *)stored_ts, sizeof(*stored_ts), hash) == 0) {
+    *stored_ts = whence;
+    if (mtev_hash_store(&dedupe_hashes, (const char *)stored_ts, sizeof(*stored_ts), hash_with_time) == 0) {
       /* ugh, someone beat us */
       free(stored_ts);
       mtev_hash_destroy(hash, NULL, NULL);
-      free(hash);
-      if (mtev_hash_retrieve(&dedupe_hashes, (const char *)&ts, sizeof(ts), (void **)&hash) == 0) {
+      free(hash_with_time);
+      if (mtev_hash_retrieve(&dedupe_hashes, (const char *)&whence, sizeof(whence), (void **)&hash_with_time) == 0) {
         return NULL;
-      }        
+      }
     }
   }
+
+  hash_with_time->last_touched_s = mtev_gethrtime() / 1000000000;
   return hash;
 }
 
-static void
-prune_old_dedupe_hashes()
-{
+static int
+prune_old_dedupe_hashes(eventer_t e, int mask, void *unused,
+    struct timeval *now) {
+
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-  uint64_t now = mtev_gethrtime() / 1000000;
+  uint64_t now_hrtime = mtev_gethrtime() / 1000000000;
   const char *k;
   int klen;
   void *data;
+  struct hash_and_time *hash_with_time;
 
   struct removable_hashes {
     uint64_t key;
@@ -240,10 +250,10 @@ prune_old_dedupe_hashes()
 
   /* build a list of expirable items */
   while(mtev_hash_next(&dedupe_hashes, &iter, &k, &klen, &data)) {
-    uint64_t *ts = (uint64_t *)k;
-    if (now > *ts && now - *ts > 10) {
+    hash_with_time = data;
+    if (now_hrtime > hash_with_time->last_touched_s && now_hrtime - hash_with_time->last_touched_s > 10) {
       struct removable_hashes *h = calloc(1, sizeof(struct removable_hashes));
-      h->key = *ts;
+      h->key = *(uint64_t *)k;
       if (tail != NULL) {
         tail->next = h;
       }
@@ -263,34 +273,13 @@ prune_old_dedupe_hashes()
     head = head->next;
     free(prev);
   }
-  
+
+  e->whence.tv_sec = now->tv_sec + 5;
+  return 1;
 }
 
 static void
 distribute_message(noit_metric_message_t *message) {
-
-  if (dedupe && message->original_message_len > 0) {
-    unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
-    MD5((unsigned char*)message->original_message, message->original_message_len, digest);
-
-    mtev_hash_table *hash = get_dedupe_hash(message->value.whence_ms);
-    if (hash) {
-      int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
-      if (x == 0) {
-        /* this is a dupe */
-        free(digest);
-        return;
-      }
-    } else {
-      free(digest);
-    }
-
-    /* TODO, move this to a timer event? */
-    if ((mtev_gethrtime() / 1000000) % 10 == 0) {
-      prune_old_dedupe_hashes();
-    }
-  }
-
   if(message->type == 'H' || message->type == 'M') {
     distribute_metric(message);
   } else {
@@ -309,6 +298,7 @@ noit_metric_message_t *noit_metric_director_lane_next() {
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
   return msg;
 }
+
 static void
 handle_metric_buffer(const char *payload, int payload_len,
     int has_noit) {
@@ -361,10 +351,61 @@ handle_metric_buffer(const char *payload, int payload_len,
       /* ignored */
   }
 }
+
+static uint64_t
+get_message_time(const char* msg, int msg_length) {
+  const int minimum_bytes_before_second_tab = sizeof("M\t1.2.3.4");
+  if (msg_length <= minimum_bytes_before_second_tab) {
+    mtevL(mtev_error, "Unable to retrieve timestamp from message: %s\n", msg);
+    return 0;
+  }
+
+  const char* time_str = (char*) memchr(msg + minimum_bytes_before_second_tab,
+      '\t', msg_length - minimum_bytes_before_second_tab);
+  if (time_str) {
+    ++time_str;
+  }
+
+  if (time_str == NULL) {
+    mtevL(mtev_error, "Unable to retrieve timestamp from message: %s\n", msg);
+    return 0;
+  }
+
+  return atol(time_str);
+}
+
+static mtev_boolean
+check_duplicate(char *payload, size_t payload_len) {
+  if (dedupe) {
+    unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
+    MD5((unsigned char*)payload, payload_len, digest);
+
+    uint64_t whence = get_message_time(payload, payload_len);
+    if(whence > 0) {
+      mtev_hash_table *hash = get_dedupe_hash(whence);
+      if (hash) {
+        int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
+        if (x == 0) {
+          /* this is a dupe */
+          free(digest);
+          return mtev_true;
+        }
+      } else {
+        free(digest);
+      }
+    } else {
+      free(digest);
+    }
+  }
+  return mtev_false;
+}
+
 static mtev_hook_return_t
 handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_msg *m,
                   void *payload, size_t payload_len) {
-  handle_metric_buffer(payload, payload_len, 1);
+  if(check_duplicate(payload, payload_len) == mtev_false) {
+    handle_metric_buffer(payload, payload_len, 1);
+  }
   return MTEV_HOOK_CONTINUE;
 }
 static mtev_hook_return_t
@@ -388,6 +429,8 @@ noit_metric_director_dedupe(mtev_boolean d)
   dedupe = d;
 }
 
+
+
 void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
@@ -396,6 +439,13 @@ void noit_metric_director_init() {
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
+
+  eventer_t e = eventer_alloc();
+  e->mask = EVENTER_TIMER;
+  e->callback = prune_old_dedupe_hashes;
+  mtev_gettimeofday(&e->whence, NULL);
+  e->whence.tv_sec += 2;
+  eventer_add_timed(e);
 }
 void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&id_level, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
