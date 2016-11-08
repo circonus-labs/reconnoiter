@@ -208,7 +208,6 @@ get_dedupe_hash(uint64_t whence)
     hash = &hash_with_time->hash;
   } else {
     hash_with_time = calloc(1, sizeof(struct hash_and_time));
-    hash = &hash_with_time->hash;
 
     mtev_hash_init_locks(&hash_with_time->hash, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
     uint64_t *stored_ts = calloc(1, sizeof(uint64_t));
@@ -222,6 +221,7 @@ get_dedupe_hash(uint64_t whence)
         return NULL;
       }
     }
+    hash = &hash_with_time->hash;
   }
 
   hash_with_time->last_touched_s = mtev_gethrtime() / 1000000000;
@@ -428,8 +428,6 @@ noit_metric_director_dedupe(mtev_boolean d)
 {
   dedupe = d;
 }
-
-
 
 void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
