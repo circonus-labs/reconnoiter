@@ -102,6 +102,7 @@ typedef struct {
   noit_metric_value_t value;
   noit_message_type type;
   char* original_message;
+  size_t original_message_len;
   mtev_atomic32_t refcnt;
 } noit_metric_message_t;
 
