@@ -5,7 +5,6 @@ typedef enum { mtev_false = 0, mtev_true } mtev_boolean;
 typedef unsigned char uuid_t[16];
 typedef enum {
   METRIC_ABSENT = 0,
-  METRIC_NULL = 1,
   METRIC_GUESS = '0',
   METRIC_INT32 = 'i',
   METRIC_UINT32 = 'I',
@@ -55,6 +54,7 @@ typedef struct {
     double v_double;
     char *v_string;
   } value; /* the data itself */
+  mtev_boolean is_null;
 } noit_metric_value_t;
 
 typedef struct metric_message_t {
