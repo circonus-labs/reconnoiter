@@ -215,7 +215,7 @@ get_dedupe_hash(uint64_t whence)
     if (mtev_hash_store(&dedupe_hashes, (const char *)stored_ts, sizeof(*stored_ts), hash_with_time) == 0) {
       /* ugh, someone beat us */
       free(stored_ts);
-      mtev_hash_destroy(hash, NULL, NULL);
+      mtev_hash_destroy(&hash_with_time->hash, NULL, NULL);
       free(hash_with_time);
       if (mtev_hash_retrieve(&dedupe_hashes, (const char *)&whence, sizeof(whence), (void **)&hash_with_time) == 0) {
         return NULL;
