@@ -302,6 +302,18 @@ lua_noit_metric_next(lua_State *L) {
 }
 
 static int
+lua_noit_metric_messages_received(lua_State *L) {
+  lua_pushinteger(L, noit_metric_director_get_messages_received());
+  return 1;
+}
+
+static int
+lua_noit_metric_messages_distributed(lua_State *L) {
+  lua_pushinteger(L, noit_metric_director_get_messages_distributed());
+  return 1;
+}
+
+static int
 lua_noit_poller_cb(noit_check_t * check, void *closure) {
   lua_callback_ref *cb_ref = closure;
 
@@ -341,6 +353,8 @@ static const luaL_Reg noit_binding[] = {
   { "metric_director_subscribe", lua_noit_metric_subscribe },
   { "metric_director_unsubscribe", lua_noit_metric_unsubscribe },
   { "metric_director_next", lua_noit_metric_next },
+  { "metric_director_get_messages_received", lua_noit_metric_messages_received },
+  { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
   { "checks_do", lua_noit_check_do },
   { NULL, NULL }
 };

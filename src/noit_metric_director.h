@@ -65,4 +65,7 @@ void noit_metric_director_message_ref(void *message);
 void noit_metric_director_message_deref(void *message);
 void noit_metric_director_init_globals(void);
 
+int64_t noit_metric_director_get_messages_received();
+int64_t noit_metric_director_get_messages_distributed();
+
 #endif
