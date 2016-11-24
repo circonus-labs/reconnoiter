@@ -56,6 +56,9 @@ static __thread struct {
   ck_fifo_spsc_t *fifo;
 } my_lane;
 
+static mtev_atomic64_t number_of_messages_received = 0;
+static mtev_atomic64_t number_of_messages_distributed = 0;
+
 static int nthreads;
 static volatile void **thread_queues;
 static mtev_hash_table id_level;
@@ -163,6 +166,8 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
 
 static void
 distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *message) {
+  mtev_atomic_inc64(&number_of_messages_received);
+
   int i;
   for(i = 0; i < nthreads; i++) {
     if(interests[i] > 0) {
@@ -174,6 +179,8 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       noit_metric_director_message_ref(message);
       ck_fifo_spsc_enqueue(fifo, fifo_entry, message);
       ck_fifo_spsc_enqueue_unlock(fifo);
+
+      mtev_atomic_inc64(&number_of_messages_distributed);
     }
   }
 }
@@ -445,7 +452,18 @@ void noit_metric_director_init() {
   e->whence.tv_sec += 2;
   eventer_add_timed(e);
 }
+
 void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&id_level, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   mtev_hash_init_locks(&dedupe_hashes, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+}
+
+int64_t
+noit_metric_director_get_messages_received() {
+  return number_of_messages_received;
+}
+
+int64_t
+noit_metric_director_get_messages_distributed() {
+ return number_of_messages_distributed;
 }
