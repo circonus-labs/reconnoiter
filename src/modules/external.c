@@ -483,9 +483,8 @@ static int external_init(noit_module_t *self) {
   data->nlerr = mtev_log_stream_find("error/external");
   data->nldeb = mtev_log_stream_find("debug/external");
 
-  data->jobq = calloc(1, sizeof(*data->jobq));
-  eventer_jobq_init(data->jobq, "external");
-  eventer_jobq_increase_concurrency(data->jobq);
+  data->jobq = eventer_jobq_create("external");
+  eventer_jobq_set_concurrency(data->jobq, 1);
 
   if (data->options) {
     (void)mtev_hash_retr_str(data->options, "path", strlen("path"), &path);
