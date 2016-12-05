@@ -90,9 +90,9 @@ static void jobq_thread_helper(eventer_jobq_t *jobq, void *closure) {
   int s32;
   char buffer[128];
   struct threadq_crutch *crutch = (struct threadq_crutch *)closure;
-  s32 = jobq->concurrency;
+  s32 = eventer_jobq_get_concurrency(jobq);
   if(s32 == 0) return; /* omit if no concurrency */
-  snprintf(buffer, sizeof(buffer), "%s_threads", jobq->queue_name);
+  snprintf(buffer, sizeof(buffer), "%s_threads", eventer_jobq_get_queue_nane(jobq));
   noit_stats_set_metric(crutch->check, buffer, METRIC_INT32, &s32);
 }
 static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
