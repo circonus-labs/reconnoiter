@@ -248,7 +248,7 @@ prune_old_dedupe_hashes(eventer_t e, int mask, void *unused,
 
   struct removable_hashes {
     uint64_t key;
-    void *data;
+    struct hash_and_time *data;
     struct removable_hashes *next;
   };
 
@@ -261,6 +261,7 @@ prune_old_dedupe_hashes(eventer_t e, int mask, void *unused,
     if (now_hrtime > hash_with_time->last_touched_s && now_hrtime - hash_with_time->last_touched_s > 10) {
       struct removable_hashes *h = calloc(1, sizeof(struct removable_hashes));
       h->key = *(uint64_t *)k;
+      h->data = hash_with_time;
       if (tail != NULL) {
         tail->next = h;
       }
@@ -275,7 +276,8 @@ prune_old_dedupe_hashes(eventer_t e, int mask, void *unused,
   /* expire them */
   while (head != NULL) {
     mtev_hash_delete(&dedupe_hashes, (const char *)&head->key, sizeof(head->key), free, NULL);
-    mtev_hash_destroy((mtev_hash_table *)head->data, free, NULL);
+    mtev_hash_destroy(&head->data->hash, free, NULL);
+    free(head->data);
     struct removable_hashes *prev = head;
     head = head->next;
     free(prev);
