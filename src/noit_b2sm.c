@@ -27,7 +27,6 @@ int main(int argc, char **argv) {
       cp++;
     }
     *ip = '\0';
-fprintf(stderr, "buff: %zd bytes\n", strlen(buff));
     int nm = noit_check_log_b_to_sm(buff, strlen(buff), &lines, expect_ip);
     for(i=0; i<nm; i++) {
       /* zip through the line and change spaces to tabs. */
