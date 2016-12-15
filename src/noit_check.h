@@ -125,14 +125,14 @@ typedef struct noit_check {
   char *filterset;
   mtev_hash_table *config;
   char *oncheck;               /* target`name of the check that fires us */
-  u_int32_t period;            /* period of checks in milliseconds */
-  u_int32_t timeout;           /* timeout of check in milliseconds */
-  u_int32_t flags;             /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */
+  uint32_t period;            /* period of checks in milliseconds */
+  uint32_t timeout;           /* timeout of check in milliseconds */
+  uint32_t flags;             /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */
 
   dep_list_t *causal_checks;
   eventer_t fire_event;
   struct timeval last_fire_time;
-  u_int32_t generation;        /* This can roll, we don't care */
+  uint32_t generation;        /* This can roll, we don't care */
   void *closure;
 
   mtev_skiplist *feeds;
@@ -157,8 +157,8 @@ typedef struct noit_check {
 #define NOIT_CHECK_SINGLE_RESOLVE(a) ((a)->flags & NP_SINGLE_RESOLVE)
 
 API_EXPORT(void) noit_poller_init();
-API_EXPORT(u_int64_t) noit_check_completion_count();
-API_EXPORT(u_int64_t) noit_check_metric_count();
+API_EXPORT(uint64_t) noit_check_completion_count();
+API_EXPORT(uint64_t) noit_check_metric_count();
 API_EXPORT(void) noit_check_metric_count_add(int);
 API_EXPORT(int) noit_poller_check_count();
 API_EXPORT(int) noit_poller_transient_check_count();
@@ -178,8 +178,8 @@ API_EXPORT(int)
                        const char *filterset,
                        mtev_hash_table *config,
                        mtev_hash_table **mconfig,
-                       u_int32_t period,
-                       u_int32_t timeout,
+                       uint32_t period,
+                       uint32_t timeout,
                        const char *oncheck,
                        int64_t seq,
                        int flags,
@@ -196,8 +196,8 @@ API_EXPORT(int)
                     const char *filterset,
                     mtev_hash_table *config,
                     mtev_hash_table **mconfig,
-                    u_int32_t period,
-                    u_int32_t timeout,
+                    uint32_t period,
+                    uint32_t timeout,
                     const char *oncheck,
                     int64_t seq,
                     int flags);
@@ -268,7 +268,7 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_stats_set_whence(noit_check_t *check, struct timeval *t);
 API_EXPORT(void)
-  noit_stats_set_duration(noit_check_t *check, u_int32_t t);
+  noit_stats_set_duration(noit_check_t *check, uint32_t t);
 API_EXPORT(void)
   noit_stats_set_available(noit_check_t *check, int8_t t);
 API_EXPORT(void)
@@ -303,7 +303,7 @@ API_EXPORT(mtev_boolean)
   noit_stats_log_immediate_histo(noit_check_t *check, const char *name,
                                   const char *hist_encoded,
                                   size_t hist_encoded_len,
-                                  u_int64_t whence_s);
+                                  uint64_t whence_s);
 
 API_EXPORT(const char *)
   noit_check_available_string(int16_t available);
@@ -366,7 +366,7 @@ API_EXPORT(void) noit_check_log_bundle(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metric(noit_check_t *check,
                                        const struct timeval *whence, metric_t *m);
-API_EXPORT(void) noit_check_log_histo(noit_check_t *check, u_int64_t whence_s,
+API_EXPORT(void) noit_check_log_histo(noit_check_t *check, uint64_t whence_s,
           const char *metric_name, const char *b64_histo, ssize_t b64_histo_len);
 API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
                                               char *target, int target_len,
@@ -394,8 +394,8 @@ API_EXPORT(int8_t)
   noit_check_stats_available(stats_t *s, int8_t *n);
 API_EXPORT(int8_t)
   noit_check_stats_state(stats_t *s, int8_t *n);
-API_EXPORT(u_int32_t)
-  noit_check_stats_duration(stats_t *s, u_int32_t *n);
+API_EXPORT(uint32_t)
+  noit_check_stats_duration(stats_t *s, uint32_t *n);
 API_EXPORT(const char *)
   noit_check_stats_status(stats_t *s, const char *n);
 API_EXPORT(mtev_hash_table *)

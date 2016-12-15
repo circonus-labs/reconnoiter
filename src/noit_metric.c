@@ -125,7 +125,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
         /* for each bvs in the histogram, create a "bucket" object in the json */
         struct mtev_json_object *bucket = mtev_json_object_new_object();
         double b = 0.0;
-        u_int64_t bc = 0;
+        uint64_t bc = 0;
         hist_bucket_idx(histo, i, &b, &bc);
         mtev_json_object_object_add(bucket, "bucket",
                                     mtev_json_object_new_double(b));

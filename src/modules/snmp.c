@@ -249,7 +249,7 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
     int nresults = 0;
     int oid_idx;
     double float_conv;
-    u_int64_t u64;
+    uint64_t u64;
     int64_t i64;
     char *endptr;
     char varbuff[256];
@@ -683,7 +683,7 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
                       reconnoiter_metric_prefix_oid_len)) {
     /* decode the metric and store the value */
     int i, len;
-    u_int64_t u64;
+    uint64_t u64;
     double doubleVal;
     char metric_name[128], buff[128], *cp;
     if(var->name_length <= reconnoiter_metric_prefix_oid_len) return -1;
@@ -711,7 +711,7 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
                               METRIC_INT64, var->val.integer);
         break;
       case ASN_COUNTER64:
-        u64 = ((u_int64_t)var->val.counter64->high) << 32;
+        u64 = ((uint64_t)var->val.counter64->high) << 32;
         u64 |= var->val.counter64->low;
         noit_stats_set_metric(check, metric_name,
                               METRIC_UINT64, &u64);

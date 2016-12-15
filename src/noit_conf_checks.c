@@ -347,7 +347,7 @@ noit_console_watch_check(mtev_console_closure_t ncct,
                          int argc, char **argv,
                          mtev_console_state_t *state, void *closure) {
   int i, cnt;
-  int adding = (int)(vpsized_int)closure;
+  int adding = (int)(intptr_t)closure;
   int period = 0;
   char xpath[1024];
   xmlXPathObjectPtr pobj = NULL;

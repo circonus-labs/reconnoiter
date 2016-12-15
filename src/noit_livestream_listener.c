@@ -53,7 +53,7 @@ struct log_entry {
 };
 
 typedef struct {
-  u_int32_t period;
+  uint32_t period;
   mtev_boolean period_read;
   struct log_entry *lqueue;
   struct log_entry *lqueue_end;
@@ -183,7 +183,7 @@ noit_livestream_thread_main(void *e_vptr) {
   }
 
   while(1) {
-    u_int32_t netlen;
+    uint32_t netlen;
     int rv;
     le = NULL;
 
@@ -260,7 +260,7 @@ socket_error:
     /* Setup logger to this channel */
     mtevL(noit_debug, "livestream initializing on fd %d\n", e->fd);
     if(!jcl->period_read) {
-      u_int32_t nperiod;
+      uint32_t nperiod;
       len = e->opset->read(e->fd, &nperiod, sizeof(nperiod), &mask, e);
       if(len == -1 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
       if(len != sizeof(nperiod)) goto socket_error;

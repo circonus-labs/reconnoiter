@@ -212,7 +212,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   char id_str[UUID_STR_LEN+1];
   struct json_object *j_last_run, *j_next_run;
   struct timeval *t;
-  u_int64_t ms = 0;
+  uint64_t ms = 0;
   struct json_object *doc;
   uuid_unparse_lower(check->checkid, id_str);
 

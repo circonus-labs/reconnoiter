@@ -106,8 +106,8 @@ typedef struct histotier {
   histogram_t *tensecs[6];
   histogram_t *secs[10];
   histogram_t *last_aggr;
-  u_int8_t last_second;
-  u_int64_t last_minute;
+  uint8_t last_second;
+  uint64_t last_minute;
 } histotier;
 
 static void
@@ -116,7 +116,7 @@ debug_print_hist(histogram_t *ht) {
     int i, buckets;
     buckets = hist_bucket_count(ht);
     for(i=0;i<buckets;i++) {
-      u_int64_t cnt;
+      uint64_t cnt;
       double v;
       hist_bucket_idx(ht, i, &v, &cnt);
       mtevL(noit_debug, "  %7.2g : %" PRIu64 "\n", v, cnt);
@@ -178,7 +178,7 @@ noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
 }
 
 static void
-log_histo(noit_check_t *check, u_int64_t whence_s,
+log_histo(noit_check_t *check, uint64_t whence_s,
           const char *metric_name, histogram_t *h,
           mtev_boolean live_feed) {
   char *hist_serial = NULL;
@@ -223,7 +223,7 @@ log_histo(noit_check_t *check, u_int64_t whence_s,
 static void
 sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *ht, const char *name) {
   histogram_t *tgt;
-  u_int64_t aligned_seconds = ht->last_minute * 60;
+  uint64_t aligned_seconds = ht->last_minute * 60;
   int cidx = 0, sidx = 0;
   /* find the first histogram to use as an aggregation target */
   for(cidx=0; cidx<6; cidx++) {
@@ -287,18 +287,18 @@ sweep_roll_tensec(histotier *ht) {
   }
 }
 static void
-update_histotier(histotier *ht, u_int64_t s,
+update_histotier(histotier *ht, uint64_t s,
                  struct histogram_config *conf, noit_check_t *check,
-                 const char *name, double val, u_int64_t cnt) {
-  u_int64_t minute = s/60;
-  u_int8_t second = s%60;
-  u_int8_t sec_bucket = s%10;
+                 const char *name, double val, uint64_t cnt) {
+  uint64_t minute = s/60;
+  uint8_t second = s%60;
+  uint8_t sec_bucket = s%10;
   noit_check_metric_count_add(cnt);
   if((second != ht->last_second || check->flags & NP_TRANSIENT) &&
      check->feeds) {
     int last_second = ht->last_second;
     int last_minute = ht->last_minute;
-    u_int8_t last_bucket;
+    uint8_t last_bucket;
 
     /* If we are transient we're coming to this sloppy.
      * Someone else owns this ht. So, if we're high-traffic
@@ -439,7 +439,7 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
     const char *lhs;
     char *endptr;
     double bucket;
-    u_int64_t cnt;
+    uint64_t cnt;
     if(v[0] != 'H' || v[1] != '[') return MTEV_HOOK_CONTINUE;
     if(NULL == (lhs = strchr(v+2, ']'))) return MTEV_HOOK_CONTINUE;
     lhs++;
@@ -546,7 +546,7 @@ heartbeat_all_metrics(struct histogram_config *conf,
   const char *k;
   int klen;
   void *data;
-  u_int64_t s = time(NULL);
+  uint64_t s = time(NULL);
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     histotier *ht = data;
     update_histotier(ht, s, conf, check, k, 0, 0);

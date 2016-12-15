@@ -61,7 +61,7 @@ typedef struct {
   mtev_http_rest_closure_t *restc;
   char uuid_str[37];
   char *feed;
-  u_int32_t period;
+  uint32_t period;
   uuid_t uuid;
   noit_check_t *check;
   int wants_shutdown;

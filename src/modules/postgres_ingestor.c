@@ -216,7 +216,7 @@ release_conn_q_forceable(conn_q *cq, int forcefree) {
     cq->pool->in_pool++;
   }
   pthread_mutex_unlock(&cq->pool->lock);
-  mtevL(ds_pool_deb, "[%p] release %s [%s]\n", (void *)(vpsized_int)pthread_self(),
+  mtevL(ds_pool_deb, "[%p] release %s [%s]\n", (void *)(intptr_t)pthread_self(),
         putback ? "to pool" : "and destroy", cq->pool->queue_name);
   pthread_cond_signal(&cq->pool->cv);
   if(putback) return;
@@ -327,7 +327,7 @@ get_conn_q_for_remote(const char *remote_str,
   conn_pool *cpool;
   conn_q *cq;
   cpool = get_conn_pool_for_remote(remote_str, remote_cn, fqdn);
-  mtevL(ds_pool_deb, "[%p] requesting [%s]\n", (void *)(vpsized_int)pthread_self(),
+  mtevL(ds_pool_deb, "[%p] requesting [%s]\n", (void *)(intptr_t)pthread_self(),
         cpool->queue_name);
   pthread_mutex_lock(&cpool->lock);
  again:
@@ -343,10 +343,10 @@ get_conn_q_for_remote(const char *remote_str,
   }
   if(cpool->in_pool + cpool->outstanding >= cpool->max_allocated) {
     mtevL(ds_pool_deb, "[%p] over-subscribed, waiting [%s]\n",
-          (void *)(vpsized_int)pthread_self(), cpool->queue_name);
+          (void *)(intptr_t)pthread_self(), cpool->queue_name);
     pthread_cond_wait(&cpool->cv, &cpool->lock);
     mtevL(ds_pool_deb, "[%p] waking up and trying again [%s]\n",
-          (void *)(vpsized_int)pthread_self(), cpool->queue_name);
+          (void *)(intptr_t)pthread_self(), cpool->queue_name);
     goto again;
   }
   else {
@@ -460,7 +460,7 @@ stratcon_ingest_check_loadall(void *vsn) {
       mtevL(noit_error, "giving up on storage node: %s\n", sn->fqdn);
       release_conn_q(cq);
       free(d);
-      return (void *)(vpsized_int)good;
+      return (void *)(intptr_t)good;
     }
     sleep(1);
   }
@@ -504,7 +504,7 @@ stratcon_ingest_check_loadall(void *vsn) {
   free_params((ds_single_detail *)d);
   free(d);
   if(cq) release_conn_q(cq);
-  return (void *)(vpsized_int)good;
+  return (void *)(intptr_t)good;
 }
 static int
 stratcon_ingest_asynch_drive_iep(eventer_t e, int mask, void *closure,
@@ -541,7 +541,7 @@ stratcon_ingest_asynch_drive_iep(eventer_t e, int mask, void *closure,
   for(i=0; i<nodes; i++) {
     void *good;
     pthread_join(jobs[i], &good);
-    tcnt += (int)(vpsized_int)good;
+    tcnt += (int)(intptr_t)good;
   }
   free(jobs);
   free(sns);

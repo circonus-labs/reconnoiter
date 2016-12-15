@@ -360,8 +360,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         break;
 
       case JLOG_STREAMER_WANT_COUNT:
-        FULLREAD(e, ctx, sizeof(u_int32_t));
-        memcpy(&dummy.count, ctx->buffer, sizeof(u_int32_t));
+        FULLREAD(e, ctx, sizeof(uint32_t));
+        memcpy(&dummy.count, ctx->buffer, sizeof(uint32_t));
         ctx->count = ntohl(dummy.count);
         ctx->needs_chkpt = 0;
         free(ctx->buffer); ctx->buffer = NULL;
@@ -617,7 +617,7 @@ static void
 emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
                        mtev_connection_ctx_t *nctx) {
   struct timeval last, session_duration, diff;
-  u_int64_t session_duration_ms, last_event_ms;
+  uint64_t session_duration_ms, last_event_ms;
   jlog_streamer_ctx_t *jctx = nctx->consumer_ctx;
   char str[1024], *wr;
   int len;
@@ -683,7 +683,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   char str[1024];
   char uuid_str[1024], tmp_uuid_str[UUID_STR_LEN+1];
   struct timeval epoch, diff;
-  u_int64_t uptime = 0;
+  uint64_t uptime = 0;
   char ip_str[128];
 
   inet_ntop(AF_INET, &self_stratcon_ip.sin_addr, ip_str,
@@ -1370,7 +1370,7 @@ stratcon_console_conf_noits(mtev_console_closure_t ncct,
                             void *closure) {
   char *cp, target[128];
   unsigned short port = 43191;
-  int adding = (int)(vpsized_int)closure;
+  int adding = (int)(intptr_t)closure;
   char *cn = NULL;
   if(argc != 1 && argc != 2)
     return -1;

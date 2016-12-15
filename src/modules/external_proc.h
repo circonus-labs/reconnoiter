@@ -49,10 +49,10 @@ struct external_response {
   int64_t check_no;
   int32_t exit_code;
   int stdoutlen_sofar;
-  u_int16_t stdoutlen;
+  uint16_t stdoutlen;
   char *stdoutbuff;
   int stderrlen_sofar;
-  u_int16_t stderrlen;
+  uint16_t stderrlen;
   char *stderrbuff;
 };
 typedef struct {
@@ -74,7 +74,7 @@ typedef struct {
 typedef struct {
   int64_t check_no;
   int32_t exit_code;
-  u_int16_t stdoutlen;
+  uint16_t stdoutlen;
 } __attribute__((packed)) external_header;
 
 int external_child(external_data_t *);

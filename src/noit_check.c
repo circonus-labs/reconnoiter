@@ -150,7 +150,7 @@ struct stats_t {
   struct timeval whence;
   int8_t available;
   int8_t state;
-  u_int32_t duration;
+  uint32_t duration;
   mtev_hash_table metrics;
   char status[256];
 };
@@ -170,8 +170,8 @@ noit_check_stats_state(stats_t *s, int8_t *n) {
   if(n) s->state = *n;
   return s->state;
 }
-u_int32_t
-noit_check_stats_duration(stats_t *s, u_int32_t *n) {
+uint32_t
+noit_check_stats_duration(stats_t *s, uint32_t *n) {
   if(n) s->duration = *n;
   return s->duration;
 }
@@ -193,7 +193,7 @@ noit_stats_set_state(noit_check_t *c, int8_t t) {
   (void)noit_check_stats_state(noit_check_get_stats_inprogress(c), &t);
 }
 void
-noit_stats_set_duration(noit_check_t *c, u_int32_t t) {
+noit_stats_set_duration(noit_check_t *c, uint32_t t) {
   (void)noit_check_stats_duration(noit_check_get_stats_inprogress(c), &t);
 }
 void
@@ -249,15 +249,15 @@ static int text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
 static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
 static int reg_module_used = -1;
-static u_int64_t check_completion_count = 0ULL;
-static u_int64_t check_metrics_seen = 0ULL;
+static uint64_t check_completion_count = 0ULL;
+static uint64_t check_metrics_seen = 0ULL;
 static pthread_mutex_t polls_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t recycling_lock = PTHREAD_MUTEX_INITIALIZER;
 static mtev_hash_table polls;
 static mtev_hash_table dns_ignore_list;
 static mtev_skiplist watchlist = { 0 };
 static mtev_skiplist polls_by_name = { 0 };
-static u_int32_t __config_load_generation = 0;
+static uint32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
 static mtev_boolean priority_scheduling = mtev_false;
@@ -329,7 +329,7 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
   return 1;
 }
 
-u_int64_t noit_check_metric_count() {
+uint64_t noit_check_metric_count() {
   return check_metrics_seen;
 }
 void noit_check_metric_count_add(int add) {
@@ -338,7 +338,7 @@ void noit_check_metric_count_add(int add) {
   mtev_atomic_add64(n, v);
 }
 
-u_int64_t noit_check_completion_count() {
+uint64_t noit_check_completion_count() {
   return check_completion_count;
 }
 static void register_console_check_commands();
@@ -1160,8 +1160,8 @@ noit_check_update(noit_check_t *new_check,
                   const char *filterset,
                   mtev_hash_table *config,
                   mtev_hash_table **mconfigs,
-                  u_int32_t period,
-                  u_int32_t timeout,
+                  uint32_t period,
+                  uint32_t timeout,
                   const char *oncheck,
                   int64_t seq,
                   int flags) {
@@ -1300,8 +1300,8 @@ noit_poller_schedule(const char *target,
                      const char *filterset,
                      mtev_hash_table *config,
                      mtev_hash_table **mconfigs,
-                     u_int32_t period,
-                     u_int32_t timeout,
+                     uint32_t period,
+                     uint32_t timeout,
                      const char *oncheck,
                      int64_t seq,
                      int flags,
@@ -1920,7 +1920,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
      goto alldone;
    }
    else {
-     u_int64_t *v;
+     uint64_t *v;
      v = malloc(sizeof(*v));
      *v = strtoull(rpl, NULL, 10);
      *replacement = v;
@@ -2053,7 +2053,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
     }
     case METRIC_UINT32:
     {
-      u_int32_t val;
+      uint32_t val;
       val = strtoul(v, &endptr, 10);
       if(endptr == v) goto bogus;
       noit_stats_set_metric(check, name, t, &val);
@@ -2069,7 +2069,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
     }
     case METRIC_UINT64:
     {
-      u_int64_t val;
+      uint64_t val;
       val = strtoull(v, &endptr, 10);
       if(endptr == v) goto bogus;
       noit_stats_set_metric(check, name, t, &val);
@@ -2132,7 +2132,7 @@ noit_stats_log_immediate_metric_timed(noit_check_t *check,
 mtev_boolean
 noit_stats_log_immediate_histo(noit_check_t *check,
                                 const char *name, const char *hist_encoded, size_t hist_encoded_len,
-                                u_int64_t whence_s) {
+                                uint64_t whence_s) {
   struct timeval whence;
   whence.tv_sec = whence_s;
   whence.tv_usec = 0;

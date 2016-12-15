@@ -119,7 +119,7 @@ static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
 }
 static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   char buff[128];
-  u_int64_t u64;
+  uint64_t u64;
   int64_t s64;
   int32_t s32;
   struct threadq_crutch crutch;

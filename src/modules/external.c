@@ -67,11 +67,11 @@ typedef enum {
 
 struct check_info {
   int64_t check_no;
-  u_int16_t argcnt;
-  u_int16_t *arglens;
+  uint16_t argcnt;
+  uint16_t *arglens;
   char **args;
-  u_int16_t envcnt;
-  u_int16_t *envlens;
+  uint16_t envcnt;
+  uint16_t *envlens;
   char **envs;
   noit_check_t *check;
   int exit_code;

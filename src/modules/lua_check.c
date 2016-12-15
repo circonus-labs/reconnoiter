@@ -273,7 +273,7 @@ noit_lua_get_state(lua_State *L) {
 static int
 noit_lua_get_flags(lua_State *L) {
   noit_check_t *check;
-  u_int32_t andset = ~0;
+  uint32_t andset = ~0;
   int narg;
 
   if(lua_gettop(L) > 0) andset = 0;
@@ -405,9 +405,9 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
 
   double __n = 0.0;
   int32_t __i = 0;
-  u_int32_t __I = 0;
+  uint32_t __I = 0;
   int64_t __l = 0;
-  u_int64_t __L = 0;
+  uint64_t __L = 0;
 
   if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   check = lua_touserdata(L, lua_upvalueindex(1));
@@ -485,7 +485,7 @@ noit_lua_set_histo_metric(lua_State *L) {
   const char *metric_name;
   size_t hist_encoded_len;
   const char *hist_encoded;
-  u_int64_t whence_s;
+  uint64_t whence_s;
 
   if(lua_gettop(L) != 3) luaL_error(L, "need 3 arguments: <metric_name> <encoded_histo> <whence_s>");
   check = lua_touserdata(L, lua_upvalueindex(1));

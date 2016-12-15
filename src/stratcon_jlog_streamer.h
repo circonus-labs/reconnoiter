@@ -46,7 +46,7 @@
 #include "stratcon_datastore.h"
 
 typedef struct jlog_streamer_ctx_t {
-  u_int32_t jlog_feed_cmd;
+  uint32_t jlog_feed_cmd;
   int bytes_expected;
   int bytes_read;
   char *buffer;         /* These guys are for doing partial reads */
@@ -64,13 +64,13 @@ typedef struct jlog_streamer_ctx_t {
   int needs_chkpt;
   struct {
     jlog_id   chkpt;
-    u_int32_t tv_sec;
-    u_int32_t tv_usec;
-    u_int32_t message_len;
+    uint32_t tv_sec;
+    uint32_t tv_usec;
+    uint32_t message_len;
   } header;
 
-  u_int64_t total_events;
-  u_int64_t total_bytes_read;
+  uint64_t total_events;
+  uint64_t total_bytes_read;
 
   void (*push)(stratcon_datastore_op_t, struct sockaddr *, const char *, void *, eventer_t);
 } jlog_streamer_ctx_t;

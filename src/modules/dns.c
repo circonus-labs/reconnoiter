@@ -524,7 +524,7 @@ static char *encode_txt(char *dst, const unsigned char *src, int len) {
 static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
                       struct dns_rr *rr, char **output) {
   char buff[DNS_MAXDN], *txt_str = buff, *c;
-  u_int32_t ttl, vu;
+  uint32_t ttl, vu;
   int32_t vs;
   int totalsize;
   const unsigned char *pkt = p->dnsp_pkt;
@@ -587,8 +587,8 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
      if(dns_getdn(pkt, &dptr, end, dn, DNS_MAXDN) <= 0) goto decode_err;
      dns_dntop(dn, buff, sizeof(buff));
      noit_stats_set_metric(ci->check, "email-addr", METRIC_STRING, buff);
-     if(dptr + 5 * sizeof(u_int32_t) != dend) goto decode_err;
-     vu = dns_get32(dptr); dptr += sizeof(u_int32_t);
+     if(dptr + 5 * sizeof(uint32_t) != dend) goto decode_err;
+     vu = dns_get32(dptr); dptr += sizeof(uint32_t);
      noit_stats_set_metric(ci->check, "serial", METRIC_UINT32, &vu);
      /* the serial is what we elect to store as the "answer" as text...
       * because it rarely changes and that seems the most interesting thing
