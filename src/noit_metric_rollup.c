@@ -340,7 +340,7 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
         w1->count = 0;
         break;
       case METRIC_STRING:
-        exit(1);
+        mtevFatal(mtev_error, "Tried to rollup a String metric\n");
         break; // break without effect but used to get rid of gcc warning message
       default: // This will copy all 64 bits and hence works for every type
         w1->value.v_uint64 = value->value.v_uint64;
