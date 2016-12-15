@@ -27,6 +27,7 @@ typedef struct {
     void *vp; /* used for clever assignments */
   } metric_value;
   mtev_boolean logged;
+  unsigned long accumulator;
 } noit_metric_t;
 
 typedef enum {
@@ -46,6 +47,7 @@ typedef struct metric_id_t {
 typedef struct {
   uint64_t whence_ms; /* when this was recieved */
   noit_metric_type_t type; /* the type of the following data item */
+  mtev_boolean is_null;
   union {
     int32_t v_int32;
     uint32_t v_uint32;

@@ -38,56 +38,67 @@
 
 static double
 metric_value_double(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_INT32: return (double)v->value.v_int32;
-    case METRIC_UINT32: return (double)v->value.v_uint32;
-    case METRIC_INT64: return (double)v->value.v_int64;
-    case METRIC_UINT64: return (double)v->value.v_uint64;
-    case METRIC_DOUBLE: return v->value.v_double;
-    default: ;
-
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_INT32: return (double)v->value.v_int32;
+      case METRIC_UINT32: return (double)v->value.v_uint32;
+      case METRIC_INT64: return (double)v->value.v_int64;
+      case METRIC_UINT64: return (double)v->value.v_uint64;
+      case METRIC_DOUBLE: return v->value.v_double;
+      default: ;
+    }
   }
-  return private_nan;
+  mtevFatal(mtev_error, "failed metric_value_double(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 static int64_t
 metric_value_int64(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_INT32: return (int64_t)v->value.v_int32;
-    case METRIC_UINT32: return (int64_t)v->value.v_uint32;
-    case METRIC_INT64: return v->value.v_int64;
-    default: ;
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_INT32: return (int64_t)v->value.v_int32;
+      case METRIC_UINT32: return (int64_t)v->value.v_uint32;
+      case METRIC_INT64: return v->value.v_int64;
+      default: ;
+    }
   }
-  mtevFatal(mtev_error, "Unknown int type: %d\n", v->type);
+  mtevFatal(mtev_error, "failed metric_value_int64(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 static uint64_t
 metric_value_uint64(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_INT32:
-      mtevAssert(v->value.v_int32 >= 0);
-      return (uint64_t)v->value.v_int32;
-    case METRIC_UINT32: return (uint64_t)v->value.v_uint32;
-    case METRIC_INT64:
-      mtevAssert(v->value.v_int64 >= 0);
-      return (uint64_t)v->value.v_int64;
-    case METRIC_UINT64: return v->value.v_uint64;
-    default: ;
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_INT32:
+        mtevAssert(v->value.v_int32 >= 0);
+        return (uint64_t)v->value.v_int32;
+      case METRIC_UINT32: return (uint64_t)v->value.v_uint32;
+      case METRIC_INT64:
+        mtevAssert(v->value.v_int64 >= 0);
+        return (uint64_t)v->value.v_int64;
+      case METRIC_UINT64: return v->value.v_uint64;
+      default: ;
+    }
   }
-  mtevFatal(mtev_error, "Unknown int type: %d\n", v->type);
+  mtevFatal(mtev_error, "failed metric_value_uint64(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 static int
 metric_value_is_negative(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_UINT32:
-    case METRIC_UINT64: return 0;
-    case METRIC_INT32:
-      return (v->value.v_int32 < 0);
-    case METRIC_INT64:
-      return (v->value.v_int64 < 0);
-    case METRIC_DOUBLE:
-      return (v->value.v_double < 0);
-    default: ;
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_UINT32:
+      case METRIC_UINT64: return 0;
+      case METRIC_INT32:
+        return (v->value.v_int32 < 0);
+      case METRIC_INT64:
+        return (v->value.v_int64 < 0);
+      case METRIC_DOUBLE:
+        return (v->value.v_double < 0);
+      default: ;
+    }
   }
-  mtevFatal(mtev_error, "Unknown metric type: %d\n", v->type);
+  mtevFatal(mtev_error, "failed metric_value_is_negative(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 
 static void
@@ -279,9 +290,6 @@ static int nnt_multitype_accum_counts(nnt_multitype *a, int a_count,
 
 void
 noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metric_value_t* value) {
-  /*int lv;
-     uuid_t id;
-     char uuid_str[UUID_STR_LEN+1];*/
     noit_metric_value_t last_value = accu->last_value;
     accu->last_value = *value;
 
@@ -302,7 +310,7 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
       double dy, derivative = private_nan;
       nnt_multitype current;
 
-      if (value->type == METRIC_ABSENT)
+      if (value->type == METRIC_ABSENT && value->is_null)
         return;
 
       /* set derivative and drun */
@@ -333,16 +341,16 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
     } else {
       /* Handle the case where this is the first value */
       w1->type = value->type;
-      w1->count = 1;
+      w1->count = 0;
       accu->first_value_time_ms = value->whence_ms;
+      if(value->is_null) return;
       switch (value->type) {
-      case METRIC_ABSENT:
-        w1->count = 0;
-        break;
+      case METRIC_ABSENT: return;
       case METRIC_STRING:
-        mtevFatal(mtev_error, "Tried to rollup a String metric\n");
+        mtevFatal(mtev_error, "METRIC_STRING in numeric path\n");
         break; // break without effect but used to get rid of gcc warning message
       default: // This will copy all 64 bits and hence works for every type
+        w1->count = 1;
         w1->value.v_uint64 = value->value.v_uint64;
         break;
       }

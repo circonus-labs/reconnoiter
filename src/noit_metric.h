@@ -85,6 +85,7 @@ typedef struct {
 typedef struct {
   uint64_t whence_ms; /* when this was recieved */
   metric_type_t type; /* the type of the following data item */
+  mtev_boolean is_null;
   union {
     int32_t v_int32;
     uint32_t v_uint32;
@@ -94,7 +95,6 @@ typedef struct {
     char *v_string;
     metric_type_t v_type_if_absent;
   } value; /* the data itself */
-  mtev_boolean is_null;
 } noit_metric_value_t;
 
 typedef struct {
