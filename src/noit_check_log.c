@@ -78,6 +78,7 @@ static int
 static int
   _noit_check_log_bundle_metric(mtev_log_stream_t, Metric *, metric_t *);
 
+#define METRICS_PER_BUNDLE 500
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
 #define MAKE_CHECK_UUID_STR(uuid_str, len, ls, check) do { \
@@ -452,7 +453,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
   const char *key;
-  int klen, i=0, size, j;
+  int klen, i=0, size, j, n_metrics = 0;
   unsigned int out_size;
   stats_t *c;
   void *vm;
@@ -460,55 +461,77 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   char *buf, *out_buf;
   mtev_hash_table *metrics;
   noit_compression_type_t comp;
-  Bundle bundle = BUNDLE__INIT;
   SETUP_LOG(bundle, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
   mtev_boolean use_compression = mtev_true;
-  const char *v_comp;
+  const char *v_comp, *v_mpb;
   v_comp = mtev_log_stream_get_property(ls, "compression");
   if(v_comp && !strcmp(v_comp, "off")) use_compression = mtev_false;
+  v_mpb = mtev_log_stream_get_property(ls, "metrics_per_bundle");
+  int metrics_per_bundle = 0;
+  if(v_mpb) metrics_per_bundle = atoi(v_mpb);
+  if(metrics_per_bundle <= 0) metrics_per_bundle = METRICS_PER_BUNDLE;
 
   // Get a bundle
   c = noit_check_get_stats_current(check);
   whence = noit_check_stats_whence(c, NULL);
 
-  // Set attributes
-  bundle.status = malloc(sizeof(Status));
-  status__init(bundle.status);
-  bundle.status->available = noit_check_stats_available(c, NULL);
-  bundle.status->state = noit_check_stats_state(c, NULL);
-  bundle.status->duration = noit_check_stats_duration(c, NULL);
-  bundle.status->status = (char *)noit_check_stats_status(c, NULL);
-  bundle.has_period = mtev_true;
-  bundle.period = check->period;
-  bundle.has_timeout = mtev_true;
-  bundle.timeout = check->timeout;
-
-  bundle.n_metadata = 1;
-  bundle.metadata = malloc(sizeof(Metadata*));
-  bundle.metadata[0] = malloc(sizeof(Metadata));
-  metadata__init(bundle.metadata[0]);
-  bundle.metadata[0]->key = ip_str;
-  bundle.metadata[0]->value = check->target_ip;
-
   // Just count
   metrics = noit_check_stats_metrics(c);
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
-    bundle.n_metrics++;
+    n_metrics++;
   }
 
-  if(bundle.n_metrics > 0) {
-    bundle.metrics = malloc(bundle.n_metrics * sizeof(Metric*));
+  int n_bundles = (n_metrics / metrics_per_bundle) + 1;
+  Bundle *bundles = malloc(n_bundles * sizeof(*bundles));
 
+  for(i=0; i<n_bundles; i++) {
+    Bundle *bundle = &bundles[i];
+    bundle__init(bundle);
+    if(i==0) { // Only the first one gets a status
+      bundle->status = malloc(sizeof(Status));
+      status__init(bundle->status);
+      bundle->status->available = noit_check_stats_available(c, NULL);
+      bundle->status->state = noit_check_stats_state(c, NULL);
+      bundle->status->duration = noit_check_stats_duration(c, NULL);
+      bundle->status->status = (char *)noit_check_stats_status(c, NULL);
+      bundle->has_period = mtev_true;
+      bundle->period = check->period;
+      bundle->has_timeout = mtev_true;
+      bundle->timeout = check->timeout;
+    }
+
+    // Set attributes
+    bundle->n_metadata = 1;
+    bundle->metadata = malloc(sizeof(Metadata*));
+    bundle->metadata[0] = malloc(sizeof(Metadata));
+    metadata__init(bundle->metadata[0]);
+    bundle->metadata[0]->key = ip_str;
+    bundle->metadata[0]->value = check->target_ip;
+    if(n_metrics > 0) {
+      /* All bundles have METRICS_PER_BUNDLE except the last,
+       * which has the remainder of metrics
+       */
+      bundle->n_metrics = metrics_per_bundle;
+      if(i == n_bundles-1)
+        bundle->n_metrics = n_metrics % metrics_per_bundle;
+      bundle->metrics = malloc(bundle->n_metrics * sizeof(Metric*));
+    }
+  }
+
+  i = 0;
+  if(n_metrics > 0) {
     // Now convert
     while(mtev_hash_next(metrics, &iter2, &key, &klen, &vm)) {
+      Bundle *bundle = &bundles[i / metrics_per_bundle];
+      int b_i = i % metrics_per_bundle;
       /* If we apply the filter set and it returns false, we don't log */
       metric_t *m = (metric_t *)vm;
       if(!noit_apply_filterset(check->filterset, check, m)) continue;
       if(m->logged) continue;
-      bundle.metrics[i] = malloc(sizeof(Metric));
-      metric__init(bundle.metrics[i]);
-      _noit_check_log_bundle_metric(ls, bundle.metrics[i], m);
+      bundle->metrics[b_i] = malloc(sizeof(Metric));
+      metric__init(bundle->metrics[b_i]);
+      _noit_check_log_bundle_metric(ls, bundle->metrics[b_i], m);
       if(NOIT_CHECK_METRIC_ENABLED()) {
         char buff[256];
         noit_stats_snprint_metric(buff, sizeof(buff), m);
@@ -516,35 +539,42 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
                           m->metric_name, m->metric_type, buff);
       }
       i++;
+      bundle->n_metrics = b_i + 1;
     }
-    bundle.n_metrics = i;
   }
 
-  size = bundle__get_packed_size(&bundle);
-  buf = malloc(size);
-  bundle__pack(&bundle, (uint8_t*)buf);
-
-  // Compress + B64
-  comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
-  noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
-  rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
-                use_compression ? '1' : '2',
-                SECPART(whence), MSECPART(whence),
-                uuid_str, check->target, check->module, check->name, size,
-                (unsigned int)out_size, out_buf);
-
-  free(buf);
-  free(out_buf);
-  // Free all the resources
-  for (j=0; j<i; j++) {
-    free(bundle.metrics[j]);
+  int rv_sum = 0;
+  for(i=0; i<n_bundles; i++) {
+    Bundle *bundle = &bundles[i];
+    size = bundle__get_packed_size(bundle);
+    buf = malloc(size);
+    bundle__pack(bundle, (uint8_t*)buf);
+  
+    // Compress + B64
+    comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
+    noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
+    rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                  "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
+                  use_compression ? '1' : '2',
+                  SECPART(whence), MSECPART(whence),
+                  uuid_str, check->target, check->module, check->name, size,
+                  (unsigned int)out_size, out_buf);
+  
+    free(buf);
+    free(out_buf);
+    // Free all the resources
+    for (j=0; j<bundle->n_metrics; j++) {
+      free(bundle->metrics[j]);
+    }
+    free(bundle->metrics);
+    free(bundle->status);
+    free(bundle->metadata[0]);
+    free(bundle->metadata);
+    if(rv < 0) rv_sum = rv;
+    else if(rv_sum >= 0) rv_sum += rv;
   }
-  free(bundle.metrics);
-  free(bundle.status);
-  free(bundle.metadata[0]);
-  free(bundle.metadata);
-  return rv;
+  free(bundles);
+  return rv_sum;
 }
 
 void

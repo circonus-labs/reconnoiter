@@ -8,6 +8,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "\t-stratcon] assumes the second field is an IP\n\n");
   fprintf(stderr, "This tool takes B{1,2} records from stdin and emits S/M records to stdout\n");
 }
+char buff[1024*1024*16];
 int main(int argc, char **argv) {
   int expect_ip = 0;
   if(argc > 2 || (argc == 2 && strcmp(argv[1], "-stratcon"))) {
@@ -15,7 +16,6 @@ int main(int argc, char **argv) {
     return 2;
   }
   if(argc == 2) expect_ip = 1;
-  char buff[4096];
   while(fgets(buff, sizeof(buff), stdin) != NULL) {
     char **lines = NULL;
     int i;
