@@ -464,9 +464,13 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   SETUP_LOG(bundle, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
   mtev_boolean use_compression = mtev_true;
-  const char *v_comp;
+  const char *v_comp, *v_mpb;
   v_comp = mtev_log_stream_get_property(ls, "compression");
   if(v_comp && !strcmp(v_comp, "off")) use_compression = mtev_false;
+  v_mpb = mtev_log_stream_get_property(ls, "metrics_per_bundle");
+  int metrics_per_bundle = 0;
+  if(v_mpb) metrics_per_bundle = atoi(v_mpb);
+  if(metrics_per_bundle <= 0) metrics_per_bundle = METRICS_PER_BUNDLE;
 
   // Get a bundle
   c = noit_check_get_stats_current(check);
@@ -478,7 +482,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     n_metrics++;
   }
 
-  int n_bundles = (n_metrics / METRICS_PER_BUNDLE) + 1;
+  int n_bundles = (n_metrics / metrics_per_bundle) + 1;
   Bundle *bundles = malloc(n_bundles * sizeof(*bundles));
 
   for(i=0; i<n_bundles; i++) {
@@ -508,9 +512,9 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
       /* All bundles have METRICS_PER_BUNDLE except the last,
        * which has the remainder of metrics
        */
-      bundle->n_metrics = METRICS_PER_BUNDLE;
+      bundle->n_metrics = metrics_per_bundle;
       if(i == n_bundles-1)
-        bundle->n_metrics = n_metrics % METRICS_PER_BUNDLE;
+        bundle->n_metrics = n_metrics % metrics_per_bundle;
       bundle->metrics = malloc(bundle->n_metrics * sizeof(Metric*));
     }
   }
@@ -519,8 +523,8 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   if(n_metrics > 0) {
     // Now convert
     while(mtev_hash_next(metrics, &iter2, &key, &klen, &vm)) {
-      Bundle *bundle = &bundles[i / METRICS_PER_BUNDLE];
-      int b_i = i % METRICS_PER_BUNDLE;
+      Bundle *bundle = &bundles[i / metrics_per_bundle];
+      int b_i = i % metrics_per_bundle;
       /* If we apply the filter set and it returns false, we don't log */
       metric_t *m = (metric_t *)vm;
       if(!noit_apply_filterset(check->filterset, check, m)) continue;
