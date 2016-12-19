@@ -34,6 +34,7 @@
 #include <mtev_defines.h>
 
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -359,8 +360,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         break;
 
       case JLOG_STREAMER_WANT_COUNT:
-        FULLREAD(e, ctx, sizeof(u_int32_t));
-        memcpy(&dummy.count, ctx->buffer, sizeof(u_int32_t));
+        FULLREAD(e, ctx, sizeof(uint32_t));
+        memcpy(&dummy.count, ctx->buffer, sizeof(uint32_t));
         ctx->count = ntohl(dummy.count);
         ctx->needs_chkpt = 0;
         free(ctx->buffer); ctx->buffer = NULL;
@@ -616,7 +617,7 @@ static void
 emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
                        mtev_connection_ctx_t *nctx) {
   struct timeval last, session_duration, diff;
-  u_int64_t session_duration_ms, last_event_ms;
+  uint64_t session_duration_ms, last_event_ms;
   jlog_streamer_ctx_t *jctx = nctx->consumer_ctx;
   char str[1024], *wr;
   int len;
@@ -682,7 +683,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   char str[1024];
   char uuid_str[1024], tmp_uuid_str[UUID_STR_LEN+1];
   struct timeval epoch, diff;
-  u_int64_t uptime = 0;
+  uint64_t uptime = 0;
   char ip_str[128];
 
   inet_ntop(AF_INET, &self_stratcon_ip.sin_addr, ip_str,
@@ -793,10 +794,17 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
   
   for(i=0; i<n; i++) {
     char buff[256];
+    char remote_dedup_key[2048];
+    void *vcn;
+    const char *config_cn = NULL;
     const char *feedtype = "unknown", *state = "unknown";
     mtev_connection_ctx_t *ctx = ctxs[i];
     jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
 
+    if(ctx->config &&
+       mtev_hash_retrieve(ctx->config, "cn", strlen("cn"), &vcn)) {
+      config_cn = vcn;
+    }
     feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
 
     /* If the user requested a specific type and we're not it, skip. */
@@ -814,6 +822,9 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
     snprintf(buff, sizeof(buff), "%llu.%06d",
              (long long unsigned)ctx->last_connect.tv_sec,
              (int)ctx->last_connect.tv_usec);
+    if(config_cn) {
+      json_object_object_add(node, "cn", json_object_new_string(config_cn));
+    }
     json_object_object_add(node, "last_connect", json_object_new_string(buff));
     json_object_object_add(node, "state",
          json_object_new_string(ctx->remote_cn ?
@@ -846,7 +857,9 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
         }
       }
     }
-    mtev_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
+    snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s",
+             config_cn ? config_cn : "", ctx->remote_str);
+    mtev_hash_replace(&seen, strdup(remote_dedup_key), strlen(remote_dedup_key),
                       0, free, NULL);
     json_object_object_add(node, "remote", json_object_new_string(ctx->remote_str));
     json_object_object_add(node, "type", json_object_new_string(feedtype));
@@ -906,7 +919,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
     snprintf(path, sizeof(path), "//noits//noit");
     noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
     for(di=0; di<cnt; di++) {
-      char address[64], port_str[32], remote_str[98];
+      char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn_buff, sizeof(expected_cn_buff)))
@@ -923,8 +936,10 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
           if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
             continue;
 
+        snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s:%s",
+                 expected_cn ? expected_cn : "", address, port_str);
         snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
-        if(!mtev_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
+        if(!mtev_hash_retrieve(&seen, remote_dedup_key, strlen(remote_dedup_key), &v)) {
           node = json_object_new_object();
           json_object_object_add(node, "remote", json_object_new_string(remote_str));
           json_object_object_add(node, "type", json_object_new_string("configured"));
@@ -1006,9 +1021,17 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
 
   for(i=0; i<n; i++) {
     char buff[256];
+    char remote_dedup_key[2048];
+    void *vcn;
     const char *feedtype = "unknown", *state = "unknown";
+    const char *config_cn = NULL;
     mtev_connection_ctx_t *ctx = ctxs[i];
     jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
+
+    if(ctx->config &&
+       mtev_hash_retrieve(ctx->config, "cn", strlen("cn"), &vcn)) {
+      config_cn = vcn;
+    }
 
     feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
 
@@ -1027,6 +1050,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
     snprintf(buff, sizeof(buff), "%llu.%06d",
              (long long unsigned)ctx->last_connect.tv_sec,
              (int)ctx->last_connect.tv_usec);
+    if(config_cn) xmlSetProp(node, (xmlChar *)"cn", (xmlChar *)config_cn);
     xmlSetProp(node, (xmlChar *)"last_connect", (xmlChar *)buff);
     xmlSetProp(node, (xmlChar *)"state", ctx->remote_cn ?
                (xmlChar *)"connected" :
@@ -1058,7 +1082,9 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
         }
       }
     }
-    mtev_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
+    snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s",
+             config_cn ? config_cn : "", ctx->remote_str);
+    mtev_hash_replace(&seen, strdup(remote_dedup_key), strlen(remote_dedup_key),
                       0, free, NULL);
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
@@ -1119,7 +1145,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
     snprintf(path, sizeof(path), "//noits//noit");
     noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
     for(di=0; di<cnt; di++) {
-      char address[64], port_str[32], remote_str[98];
+      char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn_buff, sizeof(expected_cn_buff)))
@@ -1136,8 +1162,10 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
           if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
             continue;
 
+        snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s:%s",
+                 expected_cn ? expected_cn : "", address, port_str);
         snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
-        if(!mtev_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
+        if(!mtev_hash_retrieve(&seen, remote_dedup_key, strlen(remote_dedup_key), &v)) {
           node = xmlNewNode(NULL, (xmlChar *)"noit");
           xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)remote_str);
           xmlSetProp(node, (xmlChar *)"type", (xmlChar *)"configured");
@@ -1166,11 +1194,20 @@ stratcon_add_noit(const char *target, unsigned short port,
   mtev_conf_section_t *noit_configs, parent;
   xmlNodePtr newnoit, config, cnnode;
 
-  snprintf(path, sizeof(path),
-           "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
-  noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
-  free(noit_configs);
-  if(cnt != 0) return -1;
+  if(target && strlen(target) > 0) {
+    snprintf(path, sizeof(path),
+             "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
+    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    free(noit_configs);
+    if(cnt != 0) return -1;
+  }
+  if(cn) {
+    snprintf(path, sizeof(path),
+             "//noits//noit/config/cn[text()=\"%s\"]", cn);
+    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    free(noit_configs);
+    if(cnt != 0) return -1;
+  }
 
   parent = mtev_conf_get_section(NULL, "//noits//include//noits");
   if(!parent) parent = mtev_conf_get_section(NULL, "//noits");
@@ -1192,13 +1229,13 @@ stratcon_add_noit(const char *target, unsigned short port,
     pthread_mutex_unlock(&noit_ip_by_cn_lock);
   }
   if(stratcon_datastore_get_enabled())
-    stratcon_streamer_connection(NULL, target, "noit",
+    stratcon_streamer_connection(NULL, cn ? cn : target, "noit",
                                  stratcon_jlog_recv_handler,
                                  (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
                                  NULL,
                                  jlog_streamer_ctx_free);
   if(stratcon_iep_get_enabled())
-    stratcon_streamer_connection(NULL, target, "noit",
+    stratcon_streamer_connection(NULL, cn ? cn : target, "noit",
                                  stratcon_jlog_recv_handler,
                                  (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
                                  NULL,
@@ -1218,6 +1255,8 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
 
   snprintf(remote_str, sizeof(remote_str), "%s:%d", target, port);
 
+  /* A sweep through the config of all noits with this address,
+   * possibly limited by CN if specified. */
   snprintf(path, sizeof(path),
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
   noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
@@ -1230,7 +1269,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
         mtev_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
                          free, free);
         pthread_mutex_unlock(&noit_ip_by_cn_lock);
-      }
+      } else continue;
     }
     else if(cn) continue;
     CONF_REMOVE(noit_configs[i]);
@@ -1240,12 +1279,35 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
   }
   free(noit_configs);
 
+  /* A sweep through the config of all noits with this CN */
+  if(cn) {
+    snprintf(path, sizeof(path),
+             "//noits/noit[self::node()/config/cn/text()=\"%s\"]", cn);
+    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    for(i=0; i<cnt; i++) {
+      pthread_mutex_lock(&noit_ip_by_cn_lock);
+      mtev_hash_delete(&noit_ip_by_cn, cn, strlen(cn), free, free);
+      pthread_mutex_unlock(&noit_ip_by_cn_lock);
+      CONF_REMOVE(noit_configs[i]);
+      xmlUnlinkNode(noit_configs[i]);
+      xmlFreeNode(noit_configs[i]);
+      n = 0;
+    }
+    free(noit_configs);
+  }
+
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * mtev_hash_size(&noits));
   while(mtev_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
-    if(!strcmp(((mtev_connection_ctx_t *)vconn)->remote_str, remote_str)) {
-      ctx[n] = (mtev_connection_ctx_t *)vconn;
+    const char *expected_cn;
+    mtev_connection_ctx_t *nctx = (mtev_connection_ctx_t *)vconn;
+    /* If the noit matches the CN... or the remote_str, pop it */
+    if((cn &&
+        mtev_hash_retr_str(nctx->config, "cn", strlen("cn"), &expected_cn) &&
+        !strcmp(expected_cn, cn)) ||
+       !strcmp(nctx->remote_str, remote_str)) {
+      ctx[n] = nctx;
       mtev_connection_ctx_ref(ctx[n]);
       n++;
     }
@@ -1308,7 +1370,7 @@ stratcon_console_conf_noits(mtev_console_closure_t ncct,
                             void *closure) {
   char *cp, target[128];
   unsigned short port = 43191;
-  int adding = (int)(vpsized_int)closure;
+  int adding = (int)(intptr_t)closure;
   char *cn = NULL;
   if(argc != 1 && argc != 2)
     return -1;

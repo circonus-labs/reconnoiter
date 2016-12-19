@@ -148,7 +148,9 @@ public class NoitBundlev2 extends NoitEvent {
             typestring = ts_n;
             break;
           case 's':
-            v_str = metric.getValueStr();
+            if(metric.hasValueStr()) {
+              v_str = metric.getValueStr();
+            }
             typestring = ts_s;
             break;
           default:

@@ -190,7 +190,7 @@ static void fetch_and_kill_by_check(int64_t check_no) {
 
 int write_out_backing_fd(int ofd, int bfd) {
   char *mmap_buf;
-  u_int16_t outlen;
+  uint16_t outlen;
   struct stat buf;
 
   if(fstat(bfd, &buf) == -1) {

@@ -129,7 +129,7 @@ static int ssh2_config(noit_module_t *self, mtev_hash_table *options) {
 }
 static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration, now;
-  u_int32_t mduration;
+  uint32_t mduration;
   ssh2_check_info_t *ci = check->closure;
 
   mtev_gettimeofday(&now, NULL);

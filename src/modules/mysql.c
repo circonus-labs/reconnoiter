@@ -251,7 +251,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   const char *port_s=NULL;
   const char *socket=NULL;
   const char *sslmode=NULL;
-  u_int32_t port;
+  uint32_t port;
   unsigned long client_flag = CLIENT_IGNORE_SIGPIPE;
   unsigned int timeout;
 

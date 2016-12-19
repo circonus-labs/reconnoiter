@@ -273,7 +273,7 @@ noit_lua_get_state(lua_State *L) {
 static int
 noit_lua_get_flags(lua_State *L) {
   noit_check_t *check;
-  u_int32_t andset = ~0;
+  uint32_t andset = ~0;
   int narg;
 
   if(lua_gettop(L) > 0) andset = 0;
@@ -401,13 +401,13 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
   noit_check_t *check;
   const char *metric_name;
   metric_type_t metric_type;
-  struct timeval whence;
+  struct timeval whence = { 0UL, 0UL };
 
   double __n = 0.0;
   int32_t __i = 0;
-  u_int32_t __I = 0;
+  uint32_t __I = 0;
   int64_t __l = 0;
-  u_int64_t __L = 0;
+  uint64_t __L = 0;
 
   if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   check = lua_touserdata(L, lua_upvalueindex(1));
@@ -420,6 +420,9 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
     if(lua_gettop(L) == 4) {
       whence.tv_usec = lua_tointeger(L, 4);
     }
+    if(whence.tv_sec < 0) whence.tv_sec = 0;
+    if(whence.tv_usec < 0 || whence.tv_usec >= 1000000)
+      whence.tv_usec = 0;
   } else {
     gettimeofday(&whence, NULL);
   }
@@ -469,7 +472,6 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
       __n = luaL_optnumber(L, 2, 0);
       set(check, metric_name, metric_type, &__n, &whence);
       break;
-    case METRIC_NULL:
     case METRIC_ABSENT:
       luaL_error(L, "illegal metric type: %d", metric_type);
   }
@@ -483,7 +485,7 @@ noit_lua_set_histo_metric(lua_State *L) {
   const char *metric_name;
   size_t hist_encoded_len;
   const char *hist_encoded;
-  u_int64_t whence_s;
+  uint64_t whence_s;
 
   if(lua_gettop(L) != 3) luaL_error(L, "need 3 arguments: <metric_name> <encoded_histo> <whence_s>");
   check = lua_touserdata(L, lua_upvalueindex(1));
@@ -695,11 +697,6 @@ noit_check_index_func(lua_State *L) {
       return 1;
     case 'p':
       if(!strcmp(k, "period")) lua_pushinteger(L, check->period);
-      else if(!strcmp(k, "path")) {
-        char *path = noit_check_path(check);
-        lua_pushstring(L, path);
-        free(path);
-      }
       else break;
       return 1;
     case 's':

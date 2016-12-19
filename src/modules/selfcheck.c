@@ -66,14 +66,13 @@ static mtev_log_stream_t nldeb = NULL;
 /*Function to return operating system information*/
 static int selfcheck_os_version(char *buff, int len) {
   struct utsname unameData;
-  
+
   /*If error returned, print that operating system information is not available.*/
   if (uname(&unameData)<0)
   {
     return snprintf(buff, len, "%s", "N/A");
-    
   }
-  
+
   /*Else, print operating system information.*/
   else
   {
@@ -91,9 +90,9 @@ static void jobq_thread_helper(eventer_jobq_t *jobq, void *closure) {
   int s32;
   char buffer[128];
   struct threadq_crutch *crutch = (struct threadq_crutch *)closure;
-  s32 = jobq->concurrency;
+  s32 = eventer_jobq_get_concurrency(jobq);
   if(s32 == 0) return; /* omit if no concurrency */
-  snprintf(buffer, sizeof(buffer), "%s_threads", jobq->queue_name);
+  snprintf(buffer, sizeof(buffer), "%s_threads", eventer_jobq_get_queue_name(jobq));
   noit_stats_set_metric(crutch->check, buffer, METRIC_INT32, &s32);
 }
 static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
@@ -120,7 +119,7 @@ static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
 }
 static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   char buff[128];
-  u_int64_t u64;
+  uint64_t u64;
   int64_t s64;
   int32_t s32;
   struct threadq_crutch crutch;
@@ -157,12 +156,12 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   eventer_jobq_process_each(jobq_thread_helper, &crutch);
   noit_build_version(buff, sizeof(buff));
   noit_stats_set_metric(check, "version", METRIC_STRING, buff);
-  
+
   /*Clear buffer, store operating system in it*/
   memset(buff,'\0',sizeof(buff));
   selfcheck_os_version(buff, sizeof(buff));
   noit_stats_set_metric(check, "OS version", METRIC_STRING, buff);
-  
+
   u64 = noit_check_completion_count();
   noit_stats_set_metric(check, "checks_run", METRIC_UINT64, &u64);
   u64 = noit_check_metric_count();

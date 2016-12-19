@@ -6,8 +6,8 @@
       <concurrency>4</concurrency>
       <default_queue_threads>10</default_queue_threads>
       <default_ca_chain>%sysconfdir%/default-ca-chain.crt</default_ca_chain>
-      <ssl_dhparam512_file>%sysconfdir%/dhparam512.txt</ssl_dhparam512_file>
       <ssl_dhparam1024_file>%sysconfdir%/dhparam1024.txt</ssl_dhparam1024_file>
+      <ssl_dhparam2048_file>%sysconfdir%/dhparam2048.txt</ssl_dhparam2048_file>
     </config>
   </eventer>
   <resolver>
@@ -73,7 +73,10 @@
   </logs>
   <modules directory="%modulesdir%">
     <loader image="lua" name="lua">
-      <config><directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory></config>
+      <config>
+        <directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory>
+        <cpath>{mtev.lua_cpath};{package.cpath};%modulesdir%/noit_lua/?.so</cpath>
+      </config>
     </loader>
     <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>

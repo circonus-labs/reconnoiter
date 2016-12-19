@@ -26,6 +26,7 @@ src/modules/*.dSYM
 src/modules/histogram_test
 src/noit_version.h
 src/noitd
+src/noit_b2sm
 src/noit.conf
 src/noit.env
 src/scratch/

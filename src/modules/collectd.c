@@ -388,17 +388,17 @@ typedef struct receive_list_entry_s receive_list_entry_t;
  *
  */
 
-static u_int64_t collectd_ntohll (u_int64_t n)
+static uint64_t collectd_ntohll (uint64_t n)
 {
 #if BYTE_ORDER == BIG_ENDIAN
   return (n);
 #else
-  u_int64_t retval;
+  uint64_t retval;
   retval = ((uint64_t) ntohl(n & 0xFFFFFFFFLLU)) << 32;
   retval |= ntohl((n & 0xFFFFFFFF00000000LLU) >> 32);
   return retval;
 #endif
-} /* u_int64_t collectd_ntohll */
+} /* uint64_t collectd_ntohll */
 
 #define ntohd(d) (d)
 

@@ -67,27 +67,27 @@
 #define PING_COUNT    5
 
 struct check_info {
-  u_int16_t check_no;
-  u_int8_t check_seq_no;
-  u_int8_t seq;
+  uint16_t check_no;
+  uint8_t check_seq_no;
+  uint8_t seq;
   int8_t expected_count;
   float *turnaround;
   eventer_t timeout_event;
 };
 struct ping_session_key {
-  vpsized_uint addr_of_check; /* ticket #288 */
+  uintptr_t addr_of_check; /* ticket #288 */
   uuid_t checkid;
 };
 struct ping_payload {
-  vpsized_uint addr_of_check; /* ticket #288 */
+  uintptr_t addr_of_check; /* ticket #288 */
   uuid_t checkid;
-  u_int64_t tv_sec;
-  u_int32_t tv_usec;
-  u_int16_t generation;    
-  u_int16_t check_no;
-  u_int8_t  check_pack_no;
-  u_int8_t  check_pack_cnt;
-  u_int8_t  size_bookend;
+  uint64_t tv_sec;
+  uint32_t tv_usec;
+  uint16_t generation;    
+  uint16_t check_no;
+  uint8_t  check_pack_no;
+  uint8_t  check_pack_cnt;
+  uint8_t  size_bookend;
 };
 #define PING_PAYLOAD_LEN offsetof(struct ping_payload, size_bookend)
 struct ping_closure {
@@ -100,7 +100,7 @@ struct ping_closure {
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 static int in_cksum(u_short *addr, int len);
-static vpsized_uint random_num;
+static uintptr_t random_num;
 
 
 typedef struct  {
@@ -195,7 +195,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   data->timeout_event = NULL;
   pcl->check->flags &= ~NP_RUNNING;
   ping_data = noit_module_get_userdata(pcl->self);
-  k.addr_of_check = (vpsized_uint)pcl->check ^ random_num;
+  k.addr_of_check = (uintptr_t)pcl->check ^ random_num;
   uuid_copy(k.checkid, pcl->check->checkid);
   mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
                    free, NULL);
@@ -205,7 +205,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
 
 static int ping_icmp_handler(eventer_t e, int mask,
                              void *closure, struct timeval *now,
-                             u_int8_t family) {
+                             uint8_t family) {
   noit_module_t *self = (noit_module_t *)closure;
   ping_icmp_data_t *ping_data;
   struct check_info *data;
@@ -224,7 +224,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
   while(1) {
     struct ping_session_key k;
     int inlen;
-    u_int8_t iphlen = 0;
+    uint8_t iphlen = 0;
     void *vcheck;
     noit_check_t *check;
     struct timeval tt, whence;
@@ -255,11 +255,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
         mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp4->icmp_type);
         continue;
       }
-      if(icp4->icmp_id != (((vpsized_uint)self) & 0xffff)) {
+      if(icp4->icmp_id != (((uintptr_t)self) & 0xffff)) {
         mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp4->icmp_id, ntohs(icp4->icmp_seq),
-                 (unsigned long)(((vpsized_uint)self) & 0xffff));
+                 (unsigned long)(((uintptr_t)self) & 0xffff));
         continue;
       }
     }
@@ -275,11 +275,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
         mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp6->icmp6_type);
         continue;
       }
-      if(icp6->icmp6_id != (((vpsized_uint)self) & 0xffff)) {
+      if(icp6->icmp6_id != (((uintptr_t)self) & 0xffff)) {
         mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp6->icmp6_id, ntohs(icp6->icmp6_seq),
-                 (unsigned long)(((vpsized_uint)self) & 0xffff));
+                 (unsigned long)(((uintptr_t)self) & 0xffff));
         continue;
       }
     }
@@ -331,7 +331,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       eventer_free(data->timeout_event);
       data->timeout_event = NULL;
       check->flags &= ~NP_RUNNING;
-      k.addr_of_check = (vpsized_uint)check ^ random_num;
+      k.addr_of_check = (uintptr_t)check ^ random_num;
       uuid_copy(k.checkid, check->checkid);
       mtev_hash_delete(ping_data->in_flight, (const char *)&k,
                        sizeof(k), free, NULL);
@@ -353,7 +353,7 @@ static int ping_icmp_init(noit_module_t *self) {
   struct protoent *proto;
   ping_icmp_data_t *data;
 
-  RAND_pseudo_bytes((unsigned char *)&random_num, sizeof(vpsized_uint));
+  RAND_pseudo_bytes((unsigned char *)&random_num, sizeof(uintptr_t));
 
   data = malloc(sizeof(*data));
   data->in_flight = calloc(1, sizeof(*data->in_flight));
@@ -538,7 +538,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   check->flags |= NP_RUNNING;
   ping_data = noit_module_get_userdata(self);
   k = calloc(1, sizeof(*k));
-  k->addr_of_check = (vpsized_uint)check ^ random_num;
+  k->addr_of_check = (uintptr_t)check ^ random_num;
   uuid_copy(k->checkid, check->checkid);
   if(!mtev_hash_store(ping_data->in_flight, (const char *)k, sizeof(*k),
                       check)) {
@@ -592,7 +592,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
       icp4->icmp_code = 0;
       icp4->icmp_cksum = 0;
       icp4->icmp_seq = htons(ci->seq++);
-      icp4->icmp_id = (((vpsized_uint)self) & 0xffff);
+      icp4->icmp_id = (((uintptr_t)self) & 0xffff);
     }
     else if(check->target_family == AF_INET6) {
       struct icmp6_hdr *icp6 = icp;
@@ -600,10 +600,10 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
       icp6->icmp6_code = 0;
       icp6->icmp6_cksum = 0;
       icp6->icmp6_seq = htons(ci->seq++);
-      icp6->icmp6_id = (((vpsized_uint)self) & 0xffff);
+      icp6->icmp6_id = (((uintptr_t)self) & 0xffff);
     }
 
-    payload->addr_of_check = (vpsized_uint)check ^ random_num;
+    payload->addr_of_check = (uintptr_t)check ^ random_num;
     uuid_copy(payload->checkid, check->checkid);
     payload->generation = check->generation & 0xffff;
     payload->check_no = ci->check_no;
@@ -708,6 +708,10 @@ noit_module_t ping_icmp = {
   ping_icmp_config,
   ping_icmp_init,
   ping_icmp_initiate_check,
-  ping_check_cleanup
+  ping_check_cleanup,
+  /* all ping checks share a single socket, so we're operationally
+   * mostly single-threaded already. no benefit to having checks
+   * run in multiple threads. */
+  .thread_unsafe = 1
 };
 

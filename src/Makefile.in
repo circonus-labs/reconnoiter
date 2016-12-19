@@ -72,7 +72,7 @@ STRATCOND_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=stratcond_%dtrace_stub.o)
 LIBNOIT_V=libnoit@DOTSO@.$(LIBNOIT_VERSION)@DOTDYLIB@
 LIBNOIT=libnoit@DOTSO@@DOTDYLIB@
 
-TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
+TARGETS=noitd stratcond noit_b2sm noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
 	$(LIBNOIT) @MDB_MODS@
 
 all:	reversion $(TARGETS) java-bits make-modules make-man tests
@@ -99,6 +99,8 @@ LUALIBS=@LUALIBS@
 
 LIBNOIT_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo
+
+B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o
 
 NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_check_resolver.o noit_metric_director.o noit_message_decoder.o \
@@ -236,6 +238,12 @@ stratcon_@DTRACEHDR@:    stratcon_dtrace_probes.d
 		@DTRACE@ -h -s stratcon_dtrace_probes.d ; \
 	fi
 
+noit_b2sm:	$(B2SM_OBJS)
+	@echo "- linking $@"
+	@$(CC) $(CLINKFLAGS) -o $@ $(B2SM_OBJS) \
+		$(LDFLAGS) \
+		$(LIBS) -L. -lmtev $(LUALIBS) -ljlog
+
 noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@echo "- linking $@"
 	@$(CC) $(CLINKFLAGS) -o $@ $(FINAL_NOIT_OBJS) \
@@ -371,6 +379,7 @@ install-noitd:	install-libs install-noitd-nolibs
 install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits noit.env
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/noit-web
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
+	$(INSTALL) -m 0755 noit_b2sm $(DESTDIR)$(bindir)/noit_b2sm
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
 	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/noit.env

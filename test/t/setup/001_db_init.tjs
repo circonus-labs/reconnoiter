@@ -40,6 +40,18 @@ function cleanup(test, cb) {
   }
 }
 
+var db_version = 9.0;
+function db_version_fetch(cb) {
+  var vs = spawn('postgres', [ '--version' ]);
+  var vstring = '';
+  vs.stdout.on('data', (d) => { vstring = vstring + d; });
+  vs.on('close', function(code) {
+    var p = vstring.match(/\s(\d+\.\d+)/);
+    if (p) db_version = parseFloat(p[1]);
+    cb();
+  });
+}
+
 function init(test) {
   test.ok(fs.existsSync('../../sql/reconnoiter_ddl_dump.sql'), 'SQL DDL exists');
   var c = spawn('initdb', [ '-A', 'trust', tools.NOIT_TEST_DB ], { stdio: [ 'ignore', 'pipe', 'pipe' ] });
@@ -60,10 +72,16 @@ function init(test) {
     }
     test.ok(code == 0, 'initialized db');
 
-    fs.writeFileSync(tools.NOIT_TEST_DB + "/postgresql.conf",
-      "listen_addresses = 'localhost'\n" +
-      "unix_socket_directory = '" + tools.NOIT_TEST_DB + "'\n" +
-      "port = " + tools.NOIT_TEST_DB_PORT + "\n");
+    var conf = "listen_addresses = 'localhost'\n" +
+      "port = " + tools.NOIT_TEST_DB_PORT + "\n";
+    if(db_version >= 9.3) {
+      conf = conf +
+        "unix_socket_directories = '" + tools.NOIT_TEST_DB + "'\n";
+    } else {
+      conf = conf +
+        "unix_socket_directory = '" + tools.NOIT_TEST_DB + "'\n";
+    }
+    fs.writeFileSync(tools.NOIT_TEST_DB + "/postgresql.conf", conf);
     var output = '';
     var c = spawn('pg_ctl', [ '-D', tools.NOIT_TEST_DB, '-l', tools.NOIT_TEST_DB + '/serverlog',
                               '-s', '-w', 'start' ], { stdio: [ 'ignore', 'pipe', 'pipe' ] });
@@ -86,5 +104,5 @@ test = function() {
   }
   if(process.env['SKIP_DB_CLEANUP'] != 1)
     tools.cleanup(function(cb) { cleanup(null, cb); });
-  cleanup(test, function() { init(test); });
+  cleanup(test, function() { db_version_fetch(function() { init(test); }) });
 }

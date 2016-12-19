@@ -47,7 +47,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 
   mtev_json_object_object_add(o, "check_uuid", mtev_json_object_new_string(uuid_str));
 
-  if (metric->value.type == METRIC_NULL || metric->value.type == METRIC_ABSENT) {
+  if (metric->value.type == METRIC_ABSENT) {
     mtev_json_object_object_add(o, "value_type", NULL);
   } else {
     char value_type[2] = {0};
@@ -61,42 +61,46 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
     name[metric->id.name_len] = '\0';
     struct mtev_json_object *int_value = mtev_json_object_new_int(metric->value.value.v_int32);
 
-    switch (metric->value.type) {
-    case METRIC_GUESS:
-    case METRIC_INT32:
-      mtev_json_object_object_add(o, name, int_value);
-      break;
-
-    case METRIC_UINT32:
-      mtev_json_object_set_int_overflow(int_value, mtev_json_overflow_uint64);
-      mtev_json_object_set_uint64(int_value, metric->value.value.v_uint32);
-      mtev_json_object_object_add(o, name, int_value);
-      break;
-
-    case METRIC_INT64:
-      mtev_json_object_set_int_overflow(int_value, mtev_json_overflow_int64);
-      mtev_json_object_set_int64(int_value, metric->value.value.v_int64);
-      mtev_json_object_object_add(o, name, int_value);
-      break;
-
-    case METRIC_UINT64:
-      mtev_json_object_set_int_overflow(int_value, mtev_json_overflow_uint64);
-      mtev_json_object_set_uint64(int_value, metric->value.value.v_uint64);
-      mtev_json_object_object_add(o, name, int_value);
-      break;
-
-    case METRIC_DOUBLE:
-      {
-        mtev_json_object_object_add(o, name, mtev_json_object_new_double(metric->value.value.v_double));
+    if(metric->value.is_null) {
+      mtev_json_object_object_add(o, name, NULL);
+    } else {
+      switch (metric->value.type) {
+      case METRIC_GUESS:
+      case METRIC_INT32:
+        mtev_json_object_object_add(o, name, int_value);
         break;
 
+      case METRIC_UINT32:
+        mtev_json_object_set_int_overflow(int_value, mtev_json_overflow_uint64);
+        mtev_json_object_set_uint64(int_value, metric->value.value.v_uint32);
+        mtev_json_object_object_add(o, name, int_value);
+        break;
+
+      case METRIC_INT64:
+        mtev_json_object_set_int_overflow(int_value, mtev_json_overflow_int64);
+        mtev_json_object_set_int64(int_value, metric->value.value.v_int64);
+        mtev_json_object_object_add(o, name, int_value);
+        break;
+
+      case METRIC_UINT64:
+        mtev_json_object_set_int_overflow(int_value, mtev_json_overflow_uint64);
+        mtev_json_object_set_uint64(int_value, metric->value.value.v_uint64);
+        mtev_json_object_object_add(o, name, int_value);
+        break;
+
+      case METRIC_DOUBLE:
+        {
+          mtev_json_object_object_add(o, name, mtev_json_object_new_double(metric->value.value.v_double));
+          break;
+
+        }
+      case METRIC_STRING:
+        mtev_json_object_object_add(o, name, mtev_json_object_new_string(metric->value.value.v_string));
+        break;
+      default:
+        mtev_json_object_object_add(o, name, NULL);
+        break;
       }
-    case METRIC_STRING:
-      mtev_json_object_object_add(o, name, mtev_json_object_new_string(metric->value.value.v_string));
-      break;
-    default:
-      mtev_json_object_object_add(o, name, NULL);
-      break;
     }
   } else if (metric->type == MESSAGE_TYPE_S) {
     char *status = strdup(metric->id.name);
@@ -125,7 +129,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
         /* for each bvs in the histogram, create a "bucket" object in the json */
         struct mtev_json_object *bucket = mtev_json_object_new_object();
         double b = 0.0;
-        u_int64_t bc = 0;
+        uint64_t bc = 0;
         hist_bucket_idx(histo, i, &b, &bc);
         mtev_json_object_object_add(bucket, "bucket",
                                     mtev_json_object_new_double(b));

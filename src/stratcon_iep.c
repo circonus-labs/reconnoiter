@@ -63,7 +63,7 @@
 #include "stratcon_iep.h"
 #include "noit_check.h"
 
-eventer_jobq_t iep_jobq;
+eventer_jobq_t *iep_jobq;
 static mtev_log_stream_t noit_iep = NULL;
 static mtev_log_stream_t noit_iep_debug = NULL;
 static mtev_spinlock_t iep_conn_cnt = 0;
@@ -104,7 +104,7 @@ stratcon_iep_age_from_line(char *data, struct timeval now) {
   if(data && (*data == 'S' || *data == 'M')) {
     if(data[1] != '\t') return 0;
     t = strtod(data + 2, NULL);
-    n = (float)now.tv_sec + (float)now.tv_usec / 1000000.0;
+    n = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
     return n - t;
   }
   return 0;
@@ -512,7 +512,7 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   mtev_gettimeofday(&jc->start, NULL);
   newe->closure = jc;
 
-  eventer_add_asynch(&iep_jobq, newe);
+  eventer_add_asynch(iep_jobq, newe);
 }
 
 static void connection_destroy(void *vd) {
@@ -852,9 +852,10 @@ stratcon_iep_init() {
   eventer_name_callback("setup_iep_connection_callback", setup_iep_connection_callback);
 
   /* start up a thread pool of one */
-  memset(&iep_jobq, 0, sizeof(iep_jobq));
-  eventer_jobq_init(&iep_jobq, "iep_submitter");
-  eventer_jobq_increase_concurrency(&iep_jobq);
+  
+  iep_jobq = eventer_jobq_create("iep_submitter");
+  eventer_jobq_set_concurrency(iep_jobq, 1);
+  eventer_jobq_set_min_max(iep_jobq, 1, 1);
 
   mtevAssert(mtev_http_rest_register_auth(
     "PUT", "/", "^mq_filters$",

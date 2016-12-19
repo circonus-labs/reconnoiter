@@ -166,13 +166,13 @@ static int
 noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
   jlog_message msg;
   int mask;
-  u_int32_t n_count;
+  uint32_t n_count;
   n_count = htonl(jcl->count);
   if(Ewrite(&n_count, sizeof(n_count)) != sizeof(n_count))
     return -1;
   while(jcl->count > 0) {
     int rv;
-    struct { jlog_id chkpt; u_int32_t n_sec, n_usec, n_len; } payload;
+    struct { jlog_id chkpt; uint32_t n_sec, n_usec, n_len; } payload;
     if(jlog_ctx_read_message(jcl->jlog, &jcl->start, &msg) == -1)
       return -1;
 

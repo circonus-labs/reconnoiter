@@ -38,65 +38,75 @@
 
 static double
 metric_value_double(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_INT32: return (double)v->value.v_int32;
-    case METRIC_UINT32: return (double)v->value.v_uint32;
-    case METRIC_INT64: return (double)v->value.v_int64;
-    case METRIC_UINT64: return (double)v->value.v_uint64;
-    case METRIC_DOUBLE: return v->value.v_double;
-    default: ;
-
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_INT32: return (double)v->value.v_int32;
+      case METRIC_UINT32: return (double)v->value.v_uint32;
+      case METRIC_INT64: return (double)v->value.v_int64;
+      case METRIC_UINT64: return (double)v->value.v_uint64;
+      case METRIC_DOUBLE: return v->value.v_double;
+      default: ;
+    }
   }
-  return private_nan;
+  mtevFatal(mtev_error, "failed metric_value_double(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 static int64_t
 metric_value_int64(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_INT32: return (int64_t)v->value.v_int32;
-    case METRIC_UINT32: return (int64_t)v->value.v_uint32;
-    case METRIC_INT64: return v->value.v_int64;
-    default: ;
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_INT32: return (int64_t)v->value.v_int32;
+      case METRIC_UINT32: return (int64_t)v->value.v_uint32;
+      case METRIC_INT64: return v->value.v_int64;
+      default: ;
+    }
   }
-  mtevFatal(mtev_error, "Unknown int type: %d\n", v->type);
+  mtevFatal(mtev_error, "failed metric_value_int64(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 static uint64_t
 metric_value_uint64(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_INT32:
-      mtevAssert(v->value.v_int32 >= 0);
-      return (uint64_t)v->value.v_int32;
-    case METRIC_UINT32: return (uint64_t)v->value.v_uint32;
-    case METRIC_INT64:
-      mtevAssert(v->value.v_int64 >= 0);
-      return (uint64_t)v->value.v_int64;
-    case METRIC_UINT64: return v->value.v_uint64;
-    default: ;
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_INT32:
+        mtevAssert(v->value.v_int32 >= 0);
+        return (uint64_t)v->value.v_int32;
+      case METRIC_UINT32: return (uint64_t)v->value.v_uint32;
+      case METRIC_INT64:
+        mtevAssert(v->value.v_int64 >= 0);
+        return (uint64_t)v->value.v_int64;
+      case METRIC_UINT64: return v->value.v_uint64;
+      default: ;
+    }
   }
-  mtevFatal(mtev_error, "Unknown int type: %d\n", v->type);
+  mtevFatal(mtev_error, "failed metric_value_uint64(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 static int
 metric_value_is_negative(noit_metric_value_t *v) {
-  switch(v->type) {
-    case METRIC_UINT32:
-    case METRIC_UINT64: return 0;
-    case METRIC_INT32:
-      return (v->value.v_int32 < 0);
-    case METRIC_INT64:
-      return (v->value.v_int64 < 0);
-    case METRIC_DOUBLE:
-      return (v->value.v_double < 0);
-    default: ;
+  if(!v->is_null) {
+    switch(v->type) {
+      case METRIC_UINT32:
+      case METRIC_UINT64: return 0;
+      case METRIC_INT32:
+        return (v->value.v_int32 < 0);
+      case METRIC_INT64:
+        return (v->value.v_int64 < 0);
+      case METRIC_DOUBLE:
+        return (v->value.v_double < 0);
+      default: ;
+    }
   }
-  mtevFatal(mtev_error, "Unknown metric type: %d\n", v->type);
+  mtevFatal(mtev_error, "failed metric_value_is_negative(%x, null: %d)\n",
+            v->type, v->is_null);
 }
 
 static void
 calculate_change(noit_metric_value_t *v1, noit_metric_value_t *v2,
                  double *dy, int *dt) {
   *dt = v2->whence_ms - v1->whence_ms;
-  if(v1->type == METRIC_ABSENT || v1->type == METRIC_NULL ||
-     v1->type == METRIC_STRING || v2->type == METRIC_ABSENT ||
-     v2->type == METRIC_NULL || v2->type == METRIC_STRING) {
+  if(v1->type == METRIC_ABSENT || v1->is_null || v1->type == METRIC_STRING ||
+     v2->type == METRIC_ABSENT || v2->is_null || v2->type == METRIC_STRING) {
     *dy = private_nan;
     return;
   }
@@ -275,18 +285,11 @@ static int nnt_multitype_accum_counts(nnt_multitype *a, int a_count,
     }
   }
 
-  /* special case to up-coerce an absent to a NULL */
-  if(a->type == METRIC_ABSENT && v->type == METRIC_NULL)
-    a->type = METRIC_NULL;
-
   return count;
 }
 
 void
 noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metric_value_t* value) {
-  /*int lv;
-     uuid_t id;
-     char uuid_str[UUID_STR_LEN+1];*/
     noit_metric_value_t last_value = accu->last_value;
     accu->last_value = *value;
 
@@ -300,15 +303,14 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
     if (accu->first_value_time_ms >= value->whence_ms) {
       /* It's older! */
       return;
-    } else if (last_value.type != METRIC_ABSENT && last_value.type != METRIC_NULL) {
+    } else if (last_value.type != METRIC_ABSENT) {
       /* here we have last_value and value */
       /* Handle the numeric case */
       int drun = 0;
       double dy, derivative = private_nan;
       nnt_multitype current;
 
-      if (value->type == METRIC_NULL
-          || value->type == METRIC_ABSENT)
+      if (value->type == METRIC_ABSENT && value->is_null)
         return;
 
       /* set derivative and drun */
@@ -336,20 +338,19 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
       }
       /* We've added one data point */
       w1->count++;
-    } else { // values.type!==METRIC_NULL
+    } else {
       /* Handle the case where this is the first value */
       w1->type = value->type;
-      w1->count = 1;
+      w1->count = 0;
       accu->first_value_time_ms = value->whence_ms;
+      if(value->is_null) return;
       switch (value->type) {
-      case METRIC_NULL:
-      case METRIC_ABSENT:
-        w1->count = 0;
-        break;
+      case METRIC_ABSENT: return;
       case METRIC_STRING:
-        exit(1);
+        mtevFatal(mtev_error, "METRIC_STRING in numeric path\n");
         break; // break without effect but used to get rid of gcc warning message
       default: // This will copy all 64 bits and hence works for every type
+        w1->count = 1;
         w1->value.v_uint64 = value->value.v_uint64;
         break;
       }

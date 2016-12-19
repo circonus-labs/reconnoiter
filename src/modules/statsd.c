@@ -125,7 +125,7 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
 static void
 update_check(noit_check_t *check, const char *key, char type,
              double diff, double sample) {
-  u_int32_t one = 1, cnt = 1;
+  uint32_t one = 1, cnt = 1;
   char buff[256];
   statsd_closure_t *ccl;
   stats_t *inprogress;

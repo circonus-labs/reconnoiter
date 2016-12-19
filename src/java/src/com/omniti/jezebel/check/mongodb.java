@@ -27,10 +27,11 @@ public class mongodb implements JezebelCheck {
       url = "mongodb://" + user + ":" + pass + "@" + host + ":" + port + "/" + dbname;
     }
 
+    MongoClient client = null;
     try {
       Date t1 = new Date();
       MongoClientURI uri  = new MongoClientURI(url);
-      MongoClient client = new MongoClient(uri);
+      client = new MongoClient(uri);
       DB db = client.getDB(uri.getDatabase());
       Date t2 = new Date();
       rr.set("connect_duration", t2.getTime() - t1.getTime());
@@ -56,6 +57,9 @@ public class mongodb implements JezebelCheck {
     catch (Exception e) {
       rr.set("jezebel_status", e.getMessage());
     }
+    finally {
+      client.close();
+    }
   }
 
   static void entrySetToResmon(Set<Map.Entry<String, Object>> set, ResmonResult rr, String prefix) {
@@ -74,16 +78,33 @@ public class mongodb implements JezebelCheck {
       else if (
           entry.getValue() instanceof String ||
           entry.getValue() instanceof java.util.Date ||
-          entry.getValue() instanceof Boolean
+          entry.getValue() instanceof Boolean ||
+          entry.getValue() instanceof org.bson.types.ObjectId
       ) {
         rr.set(name, entry.getValue().toString());
+      }
+      else if (entry.getValue() instanceof org.bson.types.BSONTimestamp) {
+        int time = ((org.bson.types.BSONTimestamp)entry.getValue()).getTime();
+        rr.set(name, time);
+        rr.set(name+"_elapsed", System.currentTimeMillis()/1000 - time);
       }
       else if (entry.getValue() instanceof com.mongodb.BasicDBObject) {
         entrySetToResmon(((BasicDBObject)entry.getValue()).entrySet(), rr, name+"`");
       }
       else if (entry.getValue() instanceof com.mongodb.BasicDBList) {
-        int size = ((BasicDBList)entry.getValue()).size();
-        rr.set(name, String.join(",", ((BasicDBList)entry.getValue()).toArray(new String[size])));
+        int idx = 0;
+        for (Object lo : (BasicDBList)entry.getValue()) {
+            if (lo instanceof com.mongodb.BasicDBObject) {
+                entrySetToResmon(((BasicDBObject)lo).entrySet(), rr, name+"`"+idx+"`");
+            }
+            else {
+                Map<String, Object> m = new HashMap<String, Object>();
+                m.put(String.valueOf(idx), lo);
+
+                entrySetToResmon(m.entrySet(), rr, name+"`");
+            }
+            idx++;
+        }
       }
       else {
         rr.set(name, entry.getValue().getClass().getName());

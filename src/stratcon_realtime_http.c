@@ -90,7 +90,7 @@ typedef struct realtime_recv_ctx_t {
     REALTIME_HTTP_WANT_BODY = 4,
   } state;
   int count;            /* Number of jlog messages we need to read */
-  u_int32_t hack_inc_id;
+  uint32_t hack_inc_id;
   mtev_http_session_ctx *ctx;
   struct realtime_tracker *rt;
 } realtime_recv_ctx_t;
@@ -124,7 +124,7 @@ static void clear_realtime_context(realtime_context *rc) {
 }
 int
 stratcon_line_to_javascript(mtev_http_session_ctx *ctx, char *in_buff,
-                            u_int32_t *inc_id) {
+                            uint32_t *inc_id) {
   char buffer[1024];
   char *scp, *ecp, *token, *buff;
   int i, len, cnt;
@@ -402,11 +402,11 @@ __read_on_ctx(eventer_t e, realtime_recv_ctx_t *ctx, int *newmask) {
 int
 stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
                                struct timeval *now) {
-  static u_int32_t livestream_cmd = 0;
+  static uint32_t livestream_cmd = 0;
   mtev_connection_ctx_t *nctx = closure;
   realtime_recv_ctx_t *ctx = nctx->consumer_ctx;
   int len;
-  u_int32_t nint;
+  uint32_t nint;
   char uuid_str[37];
 
   if(!livestream_cmd) livestream_cmd = htonl(NOIT_LIVESTREAM_DATA_FEED);
@@ -457,7 +457,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
 
   mtev_connection_update_timeout(nctx);
   while(1) {
-    u_int32_t net_body_len;
+    uint32_t net_body_len;
 
     switch(ctx->state) {
       case REALTIME_HTTP_WANT_INITIATE:
@@ -475,8 +475,8 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
         ctx->state = REALTIME_HTTP_WANT_HEADER;
         /* FALLTHROUGH */
       case REALTIME_HTTP_WANT_HEADER:
-        FULLREAD(e, ctx, sizeof(u_int32_t));
-        memcpy(&net_body_len, ctx->buffer, sizeof(u_int32_t));
+        FULLREAD(e, ctx, sizeof(uint32_t));
+        memcpy(&net_body_len, ctx->buffer, sizeof(uint32_t));
         ctx->body_len = ntohl(net_body_len);
         free(ctx->buffer); ctx->buffer = NULL;
         ctx->state = REALTIME_HTTP_WANT_BODY;

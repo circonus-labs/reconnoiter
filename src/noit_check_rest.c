@@ -212,7 +212,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   char id_str[UUID_STR_LEN+1];
   struct json_object *j_last_run, *j_next_run;
   struct timeval *t;
-  u_int64_t ms = 0;
+  uint64_t ms = 0;
   struct json_object *doc;
   uuid_unparse_lower(check->checkid, id_str);
 
@@ -396,7 +396,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   xmlNodePtr node, root, attr, config, state, tmp, anode;
   uuid_t checkid;
   noit_check_t *check;
-  char xpath[1024], *uuid_conf, *module = NULL, *value = NULL;
+  char xpath[1024], *uuid_conf = NULL, *module = NULL, *value = NULL;
   int rv, mod, mod_cnt, cnt, error_code = 500;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
@@ -422,6 +422,8 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   if(!uuid_conf || uuid_parse(uuid_conf, checkid)) goto error;
 
   if(npats == 3 && !strcmp(pats[2], ".json")) {
+    if(uuid_conf) xmlFree(uuid_conf);
+    if(pobj) xmlXPathFreeObject(pobj);
     return rest_show_check_json(restc, checkid);
   }
 
@@ -543,6 +545,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
@@ -791,7 +794,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   uuid_t checkid;
   noit_check_t *check;
   const char *error;
-  char xpath[1024], *uuid_conf;
+  char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
 
@@ -843,6 +846,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   (void)error;
   return 0;
@@ -858,7 +862,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   xmlNodePtr node, root, attr, config, parent;
   uuid_t checkid;
   noit_check_t *check;
-  char xpath[1024], *uuid_conf;
+  char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
@@ -885,7 +889,8 @@ rest_set_check(mtev_http_rest_closure_t *restc,
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
     if(exists) { error_code = 403; FAIL("uuid not yours"); }
     else {
-      int64_t seq, old_seq = 0;
+      int64_t seq;
+      uint64_t old_seq = 0;
       char *target = NULL, *name = NULL, *module = NULL;
       noit_module_t *m = NULL;
       noit_check_t *check = NULL;
@@ -913,13 +918,14 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       parent = make_conf_path(pats[0]);
       if(!parent) FAIL("invalid path");
       configure_xml_check(parent, newcheck, attr, config, &seq);
-      if(old_seq > seq) FAIL("invalid sequence");
+      if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
       xmlAddChild(parent, newcheck);
       CONF_DIRTY(newcheck);
     }
   }
   if(exists) {
-    int64_t seq, old_seq = 0;
+    int64_t seq;
+    uint64_t old_seq = 0;
     int module_change;
     char *target = NULL, *name = NULL, *module = NULL;
     xmlNodePtr a;
@@ -952,7 +958,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     if(!parent) FAIL("invalid path");
     configure_xml_check(parent, node, attr, config, &seq);
     if(check) old_seq = check->config_seq;
-    if(old_seq > seq) FAIL("invalid sequence");
+    if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
     CONF_DIRTY(node);
@@ -980,6 +986,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
