@@ -508,14 +508,12 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     metadata__init(bundle->metadata[0]);
     bundle->metadata[0]->key = ip_str;
     bundle->metadata[0]->value = check->target_ip;
+    bundle->n_metrics = 0;
     if(n_metrics > 0) {
       /* All bundles have METRICS_PER_BUNDLE except the last,
        * which has the remainder of metrics
        */
-      bundle->n_metrics = metrics_per_bundle;
-      if(i == n_bundles-1 && (n_metrics % metrics_per_bundle) != 0)
-        bundle->n_metrics = n_metrics % metrics_per_bundle;
-      bundle->metrics = malloc(bundle->n_metrics * sizeof(Metric*));
+      bundle->metrics = calloc(metrics_per_bundle, sizeof(Metric*));
     }
   }
 
@@ -523,6 +521,9 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   if(n_metrics > 0) {
     // Now convert
     while(mtev_hash_next(metrics, &iter2, &key, &klen, &vm)) {
+      /* make sure we don't go past our allocation for some reason*/
+      if((i / metrics_per_bundle) >= n_bundles) break;
+
       Bundle *bundle = &bundles[i / metrics_per_bundle];
       int b_i = i % metrics_per_bundle;
       /* If we apply the filter set and it returns false, we don't log */
