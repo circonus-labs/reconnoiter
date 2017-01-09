@@ -482,7 +482,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     n_metrics++;
   }
 
-  int n_bundles = (n_metrics / metrics_per_bundle) + 1;
+  int n_bundles = ((MAX(n_metrics,1) - 1) / metrics_per_bundle) + 1;
   Bundle *bundles = malloc(n_bundles * sizeof(*bundles));
 
   for(i=0; i<n_bundles; i++) {
@@ -513,7 +513,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
        * which has the remainder of metrics
        */
       bundle->n_metrics = metrics_per_bundle;
-      if(i == n_bundles-1)
+      if(i == n_bundles-1 && (n_metrics % metrics_per_bundle) != 0)
         bundle->n_metrics = n_metrics % metrics_per_bundle;
       bundle->metrics = malloc(bundle->n_metrics * sizeof(Metric*));
     }
