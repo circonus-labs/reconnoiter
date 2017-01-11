@@ -852,19 +852,19 @@ noit_check_dns_ignore_list_init() {
   mtev_conf_section_t* dns;
   int cnt;
 
+  noit_check_dns_ignore_tld("onion", "true");
   dns = mtev_conf_get_sections(NULL, "/noit/dns/extension", &cnt);
   if(dns) {
     int i = 0;
     for (i = 0; i < cnt; i++) {
-      char* extension;
-      char* ignore;
-      if(!mtev_conf_get_string(dns[i], "self::node()/@value", &extension)) {
-        continue;
+      char* extension = NULL;
+      char* ignore = NULL;
+      if(mtev_conf_get_string(dns[i], "self::node()/@value", &extension) &&
+         mtev_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
+        noit_check_dns_ignore_tld(extension, ignore);
       }
-      if(!mtev_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
-        continue;
-      }
-      noit_check_dns_ignore_tld(extension, ignore);
+      free(extension);
+      free(ignore);
     }
   }
 }
