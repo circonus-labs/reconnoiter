@@ -52,6 +52,7 @@
 #include <mtev_getip.h>
 #include <mtev_conf.h>
 #include <mtev_rest.h>
+#include <mtev_watchdog.h>
 
 #include "noit_mtev_bridge.h"
 #include "stratcon_datastore.h"
@@ -88,12 +89,16 @@ stratcon_ingest_sweep_journals_int(const char *base,
   de = alloca(size);
   root = opendir(path);
   if(!root) return;
-  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) cnt++;
+  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
+    mtev_watchdog_child_heartbeat();
+    cnt++;
+  }
   closedir(root);
   root = opendir(path);
   if(!root) return;
   entries = malloc(sizeof(*entries) * cnt);
   while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
+    mtev_watchdog_child_heartbeat();
     if(i < cnt) {
       entries[i++] = strdup(entry->d_name);
     }
@@ -114,6 +119,7 @@ stratcon_ingest_sweep_journals_int(const char *base,
       char fullpath[PATH_MAX];
       snprintf(fullpath, sizeof(fullpath), "%s/%s/%s/%s/%s", base,
                first,second,third,entries[i]);
+      mtev_watchdog_child_heartbeat();
       ingest(fullpath,first,second,third,sweeping);
     }
   }
