@@ -106,9 +106,9 @@ typedef struct external_closure {
  *   ext 2 noit:
  *     int64(check_no)
  *     int32(exitcode) [0 -> good, {1,2} -> bad, 3 -> unknown]
- *     uint16(outlen) (includes \0)
+ *     uint32(outlen) (includes \0)
  *     string of outlen
- *     uint16(errlen) (includes \0)
+ *     uint32(errlen) (includes \0)
  *     string of errlen -> complete .end
  */
 
@@ -473,7 +473,7 @@ static int external_handler(eventer_t e, int mask,
 
 static int external_init(noit_module_t *self) {
   external_data_t *data;
-  const char* path = NULL, *nagios_regex = NULL;
+  const char* path = NULL, *nagios_regex = NULL, *max_out_len = NULL;
 
   data = noit_module_get_userdata(self);
   if(!data) {
@@ -511,11 +511,17 @@ static int external_init(noit_module_t *self) {
     else {
       data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
     }
-
+    (void)mtev_hash_retr_str(data->options, "max_output_len", strlen("max_output_len"), &max_out_len);
+    if (max_out_len) {
+      data->max_out_len = atoi(max_out_len);
+    } else {
+      data->max_out_len = 256 * 1024;
+    }
   }
   else {
     data->path = strdup("/");
     data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
+    data->max_out_len = 256 * 1024; // default to 256K if they don't specify above
   }
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||
