@@ -108,6 +108,7 @@ void parse_clargs(int argc, char **argv) {
     switch(c) {
       case 'x':
         xpath = strdup(optarg);
+        mtev_main_disable_log("notice");
         foreground = 1;
         break;
       case 'G':
@@ -211,7 +212,9 @@ static int child_main() {
     parts = mtev_conf_get_sections(NULL, xpath, &cnt);
     if(cnt == 0) exit(2);
     for(i=0; i<cnt; i++) {
-      fprintf(stdout, "%d: ", i); fflush(stdout);
+      const char *sup = "";
+      if(mtev_conf_env_off(parts[i], NULL)) sup = "[env suppressed]";
+      fprintf(stdout, "%d%s: ", i, sup); fflush(stdout);
       mtev_conf_write_section(parts[i], 1);
     }
     free(parts);

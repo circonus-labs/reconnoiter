@@ -497,6 +497,7 @@ stratcon_jlog_streamer_recache_noit() {
   mtev_hash_delete_all(&noit_ip_by_cn, free, free);
   for(di=0; di<cnt; di++) {
     char address[64];
+    if(mtev_conf_env_off(noit_configs[di], NULL)) continue;
     if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
                                  address, sizeof(address))) {
       char expected_cn[256];
@@ -921,6 +922,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
     for(di=0; di<cnt; di++) {
       char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
+      if(mtev_conf_env_off(noit_configs[di], NULL)) continue;
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn_buff, sizeof(expected_cn_buff)))
         expected_cn = expected_cn_buff;
@@ -1147,6 +1149,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
     for(di=0; di<cnt; di++) {
       char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
+      if(mtev_conf_env_off(noit_configs[di], NULL)) continue;
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn_buff, sizeof(expected_cn_buff)))
         expected_cn = expected_cn_buff;

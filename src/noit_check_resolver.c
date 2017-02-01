@@ -717,7 +717,10 @@ void noit_check_resolver_init() {
     for(i=0;i<cnt;i++) {
       if(mtev_conf_get_stringbuf(servers[i], "self::node()",
                                  server, sizeof(server))) {
-        if(dns_add_serv(dns_ctx, server) < 0) {
+        if(mtev_conf_env_off(servers[i], NULL)) {
+          mtevL(noit_error, "DNS server %s environmentally ignored.\n", server);
+        }
+        else if(dns_add_serv(dns_ctx, server) < 0) {
           mtevL(noit_error, "Failed adding DNS server: %s\n", server);
         }
       }
@@ -732,7 +735,10 @@ void noit_check_resolver_init() {
     for(i=0;i<cnt;i++) {
       if(mtev_conf_get_stringbuf(searchdomains[i], "self::node()",
                                  search, sizeof(search))) {
-        if(dns_add_srch(dns_ctx, search) < 0) {
+        if(mtev_conf_env_off(searchdomains[i], NULL)) {
+          mtevL(noit_error, "DNS search %s environmentally ignored.\n", search);
+        }
+        else if(dns_add_srch(dns_ctx, search) < 0) {
           mtevL(noit_error, "Failed adding DNS search path: %s\n", search);
         }
         else if(dns_search_flag) dns_search_flag = 0; /* enable search */
