@@ -85,6 +85,12 @@ if test "$?" -ne "0" ; then
 fi
 AC_SUBST(MTEV_MODULES_DIR)
 
+MTEV_LIBDIR=`mtev-config --libdir 2>/dev/null`
+if test "$?" -ne "0" ; then
+    AC_MSG_ERROR([*** mtev-config not found ***])
+fi
+AC_SUBST(MTEV_LIBDIR)
+
 case $host in
 *-*-darwin*)
 	CAP_PLATFORM="darwin"
