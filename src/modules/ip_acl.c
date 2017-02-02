@@ -71,6 +71,7 @@ ip_acl_onload(mtev_image_t *self) {
       char *name;
       int j, rcnt, arcnt = 0;
       mtev_conf_section_t *rule_c;
+      if(mtev_conf_env_off(acl_c[i], NULL)) continue;
       if(mtev_conf_get_string(acl_c[i], "@name", &name)) {
         rule_c = mtev_conf_get_sections(acl_c[i], "rule", &rcnt);
         if(rule_c) {
@@ -84,6 +85,7 @@ ip_acl_onload(mtev_image_t *self) {
               struct in6_addr addr6;
             } a;
 
+            if(mtev_conf_env_off(rule_c[j], NULL)) continue;
             mtev_conf_get_stringbuf(rule_c[j], "self::node()", target, sizeof(target));
             if(NULL != (cp = strchr(target, '/'))) {
               *cp++ = '\0';
