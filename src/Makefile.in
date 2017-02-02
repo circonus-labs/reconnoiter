@@ -100,7 +100,7 @@ LUALIBS=@LUALIBS@
 
 LIBNOIT_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
-	noit_metric_director.lo noit_message_decoder.lo
+	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o
 
@@ -110,7 +110,6 @@ NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_module.o noit_conf_checks.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_check_rest.o noit_filters_rest.o noit_websocket_handler.o \
-	noit_metric.o \
 	$(LIBNOIT_OBJS:%.lo=%.o)
 
 STRATCON_OBJS=stratcond.o noit_mtev_bridge.o \
