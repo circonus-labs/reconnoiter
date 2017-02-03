@@ -45,6 +45,12 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
   char uuid_str[UUID_PRINTABLE_STRING_LENGTH] = {0};
   uuid_unparse_lower(metric->id.id, uuid_str);
 
+  if(metric->noit.name) {
+    char name[metric->noit.name_len + 1];
+    strncpy(name, metric->noit.name, metric->noit.name_len);
+    name[metric->noit.name_len] = '\0';
+    mtev_json_object_object_add(o, "noit", mtev_json_object_new_string(name));
+  }
   mtev_json_object_object_add(o, "check_uuid", mtev_json_object_new_string(uuid_str));
 
   if (metric->value.type == METRIC_ABSENT) {

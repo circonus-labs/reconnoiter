@@ -48,6 +48,7 @@
 
 int noit_message_decoder_parse_line(const char *payload, int payload_len,
     uuid_t *id, const char **metric_name, int *metric_name_len,
+    const char **noit_name, int *noit_name_len,
     noit_metric_value_t *metric, mtev_boolean has_noit) {
   const char *cp, *metric_type_str, *time_str, *check_id_str;
   char *value_str;
@@ -56,14 +57,19 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
 
   // Go to the timestamp column
   MOVE_TO_NEXT_TAB(cp, time_str);
-  if(has_noit == mtev_true) { // non bundled messages store the source IP in the second column
-    if(time_str == NULL)
-      return -1;
-    MOVE_TO_NEXT_TAB(cp, time_str);
-  }
-
   if(time_str == NULL)
     return -1;
+  if(noit_name) *noit_name = NULL;
+  if(noit_name_len) *noit_name_len = 0;
+  if(has_noit == mtev_true) { // non bundled messages store the source IP in the second column
+    const char *nname = time_str;
+    if(noit_name) *noit_name = nname;
+    MOVE_TO_NEXT_TAB(cp, time_str);
+    if(time_str == NULL)
+      return -1;
+    if(noit_name_len) *noit_name_len = time_str - nname - 1;
+  }
+
   /* extract time */
   metric->whence_ms = strtoull(time_str, &dp, 10);
   metric->whence_ms *= 1000; /* s -> ms */
