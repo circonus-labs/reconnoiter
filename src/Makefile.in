@@ -82,7 +82,8 @@ tests:
 
 MODDIR=modules
 
-HEADERS=noit_metric.h noit_check_log_helpers.h noit_check_tools_shared.h noit_metric_rollup.h
+HEADERS=noit_metric.h noit_check_log_helpers.h noit_check_tools_shared.h \
+	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h
 
 NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_check_rest.h noit_check_tools.h \
@@ -98,17 +99,17 @@ ENABLE_LUA=@ENABLE_LUA@
 LUALIBS=@LUALIBS@
 
 LIBNOIT_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
-	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo
+	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
+	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o
 
 NOIT_OBJS=noitd.o noit_mtev_bridge.o \
-	noit_check_resolver.o noit_metric_director.o noit_message_decoder.o \
+	noit_check_resolver.o \
 	noit_check.o noit_check_log.o noit_check_tools.o \
 	noit_module.o noit_conf_checks.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_check_rest.o noit_filters_rest.o noit_websocket_handler.o \
-	noit_metric.o \
 	$(LIBNOIT_OBJS:%.lo=%.o)
 
 STRATCON_OBJS=stratcond.o noit_mtev_bridge.o \
@@ -353,6 +354,7 @@ install-libs:    noitlibs
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(libdir)
 	$(INSTALL) -m 0755 $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT_V)
 	ln -sf $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT)
+	$(MAKE) -C modules install-libnoit-modules
 
 install-noitd:	install-libs install-noitd-nolibs
 
