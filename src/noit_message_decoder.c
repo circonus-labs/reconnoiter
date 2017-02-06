@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <uuid/uuid.h>
+#include <ctype.h>
 #include <mtev_log.h>
 
 #include "noit_metric.h"
@@ -49,7 +50,7 @@
 int noit_message_decoder_parse_line(const char *payload, int payload_len,
     uuid_t *id, const char **metric_name, int *metric_name_len,
     const char **noit_name, int *noit_name_len,
-    noit_metric_value_t *metric, mtev_boolean has_noit) {
+    noit_metric_value_t *metric, int has_noit) {
   const char *cp, *metric_type_str, *time_str, *check_id_str;
   char *value_str;
   char *dp, id_str_copy[UUID_PRINTABLE_STRING_LENGTH];
@@ -61,7 +62,29 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     return -1;
   if(noit_name) *noit_name = NULL;
   if(noit_name_len) *noit_name_len = 0;
-  if(has_noit == mtev_true) { // non bundled messages store the source IP in the second column
+
+  if(has_noit == -1) {
+    /* auto-detect */
+    has_noit = 1;
+    int state = 0, cnt[2] = { 0, 0 };
+    const char *end = payload + payload_len - 1;
+    const char *possible = time_str;
+    while(possible < end && *possible != '\t') {
+      if(state == 0 && *possible == '.') {
+        state = 1;
+      }
+      else if(isdigit(*possible)) {
+        cnt[state]++;
+      }
+      else break;
+      possible++;
+      if(*possible == '\t') {
+        if(cnt[1] == 3 && cnt[0] > 0) has_noit = 0;
+      }
+    }
+  }
+
+  if(has_noit == 1) { // non bundled messages store the source IP in the second column
     const char *nname = time_str;
     if(noit_name) *noit_name = nname;
     MOVE_TO_NEXT_TAB(cp, time_str);

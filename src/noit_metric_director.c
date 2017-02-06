@@ -490,7 +490,7 @@ handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whenc
      (strcmp(name,"metrics") && strcmp(name,"bundle") &&
       strcmp(name,"check") && strcmp(name,"status")))
     return MTEV_HOOK_CONTINUE;
-  handle_metric_buffer(line, len, 0, NULL);
+  handle_metric_buffer(line, len, -1, NULL);
   return MTEV_HOOK_CONTINUE;
 }
 
