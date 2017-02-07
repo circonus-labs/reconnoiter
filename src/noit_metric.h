@@ -83,6 +83,11 @@ typedef struct {
 } noit_metric_id_t;
 
 typedef struct {
+  const char *name;
+  int name_len;
+} noit_noit_t;
+
+typedef struct {
   uint64_t whence_ms; /* when this was recieved */
   metric_type_t type; /* the type of the following data item */
   mtev_boolean is_null;
@@ -104,6 +109,7 @@ typedef struct {
   char* original_message;
   size_t original_message_len;
   mtev_atomic32_t refcnt;
+  noit_noit_t noit;
 } noit_metric_message_t;
 
 void noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mtev_boolean include_original);

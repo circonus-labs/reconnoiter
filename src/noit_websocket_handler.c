@@ -101,7 +101,7 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
   size_t json_len = 0;
 
   int rval = noit_message_decoder_parse_line(metric_string, len, &message.id.id, &message.id.name,
-                                             &message.id.name_len, &message.value, mtev_false);
+                                             &message.id.name_len, NULL, NULL, &message.value, mtev_false);
   if (rval < 0) {
     return;
   }
