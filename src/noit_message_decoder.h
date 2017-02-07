@@ -43,4 +43,6 @@ noit_message_decoder_parse_line(const char *payload, int payload_len,
     const char **noit_name, int *noit_name_len,
     noit_metric_value_t *metric, int has_noit);
 
+API_EXPORT(int)
+  noit_is_timestamp(const char *line, int len);
 #endif

@@ -102,7 +102,7 @@ LIBNOIT_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
 	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo
 
-B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o
+B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o
 
 NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_check_resolver.o \

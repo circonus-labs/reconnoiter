@@ -44,6 +44,7 @@
 #include "bundle.pb-c.h"
 #include "noit_metric.h"
 #include "noit_check_log_helpers.h"
+#include "noit_message_decoder.h"
 
 int
 noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
@@ -197,6 +198,12 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
   /* All good, and we're off to the races */
   line += 3; len -= 3;
   cp1 = line;
+
+  if(noit_ip == -1) {
+    /* auto-detect */
+    noit_ip = !noit_is_timestamp(line, len);
+  }
+
 #define SET_FIELD_FROM_BUNDLE(tgt) do { \
   if(*cp1 == '\0') { error_str = "short line @ " #tgt; goto bad_line; } \
   cp2 = strnstrn("\t", 1, cp1, len - (cp1 - line)); \
@@ -207,7 +214,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
   tgt[cp2 - cp1] = '\0'; \
   cp1 = cp2 + 1; \
 } while(0)
-  if(noit_ip) SET_FIELD_FROM_BUNDLE(nipstr);
+  if(noit_ip > 0) SET_FIELD_FROM_BUNDLE(nipstr);
   SET_FIELD_FROM_BUNDLE(timestamp);
   SET_FIELD_FROM_BUNDLE(uuid_str);
   SET_FIELD_FROM_BUNDLE(target);
@@ -309,7 +316,8 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
     free(*out);
     *out = NULL;
   }
-  if(error_str) mtevL(noit_error, "bundle: bad line due to %s\n", error_str);
+  if(error_str) mtevL(noit_error, "bundle: bad line '%.*s' due to %s\n", len, line, error_str);
+  assert(!error_str);
  good_line:
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);

@@ -47,6 +47,26 @@
     } \
 } while(0)
 
+int noit_is_timestamp(const char *line, int len) {
+  int is_ts = 0;
+  int state = 0, cnt[2] = { 0, 0 };
+  const char *end = line + len - 1;
+  const char *possible = line;
+  while(possible < end && *possible != '\t') {
+    if(state == 0 && *possible == '.') {
+      state = 1;
+    }
+    else if(isdigit(*possible)) {
+      cnt[state]++;
+    }
+    else break;
+    possible++;
+    if(*possible == '\t') {
+      if(cnt[1] == 3 && cnt[0] > 0) is_ts = 1;
+    }
+  }
+  return is_ts;
+}
 int noit_message_decoder_parse_line(const char *payload, int payload_len,
     uuid_t *id, const char **metric_name, int *metric_name_len,
     const char **noit_name, int *noit_name_len,
@@ -65,23 +85,9 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
 
   if(has_noit == -1) {
     /* auto-detect */
-    has_noit = 1;
-    int state = 0, cnt[2] = { 0, 0 };
     const char *end = payload + payload_len - 1;
     const char *possible = time_str;
-    while(possible < end && *possible != '\t') {
-      if(state == 0 && *possible == '.') {
-        state = 1;
-      }
-      else if(isdigit(*possible)) {
-        cnt[state]++;
-      }
-      else break;
-      possible++;
-      if(*possible == '\t') {
-        if(cnt[1] == 3 && cnt[0] > 0) has_noit = 0;
-      }
-    }
+    has_noit = !noit_is_timestamp(possible, (end-possible));
   }
 
   if(has_noit == 1) { // non bundled messages store the source IP in the second column
