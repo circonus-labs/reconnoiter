@@ -59,7 +59,7 @@ static mtev_log_stream_t nldeb = NULL;
   lua_module_closure_t *lmc; \
   const char *object; \
   lmc = noit_lua_setup_lmc(mod, &object); \
-  L = lmc->lua_state
+  L = mtev_lua_lmc_L(lmc)
 
 struct loader_conf {
   pthread_key_t key;
@@ -124,17 +124,15 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
   if(obj) *obj = mc->object;
   lmc = pthread_getspecific(mc->c->key);
   if(lmc == NULL) {
+    lua_State *L;
     int rv;
-    lmc = calloc(1, sizeof(*lmc));
-    lmc->pending = calloc(1, sizeof(*lmc->pending));
-    mtev_hash_init(lmc->pending);
-    lmc->owner = pthread_self();
-    lmc->resume = noit_lua_check_resume;
+    lmc = mtev_lua_lmc_alloc((mtev_dso_generic_t *)mod, noit_lua_check_resume);
     pthread_setspecific(mc->c->key, lmc);
     mtevL(nldeb, "lua_state[%s]: new state\n", mod->hdr.name);
-    lmc->lua_state = mtev_lua_open(mod->hdr.name, lmc,
-                                   mc->c->script_dir, mc->c->cpath);
-    require(lmc->lua_state, rv, noit);
+    L = mtev_lua_open(mod->hdr.name, lmc,
+                      mc->c->script_dir, mc->c->cpath);
+    mtev_lua_lmc_setL(lmc, L);
+    require(L, rv, noit);
   }
   mtlsc = __get_module_tls_conf(&mod->hdr);
   if(!mtlsc->loaded) {
@@ -143,7 +141,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
     }
     mtlsc->loaded = 1;
   }
-  mtevL(nldeb, "lua_state[%s]: %p\n", mod->hdr.name, lmc->lua_state);
+  mtevL(nldeb, "lua_state[%s]: %p\n", mod->hdr.name, mtev_lua_lmc_L(lmc));
   return lmc;
 }
 
@@ -781,7 +779,7 @@ noit_lua_module_onload(mtev_image_t *img) {
   mc = mtev_image_get_userdata(img);
 
   lmc = lmc_tls_get(img);
-  L = lmc->lua_state;
+  L = mtev_lua_lmc_L(lmc);
   if(!L) return -1;
   lua_getglobal(L, "require");
   lua_pushstring(L, mc->object);
@@ -935,7 +933,7 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
 
   mtevL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
 #if LUA_VERSION_NUM >= 502
-  result = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
+  result = lua_resume(ri->coro_state, mtev_lua_lmc_L(ri->lmc), nargs);
 #else
   result = lua_resume(ri->coro_state, nargs);
 #endif
@@ -955,7 +953,7 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
       /* The person yielding had better setup an event
        * to wake up the coro...
        */
-      lua_gc(ri->lmc->lua_state, LUA_GCCOLLECT, 0);
+      lua_gc(mtev_lua_lmc_L(ri->lmc), LUA_GCCOLLECT, 0);
       goto done;
     default: /* Errors */
       mtevL(nldeb, "lua resume returned: %d\n", result);
@@ -1114,7 +1112,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
     noit_lua_setup_check(ri->coro_state, ci->cause);
   else
     lua_pushnil(ri->coro_state);
-  lmc->resume(ri, 3);
+  mtev_lua_lmc_resume(lmc, ri, 3);
   return 0;
 
  fail:
@@ -1164,16 +1162,13 @@ noit_lua_loader_load(mtev_dso_loader_t *loader,
   noit_module_set_userdata(m, mc);
 
   lmc = noit_lua_setup_lmc(m, NULL);
-  if(lmc != NULL) L = lmc->lua_state;
+  if(lmc != NULL) L = mtev_lua_lmc_L(lmc);
   if(L == NULL) {
    load_failed:
     if(L) lua_close(L);
     free(m->hdr.name);
     free(m->hdr.description);
-    if(lmc) {
-      free(lmc->pending);
-      free(lmc);
-    }
+    mtev_lua_lmc_free(lmc);
     /* FIXME: We leak the opaque_handler in the module here... */
     free(m);
     return NULL;
@@ -1235,7 +1230,7 @@ describe_lua_check_context(mtev_console_closure_t ncct,
   char uuid_str[UUID_STR_LEN+1];
   noit_lua_resume_check_info_t *ci = ri->context_data;
   nc_printf(ncct, "lua_check(state:%p, parent:%p)\n",
-            ri->coro_state, ri->lmc->lua_state);
+            ri->coro_state, mtev_lua_lmc_L(ri->lmc));
   uuid_unparse_lower(ci->check->checkid, uuid_str);
   nc_printf(ncct, "\tcheck: %s\n", uuid_str);
   nc_printf(ncct, "\tname: %s\n", ci->check->name);
