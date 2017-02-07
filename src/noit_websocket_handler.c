@@ -206,7 +206,7 @@ static logops_t noit_websocket_logio_ops = {
 void
 noit_websocket_handler_init() {
   mtev_register_logops("noit_websocket_livestream", &noit_websocket_logio_ops);
-  int rval = mtev_http_rest_websocket_register("/livestream/", "^(.*)$", NOIT_WEBSOCKET_DATA_FEED_PROTOCOL,
+  int rval = mtev_http_rest_websocket_register(NOIT_WEBSOCKET_DATA_FEED_PATH, "^(.*)$", NOIT_WEBSOCKET_DATA_FEED_PROTOCOL,
                                                     noit_websocket_msg_handler);
   if (rval == -1) {
     mtevFatal(mtev_error, "Unabled to register websocket handler for /livestream/");
