@@ -303,6 +303,7 @@ AC_CHECK_LIB(umem, umem_cache_create, , )
 AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
 	[AC_MSG_ERROR(libprotobuf-c required)])
 AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
+AC_CHECK_LIB(m, sqrt, , )
 AC_CHECK_LIB(rt, sem_init, , [
   AC_CHECK_LIB(rt, clock_gettime, , )
 ])
