@@ -350,10 +350,10 @@ noit_metric_message_t *noit_metric_director_lane_next() {
 static noit_noit_t *
 get_noit(const char *payload, int payload_len, noit_noit_t *data) {
   const char *cp;
-  if(NULL == (cp = memmem(payload, payload_len, "\t", 1))) return NULL;
+  if(NULL == (cp = memchr(payload, payload_len, '\t'))) return NULL;
   if(++cp - payload > payload_len) return NULL;
   data->name = cp;
-  if(NULL == (cp = memmem(cp, payload_len - (cp - payload), "\t", 1))) return NULL;
+  if(NULL == (cp = memchr(cp, payload_len - (cp - payload), '\t'))) return NULL;
   if(cp - payload > payload_len) return NULL;
   data->name_len = cp - data->name;
   return data;
