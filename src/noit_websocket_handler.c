@@ -96,7 +96,7 @@ static void
 send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string, size_t len)
 {
 #ifdef HAVE_WSLAY
-  noit_metric_message_t message;
+  noit_metric_message_t message = {};
   char *json = NULL;
   size_t json_len = 0;
 
