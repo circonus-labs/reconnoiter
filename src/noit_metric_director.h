@@ -71,6 +71,7 @@ noit_metric_message_t *noit_metric_director_lane_next();
 void noit_metric_director_message_ref(void *message);
 void noit_metric_director_message_deref(void *message);
 void noit_metric_director_init_globals(void);
+void noit_metric_director_flush(eventer_t e);
 
 int64_t noit_metric_director_get_messages_received();
 int64_t noit_metric_director_get_messages_distributed();

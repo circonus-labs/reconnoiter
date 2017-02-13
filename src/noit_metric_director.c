@@ -44,6 +44,19 @@
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
 
+/* pointers enqueue with this flag set, are flush pointers.
+ * the flag should be removed and used and the pointer will
+ * point to a dmflush_t
+ */
+#define FLUSHFLAG 0x1
+typedef struct {
+  eventer_t e;
+  uint32_t refcnt;
+} dmflush_t;
+
+#define DMFLUSH_FLAG(a) ((dmflush_t *)((uintptr_t)(a) | FLUSHFLAG))
+#define DMFLUSH_UNFLAG(a) ((dmflush_t *)((uintptr_t)(a) & ~(uintptr_t)FLUSHFLAG))
+
 MTEV_HOOK_IMPL(metric_director_want, (noit_metric_message_t *m, int *wants, int wants_len),
                void *, closure, (void *closure, noit_metric_message_t *m, int *wants, int wants_len),
                (closure, m, wants, wants_len));
@@ -196,6 +209,36 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
 }
 
 static void
+dmflush_observe(dmflush_t *ptr) {
+  bool zero;
+  ck_pr_dec_32_zero(&ptr->refcnt, &zero);
+  if(zero) {
+    eventer_trigger(ptr->e, ptr->e->mask);
+    free(ptr);
+  }
+}
+
+void
+noit_metric_director_flush(eventer_t e) {
+  dmflush_t *ptr = calloc(1, sizeof(*ptr));
+  ptr->e = e;
+  ptr->refcnt = 1;
+  for(int i=0;i<nthreads;i++) {
+    ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
+    if(fifo != NULL) {
+      ck_pr_inc_32(&ptr->refcnt);
+      ck_fifo_spsc_entry_t *fifo_entry;
+      ck_fifo_spsc_enqueue_lock(fifo);
+      fifo_entry = ck_fifo_spsc_recycle(fifo);
+      if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
+      ck_fifo_spsc_enqueue(fifo, fifo_entry, DMFLUSH_FLAG(ptr));
+      ck_fifo_spsc_enqueue_unlock(fifo);
+    }
+  }
+  dmflush_observe(ptr);
+}
+
+static void
 distribute_metric(noit_metric_message_t *message) {
   void *vhash, *vinterests;
   caql_cnt_t *interests = NULL;
@@ -340,11 +383,16 @@ noit_metric_message_t *noit_metric_director_lane_next() {
   noit_metric_message_t *msg = NULL;
   if(my_lane.fifo == NULL)
     return NULL;
+ again:
   ck_fifo_spsc_dequeue_lock(my_lane.fifo);
   if(ck_fifo_spsc_dequeue(my_lane.fifo, &msg) == false) {
     msg = NULL;
   }
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
+  if((uintptr_t)msg & FLUSHFLAG) {
+    dmflush_observe(DMFLUSH_UNFLAG((dmflush_t *)msg));
+    goto again;
+  }
   return msg;
 }
 static noit_noit_t *
