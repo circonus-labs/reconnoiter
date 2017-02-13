@@ -36,6 +36,7 @@
 #include <uuid/uuid.h>
 #include <ctype.h>
 #include <mtev_log.h>
+#include <mtev_str.h>
 
 #include "noit_metric.h"
 
@@ -137,24 +138,29 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     if(!strcmp(value_str, "[[null]]")) {
       metric->is_null = mtev_true;
     } else {
+      char osnum[512]; /* that's a big number! */
+      int nlen, vlen = (uintptr_t)payload + (uintptr_t)payload_len - (uintptr_t)value_str;
+      nlen = (vlen >= sizeof(osnum)) ? (sizeof(osnum)-1) : vlen;
+      memcpy(osnum, value_str, nlen);
+      osnum[nlen] = '\0';
       switch (*metric_type_str) {
       case METRIC_INT32:
-        metric->value.v_int32 = strtol(value_str, NULL, 10);
+        metric->value.v_int32 = strtol(osnum, NULL, 10);
         break;
       case METRIC_UINT32:
-        metric->value.v_uint32 = strtoul(value_str, NULL, 10);
+        metric->value.v_uint32 = strtoul(osnum, NULL, 10);
         break;
       case METRIC_INT64:
-        metric->value.v_int64 = strtoll(value_str, NULL, 10);
+        metric->value.v_int64 = strtoll(osnum, NULL, 10);
         break;
       case METRIC_UINT64:
-        metric->value.v_uint64 = strtoull(value_str, NULL, 10);
+        metric->value.v_uint64 = strtoull(osnum, NULL, 10);
         break;
       case METRIC_DOUBLE:
-        metric->value.v_double = strtod(value_str, NULL);
+        metric->value.v_double = strtod(osnum, NULL);
         break;
       case METRIC_STRING:
-        metric->value.v_string = value_str;
+        metric->value.v_string = mtev__strndup(value_str, vlen);
         break;
       default:
         return -9;

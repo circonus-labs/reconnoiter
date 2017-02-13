@@ -87,6 +87,10 @@ static mtev_boolean dedupe = mtev_true;
 
 static void noit_metric_director_free_message(noit_metric_message_t* message) {
   if(message->original_message) {
+    if(message->value.type == METRIC_STRING &&
+       !message->value.is_null && message->value.value.v_string) {
+      free(message->value.value.v_string);
+    }
     free(message->original_message);
     message->original_message = NULL;
   }
