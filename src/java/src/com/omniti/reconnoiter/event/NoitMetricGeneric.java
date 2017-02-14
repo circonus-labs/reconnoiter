@@ -43,5 +43,6 @@ public interface NoitMetricGeneric {
   public String getCheck_module();
   public String getCheck_name();
   public int numparts();
+  public Integer getOrderingId();
 }
 

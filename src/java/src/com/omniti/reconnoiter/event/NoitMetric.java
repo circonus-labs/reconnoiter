@@ -44,8 +44,8 @@ public class NoitMetric extends NoitEvent
   static Logger logger = Logger.getLogger(NoitMetric.class.getName());
   public final static String METRIC_STRING = "s";
 
-  private NoitMetricText nmt;
-  private NoitMetricNumeric nmn;
+  protected NoitMetricText nmt;
+  protected NoitMetricNumeric nmn;
  
   public NoitMetric() {}
   public NoitMetric(String[] parts, NoitMetricText _nmt) throws Exception {
@@ -60,6 +60,15 @@ public class NoitMetric extends NoitEvent
   }
   public NoitMetric(String[] parts) throws Exception {
     super(parts);
+
+    // Transform an MT-record back to a usual M-record for construction
+    if(parts[0].equals(NoitMetricTransformed.PREFIX)) {
+       String m_record[] = new String[7];
+       m_record[0] = "M";
+       for(int i=1;i<7;i++) { m_record[i] = parts[i]; }
+       parts = m_record;
+    }
+
     if (parts[5].equals(METRIC_STRING)) {
       nmn = null;
       nmt = new NoitMetricText(parts);
@@ -90,4 +99,7 @@ public class NoitMetric extends NoitEvent
   public NoitMetricText getText() { return nmt; }
   public String getPrefix() { return "M"; }
   public int numparts() { return 7; }
+
+  @Override
+  public String toString() { return "NoitMetric:" + (isNumeric() ? nmn.toString() : nmt.toString()); }
 }

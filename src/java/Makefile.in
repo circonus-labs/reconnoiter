@@ -45,6 +45,7 @@ R_FILE=src/com/omniti/reconnoiter/MQListener.java \
 	src/com/omniti/reconnoiter/event/NoitCheck.java \
 	src/com/omniti/reconnoiter/event/NoitStatus.java \
 	src/com/omniti/reconnoiter/event/NoitMetric.java \
+	src/com/omniti/reconnoiter/event/NoitMetricTransformed.java \
 	src/com/omniti/reconnoiter/event/NoitMetricText.java \
 	src/com/omniti/reconnoiter/event/NoitMetricNumeric.java \
 	src/com/omniti/reconnoiter/event/NoitMetricGeneric.java \
