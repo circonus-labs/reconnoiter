@@ -184,14 +184,14 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     if(vstrlen == 0)
       metric->value.v_string = NULL;
     else {
-      metric->value.v_string = value_str;
+      metric->value.v_string = mtev__strndup(value_str, vstrlen);
     }
     return 1;
   }
 
   if(*payload == 'S' || *payload == 'C' || *payload == 'D') {
     metric->type = METRIC_GUESS;
-    metric->value.v_string = (char*)payload;
+    metric->value.v_string = NULL;
     return 1;
   }
 
