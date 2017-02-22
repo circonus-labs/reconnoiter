@@ -401,12 +401,12 @@ noit_metric_message_t *noit_metric_director_lane_next() {
 }
 static noit_noit_t *
 get_noit(const char *payload, int payload_len, noit_noit_t *data) {
-  const char *cp;
-  if(NULL == (cp = memchr(payload, payload_len, '\t'))) return NULL;
-  if(++cp - payload > payload_len) return NULL;
+  const char *cp = payload, *end = payload + payload_len;
+  while(cp < end && *cp != '\t') cp++;
+  if(++cp >= end) return NULL;
   data->name = cp;
-  if(NULL == (cp = memchr(cp, payload_len - (cp - payload), '\t'))) return NULL;
-  if(cp - payload > payload_len) return NULL;
+  while(cp < end && *cp != '\t') cp++;
+  if(cp >= end) return NULL;
   data->name_len = cp - data->name;
   return data;
 }
