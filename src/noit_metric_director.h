@@ -54,7 +54,7 @@ int noit_metric_director_my_lane();
 /**
  * see init(), will dedupe by default.  Pass mtev_false to switch it off 
  */
-void noit_metric_directory_dedupe(mtev_boolean dedupe);
+void noit_metric_director_dedupe(mtev_boolean dedupe);
 
 /* Tells noit to funnel all observed lines matching this id-metric
  * back to this thread */
