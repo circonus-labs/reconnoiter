@@ -64,7 +64,7 @@
     #!/bin/sh
     # yum install autoconf subversion \
     	apr-devel apr-util-devel java-devel libssh2-devel libtermcap-devel \
-    	libxslt-devel ncurses-devel net-snmp-devel openldap-devel openssl-devel \
+    	libxslt-devel ncurses-devel net-snmp-devel openssl-devel \
     	pcre-devel postgresql-devel udns-devel uuid-devel zlib-devel \
     	libuuid-devel protobuf-c-devel hwloc-devel ck
     # git clone https://github.com/circonus-labs/reconnoiter
