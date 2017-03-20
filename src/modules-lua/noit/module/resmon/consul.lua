@@ -24,6 +24,19 @@ function onload(image)
     <parameter name="service_name"
                required="optional"
                allowed=".+">The Consul service name to check.</parameter>
+    <parameter name="consul_dc"
+               required="optional"
+               allowed=".+">The UserSpecifiedConsulDC to filter to.</parameter>
+    <parameter name="service_blacklist"
+               required="optional"
+               allowed=".+">A comma separated list of service names to skip</parameter>
+    <parameter name="node_blacklist"
+               required="optional"
+               allowed=".+">A comma separated list of node names to skip</parameter>
+    <parameter name="check_name_blacklist"
+               required="optional"
+               allowed=".+">A comma separated list of check names to skip</parameter>
+
   </checkconfig>
   <examples>
     <example>
@@ -56,8 +69,45 @@ function onload(image)
   return 0
 end
 
+-- http://lua-users.org/wiki/SplitJoin
+function split(str, delim, maxNb)
+  -- Eliminate bad cases...
+  if string.find(str, delim) == nil then
+    return { str }
+  end
+  if maxNb == nil or maxNb < 1 then
+    maxNb = 0    -- No limit
+  end
+  local result = {}
+  local pat = "(.-)" .. delim .. "()"
+  local nb = 0
+  local lastPos
+  for part, pos in string.gfind(str, pat) do
+    nb = nb + 1
+    result[nb] = part
+    lastPos = pos
+    if nb == maxNb then
+      break
+    end
+  end
+  -- Handle the last field
+  if nb ~= maxNb then
+    result[nb + 1] = string.sub(str, lastPos)
+  end
+  return result
+end
+
+function escape(s)
+  s = string.gsub(s, "([%%,:/&=+%c])", function (c)
+                    return string.format("%%%02X", string.byte(c))
+  end)
+  s = string.gsub(s, " ", "+")
+  return s
+end
+
 function fix_config(inconfig)
   local config = {}
+
   for k,v in pairs(inconfig) do config[k] = v end
 
   if not config.url then
@@ -66,6 +116,11 @@ function fix_config(inconfig)
   if not config.port then
     config.port = 8500
   end
+
+  if config.consul_dc ~= nil then
+    config.url = config.url .. '?dc=' escape(config.consul_dc)
+  end
+
   return config
 end
 
@@ -85,34 +140,6 @@ function set_check_metric(check, name, type, value)
     else
         check.metric(name, value)
     end
-end
-
--- http://lua-users.org/wiki/SplitJoin
-function split(str, delim, maxNb)
-   -- Eliminate bad cases...
-   if string.find(str, delim) == nil then
-      return { str }
-   end
-   if maxNb == nil or maxNb < 1 then
-      maxNb = 0    -- No limit
-   end
-   local result = {}
-   local pat = "(.-)" .. delim .. "()"
-   local nb = 0
-   local lastPos
-   for part, pos in string.gfind(str, pat) do
-      nb = nb + 1
-      result[nb] = part
-      lastPos = pos
-      if nb == maxNb then
-         break
-      end
-   end
-   -- Handle the last field
-   if nb ~= maxNb then
-      result[nb + 1] = string.sub(str, lastPos)
-   end
-   return result
 end
 
 -- look for a "Status" key in o and add to count_table for that status
@@ -135,7 +162,7 @@ function json_metric(check, prefix, o, index)
          local np
          if type(v) ~= "table" and prefix ~= nil then
             np = prefix .. '`' .. k
-            set_check_metric(check, np, string.find(k, "Index") and 'L' or 's', v) 
+            set_check_metric(check, np, string.find(k, "Index") and 'L' or 's', v)
             cnt = cnt + 1
          end
       end
@@ -154,7 +181,7 @@ function first_to_upper(str)
     return (str:gsub("^%l", string.upper))
 end
 
-function json_to_metrics(check, doc)
+function json_to_metrics(check, doc, blacklists)
     local services = 0
     check.available()
     local data = doc:document()
@@ -175,11 +202,11 @@ function json_to_metrics(check, doc)
           local idx = 0
           for k,v in pairs(data) do
              mtev.log("debug", "Finding check name: " .. k .. "\n")
-             if type(v) == "table" then                
+             if type(v) == "table" then
                 if v.ServiceName == check.config.service_name then
                    service_count_table[v.Status] = service_count_table[v.Status] + 1
                    service_count_table[""] = service_count_table[""] + 1
-                   if check.config.check_name == nil or 
+                   if check.config.check_name == nil or
                       (check.config.check_name ~= nil and check.config.check_name == v.Name) then
 
                          if count_table[""] == nil then
@@ -207,11 +234,13 @@ function json_to_metrics(check, doc)
           for k3, v3 in pairs(count_table) do
              np = "node`" .. make_safe(check.config.service_name)
              set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Checks", 'L', v3)
+             services = services + 1
           end
 
           for k3, v3 in pairs(service_count_table) do
              np = "node"
              set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Services", 'L', v3)
+             services = services + 1
           end
 
        elseif string.find(check.config.url, "/health/service") then
@@ -227,7 +256,7 @@ function json_to_metrics(check, doc)
           count_table["passing"] = 0
           count_table["warning"] = 0
           count_table["critical"] = 0
-          
+
           local idx = 0
           for k,v in pairs(data) do
              mtev.log("debug", "Finding check name: " .. k .. "\n")
@@ -240,8 +269,8 @@ function json_to_metrics(check, doc)
                 if v.Checks ~= nil then
                    mtev.log("debug", "Found Checks array\n")
                    local checks = v.Checks
-                   for i, c in pairs(checks) do                   
-                      if check.config.check_name == nil or 
+                   for i, c in pairs(checks) do
+                      if check.config.check_name == nil or
                       (check.config.check_name ~= nil and c.Name == check.config.check_name) then
                          local x = check_count_table[c.Name]
                          if x == nil then
@@ -271,27 +300,89 @@ function json_to_metrics(check, doc)
                 for k3, v3 in pairs(check_count_table) do
                    np = "service`checks`" .. make_safe(k3)
                    for k4,v4 in pairs(v3) do
-                      set_check_metric(check, np .. "`Num" .. first_to_upper(k4) .. "Checks", 'L', v4)
+                     set_check_metric(check, np .. "`Num" .. first_to_upper(k4) .. "Checks", 'L', v4)
+                     services = services + 1
                    end
                 end
-             end                
+             end
           end
 
           for k3, v3 in pairs(count_table) do
              np = "service`checks"
              set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Checks", 'L', v3)
+             services = services + 1
           end
 
        elseif string.find(check.config.url, "/health/state") then
+          -- For state checks, we need to find the stanza that covers the requested check name
+          -- then log out the metrics in that check.  We also have to create related count checks
+          -- for the state, regardless of check name
+          local np
+          local count_table = {}
+          count_table[""] = 0
+          count_table["passing"] = 0
+          count_table["warning"] = 0
+          count_table["critical"] = 0
+
+          local idx = 0
+          for k,v in pairs(data) do
+             if type(v) == "table" then
+               if not blacklists.node[v.Node]
+                 and not blacklists.service[v.ServiceName]
+                 and not blacklists.check[v.Name] then
+                   np = "check`" .. v.Status
+
+                   mtev.log("debug", "Prefix is: '" .. np .. "'\n")
+                   services = services + json_metric(check, np .. '`' .. idx, v, idx)
+                   count_status(v, count_table)
+                   count_table[""] = count_table[""] + 1
+                   idx = idx + 1
+               else
+                 mtev.log("debug", "Check blacklisted: " .. v.ServiceName .. "\n")
+               end
+             end
+          end
+
+          for k3, v3 in pairs(count_table) do
+             np = "check"
+             set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Services", 'L', v3)
+             services = services + 1
+          end
+
        end
-       
     end
-    
+
     if services > 0 then check.good() else check.bad() end
     check.status("services=" .. services)
 end
 
 function process(check, output)
   local jsondoc = mtev.parsejson(output)
-  json_to_metrics(check, jsondoc)
+
+  local blacklists = {["node"] = {}, ["service"] = {}, ["check"] = {}}
+
+  if check.config.service_blacklist then
+    local s = split(check.config.service_blacklist, ',')
+    for i,sb in pairs(s) do
+      mtev.log("debug", "Blacklisting Service: " .. sb .. "\n")
+      blacklists.service[sb] = 1
+    end
+  end
+
+  if check.config.node_blacklist then
+    local s = split(check.config.node_blacklist, ',')
+    for i,sb in pairs(s) do
+      blacklists.node[sb] = 1
+    end
+  end
+
+  if check.config.check_name_blacklist then
+    local s = split(check.config.check_name_blacklist, ',')
+    for i,sb in pairs(s) do
+      blacklists.check[sb] = 1
+    end
+  end
+
+
+  json_to_metrics(check, jsondoc, blacklists)
 end
