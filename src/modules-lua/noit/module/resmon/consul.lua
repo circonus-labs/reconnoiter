@@ -195,7 +195,7 @@ function sort_checks_by_name(tbl, sort_func)
   return keys
 end
 
-function json_to_metrics(check, doc, blacklists)
+function json_to_metrics(check, doc, blacklists, headers)
     local services = 0
     check.available()
     local data = doc:document()
@@ -381,11 +381,22 @@ function json_to_metrics(check, doc, blacklists)
        end
     end
 
+    if headers["x-consul-lastcontact"] then
+      local n = tonumber(headers["x-consul-lastcontact"])
+      set_check_metric(check, "LastContact", 'n', n / 1000.0) -- convert to seconds
+      services = services + 1
+    end
+
+    if headers["x-consul-knownleader"] then
+      set_check_metric(check, "KnownLeader", 's', headers["x-consul-knownleader"])
+      services = services + 1
+    end
+
     if services > 0 then check.good() else check.bad() end
     check.status("services=" .. services)
 end
 
-function process(check, output)
+function process(check, output, headers)
   local jsondoc = mtev.parsejson(output)
 
   local blacklists = {["node"] = {}, ["service"] = {}, ["check"] = {}}
@@ -413,5 +424,5 @@ function process(check, output)
   end
 
 
-  json_to_metrics(check, jsondoc, blacklists)
+  json_to_metrics(check, jsondoc, blacklists, headers)
 end

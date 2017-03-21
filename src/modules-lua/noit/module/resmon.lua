@@ -393,7 +393,7 @@ function initiate(module, check)
     if helper and helper.fix_output then output = helper.fix_output(output) end
 
     if helper and helper.process then
-      helper.process(check, output)
+      helper.process(check, output, client.headers)
       return
     end
 
