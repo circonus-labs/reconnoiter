@@ -146,11 +146,9 @@ end
 function count_status(o, count_table)
    for k, v in pairs(o) do
       if count_table ~= nil and k == "Status" then
-         if count_table[v] == nil then
-            count_table[v] = 1
-         else
-            count_table[v] = count_table[v] + 1
-         end
+        count_table[v] = count_table[v] + 1
+        count_table[""] = count_table[""] + 1
+        return
       end
    end
 end
@@ -162,7 +160,7 @@ function json_metric(check, prefix, o, index)
          local np
          if type(v) ~= "table" and prefix ~= nil then
             np = prefix .. '`' .. k
-            set_check_metric(check, np, string.find(k, "Index") and 'L' or 's', v)
+            set_check_metric(check, np, (k and string.find(k, "Index")) and 'L' or 's', v)
             cnt = cnt + 1
          end
       end
@@ -182,18 +180,30 @@ function first_to_upper(str)
 end
 
 
-function sort_checks_by_name(tbl, sort_func)
+function sort_checks_by_field(tbl, sort_func, field)
   local keys = {}
   for key in pairs(tbl) do
     table.insert(keys, key)
   end
 
   table.sort(keys, function(a, b)
-               return sort_func(tbl[a].Name, tbl[b].Name)
+               return sort_func(tbl[a][field], tbl[b][field])
   end)
 
   return keys
 end
+
+function init_count_table(tbl)
+  tbl[""] = 0
+  tbl["passing"] = 0
+  tbl["warning"] = 0
+  tbl["critical"] = 0
+end
+
+function count_table_inited(tbl)
+  return tbl["warning"] ~= nil
+end
+
 
 function json_to_metrics(check, doc, blacklists, headers)
     local services = 0
@@ -205,56 +215,63 @@ function json_to_metrics(check, doc, blacklists, headers)
           -- then log out the metrics in that check.  We also have to create related count checks
           -- for the node, regardless of check name
           local np
-          local count_table = {}
+          local count_tables = {}
           local node_count_table = {}
-          local service_count_table = {}
-          service_count_table[""] = 0
-          service_count_table["passing"] = 0
-          service_count_table["warning"] = 0
-          service_count_table["critical"] = 0
+          local service_count_tables = {}
 
           local idx = 0
           for k,v in pairs(data) do
              mtev.log("debug", "Finding check name: " .. k .. "\n")
              if type(v) == "table" then
-                if v.ServiceName == check.config.service_name then
-                   service_count_table[v.Status] = service_count_table[v.Status] + 1
-                   service_count_table[""] = service_count_table[""] + 1
-                   if check.config.check_name == nil or
-                      (check.config.check_name ~= nil and check.config.check_name == v.Name) then
+               if not check.config.service_name or check.config.service_name == v.ServiceName then
+                 local a = v.ServiceName
+                 if a == nil or a == "" then
+                   a = "agent"
+                 end
+                 if not service_count_tables[a] then
+                   service_count_tables[a] = {}
+                   init_count_table(service_count_tables[a])
+                 end
+                 count_status(v, service_count_tables[a])
+               end
+               if not check.config.check_name or check.config.check_name == v.Name then
+                 np = "node`" .. v.ServiceName
 
-                         if count_table[""] == nil then
-                            count_table[""] = 0
-                            count_table["passing"] = 0
-                            count_table["warning"] = 0
-                            count_table["critical"] = 0
-                         end
-                         np = "node`" .. v.ServiceName
+                 if (v.ServiceName == "") then
+                   np = "agent"
+                 end
+                 np = np .. "`" .. make_safe(v.Name)
+                 mtev.log("debug", "Prefix is: '" .. np .. "'\n")
+                 if not count_tables[np] then
+                   count_tables[np] = {}
+                   init_count_table(count_tables[np])
+                 end
 
-                         if (v.ServiceName == "") then
-                            np = "agent"
-                         end
-                         np = np .. "`" .. make_safe(v.Name)
-                         mtev.log("debug", "Prefix is: '" .. np .. "'\n")
-                         services = services + json_metric(check, np .. '`' .. idx, v, idx)
-                         count_status(v, count_table)
-                         count_table[""] = count_table[""] + 1
-                         idx = idx + 1
-                   end
-                end
+                 services = services + json_metric(check, np .. '`' .. idx, v, idx)
+                 count_status(v, count_tables[np])
+                 idx = idx + 1
+               end
              end
           end
 
-          for k3, v3 in pairs(count_table) do
-             np = "node`" .. make_safe(check.config.service_name)
-             set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Checks", 'L', v3)
-             services = services + 1
+          for k3, v3 in pairs(count_tables) do
+            np = k3
+            for k4, v4 in pairs(count_tables[np]) do
+              set_check_metric(check, np .. "`Num" .. first_to_upper(k4) .. "Checks", 'L', v4)
+              services = services + 1
+            end
           end
 
-          for k3, v3 in pairs(service_count_table) do
-             np = "node"
-             set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Services", 'L', v3)
-             services = services + 1
+          for k3, v3 in pairs(service_count_tables) do
+            if k3 == "agent" then
+              np = "agent"
+            else
+              np = "node" .. '`' .. make_safe(k3)
+            end
+            for k4, v4 in pairs(service_count_tables[k3]) do
+              set_check_metric(check, np .. "`Num" .. first_to_upper(k4) .. "Services", 'L', v4)
+              services = services + 1
+            end
           end
 
        elseif string.find(check.config.url, "/v1/health/service") then
@@ -266,10 +283,7 @@ function json_to_metrics(check, doc, blacklists, headers)
           local np
           local check_count_table = {}
           local count_table = {}
-          count_table[""] = 0
-          count_table["passing"] = 0
-          count_table["warning"] = 0
-          count_table["critical"] = 0
+          init_count_table(count_table)
 
           -- add all the checks from all the nodes to a single array which we can sort
           -- by check name
@@ -296,7 +310,7 @@ function json_to_metrics(check, doc, blacklists, headers)
             end
           end
 
-          local sorted_keys = sort_checks_by_name(checks, function(a, b) return a < b end)
+          local sorted_keys = sort_checks_by_field(checks, function(a, b) return a < b end, "Name")
 
           local idx = 0
           local last_check_name
@@ -312,21 +326,15 @@ function json_to_metrics(check, doc, blacklists, headers)
             local x = check_count_table[c.Name]
             if x == nil then
               check_count_table[c.Name] = {}
+              init_count_table(check_count_table[c.Name])
               x = check_count_table[c.Name]
-              x[""] = 0
-              x["passing"] = 0
-              x["warning"] = 0
-              x["critical"] = 0
             end
             np = "service`checks`" .. make_safe(c.Name)
-            mtev.log("debug", "Prefix is: '" .. np .. "'\n")
             services = services + json_metric(check, np .. '`' .. idx, c, idx)
             np = "service`checks`" .. c.Status .. "`" .. make_safe(c.Name)
             services = services + json_metric(check, np .. '`' .. idx, c, idx)
             count_status(c, x)
             count_status(c, count_table)
-            x[""] = x[""] + 1
-            count_table[""] = count_table[""] + 1
           end
           for k3, v3 in pairs(check_count_table) do
             np = "service`checks`" .. make_safe(k3)
@@ -347,37 +355,54 @@ function json_to_metrics(check, doc, blacklists, headers)
           -- then log out the metrics in that check.  We also have to create related count checks
           -- for the state, regardless of check name
           local np
-          local count_table = {}
-          count_table[""] = 0
-          count_table["passing"] = 0
-          count_table["warning"] = 0
-          count_table["critical"] = 0
+          local count_services_table = {}
+          local count_checks_table = {}
+          local checks = {}
+          local check_index = 0
+          init_count_table(count_services_table)
+          init_count_table(count_checks_table)
 
-          local idx = 0
           for k,v in pairs(data) do
-             if type(v) == "table" then
-               if not blacklists.node[v.Node]
-                 and not blacklists.service[v.ServiceName]
-                 and not blacklists.check[v.Name] then
-                   np = "check`" .. v.Status
-
-                   mtev.log("debug", "Prefix is: '" .. np .. "'\n")
-                   services = services + json_metric(check, np .. '`' .. idx, v, idx)
-                   count_status(v, count_table)
-                   count_table[""] = count_table[""] + 1
-                   idx = idx + 1
-               else
-                 mtev.log("debug", "Check blacklisted: " .. v.ServiceName .. "\n")
-               end
-             end
+            if type(v) == "table" then
+              if not blacklists.node[v.Node]
+                and not blacklists.service[v.ServiceName]
+                and not blacklists.check[v.Name] then
+                  check_index = check_index + 1
+                  checks[check_index] = v
+              else
+                mtev.log("debug", "Check blacklisted: " .. v.ServiceName .. "\n")
+              end
+            end
           end
 
-          for k3, v3 in pairs(count_table) do
+          local sorted_keys = sort_checks_by_field(checks, function(a, b) return a < b end, "CreateIndex")
+
+          local idx = 0
+          for _, key in ipairs(sorted_keys) do
+            local c = checks[key]
+            np = "check`" .. c.Status
+
+            mtev.log("debug", "Prefix is: '" .. np .. "'\n")
+            services = services + json_metric(check, np .. '`' .. idx, c, idx)
+            if c.ServiceName == nil or c.ServiceName == "" then
+              count_status(c, count_checks_table)
+            else
+              count_status(c, count_services_table)
+            end
+            idx = idx + 1
+          end
+
+          for k3, v3 in pairs(count_services_table) do
              np = "check"
              set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Services", 'L', v3)
              services = services + 1
           end
 
+          for k3, v3 in pairs(count_checks_table) do
+            np = "check"
+            set_check_metric(check, np .. "`Num" .. first_to_upper(k3) .. "Checks", 'L', v3)
+            services = services + 1
+          end
        end
     end
 
