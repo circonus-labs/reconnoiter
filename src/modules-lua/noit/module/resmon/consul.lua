@@ -181,6 +181,20 @@ function first_to_upper(str)
     return (str:gsub("^%l", string.upper))
 end
 
+
+function sort_checks_by_name(tbl, sort_func)
+  local keys = {}
+  for key in pairs(tbl) do
+    table.insert(keys, key)
+  end
+
+  table.sort(keys, function(a, b)
+               return sort_func(tbl[a].Name, tbl[b].Name)
+  end)
+
+  return keys
+end
+
 function json_to_metrics(check, doc, blacklists)
     local services = 0
     check.available()
@@ -257,54 +271,69 @@ function json_to_metrics(check, doc, blacklists)
           count_table["warning"] = 0
           count_table["critical"] = 0
 
-          local idx = 0
-          for k,v in pairs(data) do
-             mtev.log("debug", "Finding check name: " .. k .. "\n")
-             if type(v) == "table" then
-                local node_address
-                if v.Node ~= nil then
-                   -- capture the Node.Address
-                   node_address = v.Node.Address
-                end
-                if v.Checks ~= nil then
-                   mtev.log("debug", "Found Checks array\n")
-                   local checks = v.Checks
-                   for i, c in pairs(checks) do
-                      if check.config.check_name == nil or
-                      (check.config.check_name ~= nil and c.Name == check.config.check_name) then
-                         local x = check_count_table[c.Name]
-                         if x == nil then
-                            check_count_table[c.Name] = {}
-                            x = check_count_table[c.Name]
-                            x[""] = 0
-                            x["passing"] = 0
-                            x["warning"] = 0
-                            x["critical"] = 0
-                         end
-                         np = "service`checks`" .. make_safe(c.Name)
-                         mtev.log("debug", "Prefix is: '" .. np .. "'\n")
-                         services = services + json_metric(check, np .. '`' .. idx, c, idx)
-                         np = "service`checks`" .. c.Status .. "`" .. make_safe(c.Name)
-                         services = services + json_metric(check, np .. '`' .. idx, c, idx)
-                         np = "service`checks`" .. c.Status .. "`" .. make_safe(c.Name) .. "`" .. idx .. "`Address"
-                         set_check_metric(check, np, 's', node_address)
-                         count_status(c, x)
-                         count_status(c, count_table)
-                         x[""] = x[""] + 1
-                         count_table[""] = count_table[""] + 1
-                         idx = idx + 1
-                      end
-                   end
+          -- add all the checks from all the nodes to a single array which we can sort
+          -- by check name
+          local checks = {}
+          local check_index = 0
 
+          for k,v in pairs(data) do
+            if type(v) == "table" then
+              local node_address
+              if v.Node ~= nil then
+                -- capture the Node.Address
+                node_address = v.Node.Address
+              end
+              if v.Checks ~= nil then
+                for i, c in pairs(v.Checks) do
+                  check_index = check_index + 1
+                  if check.config.check_name == nil or
+                  (check.config.check_name ~= nil and c.Name == check.config.check_name) then
+                    c.Address = node_address
+                    checks[check_index] = c
+                  end
                 end
-                for k3, v3 in pairs(check_count_table) do
-                   np = "service`checks`" .. make_safe(k3)
-                   for k4,v4 in pairs(v3) do
-                     set_check_metric(check, np .. "`Num" .. first_to_upper(k4) .. "Checks", 'L', v4)
-                     services = services + 1
-                   end
-                end
-             end
+              end
+            end
+          end
+
+          local sorted_keys = sort_checks_by_name(checks, function(a, b) return a < b end)
+
+          local idx = 0
+          local last_check_name
+          for _, key in ipairs(sorted_keys) do
+            local c = checks[key]
+            if c.Name == last_check_name then
+              idx = idx + 1
+            else
+              idx = 0
+            end
+            last_check_name = c.Name
+
+            local x = check_count_table[c.Name]
+            if x == nil then
+              check_count_table[c.Name] = {}
+              x = check_count_table[c.Name]
+              x[""] = 0
+              x["passing"] = 0
+              x["warning"] = 0
+              x["critical"] = 0
+            end
+            np = "service`checks`" .. make_safe(c.Name)
+            mtev.log("debug", "Prefix is: '" .. np .. "'\n")
+            services = services + json_metric(check, np .. '`' .. idx, c, idx)
+            np = "service`checks`" .. c.Status .. "`" .. make_safe(c.Name)
+            services = services + json_metric(check, np .. '`' .. idx, c, idx)
+            count_status(c, x)
+            count_status(c, count_table)
+            x[""] = x[""] + 1
+            count_table[""] = count_table[""] + 1
+          end
+          for k3, v3 in pairs(check_count_table) do
+            np = "service`checks`" .. make_safe(k3)
+            for k4,v4 in pairs(v3) do
+              set_check_metric(check, np .. "`Num" .. first_to_upper(k4) .. "Checks", 'L', v4)
+              services = services + 1
+            end
           end
 
           for k3, v3 in pairs(count_table) do
