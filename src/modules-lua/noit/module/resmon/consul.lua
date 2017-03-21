@@ -200,7 +200,7 @@ function json_to_metrics(check, doc, blacklists, headers)
     check.available()
     local data = doc:document()
     if data ~= nil then
-       if string.find(check.config.url, "/health/node") then
+       if string.find(check.config.url, "/v1/health/node") then
           -- For node checks, we need to find the stanza that covers the requested check name
           -- then log out the metrics in that check.  We also have to create related count checks
           -- for the node, regardless of check name
@@ -257,7 +257,7 @@ function json_to_metrics(check, doc, blacklists, headers)
              services = services + 1
           end
 
-       elseif string.find(check.config.url, "/health/service") then
+       elseif string.find(check.config.url, "/v1/health/service") then
 
           -- For service checks, we need to find the Checks member and then find filter to the requested check
           -- and then find the metrics in that check.  We also have to create related count checks
@@ -342,7 +342,7 @@ function json_to_metrics(check, doc, blacklists, headers)
              services = services + 1
           end
 
-       elseif string.find(check.config.url, "/health/state") then
+       elseif string.find(check.config.url, "/v1/health/state") then
           -- For state checks, we need to find the stanza that covers the requested check name
           -- then log out the metrics in that check.  We also have to create related count checks
           -- for the state, regardless of check name
