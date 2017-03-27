@@ -73,6 +73,7 @@
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
 #include "noit_metric_director.h"
+#include "noit_check_log_helpers.h"
 #include "noit_check_tools_shared.h"
 #include "noit_check.h"
 
@@ -291,9 +292,9 @@ static int child_main() {
   ) == 0);
 
   /* Write our log out, and setup a watchdog to write it out on change. */
-  mtev_conf_write_log(NULL);
+  noit_conf_write_log(NULL);
   mtev_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
-  mtev_conf_watch_and_journal_watchdog(mtev_conf_write_log, NULL);
+  mtev_conf_watch_and_journal_watchdog(noit_conf_write_log, NULL);
 
   eventer_loop();
   return 0;

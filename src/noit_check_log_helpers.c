@@ -39,6 +39,7 @@
 #include <mtev_b64.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
+#include <mtev_conf.h>
 
 #include "noit_mtev_bridge.h"
 #include "bundle.pb-c.h"
@@ -322,4 +323,44 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);
   return cnt + has_status;
+}
+
+int
+noit_conf_write_log() {
+  static uint32_t last_write_gen = 0;
+  static mtev_log_stream_t config_log = NULL;
+  struct timeval __now;
+  mtev_boolean notify_only = mtev_false;
+  const char *v;
+
+  if(!mtev_log_stream_exists("config")) return -1;
+
+  SETUP_LOG(config, return -1);
+  if(!N_L_S_ON(config_log)) return 0;
+
+  v = mtev_log_stream_get_property(config_log, "notify_only");
+  if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) notify_only = mtev_true;
+
+  /* We know we haven't changed */
+  if(last_write_gen == mtev_conf_config_gen()) return 0;
+  mtev_gettimeofday(&__now, NULL);
+
+  if(notify_only) {
+    mtevL(config_log, "n\t%lu.%03lu\t%d\t\n",
+          (unsigned long int)__now.tv_sec,
+          (unsigned long int)__now.tv_usec / 1000UL, 0);
+    last_write_gen = mtev_conf_config_gen();
+    return 0;
+  }
+
+  size_t raw_len, buff_len;
+  char *buff = mtev_conf_enc_in_mem(&raw_len, &buff_len, CONFIG_B64, mtev_true);
+  if(buff == NULL) return -1;
+  mtevL(config_log, "n\t%lu.%03lu\t%d\t%.*s\n",
+        (unsigned long int)__now.tv_sec,
+        (unsigned long int)__now.tv_usec / 1000UL, (int)raw_len,
+        (int)buff_len, buff);
+  free(buff);
+  last_write_gen = mtev_conf_config_gen();
+  return 0;
 }
