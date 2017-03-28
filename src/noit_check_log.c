@@ -44,23 +44,34 @@
 #include "noit_check_log_helpers.h"
 
 /* Log format is tab delimited:
- * NOIT CONFIG (implemented in noit_conf.c):
- *  'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
+ * NOIT CONFIG (implemented in noit_check_log_helpers.c):
+ *    'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
+ *  | 'n' BROKER TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
  *
  * DELETE:
- *  'D' TIMESTAMP UUID NAME
+ *    'D' TIMESTAMP UUID NAME
+ *  | 'D' BROKER TIMESTAMP UUID NAME
  *
  * CHECK:
- *  'C' TIMESTAMP UUID TARGET MODULE NAME
+ *    'C' TIMESTAMP UUID TARGET MODULE NAME
+ *  | 'C' BROKER TIMESTAMP UUID TARGET MODULE NAME
  *
  * STATUS:
- *  'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
+ *    'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
+ *  | 'S' BROKER TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
  *
  * METRICS:
- *  'M' TIMESTAMP UUID NAME TYPE VALUE
+ *    'M' TIMESTAMP UUID NAME TYPE VALUE
+ *  | 'M' BROKER TIMESTAMP UUID NAME TYPE VALUE
  *
- * BUNDLE
- *  'B#' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ * BUNDLE:
+ *    'B#' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ *  | 'B#' BROKER TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ *
+ *
+ * UUID:
+ *    lower-cased-uuid
+ *  | TARGET`MODULE`NAME`lower-cased-uuid
  *  
  */
 
