@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2012, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2013-2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2013-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -276,7 +276,7 @@ statsd_handler(eventer_t e, int mask, void *closure,
     } addr;
     socklen_t addrlen = sizeof(addr);
     ssize_t len;
-    len = recvfrom(e->fd, conf->payload, conf->payload_len-1, 0,
+    len = recvfrom(eventer_get_fd(e), conf->payload, conf->payload_len-1, 0,
                    (struct sockaddr *)&addr, &addrlen);
     if(len < 0) {
       if(errno != EAGAIN)
@@ -413,11 +413,8 @@ static int noit_statsd_init(noit_module_t *self) {
 
   if(conf->ipv4_fd >= 0) {
     eventer_t newe;
-    newe = eventer_alloc();
-    newe->fd = conf->ipv4_fd;
-    newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
-    newe->callback = statsd_handler;
-    newe->closure = self;
+    newe = eventer_alloc_fd(statsd_handler, self, conf->ipv4_fd,
+                            EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
   }
 
@@ -455,11 +452,8 @@ static int noit_statsd_init(noit_module_t *self) {
 
   if(conf->ipv6_fd >= 0) {
     eventer_t newe;
-    newe = eventer_alloc();
-    newe->fd = conf->ipv6_fd;
-    newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
-    newe->callback = statsd_handler;
-    newe->closure = self;
+    newe = eventer_alloc_fd(statsd_handler, self, conf->ipv6_fd,
+                            EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
   }
 

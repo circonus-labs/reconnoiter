@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -165,11 +165,8 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const cha
     }
     h->hkey = hk;
     dns_set_tmcbck(h->ctx, dns_module_eventer_dns_utm_fn, h);
-    h->e = eventer_alloc();
-    h->e->mask = EVENTER_READ | EVENTER_EXCEPTION;
-    h->e->closure = h;
-    h->e->callback = dns_module_eventer_callback;
-    h->e->fd = dns_sock(h->ctx);
+    h->e = eventer_alloc_fd(dns_module_eventer_callback, h, dns_sock(h->ctx),
+                            EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(h->e);
     h->refcnt = 1;
     if(!ns)
@@ -343,11 +340,11 @@ nc_printf_dns_handle_brief(mtev_console_closure_t ncct,
                            dns_ctx_handle_t *h) {
   nc_printf(ncct, "== %s ==\n", h->hkey);
   nc_printf(ncct, " ns: %s\n refcnt: %d\n", h->ns, h->refcnt);
-  nc_printf(ncct, " e: %d\n", h->e ? h->e->fd : -1);
+  nc_printf(ncct, " e: %d\n", h->e ? eventer_get_fd(h->e) : -1);
   if(h->timeout) {
     struct timeval now, diff;
     mtev_gettimeofday(&now, NULL);
-    sub_timeval(h->timeout->whence, now, &diff);
+    sub_timeval(eventer_get_whence(h->timeout), now, &diff);
     nc_printf(ncct, " timeout: %f\n",
               diff.tv_sec + (double)diff.tv_usec/1000000.0);
   }
@@ -481,12 +478,7 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
     mtevAssert(h->ctx == ctx);
     if(h->timeout) e = eventer_remove(h->timeout);
     if(timeout > 0) {
-      newe = eventer_alloc();
-      newe->mask = EVENTER_TIMER;
-      newe->callback = dns_module_invoke_timeouts;
-      newe->closure = h;
-      mtev_gettimeofday(&newe->whence, NULL);
-      newe->whence.tv_sec += timeout;
+      newe = eventer_in_s_us(dns_module_invoke_timeouts, h, timeout, 0);
     }
   }
   if(e) {
@@ -886,14 +878,9 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
     return 0;
   }
 
-  newe = eventer_alloc();
-  newe->mask = EVENTER_TIMER;
-  mtev_gettimeofday(&now, NULL);
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
-  add_timeval(now, p_int, &newe->whence);
-  newe->closure = ci;
-  newe->callback = dns_module_check_timeout;
+  newe = eventer_in(dns_module_check_timeout, ci, p_int);
   ci->timeout_event = newe;
   eventer_add(newe);
 

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -312,12 +312,7 @@ static void dns_cache_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
   else {
     if(timeout < 0) e = eventer_remove(dns_cache_timeout);
     else {
-      newe = eventer_alloc();
-      newe->mask = EVENTER_TIMER;
-      newe->callback = dns_invoke_timeouts;
-      newe->closure = dns_ctx;
-      mtev_gettimeofday(&newe->whence, NULL);
-      newe->whence.tv_sec += timeout;
+      newe = eventer_in_s_us(dns_invoke_timeouts, dns_ctx, timeout, 0);
     }
   }
   if(e) eventer_free(e);
@@ -762,11 +757,8 @@ void noit_check_resolver_init() {
   }
   eventer_name_callback("dns_cache_callback", dns_cache_callback);
   dns_set_tmcbck(dns_ctx, dns_cache_utm_fn, dns_ctx);
-  e = eventer_alloc();
-  e->mask = EVENTER_READ | EVENTER_EXCEPTION;
-  e->closure = dns_ctx;
-  e->callback = dns_cache_callback;
-  e->fd = dns_sock(dns_ctx);
+  e = eventer_alloc_fd(dns_cache_callback, dns_ctx, dns_sock(dns_ctx),
+                       EVENTER_READ|EVENTER_EXCEPTION);
   eventer_add(e);
 
   mtev_skiplist_init(&nc_dns_cache);

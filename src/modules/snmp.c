@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2010-2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2010-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -432,16 +432,12 @@ static void _set_ts_timeout(struct target_session *ts, struct timeval *t) {
   eventer_t e = NULL;
   if(ts->timeoutevent) {
     e = eventer_remove(ts->timeoutevent);
+    if(e) eventer_free(e);
     ts->timeoutevent = NULL;
   }
   if(!t) return;
 
-  mtev_gettimeofday(&now, NULL);
-  if(!e) e = eventer_alloc();
-  e->callback = noit_snmp_session_timeout;
-  e->closure = ts;
-  e->mask = EVENTER_TIMER;
-  add_timeval(now, *t, &e->whence);
+  e = eventer_in(noit_snmp_session_timeout, ts, *t);
   ts->timeoutevent = e;
   eventer_add(e);
 }
@@ -452,7 +448,7 @@ static int noit_snmp_handler(eventer_t e, int mask, void *closure,
   struct timeval timeout = { 0, 0 };
   struct target_session *ts = closure;
 
-  snmp_sess_read_C1(ts->slp, e->fd);
+  snmp_sess_read_C1(ts->slp, eventer_get_fd(e));
   if(noit_snmp_session_cleanse(ts, 0))
     return 0;
   snmp_sess_select_info2_flags(ts->slp, NULL, NULL,
@@ -1302,11 +1298,8 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   if(!ts->refcnt) {
     eventer_t newe;
     noit_snmp_sess_open(ts, check);
-    newe = eventer_alloc();
-    newe->fd = ts->fd;
-    newe->callback = noit_snmp_handler;
-    newe->closure = ts;
-    newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
+    newe = eventer_alloc_fd(noit_snmp_handler, ts, ts->fd,
+                            EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
   }
   if(!ts->slp) goto bail;
@@ -1348,15 +1341,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
       goto bail;
     }
 
-    magic->timeoutevent = eventer_alloc();
-    magic->timeoutevent->callback = noit_snmpv3_probe_timeout;
-    magic->timeoutevent->closure = magic;
-    magic->timeoutevent->mask = EVENTER_TIMER;
-  
-    mtev_gettimeofday(&when, NULL);
-    to.tv_sec = 5;
-    to.tv_usec = 0;
-    add_timeval(when, to, &magic->timeoutevent->whence);
+    magic->timeoutevent = eventer_in_s_us(noit_snmpv3_probe_timeout, magic, 5, 0);
     eventer_add(magic->timeoutevent);
   }
   else {
@@ -1406,16 +1391,11 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
       mtevL(nldeb, "Sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
     }
   }
-  info->ts = ts;
-  info->timeoutevent = eventer_alloc();
-  info->timeoutevent->callback = noit_snmp_check_timeout;
-  info->timeoutevent->closure = info;
-  info->timeoutevent->mask = EVENTER_TIMER;
 
-  mtev_gettimeofday(&when, NULL);
+  info->ts = ts;
   to.tv_sec = check->timeout / 1000;
   to.tv_usec = (check->timeout % 1000) * 1000;
-  add_timeval(when, to, &info->timeoutevent->whence);
+  info->timeoutevent = eventer_in(noit_snmp_check_timeout, info, to);
   eventer_add(info->timeoutevent);
   add_check(info);
   return 0;
@@ -1632,11 +1612,8 @@ static int noit_snmp_init(noit_module_t *self) {
       if(FD_ISSET(i, &fdset)) {
         ts->refcnt++;
         ts->fd = i;
-        newe = eventer_alloc();
-        newe->fd = ts->fd;
-        newe->callback = noit_snmp_handler;
-        newe->closure = ts;
-        newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
+        newe = eventer_alloc_fd(noit_snmp_handler, ts, ts->fd,
+                                EVENTER_READ | EVENTER_EXCEPTION);
         eventer_add(newe);
       }
     }

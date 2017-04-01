@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2011-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -286,13 +286,9 @@ static void
 check_test_schedule_sweeper() {
   struct timeval now, diff;
   if(sweeper_event) return;
-  sweeper_event = eventer_alloc();
-  sweeper_event->mask = EVENTER_TIMER;
-  sweeper_event->callback = check_test_sweeper;
-  diff.tv_sec = 0L;
-  diff.tv_usec = default_sweep_interval * 1000L;
-  mtev_gettimeofday(&now, NULL);
-  add_timeval(now, diff, &sweeper_event->whence);
+  diff.tv_sec = default_sweep_interval / 1000L;
+  diff.tv_usec = (default_sweep_interval * 1000L) % 1000000L;
+  sweeper_event = eventer_in(check_test_sweeper,NULL,diff);
   eventer_add(sweeper_event);
 }
 
@@ -346,7 +342,7 @@ rest_test_check(mtev_http_rest_closure_t *restc,
     restc->fastpath = rest_test_check_err;
     eventer_t conne = mtev_http_connection_event_float(mtev_http_session_connection(ctx));
     if(conne) {
-      eventer_remove_fd(conne->fd);
+      eventer_remove_fde(conne);
     }
     goto cleanup;
   }

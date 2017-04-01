@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -263,7 +263,7 @@ handoff_stream(mtev_http_rest_closure_t *restc, int npats, char **pats) {
   ac->service_ctx_free = mtev_http_ctx_acceptor_free;
 
   e = mtev_http_connection_event(conn);
-  e->callback = handoff_http_handler;
+  eventer_set_callback(e, handoff_http_handler);
   mtev_http_session_set_dispatcher(ctx, handoff_request_dispatcher, NULL);
   return handoff_request_dispatcher(ctx);
 }

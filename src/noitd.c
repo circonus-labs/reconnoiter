@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -239,9 +239,7 @@ static int child_main() {
   /* Setup our heartbeat */
   mtev_watchdog_child_eventer_heartbeat();
 
-  e = eventer_alloc();
-  e->mask = EVENTER_RECURRENT;
-  e->callback = notice_hup;
+  e = eventer_alloc_recurrent(notice_hup, NULL);
   eventer_add_recurrent(e);
 
   /* Initialized shared tools */
