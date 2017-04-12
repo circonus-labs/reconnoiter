@@ -82,6 +82,7 @@ noit_websocket_closure_free(void *jcl) {
   free(w->feed);
 
   mtev_log_stream_close(w->log_stream);
+  mtev_log_stream_remove(mtev_log_stream_get_name(w->log_stream));
   mtev_log_stream_free(w->log_stream);
 
   for (int i = 0; i < w->filter_count; i++) {
