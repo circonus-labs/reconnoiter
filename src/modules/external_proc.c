@@ -189,6 +189,18 @@ static void fetch_and_kill_by_check(int64_t check_no) {
   mtevAssert(written_bytes == l); \
 } while (0)
 
+static int16_t get_truncated(int bfd, uint32_t max_out_len) {
+  struct stat buf;
+
+  if(fstat(bfd, &buf) == -1) {
+    mtevL(nldeb, "external: fstat error: %s\n", strerror(errno));
+    return -1;
+  }
+  if(buf.st_size > max_out_len - 1) {
+    return 1;
+  }
+  return 0;
+}
 /* 
  * return 1 if the output had to be truncated, 0 on normal output, -1 on mmap or fstat failure or nothing to do
  */
@@ -225,16 +237,9 @@ static int write_out_backing_fd(int ofd, int bfd, uint32_t max_out_len) {
     goto bail;
   }
   outlen++; /* no null on the end, but we're reporting one */
-  uint32_t olen = outlen + strlen("truncated=1\n");
-  assert_write(ofd, &olen, sizeof(olen));
+  assert_write(ofd, &outlen, sizeof(outlen));
   outlen--; /* set it back to write and munmap */
-  if (truncated == mtev_true) {
-    assert_write(ofd, "truncated=1\n", strlen("truncated=1\n"));
-    assert_write(ofd, mmap_buf, outlen);
-  } else {
-    assert_write(ofd, "truncated=0\n", strlen("truncated=0\n"));
-    assert_write(ofd, mmap_buf, outlen);
-  }
+  assert_write(ofd, mmap_buf, outlen);
   assert_write(ofd, "", 1);
   munmap(mmap_buf, outlen);
   return truncated == mtev_true;
@@ -257,6 +262,13 @@ static void finish_procs() {
                    sizeof(ps->check_no));
       assert_write(out_fd, &ps->status,
                    sizeof(ps->status));
+
+      /* Write if we're truncating stdout or stderr */
+      int16_t stdout_trunc = get_truncated(ps->stdout_fd, ps->max_out_len);
+      int16_t stderr_trunc = get_truncated(ps->stderr_fd, ps->max_out_len);
+      assert_write(out_fd, &stdout_trunc, sizeof(stdout_trunc));
+      assert_write(out_fd, &stderr_trunc, sizeof(stderr_trunc));
+
       write_out_backing_fd(out_fd, ps->stdout_fd, ps->max_out_len);
       write_out_backing_fd(out_fd, ps->stderr_fd, ps->max_out_len);
     }
