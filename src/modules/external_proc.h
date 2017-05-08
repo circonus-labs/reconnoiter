@@ -48,6 +48,8 @@ typedef enum {
 struct external_response {
   int64_t check_no;
   int32_t exit_code;
+  int16_t stdout_truncated;
+  int16_t stderr_truncated;
   int stdoutlen_sofar;
   uint32_t stdoutlen;
   char *stdoutbuff;
@@ -74,6 +76,8 @@ typedef struct {
 typedef struct {
   int64_t check_no;
   int32_t exit_code;
+  int16_t stdout_truncated;
+  int16_t stderr_truncated;
   uint32_t stdoutlen;
 } __attribute__((packed)) external_header;
 
