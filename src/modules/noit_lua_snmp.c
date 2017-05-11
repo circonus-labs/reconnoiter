@@ -118,7 +118,7 @@ int luaopen_snmp(lua_State *L)
 #ifdef HAVE_NETSNMP
   luaL_openlib(L, "snmp", snmp_funcs, 0);
 #else
-  luaL_pushnil(L);
+  lua_pushnil(L);
 #endif
   return 1;
 }
