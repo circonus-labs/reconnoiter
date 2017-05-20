@@ -160,7 +160,7 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
         metric->value.v_double = strtod(osnum, NULL);
         break;
       case METRIC_STRING:
-        metric->value.v_string = mtev__strndup(value_str, vlen);
+        metric->value.v_string = mtev__strndup(value_str, vlen-1);
         break;
       default:
         return -9;
