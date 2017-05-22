@@ -73,7 +73,7 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     const char **noit_name, int *noit_name_len,
     noit_metric_value_t *metric, int has_noit) {
   const char *cp, *metric_type_str, *time_str, *check_id_str;
-  char *value_str;
+  char *value_str, *value_str_end;
   char *dp, id_str_copy[UUID_PRINTABLE_STRING_LENGTH];
   cp = payload;
 
@@ -176,16 +176,13 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
 
     *metric_name_len = value_str - *metric_name - 1;
 
-    int vstrlen = strlen(value_str);
-
-    while ((vstrlen > 1) && (value_str[vstrlen - 1] == '\n'))
-      vstrlen--;
     metric->type = METRIC_STRING;
-    if(vstrlen == 0)
+
+    value_str_end = memchr(value_str, '\n', strlen(value_str));
+    if(value_str_end)
+      metric->value.v_string = mtev__strndup(value_str, value_str_end - value_str);
+    else
       metric->value.v_string = NULL;
-    else {
-      metric->value.v_string = mtev__strndup(value_str, vstrlen);
-    }
     return 1;
   }
 
