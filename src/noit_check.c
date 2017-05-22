@@ -1825,7 +1825,8 @@ noit_metric_sizes(metric_type_t type, const void *value) {
     case METRIC_DOUBLE:
       return sizeof(sizer);
     case METRIC_STRING: {
-      int len = strlen((char*)value) + 1;
+      const char *lf = strchr(value, '\n');
+      int len = lf ? lf - (const char *)value + 1 : strlen((char*)value) + 1;
       return ((len >= text_size_limit) ? text_size_limit+1 : len);
     }
     case METRIC_ABSENT:
