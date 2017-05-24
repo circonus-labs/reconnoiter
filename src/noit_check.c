@@ -1047,7 +1047,7 @@ noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
 }
 void
 noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
-  if(!check->feeds) return;
+  if(!check || !check->feeds) return;
   if(feed) {
     mtevL(noit_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
           check->target, check->name, check->period, check->feeds->size, feed);
