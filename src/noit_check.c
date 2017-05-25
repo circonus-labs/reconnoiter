@@ -1077,7 +1077,9 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
             check->target, check->name, check->period);
       check->flags |= NP_KILLED;
     }
-    noit_poller_free_check(check);
+    if(noit_poller_lookup(check->checkid) != check) {
+      noit_poller_free_check(check);
+    }
   }
 }
 
