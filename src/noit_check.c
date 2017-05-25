@@ -981,7 +981,14 @@ noit_check_watch(uuid_t in, int period) {
 
   mtevL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
   if(period == 0) {
-    return noit_poller_lookup(in);
+    uuid_copy(n.checkid, in);
+    f = noit_poller_lookup(in);
+    n.period = period;
+    if(mtev_skiplist_find(&watchlist, &n, NULL) == NULL) {
+      mtevL(noit_debug, "Watching %s@%d\n", uuid_str, period);
+      mtev_skiplist_insert(&watchlist, f);
+    }
+    return f;
   }
 
   /* Find the check */
@@ -1024,6 +1031,10 @@ noit_check_get_watch(uuid_t in, int period) {
 
   uuid_copy(n.checkid, in);
   n.period = period;
+  if(period == 0) {
+    f = noit_poller_lookup(in);
+    if(f) n.period = f->period;
+  }
 
   f = mtev_skiplist_find(&watchlist, &n, NULL);
   return f;
