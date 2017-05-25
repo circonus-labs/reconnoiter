@@ -387,26 +387,18 @@ noit_console_watch_check(mtev_console_closure_t ncct,
       continue;
     }
     xmlFree(uuid_conf);
-    if(period == 0) {
-      check = noit_poller_lookup(checkid);
-      if(!check) continue;
-      if(adding) noit_check_transient_add_feed(check, ncct->feed_path);
-      else noit_check_transient_remove_feed(check, ncct->feed_path);
+    if(adding) {
+      check = noit_check_watch(checkid, period);
+      /* This check must be watched from the console */
+      noit_check_transient_add_feed(check, ncct->feed_path);
+      /* Note the check */
+      noit_check_log_check(check);
+      /* kick it off, if it isn't running already */
+      if(!NOIT_CHECK_LIVE(check)) noit_check_activate(check);
     }
     else {
-      if(adding) {
-        check = noit_check_watch(checkid, period);
-        /* This check must be watched from the console */
-        noit_check_transient_add_feed(check, ncct->feed_path);
-        /* Note the check */
-        noit_check_log_check(check);
-        /* kick it off, if it isn't running already */
-        if(!NOIT_CHECK_LIVE(check)) noit_check_activate(check);
-      }
-      else {
-        check = noit_check_get_watch(checkid, period);
-        if(check) noit_check_transient_remove_feed(check, ncct->feed_path);
-      }
+      check = noit_check_get_watch(checkid, period);
+      if(check) noit_check_transient_remove_feed(check, ncct->feed_path);
     }
   }
  out:
