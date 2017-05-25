@@ -47,6 +47,7 @@
 #include <mtev_console.h>
 #include <mtev_hash.h>
 #include <mtev_log.h>
+#include <mtev_uuid.h>
 
 #include "noit_filters.h"
 #include "noit_conf_checks.h"
@@ -329,7 +330,7 @@ noit_console_check(mtev_console_closure_t ncct,
     xmlpath = (char *)xmlGetNodePath(node);
     info->path = strdup(xmlpath + strlen("/noit"));
     free(xmlpath);
-    uuid_copy(info->current_check, checkid);
+    mtev_uuid_copy(info->current_check, checkid);
     if(argc > 1) refresh_subchecks(ncct, info);
     if(state) {
       mtev_console_state_push_state(ncct, state);

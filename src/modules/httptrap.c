@@ -42,6 +42,7 @@
 #include <mtev_rest.h>
 #include <mtev_hash.h>
 #include <mtev_json.h>
+#include <mtev_uuid.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
@@ -732,7 +733,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     if(!delimiter) (void)mtev_hash_retr_str(check->config, "httptrap_delimiter", strlen("httptrap_delimiter"), &delimiter);
     if(delimiter && *delimiter) rxc->delimiter = *delimiter;
     rxc->check = check;
-    uuid_copy(rxc->check_id, check_id);
+    mtev_uuid_copy(rxc->check_id, check_id);
     rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
     rxc->depth = -1;
     yajl_config(rxc->parser, yajl_allow_comments, 1);

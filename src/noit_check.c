@@ -33,6 +33,7 @@
 
 #include "noit_config.h"
 #include <mtev_defines.h>
+#include <mtev_uuid.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -981,7 +982,7 @@ noit_check_watch(uuid_t in, int period) {
 
   mtevL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
   if(period == 0) {
-    uuid_copy(n.checkid, in);
+    mtev_uuid_copy(n.checkid, in);
     f = noit_poller_lookup(in);
     n.period = period;
     if(mtev_skiplist_find(&watchlist, &n, NULL) == NULL) {
@@ -1010,7 +1011,7 @@ noit_check_watch(uuid_t in, int period) {
   period *= granularity_pi;
   period = MAX(period, minimum_pi);
 
-  uuid_copy(n.checkid, in);
+  mtev_uuid_copy(n.checkid, in);
   n.period = period;
 
   f = mtev_skiplist_find(&watchlist, &n, NULL);
@@ -1029,7 +1030,7 @@ noit_check_t *
 noit_check_get_watch(uuid_t in, int period) {
   noit_check_t n, *f;
 
-  uuid_copy(n.checkid, in);
+  mtev_uuid_copy(n.checkid, in);
   n.period = period;
   if(period == 0) {
     f = noit_poller_lookup(in);
@@ -1212,7 +1213,7 @@ noit_check_update(noit_check_t *new_check,
   if(NOIT_CHECK_RUNNING(new_check)) {
     char module[256];
     uuid_t id, dummy;
-    uuid_copy(id, new_check->checkid);
+    mtev_uuid_copy(id, new_check->checkid);
     strlcpy(module, new_check->module, sizeof(module));
     noit_poller_deschedule(id, mtev_false);
     return noit_poller_schedule(target, module, name, filterset,
@@ -1338,7 +1339,7 @@ noit_poller_schedule(const char *target,
   if(uuid_is_null(in))
     uuid_generate(new_check->checkid);
   else
-    uuid_copy(new_check->checkid, in);
+    mtev_uuid_copy(new_check->checkid, in);
 
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
@@ -1346,7 +1347,7 @@ noit_poller_schedule(const char *target,
   mtevAssert(mtev_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
-  uuid_copy(out, new_check->checkid);
+  mtev_uuid_copy(out, new_check->checkid);
   noit_check_log_check(new_check);
 
   return 0;
@@ -2177,7 +2178,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
   noit_check_t n;
   noit_check_t *watches[8192];
 
-  uuid_copy(n.checkid, check->checkid);
+  mtev_uuid_copy(n.checkid, check->checkid);
   n.period = 0;
 
   noit_check_set_stats(check);
