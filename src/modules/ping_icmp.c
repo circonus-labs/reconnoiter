@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_uuid.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -196,7 +197,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   pcl->check->flags &= ~NP_RUNNING;
   ping_data = noit_module_get_userdata(pcl->self);
   k.addr_of_check = (uintptr_t)pcl->check ^ random_num;
-  uuid_copy(k.checkid, pcl->check->checkid);
+  mtev_uuid_copy(k.checkid, pcl->check->checkid);
   mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
                    free, NULL);
   free(pcl);
@@ -289,7 +290,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
     check = NULL;
     k.addr_of_check = payload->addr_of_check;
-    uuid_copy(k.checkid, payload->checkid);
+    mtev_uuid_copy(k.checkid, payload->checkid);
     if(mtev_hash_retrieve(ping_data->in_flight,
                           (const char *)&k, sizeof(k),
                           &vcheck))
@@ -332,7 +333,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       data->timeout_event = NULL;
       check->flags &= ~NP_RUNNING;
       k.addr_of_check = (uintptr_t)check ^ random_num;
-      uuid_copy(k.checkid, check->checkid);
+      mtev_uuid_copy(k.checkid, check->checkid);
       mtev_hash_delete(ping_data->in_flight, (const char *)&k,
                        sizeof(k), free, NULL);
     }
@@ -451,7 +452,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   data = noit_module_get_userdata(pcl->self);
   payload = (struct ping_payload *)((char *)pcl->payload + pcl->icp_len);
   k.addr_of_check = payload->addr_of_check;
-  uuid_copy(k.checkid, payload->checkid);
+  mtev_uuid_copy(k.checkid, payload->checkid);
 
   if(pcl->check->target_ip[0] == '\0') goto cleanup;
 
@@ -539,7 +540,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   ping_data = noit_module_get_userdata(self);
   k = calloc(1, sizeof(*k));
   k->addr_of_check = (uintptr_t)check ^ random_num;
-  uuid_copy(k->checkid, check->checkid);
+  mtev_uuid_copy(k->checkid, check->checkid);
   if(!mtev_hash_store(ping_data->in_flight, (const char *)k, sizeof(*k),
                       check)) {
     free(k);
@@ -604,7 +605,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     }
 
     payload->addr_of_check = (uintptr_t)check ^ random_num;
-    uuid_copy(payload->checkid, check->checkid);
+    mtev_uuid_copy(payload->checkid, check->checkid);
     payload->generation = check->generation & 0xffff;
     payload->check_no = ci->check_no;
     payload->check_pack_no = i;
