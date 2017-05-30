@@ -42,30 +42,42 @@
 #include "noit_filters.h"
 #include "bundle.pb-c.h"
 #include "noit_check_log_helpers.h"
-#include "flatbuffers/metric_builder.h"
+#include "flatbuffers/metric_batch_builder.h"
+#include "flatbuffers/metric_common_builder.h"
 
 /* Log format is tab delimited:
- * NOIT CONFIG (implemented in noit_conf.c):
- *  'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
+ * NOIT CONFIG (implemented in noit_check_log_helpers.c):
+ *    'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
+ *  | 'n' BROKER TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
  *
  * DELETE:
- *  'D' TIMESTAMP UUID NAME
+ *    'D' TIMESTAMP UUID NAME
+ *  | 'D' BROKER TIMESTAMP UUID NAME
  *
  * CHECK:
- *  'C' TIMESTAMP UUID TARGET MODULE NAME
+ *    'C' TIMESTAMP UUID TARGET MODULE NAME
+ *  | 'C' BROKER TIMESTAMP UUID TARGET MODULE NAME
  *
  * STATUS:
- *  'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
+ *    'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
+ *  | 'S' BROKER TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
  *
  * METRICS:
- *  'M' TIMESTAMP UUID NAME TYPE VALUE
+ *    'M' TIMESTAMP UUID NAME TYPE VALUE
+ *  | 'M' BROKER TIMESTAMP UUID NAME TYPE VALUE
  *
- * BUNDLE
- *  'B#' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
- * 
+ * BUNDLE:
+ *    'B#' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ *  | 'B#' BROKER TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ *
+ *
+ * UUID:
+ *    lower-cased-uuid
+ *  | TARGET`MODULE`NAME`lower-cased-uuid
+ *
  * BINARY
  *  'BF' strlen(base64(flatbuffer payload)) base64(flatbuffer payload)
- *  
+ *
  */
 
 #undef ns
@@ -237,21 +249,18 @@ flatbuffer_encode_metric(mtev_log_stream_t ls, flatcc_builder_t *B, struct timev
   char uuid_str[256*3+37];
   int len = sizeof(uuid_str);
 
-  ns(Message_metrics_push_start(B));
-  ns(Metric_type_add)(B, ns(Type_Numeric));
-  ns(Metric_metric_name_create_str(B, m->metric_name));
+  ns(MetricBatch_metrics_push_start(B));
+  ns(MetricValue_name_create_str(B, m->metric_name));
 
 #define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD) \
-  ns(Numeric_type_add(B, ns(NumericType_ ## FBNAME )));  \
-  ns(Numeric_value_ ## FBTYPE ## _start(B)); \
+  ns(FBTYPE ## _start(B)); \
   if (m->metric_value.MFIELD != NULL) { \
-    ns(FBTYPE ## _v_add(B, *m->metric_value.MFIELD )); \
+    ns(FBTYPE ## _value_add(B, *m->metric_value.MFIELD )); \
   } \
-  ns(Numeric_value_ ## FBTYPE ## _end(B));
+  ns(FBTYPE ## _end(B));
 
 
   /* any of these types can be null */
-  ns(Metric_metric_value_Numeric_start(B));
   switch(m->metric_type) {
   case METRIC_INT32:
     ENCODE_TYPE(int32, IntValue, i);
@@ -269,25 +278,21 @@ flatbuffer_encode_metric(mtev_log_stream_t ls, flatcc_builder_t *B, struct timev
     ENCODE_TYPE(dubs, DoubleValue, n);
     break;
   case METRIC_STRING:
-    ns(Numeric_type_add(B, ns(NumericType_str)));
-    ns(Numeric_value_StringValue_start(B));
+    ns(StringValue_start(B));
     if (m->metric_value.s != NULL) {
       nsc(string_ref_t) mv = nsc(string_create_str(B, m->metric_value.s));
-      ns(StringValue_v_add(B, mv));
+      ns(StringValue_value_add(B, mv));
     }
-    ns(Numeric_value_StringValue_end(B));
+    ns(StringValue_end(B));
     break;
   case METRIC_ABSENT:
-  case METRIC_NULL:
   case METRIC_GUESS:
     break;
   };
 
 #undef ENCODE_TYPE
 
-  ns(Metric_metric_value_Numeric_end(B));
-
-  ns(Message_metrics_push_end(B));
+  ns(MetricBatch_metrics_push_end(B));
 }
 
 static int 
@@ -309,9 +314,9 @@ noit_check_log_bundle_metric_flatbuffer_serialize(mtev_log_stream_t ls,
   B = &builder;
   flatcc_builder_init(B);
 
-  ns(Message_start_as_root(B));
+  ns(MetricBatch_start_as_root(B));
 
-  ns(Message_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
+  ns(MetricBatch_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
   
   const char *v; 
   mtev_boolean extended_id = mtev_false; 
@@ -326,17 +331,17 @@ noit_check_log_bundle_metric_flatbuffer_serialize(mtev_log_stream_t ls,
     strlcat(uuid_str, check->name, len); 
     strlcat(uuid_str, "`", len); 
   }
-  ns(Message_check_name_create_str(B, uuid_str));
+  ns(MetricBatch_check_name_create_str(B, uuid_str));
  
   uuid_str[0] = '\0';
   uuid_unparse_lower(check->checkid, uuid_str); 
-  ns(Message_check_uuid_create_str(B, uuid_str));
+  ns(MetricBatch_check_uuid_create_str(B, uuid_str));
 
 
   flatbuffer_encode_metric(ls, B, whence, check, m);
   
-  ns(Message_metrics_end(B));
-  ns(Message_end_as_root(B));
+  ns(MetricBatch_metrics_end(B));
+  ns(MetricBatch_end_as_root(B));
  
   {
     size_t size;
@@ -602,9 +607,9 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   B = &builder;
   flatcc_builder_init(B);
 
-  ns(Message_start_as_root(B));
+  ns(MetricBatch_start_as_root(B));
 
-  ns(Message_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
+  ns(MetricBatch_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
   
   const char *v; 
   mtev_boolean extended_id = mtev_false; 
@@ -619,11 +624,11 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     strlcat(uuid_str, check->name, len); 
     strlcat(uuid_str, "`", len); 
   }
-  ns(Message_check_name_create_str(B, uuid_str));
+  ns(MetricBatch_check_name_create_str(B, uuid_str));
  
   uuid_str[0] = '\0';
   uuid_unparse_lower(check->checkid, uuid_str); 
-  ns(Message_check_uuid_create_str(B, uuid_str));
+  ns(MetricBatch_check_uuid_create_str(B, uuid_str));
 
   metrics = noit_check_stats_metrics(c);
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
@@ -634,8 +639,8 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     flatbuffer_encode_metric(ls, B, whence, check, m);
   }
   
-  ns(Message_metrics_end(B));
-  ns(Message_end_as_root(B));
+  ns(MetricBatch_metrics_end(B));
+  ns(MetricBatch_end_as_root(B));
  
   {
     size_t size;
@@ -690,7 +695,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     n_metrics++;
   }
 
-  int n_bundles = (n_metrics / metrics_per_bundle) + 1;
+  int n_bundles = ((MAX(n_metrics,1) - 1) / metrics_per_bundle) + 1;
   Bundle *bundles = malloc(n_bundles * sizeof(*bundles));
 
   for(i=0; i<n_bundles; i++) {
@@ -716,14 +721,12 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     metadata__init(bundle->metadata[0]);
     bundle->metadata[0]->key = ip_str;
     bundle->metadata[0]->value = check->target_ip;
+    bundle->n_metrics = 0;
     if(n_metrics > 0) {
       /* All bundles have METRICS_PER_BUNDLE except the last,
        * which has the remainder of metrics
        */
-      bundle->n_metrics = metrics_per_bundle;
-      if(i == n_bundles-1)
-        bundle->n_metrics = n_metrics % metrics_per_bundle;
-      bundle->metrics = malloc(bundle->n_metrics * sizeof(Metric*));
+      bundle->metrics = calloc(metrics_per_bundle, sizeof(Metric*));
     }
   }
 
@@ -731,6 +734,9 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   if(n_metrics > 0) {
     // Now convert
     while(mtev_hash_next(metrics, &iter2, &key, &klen, &vm)) {
+      /* make sure we don't go past our allocation for some reason*/
+      if((i / metrics_per_bundle) >= n_bundles) break;
+
       Bundle *bundle = &bundles[i / metrics_per_bundle];
       int b_i = i % metrics_per_bundle;
       /* If we apply the filter set and it returns false, we don't log */
@@ -790,8 +796,8 @@ noit_check_log_bundle(noit_check_t *check) {
   handle_extra_feeds(check, noit_check_log_bundle_serialize);
   if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_STATUS | NP_SUPPRESS_METRICS))) {
     SETUP_LOG(bundle, return);
-    //    noit_check_log_bundle_serialize(bundle_log, check);
-    noit_check_log_bundle_fb_serialize(bundle_log, check);
+    noit_check_log_bundle_serialize(bundle_log, check);
+    //noit_check_log_bundle_fb_serialize(bundle_log, check);
   }
 }
 

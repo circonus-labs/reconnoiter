@@ -75,6 +75,8 @@ struct check_info {
   char **envs;
   noit_check_t *check;
   int exit_code;
+  int16_t stdout_truncated;
+  int16_t stderr_truncated;
   external_special_t type;
 
   int errortype;
@@ -106,9 +108,9 @@ typedef struct external_closure {
  *   ext 2 noit:
  *     int64(check_no)
  *     int32(exitcode) [0 -> good, {1,2} -> bad, 3 -> unknown]
- *     uint16(outlen) (includes \0)
+ *     uint32(outlen) (includes \0)
  *     string of outlen
- *     uint16(errlen) (includes \0)
+ *     uint32(errlen) (includes \0)
  *     string of errlen -> complete .end
  */
 
@@ -167,6 +169,20 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
     noit_stats_set_available(check, NP_AVAILABLE);
     noit_stats_set_state(check, (WEXITSTATUS(ci->exit_code) == 0) ? NP_GOOD : NP_BAD);
   }
+
+  /* Set if stdout is truncated... if we're -1, there was an error, so don't
+   * log anything. Otherwise - true for 1, false for 0 */
+  if (ci->stdout_truncated != -1) {
+    noit_stats_set_metric(check, "truncated", METRIC_INT32, &ci->stdout_truncated);
+  }
+  /* NOTE: We can report stderr_truncated if we wish, but there's really no reason
+   * to do so at the moment... leaving the code here in case we wish to enable it
+   * later */
+#if 0
+  if (ci->stderr_truncated != -1) {
+    noit_stats_set_metric(check, "stderr_truncated", METRIC_INT32, &ci->stderr_truncated);
+  }
+#endif
 
   /* Hack the output into metrics */
   if(ci->output && ci->type == EXTERNAL_JSON_TYPE) {
@@ -355,7 +371,7 @@ static int external_handler(eventer_t e, int mask,
         else
         {
           inlen += ret;
-          if (inlen >= 14)
+          if (inlen >= 18)
           {
             break;
           }
@@ -365,6 +381,8 @@ static int external_handler(eventer_t e, int mask,
       mtevAssert(inlen == expectlen);
       r.check_no = h.check_no;
       r.exit_code = h.exit_code;
+      r.stdout_truncated = h.stdout_truncated;
+      r.stderr_truncated = h.stderr_truncated;
       r.stdoutlen = h.stdoutlen;
       data->cr = calloc(sizeof(*data->cr), 1);
       memset(data->cr, 0, sizeof(*data->cr));
@@ -457,6 +475,8 @@ static int external_handler(eventer_t e, int mask,
     ci->exit_code = data->cr->exit_code;
     ci->output = data->cr->stdoutbuff;
     ci->error = data->cr->stderrbuff;
+    ci->stdout_truncated = data->cr->stdout_truncated;
+    ci->stderr_truncated = data->cr->stderr_truncated;
     free(data->cr);
     data->cr = NULL;
     check = ci->check;
@@ -473,7 +493,7 @@ static int external_handler(eventer_t e, int mask,
 
 static int external_init(noit_module_t *self) {
   external_data_t *data;
-  const char* path = NULL, *nagios_regex = NULL;
+  const char* path = NULL, *nagios_regex = NULL, *max_out_len = NULL;
 
   data = noit_module_get_userdata(self);
   if(!data) {
@@ -511,11 +531,17 @@ static int external_init(noit_module_t *self) {
     else {
       data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
     }
-
+    (void)mtev_hash_retr_str(data->options, "max_output_len", strlen("max_output_len"), &max_out_len);
+    if (max_out_len) {
+      data->max_out_len = atoi(max_out_len);
+    } else {
+      data->max_out_len = 256 * 1024;
+    }
   }
   else {
     data->path = strdup("/");
     data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
+    data->max_out_len = 256 * 1024; // default to 256K if they don't specify above
   }
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||

@@ -31,6 +31,8 @@
 #ifndef NOIT_METRIC_DIRECTOR_H
 #define NOIT_METRIC_DIRECTOR_H
 
+#include <mtev_defines.h>
+#include <mtev_hooks.h>
 #include <uuid/uuid.h>
 #include "noit_message_decoder.h"
 
@@ -45,9 +47,14 @@
 void noit_metric_director_init();
 
 /**
+ * get your receiving lane. (allocated a FIFO for the calling thread)
+ */
+int noit_metric_director_my_lane();
+
+/**
  * see init(), will dedupe by default.  Pass mtev_false to switch it off 
  */
-void noit_metric_directory_dedupe(mtev_boolean dedupe);
+void noit_metric_director_dedupe(mtev_boolean dedupe);
 
 /* Tells noit to funnel all observed lines matching this id-metric
  * back to this thread */
@@ -64,8 +71,12 @@ noit_metric_message_t *noit_metric_director_lane_next();
 void noit_metric_director_message_ref(void *message);
 void noit_metric_director_message_deref(void *message);
 void noit_metric_director_init_globals(void);
+void noit_metric_director_flush(eventer_t e);
 
 int64_t noit_metric_director_get_messages_received();
 int64_t noit_metric_director_get_messages_distributed();
+
+MTEV_HOOK_PROTO(metric_director_want, (noit_metric_message_t *, int *, int),
+                void *, closure, (void *closure, noit_metric_message_t *m, int *wants, int want_len));
 
 #endif

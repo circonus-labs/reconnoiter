@@ -109,7 +109,7 @@ function carbon_client(client, co, l)
   -- reference the coroutine or get be gc'd during suspension
   l.clients[connid] = co
   -- this event lives in this coroutine now
-  client:own()
+  local client = client:own()
 
   local success, msg = pcall(function() 
     repeat

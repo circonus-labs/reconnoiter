@@ -40,6 +40,9 @@
 API_EXPORT(int)
 noit_message_decoder_parse_line(const char *payload, int payload_len,
     uuid_t *id, const char **metric_name, int *metric_name_len,
-    noit_metric_value_t *metric, mtev_boolean has_noit);
+    const char **noit_name, int *noit_name_len,
+    noit_metric_value_t *metric, int has_noit);
 
+API_EXPORT(int)
+  noit_is_timestamp(const char *line, int len);
 #endif

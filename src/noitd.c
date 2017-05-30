@@ -73,6 +73,7 @@
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
 #include "noit_metric_director.h"
+#include "noit_check_log_helpers.h"
 #include "noit_check_tools_shared.h"
 #include "noit_check.h"
 
@@ -108,6 +109,7 @@ void parse_clargs(int argc, char **argv) {
     switch(c) {
       case 'x':
         xpath = strdup(optarg);
+        mtev_main_disable_log("notice");
         foreground = 1;
         break;
       case 'G':
@@ -211,7 +213,9 @@ static int child_main() {
     parts = mtev_conf_get_sections(NULL, xpath, &cnt);
     if(cnt == 0) exit(2);
     for(i=0; i<cnt; i++) {
-      fprintf(stdout, "%d: ", i); fflush(stdout);
+      const char *sup = "";
+      if(mtev_conf_env_off(parts[i], NULL)) sup = "[env suppressed]";
+      fprintf(stdout, "%d%s: ", i, sup); fflush(stdout);
       mtev_conf_write_section(parts[i], 1);
     }
     free(parts);
@@ -288,9 +292,9 @@ static int child_main() {
   ) == 0);
 
   /* Write our log out, and setup a watchdog to write it out on change. */
-  mtev_conf_write_log(NULL);
+  noit_conf_write_log(NULL);
   mtev_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
-  mtev_conf_watch_and_journal_watchdog(mtev_conf_write_log, NULL);
+  mtev_conf_watch_and_journal_watchdog(noit_conf_write_log, NULL);
 
   eventer_loop();
   return 0;

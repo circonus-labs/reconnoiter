@@ -586,6 +586,10 @@ noit_poller_process_checks(const char *xpath) {
       mtevL(noit_stderr, "check %d has no uuid\n", i+1);
       continue;
     }
+    if(mtev_conf_env_off(sec[i], NULL)) {
+      mtevL(noit_stderr, "check %s environmentally disabled.\n", uuid_str);
+      continue;
+    }
 
     MYATTR(int64, seq, &config_seq);
 
@@ -852,19 +856,24 @@ noit_check_dns_ignore_list_init() {
   mtev_conf_section_t* dns;
   int cnt;
 
+  noit_check_dns_ignore_tld("onion", "true");
   dns = mtev_conf_get_sections(NULL, "/noit/dns/extension", &cnt);
   if(dns) {
     int i = 0;
     for (i = 0; i < cnt; i++) {
-      char* extension;
-      char* ignore;
-      if(!mtev_conf_get_string(dns[i], "self::node()/@value", &extension)) {
-        continue;
+      char* extension = NULL;
+      char* ignore = NULL;
+      if(mtev_conf_get_string(dns[i], "self::node()/@value", &extension) &&
+         mtev_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
+	if(mtev_conf_env_off(dns[i], NULL)) {
+          mtevL(mtev_debug, "dns extension '%s' environmentally ignored.\n", extension);
+        }
+        else {
+          noit_check_dns_ignore_tld(extension, ignore);
+        }
       }
-      if(!mtev_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
-        continue;
-      }
-      noit_check_dns_ignore_tld(extension, ignore);
+      free(extension);
+      free(ignore);
     }
   }
 }

@@ -225,10 +225,10 @@ static int child_main() {
   mtev_reverse_socket_init(reverse_prefix, reverse_prefix_cns);
   mtev_reverse_socket_acl(mtev_reverse_socket_denier);
   mtev_events_rest_init();
-  stratcon_realtime_http_init(APPNAME);
   mtev_capabilities_listener_init();
   noit_build_version(stratcon_version, sizeof(stratcon_version));
   mtev_capabilities_add_feature("stratcon", stratcon_version);
+  stratcon_realtime_http_init(APPNAME);
   mtev_listener_init(APPNAME);
 
   mtev_dso_init();

@@ -34,7 +34,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <uuid/uuid.h>
+#include <ctype.h>
 #include <mtev_log.h>
+#include <mtev_str.h>
 
 #include "noit_metric.h"
 
@@ -46,9 +48,30 @@
     } \
 } while(0)
 
+int noit_is_timestamp(const char *line, int len) {
+  int is_ts = 0;
+  int state = 0, cnt[2] = { 0, 0 };
+  const char *end = line + len - 1;
+  const char *possible = line;
+  while(possible < end && *possible != '\t') {
+    if(state == 0 && *possible == '.') {
+      state = 1;
+    }
+    else if(isdigit(*possible)) {
+      cnt[state]++;
+    }
+    else break;
+    possible++;
+    if(*possible == '\t') {
+      if(cnt[1] == 3 && cnt[0] > 0) is_ts = 1;
+    }
+  }
+  return is_ts;
+}
 int noit_message_decoder_parse_line(const char *payload, int payload_len,
     uuid_t *id, const char **metric_name, int *metric_name_len,
-    noit_metric_value_t *metric, mtev_boolean has_noit) {
+    const char **noit_name, int *noit_name_len,
+    noit_metric_value_t *metric, int has_noit) {
   const char *cp, *metric_type_str, *time_str, *check_id_str;
   char *value_str;
   char *dp, id_str_copy[UUID_PRINTABLE_STRING_LENGTH];
@@ -56,14 +79,27 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
 
   // Go to the timestamp column
   MOVE_TO_NEXT_TAB(cp, time_str);
-  if(has_noit == mtev_true) { // non bundled messages store the source IP in the second column
-    if(time_str == NULL)
-      return -1;
-    MOVE_TO_NEXT_TAB(cp, time_str);
-  }
-
   if(time_str == NULL)
     return -1;
+  if(noit_name) *noit_name = NULL;
+  if(noit_name_len) *noit_name_len = 0;
+
+  if(has_noit == -1) {
+    /* auto-detect */
+    const char *end = payload + payload_len - 1;
+    const char *possible = time_str;
+    has_noit = !noit_is_timestamp(possible, (end-possible));
+  }
+
+  if(has_noit == 1) { // non bundled messages store the source IP in the second column
+    const char *nname = time_str;
+    if(noit_name) *noit_name = nname;
+    MOVE_TO_NEXT_TAB(cp, time_str);
+    if(time_str == NULL)
+      return -1;
+    if(noit_name_len) *noit_name_len = time_str - nname - 1;
+  }
+
   /* extract time */
   metric->whence_ms = strtoull(time_str, &dp, 10);
   metric->whence_ms *= 1000; /* s -> ms */
@@ -102,24 +138,29 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     if(!strcmp(value_str, "[[null]]")) {
       metric->is_null = mtev_true;
     } else {
+      char osnum[512]; /* that's a big number! */
+      int nlen, vlen = (uintptr_t)payload + (uintptr_t)payload_len - (uintptr_t)value_str;
+      nlen = (vlen >= sizeof(osnum)) ? (sizeof(osnum)-1) : vlen;
+      memcpy(osnum, value_str, nlen);
+      osnum[nlen] = '\0';
       switch (*metric_type_str) {
       case METRIC_INT32:
-        metric->value.v_int32 = strtol(value_str, NULL, 10);
+        metric->value.v_int32 = strtol(osnum, NULL, 10);
         break;
       case METRIC_UINT32:
-        metric->value.v_uint32 = strtoul(value_str, NULL, 10);
+        metric->value.v_uint32 = strtoul(osnum, NULL, 10);
         break;
       case METRIC_INT64:
-        metric->value.v_int64 = strtoll(value_str, NULL, 10);
+        metric->value.v_int64 = strtoll(osnum, NULL, 10);
         break;
       case METRIC_UINT64:
-        metric->value.v_uint64 = strtoull(value_str, NULL, 10);
+        metric->value.v_uint64 = strtoull(osnum, NULL, 10);
         break;
       case METRIC_DOUBLE:
-        metric->value.v_double = strtod(value_str, NULL);
+        metric->value.v_double = strtod(osnum, NULL);
         break;
       case METRIC_STRING:
-        metric->value.v_string = value_str;
+        metric->value.v_string = mtev__strndup(value_str, vlen);
         break;
       default:
         return -9;
@@ -143,14 +184,14 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     if(vstrlen == 0)
       metric->value.v_string = NULL;
     else {
-      metric->value.v_string = value_str;
+      metric->value.v_string = mtev__strndup(value_str, vstrlen);
     }
     return 1;
   }
 
   if(*payload == 'S' || *payload == 'C' || *payload == 'D') {
     metric->type = METRIC_GUESS;
-    metric->value.v_string = (char*)payload;
+    metric->value.v_string = NULL;
     return 1;
   }
 

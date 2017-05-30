@@ -82,6 +82,7 @@ noit_websocket_closure_free(void *jcl) {
   free(w->feed);
 
   mtev_log_stream_close(w->log_stream);
+  mtev_log_stream_remove(mtev_log_stream_get_name(w->log_stream));
   mtev_log_stream_free(w->log_stream);
 
   for (int i = 0; i < w->filter_count; i++) {
@@ -96,12 +97,12 @@ static void
 send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string, size_t len)
 {
 #ifdef HAVE_WSLAY
-  noit_metric_message_t message;
+  noit_metric_message_t message = {};
   char *json = NULL;
   size_t json_len = 0;
 
   int rval = noit_message_decoder_parse_line(metric_string, len, &message.id.id, &message.id.name,
-                                             &message.id.name_len, &message.value, mtev_false);
+                                             &message.id.name_len, NULL, NULL, &message.value, mtev_false);
   if (rval < 0) {
     return;
   }
@@ -206,7 +207,7 @@ static logops_t noit_websocket_logio_ops = {
 void
 noit_websocket_handler_init() {
   mtev_register_logops("noit_websocket_livestream", &noit_websocket_logio_ops);
-  int rval = mtev_http_rest_websocket_register("/livestream/", "^(.*)$", NOIT_WEBSOCKET_DATA_FEED_PROTOCOL,
+  int rval = mtev_http_rest_websocket_register(NOIT_WEBSOCKET_DATA_FEED_PATH, "^(.*)$", NOIT_WEBSOCKET_DATA_FEED_PROTOCOL,
                                                     noit_websocket_msg_handler);
   if (rval == -1) {
     mtevFatal(mtev_error, "Unabled to register websocket handler for /livestream/");

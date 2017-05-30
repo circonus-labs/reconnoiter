@@ -1,64 +1,18 @@
+include "metric_common.fbs";
+
 // Metric message
 namespace circonus;
 
-enum Type : byte { Numeric = 0, Histogram, Status }
 
-enum NumericType : byte { int32, uint32, int64, uint64, dubs, str }
-
-table IntValue {
-      v: int;
-}
-
-table UintValue {
-      v: uint;
-}
-
-table LongValue {
-      v: long;
-}
-
-table UlongValue {
-      v: ulong;
-}
-
-table DoubleValue {
-      v: double;
-}
-
-table StringValue {
-      v: string;
-}
-
-union NumericValue { IntValue, UintValue, LongValue, UlongValue, DoubleValue, StringValue }
-
-table Numeric {
-      type:NumericType;
-      value:NumericValue;
-}
-
-struct HistogramBucket {
-       val:byte;
-       exp:byte;
-       count:ulong;
-}
-
-table Histogram {
-       buckets:[HistogramBucket];
-}
-
-union MetricValue { Numeric, Histogram }
+namespace circonus;
 
 table Metric {
-      type:Type;
-      metric_name:string;
-      metric_value:MetricValue;
+      timestamp: ulong (id: 0);
+      check_name: string (id: 1);
+      check_uuid: string (id: 2);
+      account_id: int (id: 3);
+      metrics:MetricValue (id: 4);
 }
- 
-table Message {
-      timestamp:ulong;
-      check_name:string;
-      check_uuid:string;
-      metrics:[Metric];
-}
-     
-root_type Message;
+
+root_type Metric;
+file_identifier "CIMM";

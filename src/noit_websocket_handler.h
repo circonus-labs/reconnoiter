@@ -33,8 +33,9 @@
 #define _NOIT_WEBSOCKET_HANDLER_H
 
 #include "mtev_defines.h"
-#include "mtev_http.h"
+#include "mtev_rest.h"
 
+#define NOIT_WEBSOCKET_DATA_FEED_PATH "/livestream/"
 #define NOIT_WEBSOCKET_DATA_FEED_PROTOCOL "noit_livestream"
 
 API_EXPORT(void)

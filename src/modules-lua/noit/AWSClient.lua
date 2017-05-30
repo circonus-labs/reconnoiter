@@ -386,8 +386,21 @@ function AWSClient:perform(target, cache_table)
               --billing
               if count == 1 or namespace == "AWS/Billing" then
                 cache_table[metric] = most_recent
-              else
+              elseif next_most_recent["timestamp"] ~= nil then
                 cache_table[metric] = next_most_recent
+              else
+                -- We didn't get back a value for this metric, because AWS didn't have any recent values
+                -- which then one can assume that means there were 0 request or whatever, so just mark it 0
+                cache_table[metric] = { timestamp = os.time(), value = 0, results = { } }
+                for k,v in pairs(statistics) do
+                  cache_table[metric]["results"][v] = 0
+                end
+              end
+            else
+              -- if there was no datapoints section, I guess still set a value of 0
+              cache_table[metric] = { timestamp = os.time(), value = 0, results = { } }
+              for k,v in pairs(statistics) do
+                cache_table[metric]["results"][v] = 0
               end
             end
           end

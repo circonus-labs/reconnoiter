@@ -669,7 +669,10 @@ testconfig.prototype.start = function(cb, ntests) {
       return;
     }
     if((new Date() - self.start) < boot_timeout) setTimeout(boot_check, 100);
-    else self.emit('error', 'boot failed', m ? m[0] : 0, l ? l[0] : 0);
+    else {
+      self.emit('boot', m ? m[0] : 0, l ? l[0] : 0);
+      //self.emit('error', 'boot failed (' + (m ? m[0] : 0) + ',' + (l ? l[0] : 0) + ')');
+    }
   };
   setTimeout(boot_check, 100);
   self.L(_program + " start finished");

@@ -268,6 +268,10 @@ void noit_module_init() {
       continue;
     }
 
+    if(mtev_conf_env_off(sections[i], NULL)) {
+      mtevL(noit_debug, "Module %s environmentally disabled.\n", module_name);
+      continue;
+    }
     if(mtev_conf_get_stringbuf(sections[i], "ancestor-or-self::node()/@loader",
                                 loader_name, sizeof(loader_name))) {
       loader = mtev_loader_lookup(loader_name);

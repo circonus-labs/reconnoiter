@@ -36,12 +36,30 @@
 #include <mtev_log.h>
 #include <ck_fifo.h>
 #include <mtev_fq.h>
+#include <mtev_hooks.h>
 
 #include <openssl/md5.h>
 
 #include <noit_metric_director.h>
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
+
+/* pointers enqueue with this flag set, are flush pointers.
+ * the flag should be removed and used and the pointer will
+ * point to a dmflush_t
+ */
+#define FLUSHFLAG 0x1
+typedef struct {
+  eventer_t e;
+  uint32_t refcnt;
+} dmflush_t;
+
+#define DMFLUSH_FLAG(a) ((dmflush_t *)((uintptr_t)(a) | FLUSHFLAG))
+#define DMFLUSH_UNFLAG(a) ((dmflush_t *)((uintptr_t)(a) & ~(uintptr_t)FLUSHFLAG))
+
+MTEV_HOOK_IMPL(metric_director_want, (noit_metric_message_t *m, int *wants, int wants_len),
+               void *, closure, (void *closure, noit_metric_message_t *m, int *wants, int wants_len),
+               (closure, m, wants, wants_len));
 
 struct fq_conn_s;
 struct fq_msg;
@@ -69,6 +87,10 @@ static mtev_boolean dedupe = mtev_true;
 
 static void noit_metric_director_free_message(noit_metric_message_t* message) {
   if(message->original_message) {
+    if(message->value.type == METRIC_STRING &&
+       !message->value.is_null && message->value.value.v_string) {
+      free(message->value.value.v_string);
+    }
     free(message->original_message);
     message->original_message = NULL;
   }
@@ -103,6 +125,11 @@ get_my_lane() {
     mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)(uintptr_t)pthread_self(), my_lane.id);
   }
   return my_lane.id;
+}
+
+int
+noit_metric_director_my_lane() {
+  return get_my_lane();
 }
 
 void
@@ -186,16 +213,76 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
 }
 
 static void
+dmflush_observe(dmflush_t *ptr) {
+  bool zero;
+  ck_pr_dec_32_zero(&ptr->refcnt, &zero);
+  if(zero) {
+    eventer_trigger(ptr->e, ptr->e->mask);
+    free(ptr);
+  }
+}
+
+void
+noit_metric_director_flush(eventer_t e) {
+  dmflush_t *ptr = calloc(1, sizeof(*ptr));
+  ptr->e = e;
+  ptr->refcnt = 1;
+  for(int i=0;i<nthreads;i++) {
+    ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
+    if(fifo != NULL) {
+      ck_pr_inc_32(&ptr->refcnt);
+      ck_fifo_spsc_entry_t *fifo_entry;
+      ck_fifo_spsc_enqueue_lock(fifo);
+      fifo_entry = ck_fifo_spsc_recycle(fifo);
+      if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
+      ck_fifo_spsc_enqueue(fifo, fifo_entry, DMFLUSH_FLAG(ptr));
+      ck_fifo_spsc_enqueue_unlock(fifo);
+    }
+  }
+  dmflush_observe(ptr);
+}
+
+static void
 distribute_metric(noit_metric_message_t *message) {
   void *vhash, *vinterests;
+  caql_cnt_t *interests = NULL;
   char uuid_str[UUID_STR_LEN + 1];
   uuid_unparse_lower(message->id.id, uuid_str);
   if(mtev_hash_retrieve(&id_level, (const char *) &message->id.id, UUID_SIZE,
       &vhash)) {
     if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,
         message->id.name_len, &vinterests)) {
-      caql_cnt_t *interests = vinterests;
+      interests = vinterests;
       distribute_message_with_interests(interests, message);
+    }
+  }
+
+  /* Now call the hook... start with no interests and then
+   * build out a caql_cnt_t* hook_interests with those that
+   * where not in the list we used above.
+   */
+  if(metric_director_want_hook_exists()) {
+    caql_cnt_t *hook_interests = NULL;
+    int *wants, i;
+    mtev_boolean call_hook = mtev_false;
+
+    wants = alloca(sizeof(int) * nthreads);
+    memset(wants, 0, sizeof(int) * nthreads);
+    hook_interests = alloca(sizeof(caql_cnt_t) * nthreads);
+    memset(hook_interests, 0, sizeof(caql_cnt_t) * nthreads);
+    switch(metric_director_want_hook_invoke(message, wants, nthreads)) {
+      case MTEV_HOOK_DONE:
+      case MTEV_HOOK_CONTINUE:
+        for(i=0;i<nthreads;i++) {
+          if(wants[i] && (!interests || interests[i] == 0)) {
+            hook_interests[i] = 1;
+            call_hook = mtev_true;
+          }
+        }
+        if(call_hook) {
+          distribute_message_with_interests(hook_interests, message);
+        }
+      default: break;
     }
   }
 }
@@ -300,17 +387,32 @@ noit_metric_message_t *noit_metric_director_lane_next() {
   noit_metric_message_t *msg = NULL;
   if(my_lane.fifo == NULL)
     return NULL;
+ again:
   ck_fifo_spsc_dequeue_lock(my_lane.fifo);
   if(ck_fifo_spsc_dequeue(my_lane.fifo, &msg) == false) {
     msg = NULL;
   }
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
+  if((uintptr_t)msg & FLUSHFLAG) {
+    dmflush_observe(DMFLUSH_UNFLAG((dmflush_t *)msg));
+    goto again;
+  }
   return msg;
 }
-
+static noit_noit_t *
+get_noit(const char *payload, int payload_len, noit_noit_t *data) {
+  const char *cp = payload, *end = payload + payload_len;
+  while(cp < end && *cp != '\t') cp++;
+  if(++cp >= end) return NULL;
+  data->name = cp;
+  while(cp < end && *cp != '\t') cp++;
+  if(cp >= end) return NULL;
+  data->name_len = cp - data->name;
+  return data;
+}
 static void
 handle_metric_buffer(const char *payload, int payload_len,
-    int has_noit) {
+    int has_noit, noit_noit_t *noit) {
 
   if (payload_len <= 0) {
     return;
@@ -324,7 +426,11 @@ handle_metric_buffer(const char *payload, int payload_len,
     case 'M':
       {
         // mtev_fq will free the fq_msg -> copy the payload
-        char *copy = mtev__strndup(payload, payload_len);
+        int nlen = payload_len;
+        if(noit) nlen += noit->name_len+2;
+        char *copy = calloc(1, nlen);
+        memcpy(copy, payload, payload_len);
+        if(noit) memcpy(copy + payload_len + 1, noit->name, noit->name_len);
         noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
 
         message->type = copy[0];
@@ -334,7 +440,13 @@ handle_metric_buffer(const char *payload, int payload_len,
 
         int rv = noit_message_decoder_parse_line(copy, payload_len,
             &message->id.id, &message->id.name,
-            &message->id.name_len, &message->value, has_noit);
+            &message->id.name_len, &message->noit.name, &message->noit.name_len,
+            &message->value, has_noit);
+
+        if(message->noit.name == NULL && noit) {
+          message->noit.name_len = noit->name_len;
+          message->noit.name = copy + payload_len + 1;
+        }
 
         if(rv == 1) {
           distribute_message(message);
@@ -347,10 +459,12 @@ handle_metric_buffer(const char *payload, int payload_len,
       {
         int n_metrics, i;
         char **metrics = NULL;
+        noit_noit_t src_noit_impl, *src_noit = NULL;
+        src_noit = get_noit(payload, payload_len, &src_noit_impl);
         n_metrics = noit_check_log_b_to_sm((const char *)payload, payload_len,
             &metrics, has_noit);
         for(i = 0; i < n_metrics; i++) {
-          handle_metric_buffer(metrics[i], strlen(metrics[i]), false);
+          handle_metric_buffer(metrics[i], strlen(metrics[i]), false, src_noit);
           free(metrics[i]);
         }
         free(metrics);
@@ -413,7 +527,7 @@ static mtev_hook_return_t
 handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_msg *m,
                   void *payload, size_t payload_len) {
   if(check_duplicate(payload, payload_len) == mtev_false) {
-    handle_metric_buffer(payload, payload_len, 1);
+    handle_metric_buffer(payload, payload_len, 1, NULL);
   }
   return MTEV_HOOK_CONTINUE;
 }
@@ -428,7 +542,7 @@ handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whenc
      (strcmp(name,"metrics") && strcmp(name,"bundle") &&
       strcmp(name,"check") && strcmp(name,"status")))
     return MTEV_HOOK_CONTINUE;
-  handle_metric_buffer(line, len, 0);
+  handle_metric_buffer(line, len, -1, NULL);
   return MTEV_HOOK_CONTINUE;
 }
 
@@ -469,3 +583,4 @@ int64_t
 noit_metric_director_get_messages_distributed() {
  return number_of_messages_distributed;
 }
+

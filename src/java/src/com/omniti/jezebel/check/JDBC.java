@@ -101,7 +101,6 @@ public abstract class JDBC implements JezebelCheck {
         String key = e.getKey();
         if(key.startsWith("jdbc_")) {
           props.setProperty(key.substring(5), e.getValue());
-          config.remove(key);
         }
       }
     }

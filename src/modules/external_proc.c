@@ -63,6 +63,7 @@ struct proc_state {
   char **envp;
   int stdout_fd;
   int stderr_fd;
+  uint32_t max_out_len;
   struct proc_state *next;
 };
 
@@ -188,19 +189,45 @@ static void fetch_and_kill_by_check(int64_t check_no) {
   mtevAssert(written_bytes == l); \
 } while (0)
 
-int write_out_backing_fd(int ofd, int bfd) {
+static int16_t get_truncated(int bfd, uint32_t max_out_len) {
+  struct stat buf;
+
+  if(fstat(bfd, &buf) == -1) {
+    mtevL(nldeb, "external: fstat error: %s\n", strerror(errno));
+    return -1;
+  }
+  if(buf.st_size > max_out_len - 1) {
+    return 1;
+  }
+  return 0;
+}
+/* 
+ * return 1 if the output had to be truncated, 0 on normal output, -1 on mmap or fstat failure or nothing to do
+ */
+static int write_out_backing_fd(int ofd, int bfd, uint32_t max_out_len) {
   char *mmap_buf;
-  uint16_t outlen;
+  uint32_t outlen;
+  mtev_boolean truncated = mtev_false;
   struct stat buf;
 
   if(fstat(bfd, &buf) == -1) {
     mtevL(nldeb, "external: fstat error: %s\n", strerror(errno));
     goto bail;
   }
-  /* Our output length is limited to 64k (including a \0) */
-  /* So, we'll limit the mapping of the file to 0xfffe */
-  if(buf.st_size > 0xfffe) outlen = 0xfffe;
-  else outlen = buf.st_size & 0xffff;
+
+  /* 
+   * Our output length is defaulted to 256k (including a \0) 
+   * But the user can override by providing an option
+   * for external checks
+   */
+  if(buf.st_size > max_out_len - 1) {
+    truncated = mtev_true;
+    outlen = max_out_len - 1;
+  }
+  else outlen = buf.st_size;
+
+  mtevL(nldeb, "external_proc outlen=%d\n", outlen);
+
   /* If we have no length, we can skip all this nonsense */
   if(outlen == 0) goto bail;
 
@@ -215,28 +242,35 @@ int write_out_backing_fd(int ofd, int bfd) {
   assert_write(ofd, mmap_buf, outlen);
   assert_write(ofd, "", 1);
   munmap(mmap_buf, outlen);
-  return outlen+1;
+  return truncated == mtev_true;
 
  bail:
   outlen = 1;
   assert_write(ofd, &outlen, sizeof(outlen));
   assert_write(ofd, "", 1);
-  return 1;
+  return -1;
 }
 
 static void finish_procs() {
   struct proc_state *ps;
   process_siglist();
-  mtevL(noit_debug, "%d done procs to cleanup\n", done_procs.size);
+  mtevL(nldeb, "%d done procs to cleanup\n", done_procs.size);
   while((ps = mtev_skiplist_pop(&done_procs, NULL)) != NULL) {
-    mtevL(noit_debug, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
+    mtevL(nldeb, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
     if(ps->cancelled == 0) {
       assert_write(out_fd, &ps->check_no,
                    sizeof(ps->check_no));
       assert_write(out_fd, &ps->status,
                    sizeof(ps->status));
-      write_out_backing_fd(out_fd, ps->stdout_fd);
-      write_out_backing_fd(out_fd, ps->stderr_fd);
+
+      /* Write if we're truncating stdout or stderr */
+      int16_t stdout_trunc = get_truncated(ps->stdout_fd, ps->max_out_len);
+      int16_t stderr_trunc = get_truncated(ps->stderr_fd, ps->max_out_len);
+      assert_write(out_fd, &stdout_trunc, sizeof(stdout_trunc));
+      assert_write(out_fd, &stderr_trunc, sizeof(stderr_trunc));
+
+      write_out_backing_fd(out_fd, ps->stdout_fd, ps->max_out_len);
+      write_out_backing_fd(out_fd, ps->stderr_fd, ps->max_out_len);
     }
     proc_state_free(ps);
   }
@@ -331,6 +365,7 @@ int external_child(external_data_t *data) {
     proc_state->stdout_fd = -1;
     proc_state->stderr_fd = -1;
     proc_state->check_no = check_no;
+    proc_state->max_out_len = data->max_out_len;
 
     /* read in the argument lengths */
     arglens = calloc(argcnt, sizeof(*arglens));

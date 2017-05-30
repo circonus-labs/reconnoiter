@@ -55,8 +55,8 @@ typedef struct {
     uint64_t v_uint64;
     double v_double;
     char *v_string;
+    noit_metric_type_t v_type_if_absent;
   } value; /* the data itself */
-  mtev_boolean is_null;
 } noit_metric_value_t;
 
 typedef struct metric_message_t {

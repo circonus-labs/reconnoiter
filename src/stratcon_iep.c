@@ -200,6 +200,7 @@ void stratcon_iep_submit_statements() {
     char provides[256];
     char *statement;
 
+    if(mtev_conf_env_off(statement_configs[i], NULL)) continue;
     if(!mtev_conf_get_stringbuf(statement_configs[i],
                                 "self::node()/@id",
                                 id, sizeof(id))) {
@@ -257,6 +258,7 @@ void stratcon_iep_submit_statements() {
       stmt->requires = malloc(rcnt * sizeof(*(stmt->requires)));
       for(j=0; j<rcnt; j++) {
         void *vrstmt;
+        if(mtev_conf_env_off(reqs[j], NULL)) continue;
         if(!mtev_conf_get_string(reqs[j], "self::node()",
                                  &requires) || requires[0] == '\0') {
           continue;
@@ -318,6 +320,7 @@ void stratcon_iep_submit_queries() {
     char *line;
     int line_len;
 
+    if(mtev_conf_env_off(query_configs[i], NULL)) continue;
     if(!mtev_conf_get_stringbuf(query_configs[i],
                                 "self::node()/@id",
                                 id, sizeof(id))) {
@@ -827,6 +830,7 @@ stratcon_iep_init() {
 
   mqs = mtev_conf_get_sections(NULL, "/stratcon/iep/mq", &cnt);
   for(i=0; i<cnt; i++) {
+    if(mtev_conf_env_off(mqs[i], NULL)) continue;
     if(!mtev_conf_get_stringbuf(mqs[i], "@type",
                                 mq_type, sizeof(mq_type))) {
       mtevL(noit_iep, "You must specify an <mq type=\"...\"> that is valid.\n");

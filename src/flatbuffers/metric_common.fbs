@@ -1,0 +1,44 @@
+namespace circonus;
+
+table IntValue {
+      value:int (id: 0);
+}
+
+table UintValue {
+      value:uint (id: 0);
+}
+
+table LongValue {
+      value:long (id: 0);
+}
+
+table UlongValue {
+      value:ulong (id: 0);
+}
+
+table DoubleValue {
+      value:double (id: 0);
+}
+
+table StringValue {
+      value:string (id: 0);
+}
+
+struct HistogramBucket {
+       val: byte;
+       exp: byte;
+       count: ulong;
+}
+
+table Histogram {
+       buckets: [HistogramBucket] (id: 0);
+}
+
+union MetricValueUnion { IntValue, UintValue, LongValue, UlongValue, DoubleValue, StringValue, Histogram }
+
+table MetricValue {
+      name: string (id: 0);
+      // Skips to 2 because the _type field of the union occupies 1
+      value: MetricValueUnion (id: 2); 
+}
+

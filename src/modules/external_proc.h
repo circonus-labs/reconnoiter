@@ -48,11 +48,13 @@ typedef enum {
 struct external_response {
   int64_t check_no;
   int32_t exit_code;
+  int16_t stdout_truncated;
+  int16_t stderr_truncated;
   int stdoutlen_sofar;
-  uint16_t stdoutlen;
+  uint32_t stdoutlen;
   char *stdoutbuff;
   int stderrlen_sofar;
-  uint16_t stderrlen;
+  uint32_t stderrlen;
   char *stderrbuff;
 };
 typedef struct {
@@ -67,14 +69,16 @@ typedef struct {
   mtev_atomic64_t check_no_seq;
   mtev_hash_table external_checks;
   mtev_hash_table *options;
-
+  uint32_t max_out_len;
   struct external_response *cr;
 } external_data_t;
 
 typedef struct {
   int64_t check_no;
   int32_t exit_code;
-  uint16_t stdoutlen;
+  int16_t stdout_truncated;
+  int16_t stderr_truncated;
+  uint32_t stdoutlen;
 } __attribute__((packed)) external_header;
 
 int external_child(external_data_t *);

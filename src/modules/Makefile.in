@@ -33,6 +33,7 @@ XSLTPROC=@XSLTPROC@
 XMLLINT=@XMLLINT@
 XML2H=@top_srcdir@/buildtools/xml2h
 LUALIBS=@LUALIBS@
+MTEV_LIBDIR=@MTEV_LIBDIR@
 
 top_srcdir=@top_srcdir@
 
@@ -44,7 +45,9 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	reverse_check.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so
+LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so noit_lua/libnoit_binding.so
+
+LIBNOIT_LUA_MODULES=noit_lua/libnoit_binding.so
 
 SMODULES=@BUILD_SMODULES@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
@@ -71,76 +74,85 @@ LUA_MODULE_OBJS=lua_check.lo
 lua_check.lo:	lua.xmlh
 
 lua.@MODULEEXT@:  $(LUA_MODULE_OBJS)
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(LUA_MODULE_OBJS)	$(LUALIBS)
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(LUA_MODULE_OBJS)	$(LUALIBS)
 
 # luajit always uses .so
 
 noit_lua/noit_binding.so:	noit_lua_noit_binding.lo $(LUA_MODULE_OBJS)
+	@echo "- linking $@"
 	$(Q)mkdir -p noit_lua
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o noit_lua/noit_binding.@MODULEEXT@ noit_lua_noit_binding.lo $(LUA_MODULE_OBJS)
 	$(Q)if [ "noit_lua/noit_binding.so" != "noit_lua/noit_binding.@MODULEEXT@" ]; then \
 		rm -f noit_lua/noit_binding.so; \
 		mv noit_lua/noit_binding.@MODULEEXT@ noit_lua/noit_binding.so; \
 	fi
+
+noit_lua/libnoit_binding.so:	noit_lua_libnoit_binding.lo $(LUA_MODULE_OBJS)
 	@echo "- linking $@"
+	$(Q)mkdir -p noit_lua
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o noit_lua/libnoit_binding.@MODULEEXT@ noit_lua_libnoit_binding.lo
+	$(Q)if [ "noit_lua/libnoit_binding.so" != "noit_lua/libnoit_binding.@MODULEEXT@" ]; then \
+		rm -f noit_lua/libnoit_binding.so; \
+		mv noit_lua/libnoit_binding.@MODULEEXT@ noit_lua/libnoit_binding.so; \
+	fi
 
 noit_lua/snmp.so:	noit_lua_snmp.lo
+	@echo "- linking $@"
 	$(Q)mkdir -p noit_lua
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o noit_lua/snmp.@MODULEEXT@ noit_lua_snmp.lo -l@LIBNETSNMP@
 	$(Q)if [ "noit_lua/snmp.so" != "noit_lua/snmp.@MODULEEXT@" ]; then \
 		rm -f noit_lua/snmp.so; \
 		mv noit_lua/snmp.@MODULEEXT@ noit_lua/snmp.so; \
 	fi
-	@echo "- linking $@"
 
 postgres.@MODULEEXT@:	postgres.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ postgres.lo $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ postgres.lo $(PGLIBS) -lz -lssl -lcrypto
 
 postgres.lo:	postgres.c postgres.xmlh
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 
 postgres_ingestor.@MODULEEXT@:	postgres_ingestor.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ postgres_ingestor.lo $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ postgres_ingestor.lo $(PGLIBS) -lz -lssl -lcrypto
 
 postgres_ingestor.lo: postgres_ingestor.c postgres_ingestor.xmlh
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 
 handoff_ingestor.lo:	handoff_ingestor.c handoff_ingestor.xmlh
 
 handoff_ingestor.@MODULEEXT@:	handoff_ingestor.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ handoff_ingestor.lo
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ handoff_ingestor.lo
 
 handoff_ingestor.lo: handoff_ingestor.c
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 
 histogram.@MODULEEXT@:	histogram.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ histogram.lo -lcircllhist
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ histogram.lo -lcircllhist
 
 stomp_driver.lo:	stomp_driver.c stomp_driver.xmlh
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
 
 libstomp.lo:	libstomp.c
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
 
 stomp_driver.@MODULEEXT@:	stomp_driver.lo libstomp.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ stomp_driver.lo libstomp.lo @APRLIBS@
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ stomp_driver.lo libstomp.lo @APRLIBS@
 
 fq_driver.lo:	fq_driver.c fq_driver.xmlh
 
 fq_driver.@MODULEEXT@:	fq_driver.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ fq_driver.lo -lfq
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ fq_driver.lo -lfq
 
 RABBITMQ_DRIVER_OBJS=rabbitmq_driver.lo \
 	librabbitmq/amqp_api.lo librabbitmq/amqp_connection.lo \
@@ -151,96 +163,103 @@ RABBITMQ_DRIVER_OBJS=rabbitmq_driver.lo \
 rabbitmq_driver.lo:	rabbitmq_driver.c rabbitmq_driver.xmlh
 
 rabbitmq_driver.@MODULEEXT@:    $(RABBITMQ_DRIVER_OBJS)
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(RABBITMQ_DRIVER_OBJS)
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(RABBITMQ_DRIVER_OBJS)
 
 mysql.@MODULEEXT@:	mysql.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ mysql.lo $(MYLIBS)
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ mysql.lo $(MYLIBS)
 
 mysql.lo:	mysql.c mysql.xmlh
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(MYCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(MYCFLAGS) -c $< -o $@
 
 dns.@MODULEEXT@:	dns.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ dns.lo -ludns
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ dns.lo -ludns
 
 dns.lo:	dns.c dns.xmlh
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 
 snmp.@MODULEEXT@:	snmp.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ snmp.lo -l@LIBNETSNMP@
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ snmp.lo -l@LIBNETSNMP@
 
 ssh2.@MODULEEXT@:	ssh2.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ ssh2.lo -lssh2
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ ssh2.lo -lssh2
 
 httptrap.@MODULEEXT@:	httptrap.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ httptrap.lo @YAJLLIBS@
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ httptrap.lo @YAJLLIBS@
 
 httptrap.lo:	httptrap.xmlh
 
 statsd.@MODULEEXT@:	statsd.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ statsd.lo
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ statsd.lo
 
 statsd.lo:	statsd.xmlh
 
 collectd.@MODULEEXT@:	collectd.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ collectd.lo -lssl @YAJLLIBS@
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ collectd.lo -lssl @YAJLLIBS@
 
 collectd.lo:	collectd.c collectd.xmlh
-	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c collectd.c -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c collectd.c -o $@
 
 ganglia.@MODULEEXT@:	ganglia.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ ganglia.lo -lssl 
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ ganglia.lo -lssl 
 
 ganglia.lo:	ganglia.c ganglia.xmlh
-	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c ganglia.c -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c ganglia.c -o $@
 
 ssh2.lo:	ssh2.xmlh
 
 ping_icmp.lo:	ping_icmp.xmlh
 
 ping_icmp.@MODULEEXT@:	ping_icmp.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $<
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $<
 
 external.lo:	external.xmlh
 
 external.@MODULEEXT@:	external.lo external_proc.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ external.lo external_proc.lo
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ external.lo external_proc.lo
 
 test_abort.@MODULEEXT@:	test_abort.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $<
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $<
 
 .lo.@MODULEEXT@:
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $<
 	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $<
 
 snmp.lo:	snmp.xmlh snmptrap.xmlh
 
 .c.lo:
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 
 alldocs:
-	for c in *.xml ; do \
+	@echo "- buiding module docs"
+	$(Q)for c in *.xml ; do \
 		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - | sed -e 's/ xmlns=""//g;' > $(top_srcdir)/docs/config/modules/$$c ; \
 	done
 
 install:	install-modules install-smodules
 
+install-libnoit-modules:	$(LIBNOIT_LUA_MODULES)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MTEV_LIBDIR)/mtev_lua
+	for mod in $(LIBNOIT_LUA_MODULES); do \
+		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(MTEV_LIBDIR)/mtev_lua/`echo $$mod | sed -e 's/^noit_lua\///;'` ; \
+	done
+	
 install-modules:	$(MODULES) $(LUA_MODULES)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)
 	for mod in $(MODULES); do \
