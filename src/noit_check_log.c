@@ -44,6 +44,7 @@
 #include "noit_check_log_helpers.h"
 #include "flatbuffers/metric_batch_builder.h"
 #include "flatbuffers/metric_common_builder.h"
+#include "flatbuffers/metric_list_builder.h"
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_check_log_helpers.c):
@@ -244,12 +245,11 @@ noit_check_log_status(noit_check_t *check) {
 }
 
 static void
-flatbuffer_encode_metric(mtev_log_stream_t ls, flatcc_builder_t *B, struct timeval *whence, noit_check_t* check, metric_t *m)
+flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m)
 {
   char uuid_str[256*3+37];
   int len = sizeof(uuid_str);
 
-  ns(MetricBatch_metrics_push_start(B));
   ns(MetricValue_name_create_str(B, m->metric_name));
 
 #define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD) \
@@ -292,24 +292,49 @@ flatbuffer_encode_metric(mtev_log_stream_t ls, flatcc_builder_t *B, struct timev
 
 #undef ENCODE_TYPE
 
-  ns(MetricBatch_metrics_push_end(B));
 }
 
-static int 
-noit_check_log_bundle_metric_flatbuffer_serialize(mtev_log_stream_t ls,
-                                                  noit_check_t *check,
-                                                  struct timeval *whence,
-                                                  metric_t *m)
+void *
+noit_check_log_create_flatbuffer_builder(void)
 {
-  int rv = 0;
-  char uuid_str[256 * 3] = {0};
-  int len = sizeof(uuid_str);
-  
-  static char *ip_str = "ip";
+  flatcc_builder_t *builder = malloc(sizeof(flatcc_builder_t));
+  flatcc_builder_init(builder);
 
-  if(!noit_apply_filterset(check->filterset, check, m)) return 0;
-  if(m->logged) return 0;
+  ns(MetricList_start_as_root(builder));
+  return builder;
+}
 
+void *
+noit_check_log_finalize_flatbuffer_builder(void *builder, size_t *out_size)
+{
+  void *buffer = flatcc_builder_finalize_buffer(builder, out_size);
+  free(builder);
+  return buffer;
+}
+
+
+void
+noit_check_log_add_to_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid,
+                                 const char *check_name, int account_id, metric_t *m)
+{
+  ns(MetricList_metrics_push_start(builder));
+  ns(Metric_timestamp_add)(builder, (SECPART(whence) * 1000) + MSECPART(whence));
+  ns(Metric_check_name_create_str(builder, check_name));
+  ns(Metric_check_uuid_create_str(builder, check_uuid));
+  ns(Metric_account_id_add)(builder, account_id);
+  ns(Metric_value_start(builder));
+  flatbuffer_encode_metric(builder, m);
+  ns(Metric_value_end(builder));
+  ns(MetricList_metrics_push_end(builder));
+}
+
+
+
+void *
+noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, 
+                                                  const char *check_name, int account_id, metric_t *m,
+                                                  size_t* out_size)
+{
   flatcc_builder_t builder, *B;
   B = &builder;
   flatcc_builder_init(B);
@@ -317,45 +342,81 @@ noit_check_log_bundle_metric_flatbuffer_serialize(mtev_log_stream_t ls,
   ns(MetricBatch_start_as_root(B));
 
   ns(MetricBatch_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
+  ns(MetricBatch_check_name_create_str(B, check_name));
+  ns(MetricBatch_check_uuid_create_str(B, check_uuid));
+  ns(MetricBatch_metrics_push_start(B));
+  flatbuffer_encode_metric(B, m);
+  ns(MetricBatch_metrics_push_end(B));
+  ns(MetricBatch_metrics_end(B));
+  ns(MetricBatch_end_as_root(B));
+  void *buffer = flatcc_builder_finalize_buffer(B, out_size);
+  return buffer;
+}
+
+static int
+account_id_from_name(const char *check_name)
+{
+  int account_id = 0;
+  char *x = strstr(check_name, "`c_");
+  if (x != NULL) {
+    /* take advantage of atoi parsing numbers until the first non-number */
+    account_id = atoi(x + 3);
+  }
+  return account_id;
+}
+
+static int 
+noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
+                                                      noit_check_t *check,
+                                                      struct timeval *whence,
+                                                      metric_t *m)
+{
+  int rv = 0;
+  char check_name[256 * 3] = {0};
+  char uuid_str[UUID_STR_LEN + 1];
+  int len = sizeof(check_name);
   
+  static char *ip_str = "ip";
+
+  if(!noit_apply_filterset(check->filterset, check, m)) return 0;
+  if(m->logged) return 0;
+
   const char *v; 
   mtev_boolean extended_id = mtev_false; 
   v = mtev_log_stream_get_property(ls, "extended_id"); 
   if(v && !strcmp(v, "on")) extended_id = mtev_true; 
-  uuid_str[0] = '\0'; 
+  check_name[0] = '\0'; 
   if(extended_id) { 
-    strlcat(uuid_str, check->target, len); 
-    strlcat(uuid_str, "`", len); 
-    strlcat(uuid_str, check->module, len); 
-    strlcat(uuid_str, "`", len); 
-    strlcat(uuid_str, check->name, len); 
-    strlcat(uuid_str, "`", len); 
+    strlcat(check_name, check->target, len); 
+    strlcat(check_name, "`", len); 
+    strlcat(check_name, check->module, len); 
+    strlcat(check_name, "`", len); 
+    strlcat(check_name, check->name, len); 
+    strlcat(check_name, "`", len); 
   }
-  ns(MetricBatch_check_name_create_str(B, uuid_str));
  
   uuid_str[0] = '\0';
   uuid_unparse_lower(check->checkid, uuid_str); 
-  ns(MetricBatch_check_uuid_create_str(B, uuid_str));
 
+  size_t size = 0;
+  /* TODO: this is a circonus specific line based on how we name checks 
+   * 
+   * Could be a hook?
+   */
+  int account_id = account_id_from_name(check_name);
+  void *buffer = noit_check_log_bundle_metric_flatbuffer_serialize(whence, uuid_str, 
+                                                                   check_name, account_id, 
+                                                                   m, &size);
 
-  flatbuffer_encode_metric(ls, B, whence, check, m);
-  
-  ns(MetricBatch_metrics_end(B));
-  ns(MetricBatch_end_as_root(B));
- 
-  {
-    size_t size;
-    void *buffer = flatcc_builder_finalize_buffer(B, &size);
-    char *outbuf;
-    unsigned int outsize;
-    noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, size, &outbuf, &outsize);
+  unsigned int outsize;
+  char *outbuf = NULL;
+  noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, size, &outbuf, &outsize);
 
-    rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                  "BF\t%d\t%.*s\n", (int)size, 
-                  (unsigned int)outsize, outbuf);
-    free(outbuf);
-    free(buffer);
-  }
+  rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                "BF\t%d\t%.*s\n", (int)size, 
+                (unsigned int)outsize, outbuf);
+  free(outbuf);
+  free(buffer);
   return rv;
 
 }
@@ -636,7 +697,10 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     metric_t *m = (metric_t *)vm;
     if(!noit_apply_filterset(check->filterset, check, m)) continue;
     if(m->logged) continue;
-    flatbuffer_encode_metric(ls, B, whence, check, m);
+    ns(MetricBatch_metrics_push_start(B));
+    flatbuffer_encode_metric(B, m);
+    ns(MetricBatch_metrics_push_end(B));
+
   }
   
   ns(MetricBatch_metrics_end(B));
