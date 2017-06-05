@@ -140,7 +140,6 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
 
     if((vlen == 8 && !memcmp(value_str, "[[null]]", 8)) ||
        (vlen == 9 && !memcmp(value_str, "[[null]]\n", 9))) {
-mtevL(mtev_error, "JUST SAW THIS AND IT IS NULL!\n");
       metric->is_null = mtev_true;
     } else {
       char osnum[512]; /* that's a big number! */
