@@ -161,7 +161,7 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
         break;
       case METRIC_STRING:
         /* It's possible for M records that the \n is included, it should not be. */
-        if(vlen > 0 && value_str[vlen] == '\n') vlen--;
+        if(vlen > 0 && value_str[vlen-1] == '\n') vlen--;
         metric->value.v_string = mtev__strndup(value_str, vlen);
         break;
       default:
