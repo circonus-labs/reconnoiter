@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Circonus, Inc.  All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -636,7 +636,7 @@ noit_check_index_func(lua_State *L) {
       }
       else if(!strcmp(k, "is_thread_local")) {
         if(check->fire_event &&
-           pthread_equal(pthread_self(), check->fire_event->thr_owner)) {
+           pthread_equal(pthread_self(), eventer_get_owner(check->fire_event))) {
           lua_pushboolean(L, 1);
         }
         else {
@@ -1086,18 +1086,13 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
-  e = eventer_alloc();
-  e->mask = EVENTER_TIMER;
-  e->callback = noit_lua_check_timeout;
   /* We wrap this in an alloc so we can blindly free it later */
   int_cl = calloc(1, sizeof(*int_cl));
   int_cl->ri = ri;
   int_cl->free = int_cl_free;
-  e->closure = int_cl;
-  memcpy(&e->whence, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
-  add_timeval(e->whence, p_int, &e->whence);
+  e = eventer_in(noit_lua_check_timeout, int_cl, p_int);
   mtev_lua_register_event(ri, e);
   eventer_add(e);
 

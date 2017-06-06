@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -280,7 +280,7 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
       break;
     case EVENTER_ASYNCH_CLEANUP:
       /* This sets us up for a completion call. */
-      e->mask = EVENTER_READ | EVENTER_WRITE;
+      eventer_set_mask(e, EVENTER_READ | EVENTER_WRITE);
       break;
     default:
       mtevFatal(mtev_error, "Unknown mask: 0x%04x\n", mask);

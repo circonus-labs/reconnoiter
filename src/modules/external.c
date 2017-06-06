@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -351,7 +351,7 @@ static int external_handler(eventer_t e, int mask,
 
       while (1)
       {
-        ret = read(e->fd, ((char*)(&h))+inlen, expectlen - inlen);
+        ret = read(eventer_get_fd(e), ((char*)(&h))+inlen, expectlen - inlen);
         if (ret == -1)
         {
           if (errno == EAGAIN)
@@ -393,7 +393,7 @@ static int external_handler(eventer_t e, int mask,
 
     while(data->cr->stdoutlen_sofar < data->cr->stdoutlen) {
       while((inlen =
-               read(e->fd,
+               read(eventer_get_fd(e),
                     data->cr->stdoutbuff + data->cr->stdoutlen_sofar,
                     data->cr->stdoutlen - data->cr->stdoutlen_sofar)) == -1 &&
              errno == EINTR);
@@ -406,7 +406,7 @@ static int external_handler(eventer_t e, int mask,
     }
     mtevAssert(data->cr->stdoutbuff[data->cr->stdoutlen-1] == '\0');
     if(!data->cr->stderrbuff) {
-      while((inlen = read(e->fd, &data->cr->stderrlen,
+      while((inlen = read(eventer_get_fd(e), &data->cr->stderrlen,
                           sizeof(data->cr->stderrlen))) == -1 &&
             errno == EINTR);
       if(inlen == -1 && errno == EAGAIN)
@@ -426,7 +426,7 @@ static int external_handler(eventer_t e, int mask,
          (size_t)(stderrlen - data->cr->stderrlen_sofar) > data->cr->stderrlen)
         goto widowed; /* overflow */
       while((inlen =
-               read(e->fd,
+               read(eventer_get_fd(e),
                     data->cr->stderrbuff + data->cr->stderrlen_sofar,
                     stderrlen - data->cr->stderrlen_sofar)) == -1 &&
              errno == EINTR);
@@ -469,7 +469,7 @@ static int external_handler(eventer_t e, int mask,
       continue;
     }
     eventer_remove(ci->timeout_event);
-    free(ci->timeout_event->closure);
+    free(eventer_get_closure(ci->timeout_event));
     eventer_free(ci->timeout_event);
     ci->timeout_event = NULL;
     ci->exit_code = data->cr->exit_code;
@@ -579,11 +579,8 @@ static int external_init(noit_module_t *self) {
       return -1;
     }
     eventer_t newe;
-    newe = eventer_alloc();
-    newe->fd = data->pipe_e2n[0];
-    newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
-    newe->callback = external_handler;
-    newe->closure = self;
+    newe = eventer_alloc_fd(external_handler, self, data->pipe_e2n[0],
+                            EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
   }
   else {
@@ -604,7 +601,7 @@ static void external_cleanup(noit_module_t *self, noit_check_t *check) {
   if(ci) {
     if(ci->timeout_event) {
       eventer_remove(ci->timeout_event);
-      free(ci->timeout_event->closure);
+      free(eventer_get_closure(ci->timeout_event));
       eventer_free(ci->timeout_event);
       ci->timeout_event = NULL;
     }
@@ -641,7 +638,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
   int fd, i;
 
   if(mask == EVENTER_ASYNCH_CLEANUP) {
-    e->mask = 0;
+    eventer_set_mask(e, 0);
     return 0;
   }
   if (!mask) {
@@ -673,7 +670,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
 }
 static int external_invoke(noit_module_t *self, noit_check_t *check,
                            noit_check_t *cause) {
-  struct timeval when, p_int;
+  struct timeval now, when, p_int;
   external_closure_t *ecl;
   struct check_info *ci = (struct check_info *)check->closure;
   eventer_t newe;
@@ -698,15 +695,15 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
    */
   if(ci->timeout_event) {
     eventer_remove(ci->timeout_event);
-    free(ci->timeout_event->closure);
+    free(eventer_get_closure(ci->timeout_event));
     eventer_free(ci->timeout_event);
     ci->timeout_event = NULL;
   }
 
   check_info_clean(ci);
 
-  mtev_gettimeofday(&when, NULL);
-  memcpy(&check->last_fire_time, &when, sizeof(when));
+  mtev_gettimeofday(&now, NULL);
+  memcpy(&check->last_fire_time, &now, sizeof(now));
 
   /* Setup all our check bits */
   ci->check_no = mtev_atomic_inc64(&data->check_no_seq);
@@ -818,30 +815,24 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
                   (const char *)&ci->check_no, sizeof(ci->check_no),
                   ci);
 
-  /* Setup a timeout */
-  newe = eventer_alloc();
-  newe->mask = EVENTER_TIMER;
-  mtev_gettimeofday(&when, NULL);
+  mtev_gettimeofday(&now, NULL);
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
-  add_timeval(when, p_int, &newe->whence);
+  add_timeval(now, p_int, &when);
+
+  /* Setup a timeout */
   ecl = calloc(1, sizeof(*ecl));
   ecl->self = self;
   ecl->check = check;
-  newe->closure = ecl;
-  newe->callback = external_timeout;
+  newe = eventer_alloc_timer(external_timeout, ecl, &when);
   eventer_add(newe);
   ci->timeout_event = newe;
 
   /* Setup push */
-  newe = eventer_alloc();
-  newe->mask = EVENTER_ASYNCH;
-  add_timeval(when, p_int, &newe->whence);
   ecl = calloc(1, sizeof(*ecl));
   ecl->self = self;
   ecl->check = check;
-  newe->closure = ecl;
-  newe->callback = external_enqueue;
+  newe = eventer_alloc_asynch_timeout(external_enqueue, ecl, &when);
   eventer_add_asynch(data->jobq, newe);
 
   return 0;

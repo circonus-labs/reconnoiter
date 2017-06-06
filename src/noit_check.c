@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 20152-17, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1398,7 +1398,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
   if(mod && mod->cleanup) mod->cleanup(mod, checker);
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
-     free(checker->fire_event->closure);
+     free(eventer_get_closure(checker->fire_event));
      eventer_free(checker->fire_event);
      checker->fire_event = NULL;
   }
@@ -1450,7 +1450,6 @@ noit_poller_free_check(noit_check_t *checker) {
 static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
-  static struct timeval one_minute = { RECYCLE_INTERVAL, 0L };
   struct _checker_rcb *prev = NULL, *curr = NULL;
   mtevL(noit_debug, "Scanning check recycle bin\n");
   pthread_mutex_lock(&recycling_lock);
@@ -1484,8 +1483,8 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
     }
   }
   pthread_mutex_unlock(&recycling_lock);
-  add_timeval(*now, one_minute, &e->whence);
-  return EVENTER_TIMER;
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
+  return 0;
 }
 
 int

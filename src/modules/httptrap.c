@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2011-2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2011-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -750,8 +750,8 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     eventer_t e = mtev_http_connection_event(conn);
     if(e) {
       pthread_t tgt = CHOOSE_EVENTER_THREAD_FOR_CHECK(rxc->check);
-      if(!pthread_equal(e->thr_owner, tgt)) {
-        e->thr_owner = tgt;
+      if(!pthread_equal(eventer_get_owner(e), tgt)) {
+        eventer_set_owner(e, tgt);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }

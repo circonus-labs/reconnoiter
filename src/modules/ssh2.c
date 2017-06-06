@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -163,14 +163,14 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
     noit_check_t *check = ci->check;
     ssh2_log_results(ci->self, ci->check);
     ssh2_cleanup(ci->self, ci->check);
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &mask, e);
+    eventer_remove_fde(e);
+    eventer_close(e, &mask);
     check->flags &= ~NP_RUNNING;
     return 0;
   }
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
-      if(eventer_set_fd_blocking(e->fd)) {
+      if(eventer_set_fd_blocking(eventer_get_fd(e))) {
         ci->timed_out = 0;
         ci->error = strdup("socket error");
         return 0;
@@ -194,14 +194,14 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
       set_method(mac_sc, LIBSSH2_METHOD_MAC_SC);
       set_method(comp_cs, LIBSSH2_METHOD_COMP_CS);
       set_method(comp_sc, LIBSSH2_METHOD_COMP_SC);
-      if(compare_timeval(*now, e->whence) < 0) {
-        sub_timeval(e->whence, *now, &diff);
+      if(compare_timeval(*now, eventer_get_whence(e)) < 0) {
+        sub_timeval(eventer_get_whence(e), *now, &diff);
         timeout_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
       }
 #if LIBSSH2_VERSION_NUM >= 0x010209
       libssh2_session_set_timeout(ci->session, timeout_ms);
 #endif
-      if (libssh2_session_startup(ci->session, e->fd)) {
+      if (libssh2_session_startup(ci->session, eventer_get_fd(e))) {
         ci->timed_out = 0;
         ci->error = strdup("ssh session startup failed");
         return 0;
@@ -239,8 +239,8 @@ static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void 
     ci->error = strdup("ssh connection failed");
     ssh2_log_results(ci->self, ci->check);
     ssh2_cleanup(ci->self, ci->check);
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &mask, e);
+    eventer_remove_fde(e);
+    eventer_close(e, &mask);
     check->flags &= ~NP_RUNNING;
     return 0;
   }
@@ -249,16 +249,15 @@ static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void 
   mtevAssert(ci->timeout_event);
   asynch_e = eventer_remove(ci->timeout_event);
   mtevAssert(asynch_e);
+  eventer_free(asynch_e);
   ci->timeout_event = NULL;
 
   ci->synch_fd_event = NULL;
-  asynch_e->fd = e->fd;
-  asynch_e->callback = ssh2_drive_session;
-  asynch_e->closure = closure;
-  asynch_e->mask = EVENTER_ASYNCH;
+  asynch_e = eventer_alloc_fd(ssh2_drive_session, closure,
+                              eventer_get_fd(e), EVENTER_ASYNCH);
   eventer_add(asynch_e);
 
-  eventer_remove_fd(e->fd);
+  eventer_remove_fde(e);
   return 0;
 }
 static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
@@ -271,16 +270,15 @@ static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
     ci->error = strdup("ssh connection failed");
     ssh2_log_results(ci->self, ci->check);
     ssh2_cleanup(ci->self, ci->check);
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &mask, e);
+    eventer_remove_fde(e);
+    eventer_close(e, &mask);
     check->flags &= ~NP_RUNNING;
     return 0;
   }
 
   ci->available = 1;
-  e->callback = ssh2_needs_bytes_as_libssh2_is_impatient;
-  e->mask = EVENTER_READ | EVENTER_EXCEPTION;
-  return e->mask;
+  eventer_set_callback(e, ssh2_needs_bytes_as_libssh2_is_impatient);
+  return EVENTER_READ | EVENTER_EXCEPTION;
 }
 static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
                                 struct timeval *now) {
@@ -292,8 +290,8 @@ static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
   ci->error = strdup("ssh connect timeout");
   if(ci->synch_fd_event) {
     fde = ci->synch_fd_event;
-    eventer_remove_fd(fde->fd);
-    fde->opset->close(fde->fd, &mask, fde);
+    eventer_remove_fde(fde);
+    eventer_close(fde, &mask);
     eventer_free(fde);
      ci->synch_fd_event = NULL;
   }
@@ -326,7 +324,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
   ci->timed_out = 1;
   if(ci->timeout_event) {
     eventer_remove(ci->timeout_event);
-    free(ci->timeout_event->closure);
+    free(eventer_get_closure(ci->timeout_event));
     eventer_free(ci->timeout_event);
     ci->timeout_event = NULL;
   }
@@ -382,22 +380,13 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
   if(rv == -1 && errno != EINPROGRESS) goto fail;
 
   /* Register a handler for connection completion */
-  e = eventer_alloc();
-  e->fd = fd;
-  e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
-  e->callback = ssh2_connect_complete;
-  e->closure =  ci;
+  e = eventer_alloc_fd(ssh2_connect_complete, ci, fd,
+                       EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION);
   ci->synch_fd_event = e;
   eventer_add(e);
 
-  e = eventer_alloc();
-  e->mask = EVENTER_TIMER;
-  e->callback = ssh2_connect_timeout;
-  e->closure = ci;
-  memcpy(&e->whence, &__now, sizeof(__now));
-  p_int.tv_sec = check->timeout / 1000;
-  p_int.tv_usec = (check->timeout % 1000) * 1000;
-  add_timeval(e->whence, p_int, &e->whence);
+  e = eventer_in_s_us(ssh2_connect_timeout, ci,
+                      check->timeout / 1000, (check->timeout % 1000) * 1000);
   ci->timeout_event = e;
   eventer_add(e);
   return 0;
