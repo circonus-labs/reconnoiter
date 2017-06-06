@@ -14,6 +14,7 @@ config.status
 docs/out
 sql/Makefile
 sql/reconnoiter_ddl_dump.sql
+src/noit_config.h.in
 src/Makefile
 src/**/Makefile
 !src/modules/example/Makefile
