@@ -1,0 +1,80 @@
+body, input {
+	font-family: Georgia, "Times New Roman", Times, serif;
+}
+
+
+#content1 {
+	
+
+	position:absolute;
+        right:300px;
+        top:150px; 
+
+	
+	background-color: #eee;
+	width: 300px;
+	height:220px;
+	margin: 0 auto;
+	border: 1px solid #aaa;
+	-moz-border-radius: 10px;
+	-moz-box-shadow: 0 0 10px #aaa;
+	-webkit-border-radius: 10px;
+	-webkit-box-shadow: 0 0 10px #aaa;
+	padding: 10px;
+}
+
+
+
+#content2 {
+	
+
+	position:absolute;
+    right:300px;
+    top:150px; 
+
+	
+	background-color: #eee;
+	width: 300px;
+	height:300px;
+	margin: 0 auto;
+	border: 1px solid #aaa;
+	-moz-border-radius: 10px;
+	-moz-box-shadow: 0 0 10px #aaa;
+	-webkit-border-radius: 10px;
+	-webkit-box-shadow: 0 0 10px #aaa;
+	padding: 10px;
+}
+
+
+
+label {
+	display: block;
+	font-size: 40px;
+	line-height: 25px;
+}
+
+
+#form1 label {
+	display: block;
+	font-size: 20px;
+	line-height: 25px;
+}
+#form1 input[type=text], #form1 input[type=password] {
+	padding: 2px;
+	font-size: 16px;
+	line-height: 20px;
+	width: 250px;
+}
+#form1 input[type=submit] {
+	font-size: 20px;
+	font-weight: bold;
+	padding: 5px;
+}
+
+
+.success {
+	color: #060;
+}
+.error {
+	color: red;
+}
