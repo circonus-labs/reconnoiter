@@ -34,6 +34,11 @@
 
 #include <mtev_defines.h>
 
+#include "noit_metric.h"
+#include "flatbuffers/metric_batch_builder.h"
+#include "flatbuffers/metric_common_builder.h"
+#include "flatbuffers/metric_list_builder.h"
+
 /*!
   \fn noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
   \brief Create a MetricBatch flatbuffer representing a single record
@@ -53,6 +58,7 @@ API_EXPORT(void *)
 noit_check_log_bundle_metric_flatbuffer_serialize_check(struct timeval *whence, const char *check_uuid,
                                                         const char *check_name, int account_id, metric_t *m, size_t metric_count,
                                                         size_t* out_size);
+
 
 
 /*!
@@ -81,6 +87,13 @@ API_EXPORT(void)
 noit_check_log_add_to_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid,
                                  const char *check_name, int account_id, metric_t *m);
 
-
+/* convenience macros */
+#undef ns
+#define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
+#undef nsc
+#define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
+#define metric_field(m,x) ns(Metric_%%x(m))
+#define metric_batch_field(m,x) ns(MetricBatch_%%x(m))
+#define metric_value_field(m,x) ns(MetricValue_%%x(m))
 
 #endif /* NOIT_CHECK_LOG_H */

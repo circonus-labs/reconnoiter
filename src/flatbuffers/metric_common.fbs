@@ -24,7 +24,7 @@ table StringValue {
       value:string (id: 0);
 }
 
-struct HistogramBucket {
+table HistogramBucket {
        val: byte;
        exp: byte;
        count: ulong;

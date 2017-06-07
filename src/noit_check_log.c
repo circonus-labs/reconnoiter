@@ -42,9 +42,7 @@
 #include "noit_filters.h"
 #include "bundle.pb-c.h"
 #include "noit_check_log_helpers.h"
-#include "flatbuffers/metric_batch_builder.h"
-#include "flatbuffers/metric_common_builder.h"
-#include "flatbuffers/metric_list_builder.h"
+#include "noit_check_log.h"
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_check_log_helpers.c):
@@ -81,11 +79,6 @@
  *
  */
 
-#undef ns
-#define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
-#undef nsc
-#define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
-
 static mtev_log_stream_t check_log = NULL;
 static mtev_log_stream_t filterset_log = NULL;
 static mtev_log_stream_t status_log = NULL;
@@ -94,6 +87,8 @@ static mtev_log_stream_t bundle_log = NULL;
 #if defined(NOIT_CHECK_LOG_M)
 static mtev_log_stream_t metrics_log = NULL;
 #endif
+
+#define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
 
 static int
   noit_check_log_bundle_serialize(mtev_log_stream_t, noit_check_t *);

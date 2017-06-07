@@ -83,8 +83,31 @@ tests:
 
 MODDIR=modules
 
+FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
+	flatbuffers/flatbuffers_common_reader.h \
+	flatbuffers/metric_builder.h \
+	flatbuffers/metric_json_parser.h \
+	flatbuffers/metric_json_printer.h \
+	flatbuffers/metric_reader.h \
+	flatbuffers/metric_verifier.h \
+	flatbuffers/metric_batch_builder.h \
+	flatbuffers/metric_batch_json_parser.h \
+	flatbuffers/metric_batch_json_printer.h \
+	flatbuffers/metric_batch_reader.h \
+	flatbuffers/metric_batch_verifier.h \
+	flatbuffers/metric_common_builder.h \
+	flatbuffers/metric_common_json_parser.h \
+	flatbuffers/metric_common_json_printer.h \
+	flatbuffers/metric_common_reader.h \
+	flatbuffers/metric_common_verifier.h \
+	flatbuffers/metric_list_builder.h \
+	flatbuffers/metric_list_json_parser.h \
+	flatbuffers/metric_list_json_printer.h \
+	flatbuffers/metric_list_reader.h \
+	flatbuffers/metric_list_verifier.h
+
 HEADERS=noit_metric.h noit_check_log.h noit_check_log_helpers.h noit_check_tools_shared.h \
-	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h
+	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h $(FLATBUFFERS_HEADERS)
 
 NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_check_rest.h noit_check_tools.h \
@@ -123,30 +146,8 @@ FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
 FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 FINAL_LIBNOIT_OBJS=$(LIBNOIT_OBJS:%.lo=libnoit-objs/%.lo)
 
-FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
-	flatbuffers/flatbuffers_common_reader.h \
-	flatbuffers/metric_builder.h \
-	flatbuffers/metric_json_parser.h \
-	flatbuffers/metric_json_printer.h \
-	flatbuffers/metric_reader.h \
-	flatbuffers/metric_verifier.h \
-	flatbuffers/metric_batch_builder.h \
-	flatbuffers/metric_batch_json_parser.h \
-	flatbuffers/metric_batch_json_printer.h \
-	flatbuffers/metric_batch_reader.h \
-	flatbuffers/metric_batch_verifier.h \
-	flatbuffers/metric_list_builder.h \
-	flatbuffers/metric_list_json_parser.h \
-	flatbuffers/metric_list_json_printer.h \
-	flatbuffers/metric_list_reader.h \
-	flatbuffers/metric_list_verifier.h
-
 flatbuffers/%_builder.h: flatbuffers/%.fbs
 	$(FLATCC) -a -o flatbuffers --json $<
-
-flatbuffers/metric.fbs:
-flatbuffers/metric_batch.fbs:
-flatbuffers/metric_list.fbs:
 
 flatbuffers/flatbuffers_common_builder.h: flatbuffers/metric_builder.h
 flatbuffers/flatbuffers_common_reader.h: flatbuffers/metric_builder.h
@@ -375,6 +376,7 @@ install-stratcond-headers:	$(STRATCON_HEADERS) install-headers
 install-headers:	$(HEADERS)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/flatbuffers
 	$(INSTALL) -m 0755 ../buildtools/xml2h $(DESTDIR)$(bindir)/noit-xml2h
 	$(INSTALL) -m 0755 scripts/noit-config $(DESTDIR)$(bindir)/noit-config
 	for file in $(HEADERS) ; do \
