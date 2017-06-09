@@ -247,13 +247,14 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m)
 
   ns(MetricValue_name_create_str(B, m->metric_name));
 
-#define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD) \
-  ns(FBTYPE ## _start(B)); \
-  if (m->metric_value.MFIELD != NULL) { \
-    ns(FBTYPE ## _value_add(B, *m->metric_value.MFIELD )); \
-  } \
-  ns(FBTYPE ## _end(B));
-
+#define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD)     \
+  if (m->metric_value.MFIELD != NULL) {                                 \
+    ns(FBTYPE ## _ref_t) x = ns(FBTYPE ## _create(B, *m->metric_value.MFIELD)); \
+    ns(MetricValue_value_ ## FBTYPE ##_add(B, x));                      \
+  } else {                                                              \
+    ns(NullValue_ref_t) x = ns(NullValue_create(B));                    \
+    ns(MetricValue_value_NullValue_add(B, x));                          \
+  }
 
   /* any of these types can be null */
   switch(m->metric_type) {
@@ -273,12 +274,14 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m)
     ENCODE_TYPE(dubs, DoubleValue, n);
     break;
   case METRIC_STRING:
-    ns(StringValue_start(B));
     if (m->metric_value.s != NULL) {
-      nsc(string_ref_t) mv = nsc(string_create_str(B, m->metric_value.s));
-      ns(StringValue_value_add(B, mv));
+      nsc(string_ref_t) x = nsc(string_create(B, m->metric_value.s, strlen(m->metric_value.s)));
+      ns(StringValue_ref_t) sv = ns(StringValue_create(B, x));
+      ns(MetricValue_value_StringValue_add(B, sv));
+    } else {
+      ns(NullValue_ref_t) x = ns(NullValue_create(B));
+      ns(MetricValue_value_NullValue_add(B, x));
     }
-    ns(StringValue_end(B));
     break;
   case METRIC_ABSENT:
   case METRIC_GUESS:
@@ -290,27 +293,30 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m)
 }
 
 void *
-noit_check_log_create_flatbuffer_builder(void)
+noit_check_log_start_metriclist_flatbuffer(void)
 {
   flatcc_builder_t *builder = malloc(sizeof(flatcc_builder_t));
   flatcc_builder_init(builder);
 
   ns(MetricList_start_as_root(builder));
+  ns(MetricList_metrics_start(builder));
   return builder;
 }
 
 void *
-noit_check_log_finalize_flatbuffer_builder(void *builder, size_t *out_size)
+noit_check_log_finalize_metriclist_flatbuffer(void *builder, size_t *out_size)
 {
-  void *buffer = flatcc_builder_finalize_buffer(builder, out_size);
+  ns(MetricList_metrics_end((flatcc_builder_t *)builder));
+  void *buffer = flatcc_builder_finalize_buffer((flatcc_builder_t *)builder, out_size);
+  flatcc_builder_clear((flatcc_builder_t *)builder);
   free(builder);
   return buffer;
 }
 
 
 void
-noit_check_log_add_to_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid,
-                                 const char *check_name, int account_id, metric_t *m)
+noit_check_log_add_metric_to_metriclist_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid,
+                                                   const char *check_name, int account_id, metric_t *m)
 {
   ns(MetricList_metrics_push_start(builder));
   ns(Metric_timestamp_add)(builder, (SECPART(whence) * 1000) + MSECPART(whence));
@@ -326,27 +332,51 @@ noit_check_log_add_to_flatbuffer(void *builder, struct timeval *whence, const ch
 
 
 void *
-noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, 
-                                                  const char *check_name, int account_id, metric_t *m,
-                                                  size_t* out_size)
+noit_check_log_bundle_metricbatch_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, 
+                                                       const char *check_name, int account_id, metric_t *m,
+                                                       size_t* out_size)
 {
   flatcc_builder_t builder, *B;
   B = &builder;
   flatcc_builder_init(B);
 
   ns(MetricBatch_start_as_root(B));
-
   ns(MetricBatch_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
   ns(MetricBatch_check_name_create_str(B, check_name));
   ns(MetricBatch_check_uuid_create_str(B, check_uuid));
+  ns(MetricBatch_account_id_add(B, account_id));
+  ns(MetricBatch_metrics_start(B));
   ns(MetricBatch_metrics_push_start(B));
   flatbuffer_encode_metric(B, m);
   ns(MetricBatch_metrics_push_end(B));
   ns(MetricBatch_metrics_end(B));
   ns(MetricBatch_end_as_root(B));
   void *buffer = flatcc_builder_finalize_buffer(B, out_size);
+  flatcc_builder_clear(B);
   return buffer;
 }
+
+void *
+noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, 
+                                                       const char *check_name, int account_id, metric_t *m,
+                                                       size_t* out_size)
+{
+  flatcc_builder_t builder, *B;
+  B = &builder;
+  flatcc_builder_init(B);
+
+  ns(Metric_start_as_root(B));
+  ns(Metric_timestamp_add)(B, (SECPART(whence) * 1000) + MSECPART(whence));
+  ns(Metric_check_name_create_str(B, check_name));
+  ns(Metric_check_uuid_create_str(B, check_uuid));
+  ns(Metric_account_id_add(B, account_id));
+  flatbuffer_encode_metric(B, m);
+  ns(Metric_end_as_root(B));
+  void *buffer = flatcc_builder_finalize_buffer(B, out_size);
+  flatcc_builder_clear(B);
+  return buffer;
+}
+
 
 static int
 account_id_from_name(const char *check_name)

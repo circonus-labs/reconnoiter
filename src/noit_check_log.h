@@ -40,8 +40,18 @@
 #include "flatbuffers/metric_list_builder.h"
 
 /*!
-  \fn noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
+  \fn noit_check_log_bundle_metricbatch_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
   \brief Create a MetricBatch flatbuffer representing a single record
+  \return The flatbuffer bytes, size is returned in 'out_size'
+*/
+API_EXPORT(void *)
+noit_check_log_bundle_metricbatch_flatbuffer_serialize(struct timeval *whence, const char *check_uuid,
+                                                       const char *check_name, int account_id, metric_t *m,
+                                                       size_t* out_size);
+
+/*!
+  \fn noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
+  \brief Create a Metric flatbuffer representing a single record
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
@@ -49,43 +59,32 @@ noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const 
                                                   const char *check_name, int account_id, metric_t *m,
                                                   size_t* out_size);
 
-/*!
-  \fn noit_check_log_bundle_metric_flatbuffer_serialize_check(struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m, size_t metric_count, size_t* out_size)
-  \brief Create a MetricBatch flatbuffer representing 'metric_count' records
-  \return The flatbuffer bytes, size is returned in 'out_size'
-*/
-API_EXPORT(void *)
-noit_check_log_bundle_metric_flatbuffer_serialize_check(struct timeval *whence, const char *check_uuid,
-                                                        const char *check_name, int account_id, metric_t *m, size_t metric_count,
-                                                        size_t* out_size);
-
-
 
 /*!
-  \fn noit_check_log_create_flatbuffer_builder(void)
-  \brief Create a MetricList flatbuffer builder which we can append metric_t's to
+  \fn noit_check_log_start_metriclist_flatbuffer(void)
+  \brief Create a MetricList flatbuffer builder which we can append metrics to
   \return The flatbuffer builder handle
 */
 API_EXPORT(void *)
-noit_check_log_create_flatbuffer_builder(void);
+noit_check_log_start_metriclist_flatbuffer(void);
 
 /*!
-  \fn noit_check_log_finalize_flatbuffer_builder(void *builder, size_t *out_size)
-  \brief Serialize and output the bytes for this flatbuffer based on what has been added so far
+  \fn noit_check_log_finalize_metriclist_flatbuffer(void *builder, size_t *out_size)
+  \brief Serialize and output the bytes for this MetricList flatbuffer based on what has been added so far
   \return The flatbuffer bytes, size is returned in 'out_size'
 
   The builder will be destroyed after this call.
 */
 API_EXPORT(void *)
-noit_check_log_finalize_flatbuffer_builder(void *builder, size_t *out_size);
+noit_check_log_finalize_metriclist_flatbuffer(void *builder, size_t *out_size);
 
 /*!
-  \fn noit_check_add_to_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m)
+  \fn noit_check_add_metric_to_metriclist_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m)
   \brief Add a record to the MetricList flatbuffer
 */
 API_EXPORT(void)
-noit_check_log_add_to_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid,
-                                 const char *check_name, int account_id, metric_t *m);
+noit_check_log_add_metric_to_metriclist_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid,
+                                                    const char *check_name, int account_id, metric_t *m);
 
 /* convenience macros */
 #undef ns
