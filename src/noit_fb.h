@@ -29,8 +29,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NOIT_CHECK_LOG_H
-#define NOIT_CHECK_LOG_H
+#ifndef NOIT_FB_H
+#define NOIT_FB_H
 
 #include <mtev_defines.h>
 #include <circllhist.h>
@@ -41,68 +41,67 @@
 #include "flatbuffers/metric_list_builder.h"
 
 /*!
-  \fn noit_check_log_bundle_metricbatch_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
+  \fn noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
   \brief Create a MetricBatch flatbuffer representing a single record
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
-noit_check_log_bundle_metricbatch_flatbuffer_serialize(struct timeval *whence, const char *check_uuid,
-                                                       const char *check_name, int account_id, metric_t *m,
-                                                       size_t* out_size);
+noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
+                              const char *check_name, int account_id, metric_t *m,
+                              size_t* out_size);
 
 /*!
-  \fn noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
-  \brief Create a Metric flatbuffer representing a single record
+  \fn noit_fb_serialize_metric(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m, size_t *out_size)
+  \brief Make a Metric flatbuffer from a numeric or string 
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
-noit_check_log_bundle_metric_flatbuffer_serialize(struct timeval *whence, const char *check_uuid,
-                                                  const char *check_name, int account_id, metric_t *m,
-                                                  size_t* out_size);
+noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
+                         const char *check_name, int account_id, metric_t *m, size_t *out_size);
+
+/*!
+  \fn noit_fb_serialize_histogram(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, size_t *out_size)
+  \brief Make a Metric flatbuffer from a histogram
+  \return The flatbuffer bytes, size is returned in 'out_size'
+*/
+API_EXPORT(void *)
+noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
+                            const char *check_name, int account_id, const char *name, histogram_t *m, size_t *out_size);
 
 
 /*!
-  \fn noit_check_log_start_metriclist_flatbuffer(void)
+  \fn noit_fb_start_metriclist(void)
   \brief Create a MetricList flatbuffer builder which we can append metrics to
   \return The flatbuffer builder handle
 */
 API_EXPORT(void *)
-noit_check_log_start_metriclist_flatbuffer(void);
+noit_fb_start_metriclist(void);
 
 /*!
-  \fn noit_check_log_finalize_metriclist_flatbuffer(void *builder, size_t *out_size)
+  \fn noit_fb_finalize_metriclist(void *builder, size_t *out_size)
   \brief Serialize and output the bytes for this MetricList flatbuffer based on what has been added so far
   \return The flatbuffer bytes, size is returned in 'out_size'
 
   The builder will be destroyed after this call.
 */
 API_EXPORT(void *)
-noit_check_log_finalize_metriclist_flatbuffer(void *builder, size_t *out_size);
-
-
-/*!
-  \fn noit_check_serialize_metric_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m, size_t *out_size)
-  \brief Make a Metric flatbuffer from a numeric or string 
-*/
-API_EXPORT(void *)
-noit_check_log_serialize_metric_flatbuffer(uint64_t whence_ms, const char *check_uuid,
-                                           const char *check_name, int account_id, metric_t *m, size_t *out_size);
+noit_fb_finalize_metriclist(void *builder, size_t *out_size);
 
 /*!
-  \fn noit_check_serialize_histogram_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, size_t *out_size)
-  \brief Make a Metric flatbuffer from a histogram
-*/
-API_EXPORT(void *)
-noit_check_log_serialize_histogram_flatbuffer(uint64_t whence_ms, const char *check_uuid,
-                                              const char *check_name, int account_id, const char *name, histogram_t *m, size_t *out_size);
-
-/*!
-  \fn noit_check_add_metric_to_metriclist_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid, const char *check_name, int account_id, metric_t *m)
+  \fn noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m)
   \brief Add a record to the MetricList flatbuffer
 */
 API_EXPORT(void)
-noit_check_log_add_metric_to_metriclist_flatbuffer(void *builder, struct timeval *whence, const char *check_uuid,
-                                                    const char *check_name, int account_id, metric_t *m);
+noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
+                                 const char *check_name, int account_id, metric_t *m);
+
+/*!
+  \fn noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h)
+  \brief Add a record to the MetricList flatbuffer
+*/
+API_EXPORT(void)
+noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
+                                    const char *check_name, int account_id, const char *name, histogram_t *h);
 
 /* convenience macros */
 #undef ns
@@ -113,4 +112,4 @@ noit_check_log_add_metric_to_metriclist_flatbuffer(void *builder, struct timeval
 #define metric_batch_field(m,x) ns(MetricBatch_%%x(m))
 #define metric_value_field(m,x) ns(MetricValue_%%x(m))
 
-#endif /* NOIT_CHECK_LOG_H */
+#endif /* NOIT_FB_H */

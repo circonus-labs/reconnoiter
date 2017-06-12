@@ -106,7 +106,7 @@ FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
 	flatbuffers/metric_list_reader.h \
 	flatbuffers/metric_list_verifier.h
 
-HEADERS=noit_metric.h noit_check_log.h noit_check_log_helpers.h noit_check_tools_shared.h \
+HEADERS=noit_metric.h noit_fb.h noit_check_log_helpers.h noit_check_tools_shared.h \
 	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h $(FLATBUFFERS_HEADERS)
 
 NOIT_HEADERS=noit_check.h noit_check_resolver.h \
@@ -122,15 +122,15 @@ STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_ingest.h \
 ENABLE_LUA=@ENABLE_LUA@
 LUALIBS=@LUALIBS@
 
-LIBNOIT_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
+LIBNOIT_OBJS=noit_check_log_helpers.lo noit_fb.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
 	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o
 
 NOIT_OBJS=noitd.o noit_mtev_bridge.o \
-	noit_check_resolver.o \
-	noit_check.o noit_check_log.o noit_check_tools.o \
+	noit_check_resolver.o noit_check_log.o \
+	noit_check.o noit_check_tools.o \
 	noit_module.o noit_conf_checks.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_check_rest.o noit_filters_rest.o noit_websocket_handler.o \
