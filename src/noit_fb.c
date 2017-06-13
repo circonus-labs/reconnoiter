@@ -13,8 +13,8 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m)
     ns(FBTYPE ## _ref_t) x = ns(FBTYPE ## _create(B, *m->metric_value.MFIELD)); \
     ns(MetricValue_value_ ## FBTYPE ##_add(B, x));                      \
   } else {                                                              \
-    ns(NullValue_ref_t) x = ns(NullValue_create(B));                    \
-    ns(MetricValue_value_NullValue_add(B, x));                          \
+    ns(AbsentNumericValue_ref_t) x = ns(AbsentNumericValue_create(B));  \
+    ns(MetricValue_value_AbsentNumericValue_add(B, x));                 \
   }
 
   /* any of these types can be null */
@@ -40,8 +40,8 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m)
       ns(StringValue_ref_t) sv = ns(StringValue_create(B, x));
       ns(MetricValue_value_StringValue_add(B, sv));
     } else {
-      ns(NullValue_ref_t) x = ns(NullValue_create(B));
-      ns(MetricValue_value_NullValue_add(B, x));
+      ns(AbsentStringValue_ref_t) x = ns(AbsentStringValue_create(B));
+      ns(MetricValue_value_AbsentStringValue_add(B, x));
     }
     break;
   case METRIC_ABSENT:

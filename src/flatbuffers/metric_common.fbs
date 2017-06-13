@@ -25,7 +25,15 @@ table StringValue {
 }
 
 // intentionally empty.. Just a Union placeholder
-table NullValue {
+table AbsentNumericValue {
+}
+
+// intentionally empty.. Just a Union placeholder
+table AbsentStringValue {
+}
+
+// intentionally empty.. Just a Union placeholder
+table AbsentHistogramValue {
 }
 
 table HistogramBucket {
@@ -38,7 +46,7 @@ table Histogram {
        buckets: [HistogramBucket] (id: 0);
 }
 
-union MetricValueUnion { IntValue, UintValue, LongValue, UlongValue, DoubleValue, StringValue, Histogram, NullValue }
+union MetricValueUnion { IntValue, UintValue, LongValue, UlongValue, DoubleValue, StringValue, Histogram, AbsentNumericValue, AbsentStringValue, AbsentHistogramValue }
 
 table MetricValue {
       name: string (id: 0);

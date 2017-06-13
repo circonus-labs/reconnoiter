@@ -39,6 +39,7 @@ cat > $1 <<EOF
 #endif
 
 #include <stdio.h>
+#include <string.h>
 
 static inline int noit_build_version(char *buff, int len) {
   const char *start = NOIT_BRANCH;
