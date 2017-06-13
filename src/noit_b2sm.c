@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 #include "noit_check_log_helpers.h"
 
 static void usage(const char *prog) {

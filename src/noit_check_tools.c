@@ -34,6 +34,7 @@
 #include <mtev_defines.h>
 #include <mtev_str.h>
 #include <mtev_json.h>
+#include <eventer/eventer.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_dtrace_probes.h"
@@ -190,7 +191,7 @@ noit_check_schedule_next(noit_module_t *self,
 
   /* knuth's golden ratio approach */
   if(!self->thread_unsafe) {
-    newe->thr_owner = CHOOSE_EVENTER_THREAD_FOR_CHECK(check);
+    eventer_set_owner(newe, CHOOSE_EVENTER_THREAD_FOR_CHECK(check));
   }
   check->fire_event = newe;
   eventer_add(newe);

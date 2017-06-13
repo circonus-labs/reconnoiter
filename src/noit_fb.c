@@ -75,6 +75,34 @@ noit_fb_finalize_metriclist(void *builder, size_t *out_size)
   return buffer;
 }
 
+void *
+noit_fb_start_metricbatch(uint64_t whence_ms, const char *check_uuid,
+                          const char *check_name, int account_id)
+{
+  flatcc_builder_t *builder = malloc(sizeof(flatcc_builder_t));
+  flatcc_builder_init(builder);
+
+  ns(MetricBatch_start_as_root(builder));
+  ns(MetricBatch_timestamp_add)(builder, whence_ms);
+  ns(MetricBatch_check_name_create_str(builder, check_name));
+  ns(MetricBatch_check_uuid_create_str(builder, check_uuid));
+  ns(MetricBatch_account_id_add(builder, account_id));
+  ns(MetricBatch_metrics_start(builder));
+  return builder;
+}
+
+void *
+noit_fb_finalize_metricbatch(void *builder, size_t *out_size)
+{
+  ns(MetricBatch_metrics_end((flatcc_builder_t *)builder));
+  ns(MetricBatch_end_as_root((flatcc_builder_t *)builder));
+  void *buffer = flatcc_builder_finalize_buffer((flatcc_builder_t *)builder, out_size);
+  flatcc_builder_clear((flatcc_builder_t *)builder);
+  free(builder);
+  return buffer;
+}
+
+
 void
 noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
                                  const char *check_name, int account_id, metric_t *m)
@@ -119,6 +147,35 @@ noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const ch
   ns(MetricList_metrics_push_end(builder));
 }
 
+void
+noit_fb_add_metric_to_metricbatch(void *builder, metric_t *m)
+{
+  ns(MetricBatch_metrics_push_start(builder));
+  flatbuffer_encode_metric(builder, m);
+  ns(MetricBatch_metrics_push_end(builder));
+}
+
+void
+noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_t *h)
+{
+  ns(MetricBatch_metrics_push_start(builder));
+  ns(MetricValue_name_create_str(builder, name));
+  ns(MetricValue_value_Histogram_start(builder));
+  ns(Histogram_buckets_start(builder));
+  for (int i = 0; i < hist_bucket_count(h); i++) {
+    hist_bucket_t bucket;
+    uint64_t count;
+    hist_bucket_idx_bucket(h, i, &bucket, &count);
+    ns(Histogram_buckets_push_start(builder));
+    ns(HistogramBucket_val_add(builder, bucket.val));
+    ns(HistogramBucket_exp_add(builder, bucket.exp));
+    ns(HistogramBucket_count_add(builder, count));
+    ns(Histogram_buckets_push_end(builder));
+  }
+  ns(Histogram_buckets_end(builder));
+  ns(MetricValue_value_Histogram_end(builder));
+  ns(MetricBatch_metrics_push_end(builder));
+}
 
 void *
 noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
