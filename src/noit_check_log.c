@@ -89,8 +89,6 @@ static mtev_log_stream_t bundle_log = NULL;
 static mtev_log_stream_t metrics_log = NULL;
 #endif
 
-#define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
-
 static int
   noit_check_log_bundle_serialize(mtev_log_stream_t, noit_check_t *);
 static int
@@ -291,9 +289,8 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
    * Could be a hook?
    */
   int account_id = account_id_from_name(check_name);
-  void *buffer = noit_check_log_bundle_metric_flatbuffer_serialize(whence, uuid_str,
-                                                                   check_name, account_id,
-                                                                   m, &size);
+  void *buffer = noit_fb_serialize_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id,
+                                               m, &size);
 
   unsigned int outsize;
   char *outbuf = NULL;
@@ -570,8 +567,8 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
 
   metrics = noit_check_stats_metrics(c);
 
-  /* TODO: account_id is zero below.  should read from extended uuid_str? */
-  void *B = noit_fb_start_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check->name, 0);
+  int account_id = account_id_from_name(check->name);
+  void *B = noit_fb_start_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check->name, account_id);
 
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
