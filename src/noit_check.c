@@ -31,8 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_config.h"
 #include <mtev_defines.h>
+#include "noit_config.h"
 #include <mtev_uuid.h>
 
 #include <stdio.h>
@@ -178,7 +178,7 @@ noit_check_stats_duration(stats_t *s, uint32_t *n) {
 }
 const char *
 noit_check_stats_status(stats_t *s, const char *n) {
-  if(n) strncpy(s->status, n, sizeof(s->status) - 1);
+  if(n) strlcpy(s->status, n, sizeof(s->status));
   return s->status;
 }
 mtev_hash_table *
@@ -616,10 +616,10 @@ noit_poller_process_checks(const char *xpath) {
       filterset[0] = '\0';
 
     if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype)))
-      strncpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype) - 1);
+      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
 
     if(!MYATTR(stringbuf, name, name, sizeof(name)))
-      strncpy(name, module, sizeof(name) - 1);
+      strlcpy(name, module, sizeof(name));
 
     if(!noit_check_validate_name(name)) {
       mtevL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
@@ -808,7 +808,7 @@ noit_poller_make_causal_map() {
         parent = noit_poller_lookup__nolock(id);
       }
       else if((target = strchr(check->oncheck, '`')) != NULL) {
-        strncpy(fullcheck, check->oncheck, target + 1 - check->oncheck - 1);
+        strlcpy(fullcheck, check->oncheck, target + 1 - check->oncheck);
         name = target + 1;
         target = fullcheck;
         parent = noit_poller_lookup_by_name__nolock(target, name);
@@ -1116,7 +1116,7 @@ noit_check_set_ip(noit_check_t *new_check,
   } a;
 
   memset(old_target_ip, 0, INET6_ADDRSTRLEN);
-  strncpy(old_target_ip, new_check->target_ip, sizeof(old_target_ip) - 1);
+  strlcpy(old_target_ip, new_check->target_ip, sizeof(old_target_ip));
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
@@ -1214,7 +1214,7 @@ noit_check_update(noit_check_t *new_check,
     char module[256];
     uuid_t id, dummy;
     mtev_uuid_copy(id, new_check->checkid);
-    strncpy(module, new_check->module, sizeof(module) - 1);
+    strlcpy(module, new_check->module, sizeof(module));
     noit_poller_deschedule(id, mtev_false);
     return noit_poller_schedule(target, module, name, filterset,
                                 config, mconfigs, period, timeout, oncheck,
@@ -1543,7 +1543,7 @@ noit_poller_target_ip_do(const char *target_ip,
   pthread_mutex_lock(&polls_lock);
   /* First pass to count */
   memset(&pivot, 0, sizeof(pivot));
-  strncpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip) - 1);
+  strlcpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip));
   pivot.name = "";
   pivot.target = "";
   mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
@@ -1557,7 +1557,7 @@ noit_poller_target_ip_do(const char *target_ip,
   if(todo_count > 8192) todo = malloc(todo_count * sizeof(*todo));
 
   memset(&pivot, 0, sizeof(pivot));
-  strncpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip) - 1);
+  strlcpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip));
   pivot.name = "";
   pivot.target = "";
   mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
@@ -1714,7 +1714,7 @@ noit_check_xpath(char *xpath, int len,
   base_trailing_slash = (base[strlen(base)-1] == '/');
   xpath[0] = '\0';
   argcopy[0] = '\0';
-  if(arg) strncpy(argcopy, arg, sizeof(argcopy) - 1);
+  if(arg) strlcpy(argcopy, arg, sizeof(argcopy));
 
   if(uuid_parse(argcopy, checkid) == 0) {
     /* If they kill by uuid, we'll seek and destroy -- find it anywhere */

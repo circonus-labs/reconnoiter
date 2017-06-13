@@ -532,8 +532,9 @@ static int
 noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
   static char *ip_str = "ip";
-  char uuid_str[256*3+37];
-  int len = sizeof(uuid_str);
+  char check_name[256 * 3] = {0};
+  char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
+  int len = sizeof(check_name);
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
   const char *key;
@@ -552,14 +553,14 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   mtev_boolean extended_id = mtev_false;
   v = mtev_log_stream_get_property(ls, "extended_id");
   if(v && !strcmp(v, "on")) extended_id = mtev_true;
-  uuid_str[0] = '\0';
+  check_name[0] = '\0';
   if(extended_id) {
-    strlcat(uuid_str, check->target, len);
-    strlcat(uuid_str, "`", len);
-    strlcat(uuid_str, check->module, len);
-    strlcat(uuid_str, "`", len);
-    strlcat(uuid_str, check->name, len);
-    strlcat(uuid_str, "`", len);
+    strlcat(check_name, check->target, len);
+    strlcat(check_name, "`", len);
+    strlcat(check_name, check->module, len);
+    strlcat(check_name, "`", len);
+    strlcat(check_name, check->name, len);
+    strlcat(check_name, "`", len);
   }
 
   uuid_str[0] = '\0';
@@ -567,8 +568,8 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
 
   metrics = noit_check_stats_metrics(c);
 
-  int account_id = account_id_from_name(check->name);
-  void *B = noit_fb_start_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check->name, account_id);
+  int account_id = account_id_from_name(check_name);
+  void *B = noit_fb_start_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id);
 
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
