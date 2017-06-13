@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007-2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -554,10 +554,7 @@ stratcon_ingest_iep_check_preload() {
   conn_pool *cpool;
 
   cpool = get_conn_pool_for_remote(NULL,NULL,NULL);
-  e = eventer_alloc();
-  e->mask = EVENTER_ASYNCH;
-  e->callback = stratcon_ingest_asynch_drive_iep;
-  e->closure = NULL;
+  e = eventer_alloc_asynch(stratcon_ingest_asynch_drive_iep, NULL);
   eventer_add_asynch(cpool->jobq, e);
 }
 execute_outcome_t
@@ -983,10 +980,7 @@ stratcon_ingestor_submit_lookup(struct realtime_tracker *rt,
   rtdetail = calloc(1, sizeof(*rtdetail));
   rtdetail->rt = rt;
   rtdetail->completion_event = completion;
-  e = eventer_alloc();
-  e->mask = EVENTER_ASYNCH;
-  e->callback = stratcon_ingest_asynch_lookup;
-  e->closure = rtdetail;
+  e = eventer_alloc_asynch(stratcon_ingest_asynch_lookup, rtdetail);
   eventer_add_asynch(cpool->jobq, e);
 }
 static const char *
@@ -1455,10 +1449,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   ij->cpool = get_conn_pool_for_remote(ij->remote_str, ij->remote_cn,
                                        ij->fqdn);
   mtevL(noit_debug, "ingesting payload: %s\n", ij->filename);
-  ingest = eventer_alloc();
-  ingest->mask = EVENTER_ASYNCH;
-  ingest->callback = stratcon_ingest_asynch_execute;
-  ingest->closure = ij;
+  ingest = eventer_alloc_asynch(stratcon_ingest_asynch_execute, ij);
   eventer_add_asynch(ij->cpool->jobq, ingest);
   return 0;
 }

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2011-2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2011-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -42,6 +42,7 @@
 #include <mtev_rest.h>
 #include <mtev_hash.h>
 #include <mtev_json.h>
+#include <mtev_uuid.h>
 
 #include "noit_metric.h"
 #include "noit_module.h"
@@ -733,7 +734,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     if(!delimiter) (void)mtev_hash_retr_str(check->config, "httptrap_delimiter", strlen("httptrap_delimiter"), &delimiter);
     if(delimiter && *delimiter) rxc->delimiter = *delimiter;
     rxc->check = check;
-    uuid_copy(rxc->check_id, check_id);
+    mtev_uuid_copy(rxc->check_id, check_id);
     rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
     rxc->depth = -1;
     yajl_config(rxc->parser, yajl_allow_comments, 1);
@@ -750,8 +751,8 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     eventer_t e = mtev_http_connection_event(conn);
     if(e) {
       pthread_t tgt = CHOOSE_EVENTER_THREAD_FOR_CHECK(rxc->check);
-      if(!pthread_equal(e->thr_owner, tgt)) {
-        e->thr_owner = tgt;
+      if(!pthread_equal(eventer_get_owner(e), tgt)) {
+        eventer_set_owner(e, tgt);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }

@@ -37,6 +37,7 @@
 #include <ck_fifo.h>
 #include <mtev_fq.h>
 #include <mtev_hooks.h>
+#include <mtev_uuid.h>
 
 #include <openssl/md5.h>
 
@@ -160,7 +161,7 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
     uuid_t *copy = malloc(UUID_SIZE);
     level2 = calloc(1,sizeof(*level2));
     mtev_hash_init_locks(level2, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
-    uuid_copy(*copy, id);
+    mtev_uuid_copy(*copy, id);
     if(!mtev_hash_store(&id_level, (const char *)copy, UUID_SIZE, level2)) {
       free(copy);
       free(level2);
@@ -323,7 +324,7 @@ get_dedupe_hash(uint64_t whence)
 }
 
 static int
-prune_old_dedupe_hashes(eventer_t e, int mask, void *unused,
+noit_metric_director_prune_dedup(eventer_t e, int mask, void *unused,
     struct timeval *now) {
 
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
@@ -563,7 +564,7 @@ void noit_metric_director_init() {
 
   eventer_t e = eventer_alloc();
   e->mask = EVENTER_TIMER;
-  e->callback = prune_old_dedupe_hashes;
+  e->callback = noit_metric_director_prune_dedup;
   mtev_gettimeofday(&e->whence, NULL);
   e->whence.tv_sec += 2;
   eventer_add_timed(e);
@@ -572,6 +573,8 @@ void noit_metric_director_init() {
 void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&id_level, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   mtev_hash_init_locks(&dedupe_hashes, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+  eventer_name_callback("noit_metric_director_prune_dedup",
+                        noit_metric_director_prune_dedup);
 }
 
 int64_t

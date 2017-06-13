@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 20152-17, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,6 +33,7 @@
 
 #include "noit_config.h"
 #include <mtev_defines.h>
+#include <mtev_uuid.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -981,7 +982,14 @@ noit_check_watch(uuid_t in, int period) {
 
   mtevL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
   if(period == 0) {
-    return noit_poller_lookup(in);
+    mtev_uuid_copy(n.checkid, in);
+    f = noit_poller_lookup(in);
+    n.period = period;
+    if(mtev_skiplist_find(&watchlist, &n, NULL) == NULL) {
+      mtevL(noit_debug, "Watching %s@%d\n", uuid_str, period);
+      mtev_skiplist_insert(&watchlist, f);
+    }
+    return f;
   }
 
   /* Find the check */
@@ -1003,7 +1011,7 @@ noit_check_watch(uuid_t in, int period) {
   period *= granularity_pi;
   period = MAX(period, minimum_pi);
 
-  uuid_copy(n.checkid, in);
+  mtev_uuid_copy(n.checkid, in);
   n.period = period;
 
   f = mtev_skiplist_find(&watchlist, &n, NULL);
@@ -1022,8 +1030,12 @@ noit_check_t *
 noit_check_get_watch(uuid_t in, int period) {
   noit_check_t n, *f;
 
-  uuid_copy(n.checkid, in);
+  mtev_uuid_copy(n.checkid, in);
   n.period = period;
+  if(period == 0) {
+    f = noit_poller_lookup(in);
+    if(f) n.period = f->period;
+  }
 
   f = mtev_skiplist_find(&watchlist, &n, NULL);
   return f;
@@ -1066,7 +1078,9 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
             check->target, check->name, check->period);
       check->flags |= NP_KILLED;
     }
-    noit_poller_free_check(check);
+    if(noit_poller_lookup(check->checkid) != check) {
+      noit_poller_free_check(check);
+    }
   }
 }
 
@@ -1199,7 +1213,7 @@ noit_check_update(noit_check_t *new_check,
   if(NOIT_CHECK_RUNNING(new_check)) {
     char module[256];
     uuid_t id, dummy;
-    uuid_copy(id, new_check->checkid);
+    mtev_uuid_copy(id, new_check->checkid);
     strlcpy(module, new_check->module, sizeof(module));
     noit_poller_deschedule(id, mtev_false);
     return noit_poller_schedule(target, module, name, filterset,
@@ -1325,7 +1339,7 @@ noit_poller_schedule(const char *target,
   if(uuid_is_null(in))
     uuid_generate(new_check->checkid);
   else
-    uuid_copy(new_check->checkid, in);
+    mtev_uuid_copy(new_check->checkid, in);
 
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
@@ -1333,7 +1347,7 @@ noit_poller_schedule(const char *target,
   mtevAssert(mtev_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
-  uuid_copy(out, new_check->checkid);
+  mtev_uuid_copy(out, new_check->checkid);
   noit_check_log_check(new_check);
 
   return 0;
@@ -1384,7 +1398,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
   if(mod && mod->cleanup) mod->cleanup(mod, checker);
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
-     free(checker->fire_event->closure);
+     free(eventer_get_closure(checker->fire_event));
      eventer_free(checker->fire_event);
      checker->fire_event = NULL;
   }
@@ -1436,7 +1450,6 @@ noit_poller_free_check(noit_check_t *checker) {
 static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
-  static struct timeval one_minute = { RECYCLE_INTERVAL, 0L };
   struct _checker_rcb *prev = NULL, *curr = NULL;
   mtevL(noit_debug, "Scanning check recycle bin\n");
   pthread_mutex_lock(&recycling_lock);
@@ -1470,8 +1483,8 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
     }
   }
   pthread_mutex_unlock(&recycling_lock);
-  add_timeval(*now, one_minute, &e->whence);
-  return EVENTER_TIMER;
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
+  return 0;
 }
 
 int
@@ -1825,7 +1838,8 @@ noit_metric_sizes(metric_type_t type, const void *value) {
     case METRIC_DOUBLE:
       return sizeof(sizer);
     case METRIC_STRING: {
-      int len = strlen((char*)value) + 1;
+      const char *lf = strchr(value, '\n');
+      int len = lf ? lf - (const char *)value + 1 : strlen((char*)value) + 1;
       return ((len >= text_size_limit) ? text_size_limit+1 : len);
     }
     case METRIC_ABSENT:
@@ -2163,7 +2177,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
   noit_check_t n;
   noit_check_t *watches[8192];
 
-  uuid_copy(n.checkid, check->checkid);
+  mtev_uuid_copy(n.checkid, check->checkid);
   n.period = 0;
 
   noit_check_set_stats(check);

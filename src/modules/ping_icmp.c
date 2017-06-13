@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_uuid.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -196,7 +197,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   pcl->check->flags &= ~NP_RUNNING;
   ping_data = noit_module_get_userdata(pcl->self);
   k.addr_of_check = (uintptr_t)pcl->check ^ random_num;
-  uuid_copy(k.checkid, pcl->check->checkid);
+  mtev_uuid_copy(k.checkid, pcl->check->checkid);
   mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
                    free, NULL);
   free(pcl);
@@ -231,7 +232,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
 
     from_len = sizeof(from);
 
-    inlen = recvfrom(e->fd, packet, packet_len, 0,
+    inlen = recvfrom(eventer_get_fd(e), packet, packet_len, 0,
                      (struct sockaddr *)&from, &from_len);
     mtev_gettimeofday(now, NULL); /* set it, as we care about accuracy */
 
@@ -289,7 +290,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
     check = NULL;
     k.addr_of_check = payload->addr_of_check;
-    uuid_copy(k.checkid, payload->checkid);
+    mtev_uuid_copy(k.checkid, payload->checkid);
     if(mtev_hash_retrieve(ping_data->in_flight,
                           (const char *)&k, sizeof(k),
                           &vcheck))
@@ -327,12 +328,12 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if(ping_icmp_is_complete(self, check)) {
       ping_icmp_log_results(self, check);
       eventer_remove(data->timeout_event);
-      free(data->timeout_event->closure);
+      free(eventer_get_closure(data->timeout_event));
       eventer_free(data->timeout_event);
       data->timeout_event = NULL;
       check->flags &= ~NP_RUNNING;
       k.addr_of_check = (uintptr_t)check ^ random_num;
-      uuid_copy(k.checkid, check->checkid);
+      mtev_uuid_copy(k.checkid, check->checkid);
       mtev_hash_delete(ping_data->in_flight, (const char *)&k,
                        sizeof(k), free, NULL);
     }
@@ -398,11 +399,7 @@ static int ping_icmp_init(noit_module_t *self) {
   }
   if(data->ipv4_fd >= 0) {
     eventer_t newe;
-    newe = eventer_alloc();
-    newe->fd = data->ipv4_fd;
-    newe->mask = EVENTER_READ;
-    newe->callback = ping_icmp4_handler;
-    newe->closure = self;
+    newe = eventer_alloc_fd(ping_icmp4_handler, self, data->ipv4_fd, EVENTER_READ);
     eventer_add(newe);
   }
 
@@ -423,11 +420,7 @@ static int ping_icmp_init(noit_module_t *self) {
     }
     if(data->ipv6_fd >= 0) {
       eventer_t newe;
-      newe = eventer_alloc();
-      newe->fd = data->ipv6_fd;
-      newe->mask = EVENTER_READ;
-      newe->callback = ping_icmp6_handler;
-      newe->closure = self;
+      newe = eventer_alloc_fd(ping_icmp6_handler, self, data->ipv6_fd, EVENTER_READ);
       eventer_add(newe);
     }
   }
@@ -451,7 +444,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   data = noit_module_get_userdata(pcl->self);
   payload = (struct ping_payload *)((char *)pcl->payload + pcl->icp_len);
   k.addr_of_check = payload->addr_of_check;
-  uuid_copy(k.checkid, payload->checkid);
+  mtev_uuid_copy(k.checkid, payload->checkid);
 
   if(pcl->check->target_ip[0] == '\0') goto cleanup;
 
@@ -503,7 +496,7 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
   if(ci) {
     if(ci->timeout_event) {
       eventer_remove(ci->timeout_event);
-      free(ci->timeout_event->closure);
+      free(eventer_get_closure(ci->timeout_event));
       eventer_free(ci->timeout_event);
       ci->timeout_event = NULL;
     }
@@ -539,7 +532,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   ping_data = noit_module_get_userdata(self);
   k = calloc(1, sizeof(*k));
   k->addr_of_check = (uintptr_t)check ^ random_num;
-  uuid_copy(k->checkid, check->checkid);
+  mtev_uuid_copy(k->checkid, check->checkid);
   if(!mtev_hash_store(ping_data->in_flight, (const char *)k, sizeof(*k),
                       check)) {
     free(k);
@@ -552,7 +545,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
    */
   if(ci->timeout_event) {
     eventer_remove(ci->timeout_event);
-    free(ci->timeout_event->closure);
+    free(eventer_get_closure(ci->timeout_event));
     eventer_free(ci->timeout_event);
     ci->timeout_event = NULL;
   }
@@ -577,12 +570,6 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     /* Negative means we've not received a response */
     ci->turnaround[i] = -1.0;
 
-    newe = eventer_alloc();
-    newe->callback = ping_icmp_real_send;
-    newe->mask = EVENTER_TIMER;
-    memcpy(&newe->whence, &when, sizeof(when));
-    add_timeval(when, p_int, &when); /* Next one is a bit later */
-
     icp = calloc(1,packet_len);
     payload = (struct ping_payload *)((char *)icp + icp_len);
 
@@ -604,7 +591,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     }
 
     payload->addr_of_check = (uintptr_t)check ^ random_num;
-    uuid_copy(payload->checkid, check->checkid);
+    mtev_uuid_copy(payload->checkid, check->checkid);
     payload->generation = check->generation & 0xffff;
     payload->check_no = ci->check_no;
     payload->check_pack_no = i;
@@ -617,20 +604,15 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     pcl->payload_len = packet_len;
     pcl->icp_len = icp_len;
 
-    newe->closure = pcl;
+    newe = eventer_in(ping_icmp_real_send, pcl, p_int);
     eventer_add(newe);
   }
-  newe = eventer_alloc();
-  newe->mask = EVENTER_TIMER;
-  mtev_gettimeofday(&when, NULL);
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
-  add_timeval(when, p_int, &newe->whence);
   pcl = calloc(1, sizeof(*pcl));
   pcl->self = self;
   pcl->check = check;
-  newe->closure = pcl;
-  newe->callback = ping_icmp_timeout;
+  newe = eventer_in(ping_icmp_timeout, pcl, p_int);
   eventer_add(newe);
   ci->timeout_event = newe;
 

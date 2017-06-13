@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2013-2017, Circonus, Inc. All rights reserved.
  * Copyright (c) 2005-2009  Florian Forster
  * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * Copyright (c) 2009, Dan Di Spaltro
@@ -1485,7 +1485,7 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
 
     from_len = sizeof(remote);
 
-    inlen = recvfrom(e->fd, packet, packet_len, 0,
+    inlen = recvfrom(eventer_get_fd(e), packet, packet_len, 0,
                      (struct sockaddr *)&remote, &from_len);
     mtev_gettimeofday(now, NULL); /* set it, as we care about accuracy */
 
@@ -2217,11 +2217,8 @@ static int noit_collectd_init(noit_module_t *self) {
 
   if(conf->ipv4_fd >= 0) {
     eventer_t newe;
-    newe = eventer_alloc();
-    newe->fd = conf->ipv4_fd;
-    newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
-    newe->callback = noit_collectd_handler;
-    newe->closure = self;
+    newe = eventer_alloc_fd(noit_collectd_handler, self, conf->ipv4_fd,
+                            EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
   }
 
@@ -2254,11 +2251,8 @@ static int noit_collectd_init(noit_module_t *self) {
 
   if(conf->ipv6_fd >= 0) {
     eventer_t newe;
-    newe = eventer_alloc();
-    newe->fd = conf->ipv6_fd;
-    newe->mask = EVENTER_READ;
-    newe->callback = noit_collectd_handler;
-    newe->closure = self;
+    newe = eventer_alloc_fd(noit_collectd_handler, self, conf->ipv6_fd,
+                            EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
   }
 

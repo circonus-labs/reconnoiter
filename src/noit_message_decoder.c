@@ -135,12 +135,15 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     *metric_name_len = metric_type_str - *metric_name - 1;
 
     metric->type = *metric_type_str;
-    if(!strcmp(value_str, "[[null]]")) {
+
+    int vlen = (uintptr_t)payload + (uintptr_t)payload_len - (uintptr_t)value_str;
+
+    if((vlen == 8 && !memcmp(value_str, "[[null]]", 8)) ||
+       (vlen == 9 && !memcmp(value_str, "[[null]]\n", 9))) {
       metric->is_null = mtev_true;
     } else {
       char osnum[512]; /* that's a big number! */
-      int nlen, vlen = (uintptr_t)payload + (uintptr_t)payload_len - (uintptr_t)value_str;
-      nlen = (vlen >= sizeof(osnum)) ? (sizeof(osnum)-1) : vlen;
+      int nlen = (vlen >= sizeof(osnum)) ? (sizeof(osnum)-1) : vlen;
       memcpy(osnum, value_str, nlen);
       osnum[nlen] = '\0';
       switch (*metric_type_str) {
@@ -160,6 +163,8 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
         metric->value.v_double = strtod(osnum, NULL);
         break;
       case METRIC_STRING:
+        /* It's possible for M records that the \n is included, it should not be. */
+        if(vlen > 0 && value_str[vlen-1] == '\n') vlen--;
         metric->value.v_string = mtev__strndup(value_str, vlen);
         break;
       default:

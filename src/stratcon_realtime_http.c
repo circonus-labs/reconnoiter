@@ -43,6 +43,7 @@
 #include <mtev_hash.h>
 #include <mtev_log.h>
 #include <mtev_str.h>
+#include <mtev_uuid.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_jlog_listener.h"
@@ -331,7 +332,7 @@ stratcon_realtime_uri_parse(realtime_context *rc, const char *uri) {
     if(uuid_parse((char *)interest, in_uuid)) continue;
     node = calloc(1, sizeof(*node));
     node->rc = rc;
-    uuid_copy(node->checkid, in_uuid);
+    mtev_uuid_copy(node->checkid, in_uuid);
     node->interval = atoi(interval);
     node->next = rc->checklist;
     rc->checklist = node;
