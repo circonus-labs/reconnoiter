@@ -50,7 +50,8 @@ union MetricValueUnion { IntValue, UintValue, LongValue, UlongValue, DoubleValue
 
 table MetricValue {
       name: string (id: 0);
+      timestamp: ulong (id: 1);
       // Skips to 2 because the _type field of the union occupies 1
-      value: MetricValueUnion (id: 2); 
+      value: MetricValueUnion (id: 3); 
 }
 
