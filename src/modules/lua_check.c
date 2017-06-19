@@ -116,6 +116,19 @@ static lua_module_closure_t *lmc_tls_get(mtev_image_t *mod) {
   return lmc;
 }
 
+static mtev_lua_resume_info_t *
+lua_noit_new_resume_info(lua_module_closure_t *lmc) {
+  return mtev_lua_new_resume_info(lmc, LUA_CHECK_INFO_MAGIC);
+}
+
+static int noit_lua_coroutine_spawn(lua_State *L) {
+  return mtev_lua_coroutine_spawn(L, lua_noit_new_resume_info);
+}
+static const luaL_Reg noit_mtev_lua_funcs[] = {
+  { "coroutine_spawn", noit_lua_coroutine_spawn },
+  { NULL, NULL }
+};
+
 static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char **obj) {
   lua_module_closure_t *lmc;
   struct module_conf *mc;
@@ -133,6 +146,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
                       mc->c->script_dir, mc->c->cpath);
     mtev_lua_lmc_setL(lmc, L);
     require(L, rv, noit);
+    luaL_openlib(L, "mtev", noit_mtev_lua_funcs, 0);
   }
   mtlsc = __get_module_tls_conf(&mod->hdr);
   if(!mtlsc->loaded) {
@@ -948,6 +962,7 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
         mtevL(nldeb, "lua_State(%p) -> %d [check: %p]\n", ri->coro_state,
               lua_status(ri->coro_state), ci ? ci->check: NULL);
       }
+      lua_gc(mtev_lua_lmc_L(ri->lmc), LUA_GCCOLLECT, 0);
       break;
     case LUA_YIELD: /* The complicated case */
       /* The person yielding had better setup an event
@@ -991,13 +1006,12 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
     self = ci->self;
     check = ci->check;
   }
-  mtev_lua_cancel_coro(ri);
   if(check) {
     noit_lua_log_results(self, check);
-    noit_lua_module_cleanup(self, check);
-    ri = NULL; /* we freed it... explode if someone uses it before we return */
     check->flags &= ~NP_RUNNING;
   }
+  mtev_lua_resume_clean_events(ri);
+  mtev_lua_cancel_coro(ri);
 
  done:
   return result;
@@ -1022,6 +1036,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     /* Our coro is still "in-flight". To fix this we will unreference
      * it, garbage collect it and then ensure that it failes a resume
      */
+    mtev_lua_resume_clean_events(ri);
     mtev_lua_cancel_coro(ri);
   }
   if(check) {
@@ -1031,7 +1046,6 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   }
 
   noit_lua_log_results(self, check);
-  noit_lua_module_cleanup(self, check);
   check->flags &= ~NP_RUNNING;
 
   if(int_cl->free) int_cl->free(int_cl);
@@ -1054,19 +1068,18 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   mtev_lua_resume_info_t *ri;
   noit_lua_resume_check_info_t *ci;
   struct timeval p_int, __now;
-  eventer_t e;
 
   if(!check->closure) {
-    check->closure = calloc(1, sizeof(mtev_lua_resume_info_t));
-    ri = check->closure;
-    ri->bound_thread = pthread_self();
+    ri = lua_noit_new_resume_info(lmc);
+    check->closure = ri;
+    mtevAssert(ri->context_data == NULL);
+    lua_pop(L, 1);
   }
   else {
     ri = check->closure;
   }
   ci = ri->context_data;
   if(!ci) {
-    ri->context_magic = LUA_CHECK_INFO_MAGIC;
     ri->context_data = calloc(1, sizeof(noit_lua_resume_check_info_t));
     ci = ri->context_data;
   }
@@ -1075,6 +1088,8 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
+  if(!ri->coro_state) mtev_lua_new_coro(ri);
+
   /* this will config & init if it hasn't happened yet */
   noit_lua_module_config(self, NULL);
   noit_lua_module_init(self);
@@ -1082,6 +1097,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ci->self = self;
   ci->check = check;
   ci->cause = cause;
+  mtevAssert(ci->check != NULL);
 
   mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
@@ -1092,13 +1108,13 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   int_cl->free = int_cl_free;
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
-  e = eventer_in(noit_lua_check_timeout, int_cl, p_int);
-  mtev_lua_register_event(ri, e);
-  eventer_add(e);
+  ci->timeout_event = eventer_in(noit_lua_check_timeout, int_cl, p_int);
+  mtev_lua_register_event(ri, ci->timeout_event);
+  eventer_add(ci->timeout_event);
 
   ri->lmc = lmc;
   // ri->check = check; /* This is the coroutine from which the check is run */
-  mtev_lua_new_coro(ri);
+  //mtev_lua_new_coro(ri);
 
   SETUP_CALL(ri->coro_state, object, "initiate", goto fail);
   noit_lua_setup_module(ri->coro_state, ci->self);
@@ -1112,7 +1128,6 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
 
  fail:
   noit_lua_log_results(ci->self, ci->check);
-  noit_lua_module_cleanup(ci->self, ci->check);
   check->flags &= ~NP_RUNNING;
   return -1;
 }
@@ -1224,13 +1239,15 @@ describe_lua_check_context(mtev_console_closure_t ncct,
                            mtev_lua_resume_info_t *ri) {
   char uuid_str[UUID_STR_LEN+1];
   noit_lua_resume_check_info_t *ci = ri->context_data;
-  nc_printf(ncct, "lua_check(state:%p, parent:%p)\n",
-            ri->coro_state, mtev_lua_lmc_L(ri->lmc));
-  uuid_unparse_lower(ci->check->checkid, uuid_str);
-  nc_printf(ncct, "\tcheck: %s\n", uuid_str);
-  nc_printf(ncct, "\tname: %s\n", ci->check->name);
-  nc_printf(ncct, "\tmodule: %s\n", ci->check->module);
-  nc_printf(ncct, "\ttarget: %s\n", ci->check->target);
+  nc_printf(ncct, "lua_check(ri: %p, state:%p, parent:%p)\n",
+            ri, ri->coro_state, mtev_lua_lmc_L(ri->lmc));
+  if(ci) {
+    uuid_unparse_lower(ci->check->checkid, uuid_str);
+    nc_printf(ncct, "\tcheck: %s\n", uuid_str);
+    nc_printf(ncct, "\tname: %s\n", ci->check->name);
+    nc_printf(ncct, "\tmodule: %s\n", ci->check->module);
+    nc_printf(ncct, "\ttarget: %s\n", ci->check->target);
+  }
 }
 
 static int
