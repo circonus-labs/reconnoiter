@@ -169,9 +169,10 @@ resolver_cache_init(mtev_dso_generic_t *self) {
   if(resolver_cache_file == NULL) {
     const char ifs_str[2] = { IFS_CH, '\0' };
     char path[MAXPATHLEN];
-    const char *file;
-    file = mtev_conf_config_filename();
-    strlcpy(path, file, sizeof(path));
+    char *config_file, *file;
+    config_file = mtev_conf_config_filename();
+    strlcpy(path, config_file, sizeof(path));
+    free(config_file);
     file = dirname(path);
     if(file != path) strlcpy(path, file, sizeof(path));
     strlcat(path, ifs_str, sizeof(path));

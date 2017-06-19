@@ -1152,7 +1152,7 @@ noit_lua_loader_load(mtev_dso_loader_t *loader,
   m->hdr.onload = noit_lua_module_onload;
   mc = calloc(1, sizeof(*mc));
   mc->c = c;
-  mc->object = strdup(object);
+  mc->object = object;
   pthread_key_create(&mc->key, NULL);
   noit_module_set_userdata(m, mc);
 
