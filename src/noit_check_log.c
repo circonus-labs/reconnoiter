@@ -43,7 +43,6 @@
 #include "noit_filters.h"
 #include "bundle.pb-c.h"
 #include "noit_check_log_helpers.h"
-#include "noit_check_log.h"
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_check_log_helpers.c):

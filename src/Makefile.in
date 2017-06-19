@@ -147,7 +147,7 @@ FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 FINAL_LIBNOIT_OBJS=$(LIBNOIT_OBJS:%.lo=libnoit-objs/%.lo)
 
 flatbuffers/%_builder.h: flatbuffers/%.fbs
-	$(FLATCC) -a -o flatbuffers --json $<
+	$(Q)$(FLATCC) -a -o flatbuffers --json $<
 
 flatbuffers/flatbuffers_common_builder.h: flatbuffers/metric_builder.h
 flatbuffers/flatbuffers_common_reader.h: flatbuffers/metric_builder.h
