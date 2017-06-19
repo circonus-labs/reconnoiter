@@ -159,3 +159,4 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
   *len = strlen(j);
   mtev_json_object_put(o);
 }
+

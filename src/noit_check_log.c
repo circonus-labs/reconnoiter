@@ -6,7 +6,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -37,11 +37,13 @@
 #include <netinet/in.h>
 
 #include "noit_dtrace_probes.h"
+#include "noit_fb.h"
 #include "noit_mtev_bridge.h"
 #include "noit_check.h"
 #include "noit_filters.h"
 #include "bundle.pb-c.h"
 #include "noit_check_log_helpers.h"
+#include "noit_check_log.h"
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_check_log_helpers.c):
@@ -72,7 +74,10 @@
  * UUID:
  *    lower-cased-uuid
  *  | TARGET`MODULE`NAME`lower-cased-uuid
- *  
+ *
+ * BINARY
+ *  'BF' strlen(base64(flatbuffer payload)) base64(flatbuffer payload)
+ *
  */
 
 static mtev_log_stream_t check_log = NULL;
@@ -231,6 +236,73 @@ noit_check_log_status(noit_check_t *check) {
     SETUP_LOG(status, return);
     _noit_check_log_status(status_log, check);
   }
+}
+
+static int
+account_id_from_name(const char *check_name)
+{
+  int account_id = 0;
+  char *x = strstr(check_name, "`c_");
+  if (x != NULL) {
+    /* take advantage of atoi parsing numbers until the first non-number */
+    account_id = atoi(x + 3);
+  }
+  return account_id;
+}
+
+static int
+noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
+                                                      noit_check_t *check,
+                                                      struct timeval *whence,
+                                                      metric_t *m)
+{
+  int rv = 0;
+  char check_name[256 * 3] = {0};
+  char uuid_str[UUID_STR_LEN + 1];
+  int len = sizeof(check_name);
+
+  static char *ip_str = "ip";
+
+  if(!noit_apply_filterset(check->filterset, check, m)) return 0;
+  if(m->logged) return 0;
+
+  const char *v;
+  mtev_boolean extended_id = mtev_false;
+  v = mtev_log_stream_get_property(ls, "extended_id");
+  if(v && !strcmp(v, "on")) extended_id = mtev_true;
+  check_name[0] = '\0';
+  if(extended_id) {
+    strlcat(check_name, check->target, len);
+    strlcat(check_name, "`", len);
+    strlcat(check_name, check->module, len);
+    strlcat(check_name, "`", len);
+    strlcat(check_name, check->name, len);
+    strlcat(check_name, "`", len);
+  }
+
+  uuid_str[0] = '\0';
+  uuid_unparse_lower(check->checkid, uuid_str);
+
+  size_t size = 0;
+  /* TODO: this is a circonus specific line based on how we name checks
+   *
+   * Could be a hook?
+   */
+  int account_id = account_id_from_name(check_name);
+  void *buffer = noit_fb_serialize_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id,
+                                               m, &size);
+
+  unsigned int outsize;
+  char *outbuf = NULL;
+  noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, size, &outbuf, &outsize);
+
+  rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                "BF\t%d\t%.*s\n", (int)size,
+                (unsigned int)outsize, outbuf);
+  free(outbuf);
+  free(buffer);
+  return rv;
+
 }
 
 static int
@@ -457,6 +529,71 @@ _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m)
 }
 
 static int
+noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
+  int rv = 0;
+  static char *ip_str = "ip";
+  char check_name[256 * 3] = {0};
+  char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
+  int len = sizeof(check_name);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
+  const char *key;
+  int klen, i=0, size, j;
+  unsigned int out_size;
+  stats_t *c;
+  void *vm;
+  struct timeval *whence;
+  char *buf, *out_buf;
+  mtev_hash_table *metrics;
+
+  c = noit_check_get_stats_current(check);
+  whence = noit_check_stats_whence(c, NULL);
+
+  const char *v;
+  mtev_boolean extended_id = mtev_false;
+  v = mtev_log_stream_get_property(ls, "extended_id");
+  if(v && !strcmp(v, "on")) extended_id = mtev_true;
+  check_name[0] = '\0';
+  if(extended_id) {
+    strlcat(check_name, check->target, len);
+    strlcat(check_name, "`", len);
+    strlcat(check_name, check->module, len);
+    strlcat(check_name, "`", len);
+    strlcat(check_name, check->name, len);
+    strlcat(check_name, "`", len);
+  }
+
+  uuid_str[0] = '\0';
+  uuid_unparse_lower(check->checkid, uuid_str);
+
+  metrics = noit_check_stats_metrics(c);
+
+  int account_id = account_id_from_name(check_name);
+  void *B = noit_fb_start_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id);
+
+  while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
+    /* If we apply the filter set and it returns false, we don't log */
+    metric_t *m = (metric_t *)vm;
+    if(!noit_apply_filterset(check->filterset, check, m)) continue;
+    if(m->logged) continue;
+    noit_fb_add_metric_to_metricbatch(B, m);
+  }
+
+  size_t fb_size;
+  void *buffer = noit_fb_finalize_metricbatch(B, &fb_size);
+  char *outbuf;
+  unsigned int outsize;
+  noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, fb_size, &outbuf, &outsize);
+
+  rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                "BF\t%d\t%.*s\n", (int)size,
+                (unsigned int)outsize, outbuf);
+  free(outbuf);
+  free(buffer);
+  return rv;
+}
+
+static int
 noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
   static char *ip_str = "ip";
@@ -561,7 +698,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     size = bundle__get_packed_size(bundle);
     buf = malloc(size);
     bundle__pack(bundle, (uint8_t*)buf);
-  
+
     // Compress + B64
     comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
     noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
@@ -571,7 +708,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
                   SECPART(whence), MSECPART(whence),
                   uuid_str, check->target, check->module, check->name, size,
                   (unsigned int)out_size, out_buf);
-  
+
     free(buf);
     free(out_buf);
     // Free all the resources
@@ -595,6 +732,7 @@ noit_check_log_bundle(noit_check_t *check) {
   if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_STATUS | NP_SUPPRESS_METRICS))) {
     SETUP_LOG(bundle, return);
     noit_check_log_bundle_serialize(bundle_log, check);
+    //noit_check_log_bundle_fb_serialize(bundle_log, check);
   }
 }
 

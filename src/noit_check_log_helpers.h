@@ -36,7 +36,8 @@
 
 typedef enum {
   NOIT_COMPRESS_NONE = 0,
-  NOIT_COMPRESS_ZLIB = 1
+  NOIT_COMPRESS_ZLIB = 1,
+  NOIT_COMPRESS_LZ4 = 2
 } noit_compression_type_t;
 
 int

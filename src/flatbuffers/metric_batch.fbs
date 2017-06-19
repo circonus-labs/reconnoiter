@@ -1,0 +1,16 @@
+include "metric_common.fbs";
+
+namespace circonus;
+
+// save the repetition of the timestamp, check_uuid, check_name and account_id
+// note that timestamp can be optionally overridden at the MetricValue level
+table MetricBatch {
+      timestamp: ulong (id: 0); 
+      check_name: string (id: 1);
+      check_uuid: string (id: 2);
+      account_id: int (id: 3);
+      metrics: [MetricValue] (id: 4);
+}
+
+root_type MetricBatch;
+file_identifier "CIMB";

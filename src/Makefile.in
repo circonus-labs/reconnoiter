@@ -51,6 +51,7 @@ XML2H=@top_srcdir@/buildtools/xml2h
 MAPFLAGS=@MAPFLAGS@
 CTFCONVERT=@CTFCONVERT@
 CTFMERGE=@CTFMERGE@
+FLATCC=@FLATCC@
 
 # Later versions of ctf* tools no longer have -g and by default do not strip,
 # so we get the same behavior as with -g on older versions.
@@ -82,8 +83,31 @@ tests:
 
 MODDIR=modules
 
-HEADERS=noit_metric.h noit_check_log_helpers.h noit_check_tools_shared.h \
-	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h
+FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
+	flatbuffers/flatbuffers_common_reader.h \
+	flatbuffers/metric_builder.h \
+	flatbuffers/metric_json_parser.h \
+	flatbuffers/metric_json_printer.h \
+	flatbuffers/metric_reader.h \
+	flatbuffers/metric_verifier.h \
+	flatbuffers/metric_batch_builder.h \
+	flatbuffers/metric_batch_json_parser.h \
+	flatbuffers/metric_batch_json_printer.h \
+	flatbuffers/metric_batch_reader.h \
+	flatbuffers/metric_batch_verifier.h \
+	flatbuffers/metric_common_builder.h \
+	flatbuffers/metric_common_json_parser.h \
+	flatbuffers/metric_common_json_printer.h \
+	flatbuffers/metric_common_reader.h \
+	flatbuffers/metric_common_verifier.h \
+	flatbuffers/metric_list_builder.h \
+	flatbuffers/metric_list_json_parser.h \
+	flatbuffers/metric_list_json_printer.h \
+	flatbuffers/metric_list_reader.h \
+	flatbuffers/metric_list_verifier.h
+
+HEADERS=noit_metric.h noit_fb.h noit_check_log_helpers.h noit_check_tools_shared.h \
+	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h $(FLATBUFFERS_HEADERS)
 
 NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_check_rest.h noit_check_tools.h \
@@ -98,15 +122,15 @@ STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_ingest.h \
 ENABLE_LUA=@ENABLE_LUA@
 LUALIBS=@LUALIBS@
 
-LIBNOIT_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
+LIBNOIT_OBJS=noit_check_log_helpers.lo noit_fb.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
 	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o
 
 NOIT_OBJS=noitd.o noit_mtev_bridge.o \
-	noit_check_resolver.o \
-	noit_check.o noit_check_log.o noit_check_tools.o \
+	noit_check_resolver.o noit_check_log.o \
+	noit_check.o noit_check_tools.o \
 	noit_module.o noit_conf_checks.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_check_rest.o noit_filters_rest.o noit_websocket_handler.o \
@@ -121,6 +145,16 @@ STRATCON_OBJS=stratcond.o noit_mtev_bridge.o \
 FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
 FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 FINAL_LIBNOIT_OBJS=$(LIBNOIT_OBJS:%.lo=libnoit-objs/%.lo)
+
+flatbuffers/%_builder.h: flatbuffers/%.fbs
+	$(FLATCC) -a -o flatbuffers --json $<
+
+flatbuffers/flatbuffers_common_builder.h: flatbuffers/metric_builder.h
+flatbuffers/flatbuffers_common_reader.h: flatbuffers/metric_builder.h
+flatbuffers/%_json_parser.h: flatbuffers/%_builder.h
+flatbuffers/%_json_printer.h: flatbuffers/%_builder.h
+flatbuffers/%_reader.h: flatbuffers/%_builder.h
+flatbuffers/%_verifier.h: flatbuffers/%_builder.h
 
 noit-objs/%.o:	%.o
 	$(Q)mkdir -p "`dirname $@`"
@@ -162,7 +196,7 @@ java-bits:
 
 .PHONY:	reversion
 
-reversion:
+reversion: $(FLATBUFFERS_HEADERS)
 	$(Q)$(top_srcdir)/buildtools/mkversion.sh noit_version.h
 
 noit_version.h:
@@ -178,8 +212,8 @@ man/noitd.usage.h:	make-man
 man/stratcond.usage.h:	make-man
 
 
-noitd.o:	man/noitd.usage.h
-stratcond.o:	man/stratcond.usage.h
+noitd.o: man/noitd.usage.h
+stratcond.o: man/stratcond.usage.h
 
 stratcon_jlog_streamer.o:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
 noit_check_tools.o:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
@@ -189,9 +223,9 @@ dtrace_probes.h:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@ libnoit_@DTRACEHDR@
 $(LIBNOIT):	$(LIBNOIT_V)
 	$(Q)ln -sf $(LIBNOIT_V) $(LIBNOIT)
 
-$(LIBNOIT_V):	$(FINAL_LIBNOIT_OBJS)
+$(LIBNOIT_V):	$(FLATBUFFERS_HEADERS) $(FINAL_LIBNOIT_OBJS)
 	@echo "- linking $@"
-	$(Q)$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. -lmtev
+	$(Q)$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. -lmtev -llz4 -lflatccrt
 
 stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 	@echo "- assembling $@"
@@ -342,6 +376,7 @@ install-stratcond-headers:	$(STRATCON_HEADERS) install-headers
 install-headers:	$(HEADERS)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/flatbuffers
 	$(INSTALL) -m 0755 ../buildtools/xml2h $(DESTDIR)$(bindir)/noit-xml2h
 	$(INSTALL) -m 0755 scripts/noit-config $(DESTDIR)$(bindir)/noit-config
 	for file in $(HEADERS) ; do \
@@ -392,6 +427,7 @@ clean:
 	rm -f module-online.h noit.env
 	rm -rf noit-objs stratcon-objs libnoit-objs
 	rm -rf mdb-support/*.lo mdb-support/*.so
+	rm -rf $(FLATBUFFERS_HEADERS)
 	(cd man && $(MAKE) clean)
 	(cd modules && $(MAKE) clean)
 	(cd java && $(MAKE) clean)

@@ -1,0 +1,11 @@
+include "metric.fbs";
+
+// Metric message
+namespace circonus;
+
+table MetricList {
+      metrics:[Metric] (id: 0);
+}
+
+root_type MetricList;
+file_identifier "CIML";

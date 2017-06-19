@@ -328,8 +328,8 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   struct dns_parse p;
   struct dns_rr rr;
   unsigned nrr;
-  struct in_addr *answers4;
-  struct in6_addr *answers6;
+  struct in_addr *answers4 = NULL;
+  struct in6_addr *answers6 = NULL;
   const unsigned char *pkt, *cur, *end;
 
   if(!result) goto blank;

@@ -311,6 +311,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
   const char *cn_expected, *feedtype;
   GET_EXPECTED_CN(nctx, cn_expected);
   GET_FEEDTYPE(nctx, feedtype);
+  (void)feedtype;
+  (void)cn_expected;
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
     if(write(e->fd, e, 0) == -1)

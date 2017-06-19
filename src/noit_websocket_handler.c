@@ -29,6 +29,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
+#include <stdio.h>
+#undef _GNU_SOURCE
+
 #include <mtev_defines.h>
 #include <eventer/eventer.h>
 #include <mtev_listener.h>

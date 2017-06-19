@@ -67,8 +67,18 @@ API_EXPORT(int)
 API_EXPORT(void)
   noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs);
 
-#define CHOOSE_EVENTER_THREAD_FOR_CHECK(check) \
-  eventer_choose_owner(((int)((*((intptr_t *)check->checkid))/sizeof(*(check))))*2654435761)
+static inline int
+noit_check_uuid_to_integer(uuid_t uuid)
+{
+  unsigned char *x = (unsigned char *)uuid;
+  int *y = (int *) x;
+  return *y;
+}
+
+#define CHOOSE_EVENTER_THREAD_FOR_CHECK(check)  \
+  eventer_choose_owner(noit_check_uuid_to_integer(check->checkid) / \
+                       sizeof(*(check)) *                           \
+                       2654435761)
 
 /*#* DOCBOOK
  * <section><title>Check Hooks</title>
