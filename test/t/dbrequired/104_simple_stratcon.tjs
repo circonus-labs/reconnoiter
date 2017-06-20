@@ -19,7 +19,7 @@ test = function() {
         conn.request({path:'/noits/show'}, function(code, xml) {
           test.is(code, 200, 'show noits');
           parseString(xml, function (err, result) {
-            test.is(result.noits, '', 'no noits configured');
+            test.is(result ? result.noits : null, '', 'no noits configured');
             done();
           });
         });
@@ -34,7 +34,7 @@ test = function() {
         conn.request({path:'/noits/show'}, function(code, xml) {
           test.is(code, 200, 'show noits');
           parseString(xml, function (err, result) {
-            test.is(result.noits.noit.length, 2, 'two noit slots');
+            test.is(result && result.noits && result.noits.noit ? result.noits.noit.length : 0, 2, 'two noit slots');
             done();
           });
         });
@@ -49,7 +49,7 @@ test = function() {
         conn.request({path:'/noits/show'}, function(code, xml) {
           test.is(code, 200, 'show noits');
           parseString(xml, function (err, result) {
-            test.is(result.noits, '', 'no noits configured');
+            test.is(result ? result.noits : null, '', 'no noits configured');
             done();
           });
         });
