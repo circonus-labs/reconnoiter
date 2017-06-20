@@ -537,7 +537,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
   const char *key;
-  int klen, i=0, size, j;
+  int klen, i=0, j;
   unsigned int out_size;
   stats_t *c;
   void *vm;
@@ -585,7 +585,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, fb_size, &outbuf, &outsize);
 
   rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                "BF\t%d\t%.*s\n", (int)size,
+                "BF\t%d\t%.*s\n", (int)fb_size,
                 (unsigned int)outsize, outbuf);
   free(outbuf);
   free(buffer);
