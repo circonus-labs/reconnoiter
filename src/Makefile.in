@@ -146,15 +146,11 @@ FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
 FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 FINAL_LIBNOIT_OBJS=$(LIBNOIT_OBJS:%.lo=libnoit-objs/%.lo)
 
-flatbuffers/%_builder.h: flatbuffers/%.fbs
+flatbuffers/%_json_parser.h flatbuffers/%_json_printer.h flatbuffers/%_reader.h flatbuffers/%_verifier.h flatbuffers/%_builder.h: flatbuffers/%.fbs
 	$(Q)$(FLATCC) -a -o flatbuffers --json $<
 
 flatbuffers/flatbuffers_common_builder.h: flatbuffers/metric_builder.h
 flatbuffers/flatbuffers_common_reader.h: flatbuffers/metric_builder.h
-flatbuffers/%_json_parser.h: flatbuffers/%_builder.h
-flatbuffers/%_json_printer.h: flatbuffers/%_builder.h
-flatbuffers/%_reader.h: flatbuffers/%_builder.h
-flatbuffers/%_verifier.h: flatbuffers/%_builder.h
 
 noit-objs/%.o:	%.o
 	$(Q)mkdir -p "`dirname $@`"
