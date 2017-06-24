@@ -133,7 +133,18 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
   }
 
   mtev_stream_decompress_ctx_t *ctx = mtev_create_stream_decompress_ctx();
-  mtev_stream_decompress_init(ctx, ctype);
+
+  switch(ctype) {
+    case NOIT_COMPRESS_ZLIB:
+      mtev_stream_decompress_init(ctx, MTEV_COMPRESS_GZIP);
+      break;
+    case NOIT_COMPRESS_LZ4:
+      mtev_stream_decompress_init(ctx, MTEV_COMPRESS_LZ4F);
+      break;
+    case NOIT_COMPRESS_NONE:
+      mtev_stream_decompress_init(ctx, MTEV_COMPRESS_NONE);
+      break;
+  }
 
   if (0 != mtev_stream_decompress(ctx, (const unsigned char *)compbuff, &dlen, (unsigned char *)buf_out, (size_t *)&len_out)) {
     mtevL(noit_error, "Failed to decompress b64 encoded chunk\n");
