@@ -325,11 +325,16 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
     free(*out);
     *out = NULL;
   }
-  if(error_str) mtevL(noit_error, "bundle: bad line '%.*s' due to %s\n", len, line, error_str);
-  assert(!error_str);
+  if(error_str) {
+    mtevL(noit_error, "bundle: bad line '%.*s' due to %s\n", len, line, error_str);
+    cnt = 0;
+    has_status = 0;
+  }
+
  good_line:
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);
+
   return cnt + has_status;
 }
 
