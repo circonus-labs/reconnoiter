@@ -36,7 +36,7 @@
 #include "noit_check.h"
 #include "noit_filters.h"
 #include <curl/curl.h>
-
+#include <sys/mman.h>
 #include <errno.h>
 
 #define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
