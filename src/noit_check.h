@@ -406,6 +406,12 @@ API_EXPORT(void)
 API_EXPORT(xmlNodePtr)
   noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent);
 
+API_EXPORT(int)
+  noit_check_process_repl(xmlDocPtr);
+
+API_EXPORT(void)
+  noit_check_build_cluster_changelog(void *);
+
 MTEV_HOOK_PROTO(check_config_fixup,
                 (noit_check_t *check),
                 void *, closure,

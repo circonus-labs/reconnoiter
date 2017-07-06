@@ -43,8 +43,8 @@
 void noit_mtev_cluster_init();
 
 mtev_boolean noit_should_run_check(noit_check_t *, mtev_cluster_node_t **);
-void noit_cluster_mark_check_changed(noit_check_t *check);
-void noit_cluster_mark_filter_changed(const char *name);
+void noit_cluster_mark_check_changed(noit_check_t *check, void *vpeer);
+void noit_cluster_mark_filter_changed(const char *name, void *vpeer);
 
 void
   noit_cluster_xml_check_changes(uuid_t peerid, const char *cn,

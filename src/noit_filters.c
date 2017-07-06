@@ -265,7 +265,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     used_new_one = mtev_true;
   }
   UNLOCKFS();
-  if(used_new_one) noit_cluster_mark_filter_changed(set->name);
+  if(used_new_one && set->seq >= 0) noit_cluster_mark_filter_changed(set->name, NULL);
   return used_new_one;
 }
 int
@@ -326,11 +326,12 @@ noit_filters_process_repl(xmlDocPtr doc) {
   mtevAssert(filtersets);
   for(child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
+
+    char filterset_name[256];
+    mtevAssert(mtev_conf_get_stringbuf(child, "@name",
+                                       filterset_name, sizeof(filterset_name)));
     if(noit_filter_compile_add(child)) {
-      char filterset_name[256];
       char xpath[1024];
-      mtevAssert(mtev_conf_get_stringbuf(child, "@name",
-                                         filterset_name, sizeof(filterset_name)));
 
       snprintf(xpath, sizeof(xpath), "/noit/filtersets//filterset[@name=\"%s\"]",
                filterset_name);
@@ -351,6 +352,7 @@ noit_filters_process_repl(xmlDocPtr doc) {
     mtevL(noit_error, "local config write failed\n");
   return i;
 }
+
 void
 noit_refresh_filtersets(mtev_console_closure_t ncct,
                         mtev_conf_t_userdata_t *info) {
@@ -694,6 +696,16 @@ filterset_accum(noit_check_t *check, void *closure) {
   return 0;
 }
 
+void
+noit_filtersets_build_cluster_changelog(void *vpeer) {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  LOCKFS();
+  while(mtev_hash_adv(filtersets, &iter)) {
+    filterset_t *set = iter.value.ptr;
+    if(set->seq >= 0) noit_cluster_mark_filter_changed(set->name, vpeer);
+  }
+  UNLOCKFS();
+}
 int
 noit_filtersets_cull_unused() {
   mtev_hash_table active;

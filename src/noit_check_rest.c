@@ -479,7 +479,6 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   SHOW_ATTR(attr,node,module);
   SHOW_ATTR(attr,node,target);
   SHOW_ATTR(attr,node,resolve_rtype);
-  SHOW_ATTR(attr,node,seq);
   SHOW_ATTR(attr,node,period);
   SHOW_ATTR(attr,node,timeout);
   SHOW_ATTR(attr,node,oncheck);
@@ -675,6 +674,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
         }
         else CHECK_N_SET(seq) {}
         else {
+          mtevL(mtev_debug, "Unknown check set option: %s\n", an->name);
           *error = "unknown option specified";
           return 0;
         }
@@ -1036,9 +1036,8 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
   const char *end_str = mtev_http_request_querystring(req, "end"); 
   if(end_str) end = strtoll(end_str, NULL, 10);
   const char *peer_str = mtev_http_request_querystring(req, "peer");
-  const char *cn_str = mtev_http_request_querystring(req, "cn");
   uuid_t peerid;
-  if(!peer_str || !cn_str || mtev_uuid_parse(peer_str, peerid) != 0) {
+  if(!peer_str || !restc->remote_cn || mtev_uuid_parse(peer_str, peerid) != 0) {
     mtev_http_response_server_error(ctx, "text/xml");
     mtev_http_response_end(ctx);
     return 0;
@@ -1047,7 +1046,7 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewNode(NULL, (xmlChar *)"checks");
   xmlDocSetRootElement(doc, root);
-  noit_cluster_xml_check_changes(peerid, cn_str, prev, end, root);
+  noit_cluster_xml_check_changes(peerid, restc->remote_cn, prev, end, root);
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);

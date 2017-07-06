@@ -540,161 +540,164 @@ noit_check_fake_last_check(noit_check_t *check,
   /* now, we're going to do an even distribution using the slots */
   if(!(check->flags & NP_TRANSIENT)) check_slots_inc_tv(&lc_copy);
 }
+static void
+noit_poller_process_check_conf(mtev_conf_section_t node) {
+  void *vcheck;
+  char uuid_str[37];
+  char target[256] = "";
+  char module[256] = "";
+  char name[256] = "";
+  char filterset[256] = "";
+  char oncheck[1024] = "";
+  char resolve_rtype[16] = "";
+  int ridx, flags, found;
+  int no_period = 0;
+  int no_oncheck = 0;
+  int period = 0, timeout = 0;
+  mtev_boolean disabled = mtev_false, busted = mtev_false;
+  uuid_t uuid, out_uuid;
+  int64_t config_seq = 0;
+  mtev_hash_table *options;
+  mtev_hash_table **moptions = NULL;
+  mtev_boolean moptions_used = mtev_false, backdated = mtev_false;
+
+  /* We want to heartbeat here... otherwise, if a lot of checks are 
+   * configured or if we're running on a slower system, we could 
+   * end up getting watchdog killed before we get a chance to run 
+   * any checks */
+  mtev_watchdog_child_heartbeat();
+
+  if(reg_module_id > 0) {
+    moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
+    memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
+    moptions_used = mtev_true;
+  }
+
+#define MYATTR(type,a,...) mtev_conf_get_##type(node, "@" #a, __VA_ARGS__)
+#define INHERIT(type,a,...) \
+  mtev_conf_get_##type(node, "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+
+  if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
+    mtevL(noit_stderr, "check has no uuid\n");
+    return;
+  }
+  if(mtev_conf_env_off(node, NULL)) {
+    mtevL(noit_stderr, "check %s environmentally disabled.\n", uuid_str);
+    return;
+  }
+
+  MYATTR(int64, seq, &config_seq);
+
+  if(uuid_parse(uuid_str, uuid)) {
+    mtevL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
+    return;
+  }
+
+  if(!INHERIT(stringbuf, target, target, sizeof(target))) {
+    mtevL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
+    busted = mtev_true;
+  }
+  if(!noit_check_validate_target(target)) {
+    mtevL(noit_stderr, "check uuid: '%s' has malformed target\n", uuid_str);
+    busted = mtev_true;
+  }
+  if(!INHERIT(stringbuf, module, module, sizeof(module))) {
+    mtevL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
+    busted = mtev_true;
+  }
+
+  if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
+    filterset[0] = '\0';
+
+  if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype)))
+    strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
+
+  if(!MYATTR(stringbuf, name, name, sizeof(name)))
+    strlcpy(name, module, sizeof(name));
+
+  if(!noit_check_validate_name(name)) {
+    mtevL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
+    busted = mtev_true;
+  }
+
+  if(!INHERIT(int, period, &period) || period == 0)
+    no_period = 1;
+
+  if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
+    no_oncheck = 1;
+
+  if(no_period && no_oncheck) {
+    mtevL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
+          uuid_str);
+    busted = mtev_true;
+  }
+  if(!(no_period || no_oncheck)) {
+    mtevL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
+          uuid_str);
+    busted = mtev_true;
+  }
+  if(!INHERIT(int, timeout, &timeout)) {
+    mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
+    busted = mtev_true;
+  }
+  if(!no_period && timeout >= period) {
+    mtevL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
+    timeout = period/2;
+  }
+  options = mtev_conf_get_hash(node, "config");
+  for(ridx=0; ridx<reg_module_id; ridx++) {
+    moptions[ridx] = mtev_conf_get_namespaced_hash(node, "config",
+                                                   reg_module_names[ridx]);
+  }
+
+  INHERIT(boolean, disable, &disabled);
+  flags = 0;
+  if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
+  else if(disabled) flags |= NP_DISABLED;
+
+  flags |= noit_calc_rtype_flag(resolve_rtype);
+
+  pthread_mutex_lock(&polls_lock);
+  found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
+  if(found) {
+    noit_check_t *check = (noit_check_t *)vcheck;
+    /* Possibly reset the seq */
+    if(config_seq < 0) check->config_seq = 0;
+
+    /* Otherwise note a non-increasing sequence */
+    if(check->config_seq > config_seq) backdated = mtev_true;
+  }
+  pthread_mutex_unlock(&polls_lock);
+  if(found)
+    noit_poller_deschedule(uuid, mtev_false);
+  if(backdated) {
+    mtevL(noit_error, "Check config seq backwards, ignored\n");
+    if(found) noit_check_log_delete((noit_check_t *)vcheck);
+  }
+  else {
+    noit_poller_schedule(target, module, name, filterset, options,
+                         moptions_used ? moptions : NULL,
+                         period, timeout, oncheck[0] ? oncheck : NULL,
+                         config_seq, flags, uuid, out_uuid);
+    mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
+  }
+  for(ridx=0; ridx<reg_module_id; ridx++) {
+    if(moptions[ridx]) {
+      mtev_hash_destroy(moptions[ridx], free, free);
+      free(moptions[ridx]);
+    }
+  }
+  mtev_hash_destroy(options, free, free);
+  free(options);
+}
 void
 noit_poller_process_checks(const char *xpath) {
-  int i, flags, cnt = 0, found;
+  int i, cnt = 0;
   mtev_conf_section_t *sec;
   __config_load_generation++;
   sec = mtev_conf_get_sections(NULL, xpath, &cnt);
   for(i=0; i<cnt; i++) {
-    void *vcheck;
-    char uuid_str[37];
-    char target[256] = "";
-    char module[256] = "";
-    char name[256] = "";
-    char filterset[256] = "";
-    char oncheck[1024] = "";
-    char resolve_rtype[16] = "";
-    int ridx;
-    int no_period = 0;
-    int no_oncheck = 0;
-    int period = 0, timeout = 0;
-    mtev_boolean disabled = mtev_false, busted = mtev_false;
-    uuid_t uuid, out_uuid;
-    int64_t config_seq = 0;
-    mtev_hash_table *options;
-    mtev_hash_table **moptions = NULL;
-    mtev_boolean moptions_used = mtev_false, backdated = mtev_false;
-
-    /* We want to heartbeat here... otherwise, if a lot of checks are 
-     * configured or if we're running on a slower system, we could 
-     * end up getting watchdog killed before we get a chance to run 
-     * any checks */
-    mtev_watchdog_child_heartbeat();
-
-    if(reg_module_id > 0) {
-      moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
-      memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
-      moptions_used = mtev_true;
-    }
-
-#define NEXT(...) mtevL(noit_stderr, __VA_ARGS__); continue
-#define MYATTR(type,a,...) mtev_conf_get_##type(sec[i], "@" #a, __VA_ARGS__)
-#define INHERIT(type,a,...) \
-  mtev_conf_get_##type(sec[i], "ancestor-or-self::node()/@" #a, __VA_ARGS__)
-
-    if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
-      mtevL(noit_stderr, "check %d has no uuid\n", i+1);
-      continue;
-    }
-    if(mtev_conf_env_off(sec[i], NULL)) {
-      mtevL(noit_stderr, "check %s environmentally disabled.\n", uuid_str);
-      continue;
-    }
-
-    MYATTR(int64, seq, &config_seq);
-
-    if(uuid_parse(uuid_str, uuid)) {
-      mtevL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
-      continue;
-    }
-
-    if(!INHERIT(stringbuf, target, target, sizeof(target))) {
-      mtevL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
-      busted = mtev_true;
-    }
-    if(!noit_check_validate_target(target)) {
-      mtevL(noit_stderr, "check uuid: '%s' has malformed target\n", uuid_str);
-      busted = mtev_true;
-    }
-    if(!INHERIT(stringbuf, module, module, sizeof(module))) {
-      mtevL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
-      busted = mtev_true;
-    }
-
-    if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
-      filterset[0] = '\0';
-
-    if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype)))
-      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
-
-    if(!MYATTR(stringbuf, name, name, sizeof(name)))
-      strlcpy(name, module, sizeof(name));
-
-    if(!noit_check_validate_name(name)) {
-      mtevL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
-      busted = mtev_true;
-    }
-
-    if(!INHERIT(int, period, &period) || period == 0)
-      no_period = 1;
-
-    if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
-      no_oncheck = 1;
-
-    if(no_period && no_oncheck) {
-      mtevL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
-            uuid_str);
-      busted = mtev_true;
-    }
-    if(!(no_period || no_oncheck)) {
-      mtevL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
-            uuid_str);
-      busted = mtev_true;
-    }
-    if(!INHERIT(int, timeout, &timeout)) {
-      mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
-      busted = mtev_true;
-    }
-    if(!no_period && timeout >= period) {
-      mtevL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
-      timeout = period/2;
-    }
-    options = mtev_conf_get_hash(sec[i], "config");
-    for(ridx=0; ridx<reg_module_id; ridx++) {
-      moptions[ridx] = mtev_conf_get_namespaced_hash(sec[i], "config",
-                                                     reg_module_names[ridx]);
-    }
-
-    INHERIT(boolean, disable, &disabled);
-    flags = 0;
-    if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
-    else if(disabled) flags |= NP_DISABLED;
-
-    flags |= noit_calc_rtype_flag(resolve_rtype);
-
-    pthread_mutex_lock(&polls_lock);
-    found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
-    if(found) {
-      noit_check_t *check = (noit_check_t *)vcheck;
-      /* Possibly reset the seq */
-      if(config_seq < 0) check->config_seq = 0;
-
-      /* Otherwise note a non-increasing sequence */
-      if(check->config_seq > config_seq) backdated = mtev_true;
-    }
-    pthread_mutex_unlock(&polls_lock);
-    if(found)
-      noit_poller_deschedule(uuid, mtev_false);
-    if(backdated) {
-      mtevL(noit_error, "Check config seq backwards, ignored\n");
-      if(found) noit_check_log_delete((noit_check_t *)vcheck);
-    }
-    else {
-      noit_poller_schedule(target, module, name, filterset, options,
-                           moptions_used ? moptions : NULL,
-                           period, timeout, oncheck[0] ? oncheck : NULL,
-                           config_seq, flags, uuid, out_uuid);
-      mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
-    }
-    for(ridx=0; ridx<reg_module_id; ridx++) {
-      if(moptions[ridx]) {
-        mtev_hash_destroy(moptions[ridx], free, free);
-        free(moptions[ridx]);
-      }
-    }
-    mtev_hash_destroy(options, free, free);
-    free(options);
+    noit_poller_process_check_conf(sec[i]);
   }
   if(sec) free(sec);
 }
@@ -1303,7 +1306,7 @@ noit_check_update(noit_check_t *new_check,
   new_check->period = period;
   new_check->timeout = timeout;
   new_check->config_seq = seq;
-  noit_cluster_mark_check_changed(new_check);
+  noit_cluster_mark_check_changed(new_check, NULL);
 
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
@@ -2694,4 +2697,64 @@ noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
     }
   }
   return node;
+}
+
+void
+noit_check_build_cluster_changelog(void *vpeer) {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  while(mtev_hash_adv(&polls, &iter)) {
+    noit_check_t *check = iter.value.ptr;
+    if(check->config_seq >= 0) noit_cluster_mark_check_changed(check, vpeer);
+  }
+}
+
+int
+noit_check_process_repl(xmlDocPtr doc) {
+  int i = 0;
+  xmlNodePtr root, child, next = NULL, node;
+  root = xmlDocGetRootElement(doc);
+  mtev_conf_section_t checks = mtev_conf_get_section(NULL, "/noit/checks");
+  mtevAssert(checks);
+  for(child = xmlFirstElementChild(root); child; child = next) {
+    next = xmlNextElementSibling(child);
+
+    uuid_t checkid;
+    int64_t seq;
+    char uuid_str[UUID_STR_LEN+1], seq_str[32];
+    mtevAssert(mtev_conf_get_stringbuf(child, "@uuid",
+                                       uuid_str, sizeof(uuid_str)));
+    mtev_uuid_parse(uuid_str, checkid);
+    mtevAssert(mtev_conf_get_stringbuf(child, "@seq",
+                                       seq_str, sizeof(seq_str)));
+    seq = strtoll(seq_str, NULL, 10);
+
+    noit_check_t *check = noit_poller_lookup(checkid);
+
+    /* too old, don't bother */
+    if(check && check->config_seq >= seq) continue;
+
+    if(check) {
+      char xpath[1024];
+
+      snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
+               uuid_str);
+      node = mtev_conf_get_section(NULL, xpath);
+      if(node) {
+        CONF_REMOVE(node);
+        xmlUnlinkNode(node);
+        xmlFreeNode(node);
+      }
+    }
+
+    mtev_conf_correct_namespace(checks, child);
+    xmlUnlinkNode(child);
+    xmlAddChild(checks, child);
+    CONF_DIRTY(child);
+    noit_poller_process_check_conf(child);
+    i++;
+  }
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
+  return i;
 }

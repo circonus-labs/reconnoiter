@@ -133,10 +133,7 @@ static void filter_changes_free(void *v) {
   free(v);
 }
 
-static void noit_peer_free(void *vnp) {
-  noit_peer_t *p = vnp;
-  free(p->cn);
-  free(p->addr);
+static void noit_peer_clear_changelog(noit_peer_t *p) {
   while(p->checks.head) {
     struct check_changes *tofree = p->checks.head;
     p->checks.head = p->checks.head->next;
@@ -147,16 +144,34 @@ static void noit_peer_free(void *vnp) {
     p->filters.head = p->filters.head->next;
     filter_changes_free(tofree);
   }
+  p->checks.head = p->checks.tail = NULL;
+  p->filters.head = p->filters.tail = NULL;
+}
+static void noit_peer_free(void *vnp) {
+  noit_peer_t *p = vnp;
+  free(p->cn);
+  free(p->addr);
+  noit_peer_clear_changelog(p);
   free(p);
 }
 
+static void noit_peer_rebuild_changelog(noit_peer_t *peer) {
+  noit_peer_clear_changelog(peer);
+  noit_filtersets_build_cluster_changelog(peer);
+  noit_check_build_cluster_changelog(peer);
+}
+
 void
-noit_cluster_mark_check_changed(noit_check_t *check) {
+noit_cluster_mark_check_changed(noit_check_t *check, void *vpeer) {
+  if(!strcmp(check->module, "selfcheck")) return;
+  if(check->config_seq <= 0) return;
+  mtevL(cldeb, "marking check %s [%s] %"PRId64" for repl\n", check->name, check->module, check->config_seq);
   pthread_mutex_lock(&noit_peer_lock);
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   checks_produced++;
   while(mtev_hash_adv(&peers, &iter)) {
     noit_peer_t *peer = iter.value.ptr;
+    if(vpeer && (void *)peer != vpeer) continue;
     struct check_changes *change = calloc(1, sizeof(*change));
     mtev_uuid_copy(change->checkid, check->checkid);
     change->seq = checks_produced;
@@ -171,12 +186,13 @@ noit_cluster_mark_check_changed(noit_check_t *check) {
 }
 
 void
-noit_cluster_mark_filter_changed(const char *name) {
+noit_cluster_mark_filter_changed(const char *name, void *vpeer) {
   pthread_mutex_lock(&noit_peer_lock);
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   filters_produced++;
   while(mtev_hash_adv(&peers, &iter)) {
     noit_peer_t *peer = iter.value.ptr;
+    if(vpeer && (void *)peer != vpeer) continue;
     struct filter_changes *change = calloc(1, sizeof(*change));
     change->name = strdup(name);
     change->seq = filters_produced;
@@ -224,7 +240,7 @@ noit_cluster_xml_check_changes(uuid_t peerid, const char *cn,
   for(node = peer->checks.head; node && node->seq <= limit; node = node->next) {
     if(mtev_hash_store(&dedup, (const char *)node->checkid, UUID_SIZE, NULL)) {
       noit_check_t *check = noit_poller_lookup(node->checkid);
-      if(check) {
+      if(check && 0 != strcmp(check->module, "selfcheck")) {
         xmlNodePtr checknode = noit_check_to_xml(check, parent->doc, parent);
         xmlAddChild(parent, checknode);
         last_seen = node->seq;
@@ -336,6 +352,7 @@ static CURL *get_curl_handle() {
 static size_t write_data_to_file(void *buff, size_t s, size_t n, void *vd) {
   int *fd = vd;
   size_t len = s*n;
+  mtevL(cldeb, "XML[%.*s]\n", (int)len, (char *)buff);
   while((len == write(*fd, buff, len)) == -1 && errno == EINTR);
   return len;
 }
@@ -393,12 +410,18 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       pthread_mutex_unlock(&noit_peer_lock);
       return 0;
     }
+    mtevL(cldeb, "REPL_JOB start [%s] F[%"PRId64",%"PRId64"] C:[%"PRId64",%"PRId64"]\n",
+      ((noit_peer_t *)vp)->cn, rj->filters.prev, rj->filters.end, rj->checks.prev, rj->checks.end);
     pthread_mutex_unlock(&noit_peer_lock);
 
     mtev_cluster_get_self(my_id);
     uuid_unparse_lower(my_id, my_id_str);
     CURL *curl = get_curl_handle();
-    if(curl == NULL) return 0;
+    if(curl == NULL) {
+      usleep(REPL_FAIL_WAIT_US);
+      return 0;
+    }
+
 
     mtev_memory_begin();
     mtev_cluster_node_t *node = mtev_cluster_get_node(my_cluster, rj->peerid);
@@ -436,19 +459,33 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       connect_to = curl_slist_append(NULL, connect_str);
       
       /* First pull filtersets */
-      if(rj->filters.end || rj->filters.prev) {
+      if(rj->filters.end) {
         snprintf(url, sizeof(url),
                  "https://%s:43191/filters/updates?peer=%s&prev=%"PRId64"&end=%"PRId64,
                  cn, my_id_str, rj->filters.prev, rj->filters.end);
         xmlDocPtr doc = fetch_xml_from_noit(curl, url, connect_to);
         if(doc) {
           rj->filters.batch_size = noit_filters_process_repl(doc);
-          rj->filters.success = mtev_true;
+          if(rj->filters.batch_size >= 0)
+            rj->filters.success = mtev_true;
           xmlFreeDoc(doc);
         }
-        else {
-          usleep(REPL_FAIL_WAIT_US);
+        if(!rj->filters.success) usleep(REPL_FAIL_WAIT_US);
+      }
+
+      /* Second pull checks */
+      if(rj->checks.end) {
+        snprintf(url, sizeof(url),
+                 "https://%s:43191/checks/updates?peer=%s&prev=%"PRId64"&end=%"PRId64,
+                 cn, my_id_str, rj->checks.prev, rj->checks.end);
+        xmlDocPtr doc = fetch_xml_from_noit(curl, url, connect_to);
+        if(doc) {
+          rj->checks.batch_size = noit_check_process_repl(doc);
+          if(rj->checks.batch_size >= 0)
+            rj->checks.success = mtev_true;
+          xmlFreeDoc(doc);
         }
+        if(!rj->checks.success) usleep(REPL_FAIL_WAIT_US);
       }
       
       curl_easy_setopt(curl, CURLOPT_CONNECT_TO, NULL);
@@ -467,9 +504,13 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
         peer->filters.fetched = rj->filters.end;
       }
       peer->checks.last_batch = rj->checks.batch_size;
-      if(rj->checks.end) {
+      if(rj->checks.success && rj->checks.end) {
         peer->checks.fetched = rj->checks.end;
       }
+      mtevL(cldeb, "REPL_JOB finish [%s] F[%"PRId64",%"PRId64"] %d C:[%"PRId64",%"PRId64"] %d\n",
+        ((noit_peer_t *)vp)->cn,
+        peer->filters.fetched, peer->filters.available, peer->filters.last_batch,
+        peer->checks.fetched, peer->checks.available, peer->checks.last_batch);
       possibly_start_job(peer);
     }
     pthread_mutex_unlock(&noit_peer_lock);
@@ -480,6 +521,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
 static void
 possibly_start_job(noit_peer_t *peer) {
   if(peer->job_inflight) return;
+  if(mtev_cluster_get_node(my_cluster, peer->id) == NULL) return;
   if(peer->checks.last_batch || peer->filters.last_batch ||
      peer->checks.available != peer->checks.fetched ||
      peer->filters.available != peer->filters.fetched) {
@@ -544,6 +586,7 @@ update_peer(mtev_cluster_node_t *node) {
     memcpy(&peer->boot, &boot, sizeof(boot));
     peer->checks.fetched = 0;
     peer->filters.fetched = 0;
+    noit_peer_rebuild_changelog(peer);
   }
   if(mtev_cluster_get_heartbeat_payload(node,
         NOIT_MTEV_CLUSTER_APP_ID, NOIT_MTEV_CLUSTER_CHECK_SEQ_KEY,
@@ -601,13 +644,27 @@ attach_to_cluster(mtev_cluster_t *nc) {
     &filters_produced_netseq,
     sizeof(int64_t));
 }
-
+static const char *
+cluster_change_nice_name(mtev_cluster_node_changes_t c)  {
+  switch(c) {
+    case MTEV_CLUSTER_NODE_DIED: return "died";
+    case MTEV_CLUSTER_NODE_REBOOTED: return "(re)booted";
+    case MTEV_CLUSTER_NODE_CHANGED_SEQ: return "reconfigured";
+    case MTEV_CLUSTER_NODE_CHANGED_PAYLOAD: return "has changes";
+  }
+  return "unknown";
+}
 static mtev_hook_return_t
 cluster_topo_cb(void *closure,
                 mtev_cluster_node_changes_t node_changes,
                 mtev_cluster_node_t *updated_node,
                 mtev_cluster_t *cluster,
                 struct timeval old_boot_time) {
+  mtevL(node_changes == MTEV_CLUSTER_NODE_CHANGED_PAYLOAD ? cldeb : mtev_notice,
+        "cluster %s:%s -> %s\n",
+        mtev_cluster_get_name(cluster),
+        mtev_cluster_node_get_cn(updated_node),
+        cluster_change_nice_name(node_changes));
   if(!strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     attach_to_cluster(cluster);
     if(!mtev_cluster_is_that_me(updated_node)) update_peer(updated_node);
