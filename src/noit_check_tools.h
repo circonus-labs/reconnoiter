@@ -40,6 +40,7 @@
 #include <mtev_hooks.h>
 #include "noit_module.h"
 #include "noit_check.h"
+#include "noit_clustering.h"
 #include "noit_check_tools_shared.h"
 
 typedef int (*dispatch_func_t)(noit_module_t *, noit_check_t *,
@@ -149,6 +150,10 @@ MTEV_HOOK_PROTO(check_postflight,
                 (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause))
 
 #define BAIL_ON_RUNNING_CHECK(check) do { \
+  if(!noit_should_run_check(check, NULL)) { \
+    mtevL(mtev_debug, "Check %s is running on another node\n", check->name); \
+    return -1; \
+  } \
   if(check->flags & NP_RUNNING) { \
     mtevL(mtev_error, "Check %s is still running!\n", check->name); \
     return -1; \

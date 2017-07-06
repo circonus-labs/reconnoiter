@@ -322,6 +322,8 @@ AC_CHECK_LIB(rt, sem_init, , [
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
 AC_CHECK_LIB(flatccrt, flatcc_builder_init, , )
+AC_CHECK_HEADER(curl/curl.h, [], [AC_MSG_ERROR(*** curl headers required ***)])
+AC_CHECK_LIB(curl, curl_easy_init, , [AC_MSG_ERROR(*** curl is required ***)])
 
 AC_CHECK_FUNC(uuid_generate, , [
 	AC_MSG_WARN([uuid_generate not available])

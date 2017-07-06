@@ -1,23 +1,20 @@
 /*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
- * All rights reserved.
- * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2017, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
- *       of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written
- *       permission.
- * 
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -31,45 +28,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _NOIT_FILTERS_H
-#define _NOIT_FILTERS_H
+#ifndef _NOIT_CLUSTERING_H
+#define _NOIT_CLUSTERING_H
 
-#include <mtev_defines.h>
-#include <mtev_hash.h>
-#include <mtev_console.h>
-#include <mtev_conf.h>
-#include "noit_check.h"
+#include <noit_check.h>
+#include <mtev_cluster.h>
+#include <netinet/in.h>
 
-API_EXPORT(void)
-  noit_filters_init();
+#define NOIT_MTEV_CLUSTER_NAME "noit"
+#define NOIT_MTEV_CLUSTER_APP_ID 43
+#define NOIT_MTEV_CLUSTER_CHECK_SEQ_KEY 1
+#define NOIT_MTEV_CLUSTER_FILTER_SEQ_KEY 2
 
-API_EXPORT(void)
-  noit_refresh_filtersets();
+void noit_mtev_cluster_init();
 
-API_EXPORT(mtev_boolean)
-  noit_apply_filterset(const char *filterset,
-                       noit_check_t *check,
-                       metric_t *metric);
+mtev_boolean noit_should_run_check(noit_check_t *, mtev_cluster_node_t **);
+void noit_cluster_mark_check_changed(noit_check_t *check);
+void noit_cluster_mark_filter_changed(const char *name);
 
-API_EXPORT(void)
-  noit_filter_compile_add(mtev_conf_section_t setinfo);
+void
+  noit_cluster_xml_check_changes(uuid_t peerid, const char *cn,
+                                 int64_t prev_end, int64_t limit, xmlNodePtr parent);
 
-API_EXPORT(int)
-  noit_filter_remove(mtev_conf_section_t setinfo);
-
-API_EXPORT(int)
-  noit_filter_exists(const char *name);
-
-API_EXPORT(int)
-  noit_filter_get_seq(const char *name, int64_t *seq);
-
-API_EXPORT(void)
-  noit_filters_rest_init();
-
-API_EXPORT(int)
-  noit_filtersets_cull_unused();
-
-API_EXPORT(void)
-  noit_filters_init_globals(void);
+void
+  noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
+                                  int64_t prev_end, int64_t limit, xmlNodePtr parent);
 
 #endif

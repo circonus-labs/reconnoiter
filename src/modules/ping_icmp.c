@@ -461,6 +461,10 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   if(pcl->check->target_family == AF_INET) {
     struct sockaddr_in sin;
     struct icmp *icp4 = (struct icmp *)pcl->payload;
+    if(data->ipv4_fd < 0) {
+      mtevLT(nldeb, now, "IPv4 ping unavailable\n");
+      goto cleanup;
+    }
     icp4->icmp_cksum = in_cksum(pcl->payload, pcl->payload_len);
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
@@ -473,6 +477,10 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   else if(pcl->check->target_family == AF_INET6) {
     struct sockaddr_in6 sin;
     struct icmp6_hdr *icp6 = (struct icmp6_hdr *)pcl->payload;
+    if(data->ipv6_fd < 0) {
+      mtevLT(nldeb, now, "IPv6 ping unavailable\n");
+      goto cleanup;
+    }
     icp6->icmp6_cksum = in_cksum(pcl->payload, pcl->payload_len);
     memset(&sin, 0, sizeof(sin));
     sin.sin6_family = AF_INET6;

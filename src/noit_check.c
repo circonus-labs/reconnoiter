@@ -1303,6 +1303,7 @@ noit_check_update(noit_check_t *new_check,
   new_check->period = period;
   new_check->timeout = timeout;
   new_check->config_seq = seq;
+  noit_cluster_mark_check_changed(new_check);
 
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
@@ -2637,3 +2638,60 @@ noit_check_init_globals(void) {
   mtev_hash_init(&dns_ignore_list);
 }
 
+#define XMLSETPROP(node, name, part, fmt) do { \
+  char buff[256]; \
+  snprintf(buff, sizeof(buff), fmt, part); \
+  xmlSetProp(node, (xmlChar *)name, (xmlChar *)buff); \
+} while(0)
+
+xmlNodePtr
+noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
+  int mod, mod_cnt;
+  mtev_hash_iter iter;
+  char uuid_str[UUID_STR_LEN+1];
+  xmlNodePtr node, confnode;
+  node = xmlNewNode(NULL, (xmlChar *)"check");
+
+  /* Normal attributes */
+  uuid_unparse_lower(check->checkid, uuid_str);
+  xmlSetProp(node, (xmlChar *)"uuid", (xmlChar *)uuid_str);
+  XMLSETPROP(node, "target", check->target, "%s");
+  XMLSETPROP(node, "module", check->module, "%s");
+  XMLSETPROP(node, "name", check->name, "%s");
+  XMLSETPROP(node, "filterset", check->filterset, "%s");
+  XMLSETPROP(node, "period", check->period, "%u");
+  XMLSETPROP(node, "timeout", check->timeout, "%u");
+  if(check->oncheck) {
+    XMLSETPROP(node, "oncheck", check->oncheck, "%s");
+  }
+  XMLSETPROP(node, "seq", check->config_seq, "%"PRId64);
+
+  /* Config stuff */
+  confnode = xmlNewNode(NULL, (xmlChar *)"config");
+  xmlAddChild(node, confnode);
+  memset(&iter, 0, sizeof(iter));
+  while(mtev_hash_adv(check->config, &iter)) {
+    xmlNewChild(confnode, NULL, (xmlChar *)iter.key.str, (xmlChar *)iter.value.str);
+  }
+
+  mod_cnt = noit_check_registered_module_cnt();
+  for(mod=0; mod<mod_cnt; mod++) {
+    xmlNsPtr ns;
+    const char *nsname;
+    char buff[256];
+    mtev_hash_table *config;
+    config = noit_check_get_module_config(check, mod);
+    if(!config) continue;
+
+    nsname = noit_check_registered_module(mod);
+
+    snprintf(buff, sizeof(buff), "noit://module/%s", nsname);
+    ns = xmlSearchNs(doc, parent ? parent : node, (xmlChar *)nsname);
+    if(!ns) ns = xmlNewNs(parent ? parent : node, (xmlChar *)buff, (xmlChar *)nsname);
+    memset(&iter, 0, sizeof(iter));
+    while(mtev_hash_adv(config, &iter)) {
+      xmlNewChild(confnode, ns, (xmlChar *)iter.key.str, (xmlChar *)iter.value.str);
+    }
+  }
+  return node;
+}

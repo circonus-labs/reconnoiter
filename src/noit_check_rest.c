@@ -44,6 +44,7 @@
 #include <mtev_conf.h>
 #include <mtev_conf_private.h>
 #include <mtev_json.h>
+#include <mtev_uuid.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
@@ -1021,11 +1022,50 @@ rest_show_config(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+static int
+rest_show_check_updates(mtev_http_rest_closure_t *restc,
+                        int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_request *req = mtev_http_session_request(ctx);
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root;
+  int64_t prev = 0, end = 0;
+
+  const char *prev_str = mtev_http_request_querystring(req, "prev"); 
+  if(prev_str) prev = strtoll(prev_str, NULL, 10);
+  const char *end_str = mtev_http_request_querystring(req, "end"); 
+  if(end_str) end = strtoll(end_str, NULL, 10);
+  const char *peer_str = mtev_http_request_querystring(req, "peer");
+  const char *cn_str = mtev_http_request_querystring(req, "cn");
+  uuid_t peerid;
+  if(!peer_str || !cn_str || mtev_uuid_parse(peer_str, peerid) != 0) {
+    mtev_http_response_server_error(ctx, "text/xml");
+    mtev_http_response_end(ctx);
+    return 0;
+  }
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewNode(NULL, (xmlChar *)"checks");
+  xmlDocSetRootElement(doc, root);
+  noit_cluster_xml_check_changes(peerid, cn_str, prev, end, root);
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+
+  if(doc) xmlFreeDoc(doc);
+
+  return 0;
+}
+
 void
 noit_check_rest_init() {
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
     rest_show_config, mtev_http_rest_client_cert_auth
+  ) == 0);
+  mtevAssert(mtev_http_rest_register_auth(
+    "GET", "/checks/", "^updates$",
+    rest_show_check_updates, mtev_http_rest_client_cert_auth
   ) == 0);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^show(\\.json)?$",

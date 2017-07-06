@@ -44,6 +44,7 @@
 #include "noit_check.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
+#include "noit_clustering.h"
 
 #include <pcre.h>
 #include <libxml/tree.h>
@@ -86,7 +87,7 @@ typedef struct _filterrule {
 typedef struct {
   mtev_atomic32_t ref_cnt;
   char *name;
-  uint64_t seq;
+  int64_t seq;
   filterrule_t *rules;
 } filterset_t;
 
@@ -250,6 +251,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
                     NULL, filterset_free);
   UNLOCKFS();
+  noit_cluster_mark_filter_changed(set->name);
 }
 int
 noit_filter_exists(const char *name) {
@@ -262,7 +264,7 @@ noit_filter_exists(const char *name) {
 }
 
 int
-  noit_filter_get_seq(const char *name, uint64_t *seq) {
+  noit_filter_get_seq(const char *name, int64_t *seq) {
   int exists;
   void *v;
   LOCKFS();

@@ -1,0 +1,554 @@
+/*
+ * Copyright (c) 2017, Circonus, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <mtev_defines.h>
+#include <mtev_cluster.h>
+#include <mtev_uuid.h>
+#include <mtev_memory.h>
+#include "noit_clustering.h"
+#include "noit_check.h"
+#include "noit_filters.h"
+#include <curl/curl.h>
+
+#define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
+
+static char *cainfo = "/export/home/jesus/src/reconnoiter/src/../test/test-ca.crt";
+static char *certinfo = "/export/home/jesus/src/reconnoiter/src/../test/test-noit.crt";
+static char *keyinfo = "/export/home/jesus/src/reconnoiter/src/../test/test-noit.key";
+
+static mtev_log_stream_t clerr, cldeb;
+static eventer_jobq_t *repl_jobq;
+static int64_t checks_produced = 0;
+static int64_t checks_produced_netseq = 0;
+static int64_t filters_produced = 0;
+static int64_t filters_produced_netseq = 0;
+
+struct check_changes {
+  uuid_t checkid;
+  int64_t seq;
+  struct check_changes *next;
+};
+struct filter_changes {
+  char *name;
+  int64_t seq;
+  struct filter_changes *next;
+};
+typedef struct {
+  uuid_t id;
+  char *cn;
+  struct sockaddr *addr;
+  socklen_t addrlen;
+  struct timeval boot;
+  struct {
+    /* these are inbound */
+    int64_t fetched;
+    int64_t available;
+    int last_batch;
+
+    /* these out outbound */
+    int64_t sent;
+    struct check_changes *head, *tail;
+  } checks;
+  struct {
+    /* these are inbound */
+    int64_t fetched;
+    int64_t available;
+    int last_batch;
+
+    /* these out outbound */
+    int64_t sent;
+    struct filter_changes *head, *tail;
+  } filters;
+  int64_t generation;
+  mtev_boolean job_inflight;
+} noit_peer_t;
+
+typedef struct repl_job_t {
+  uuid_t peerid;
+  struct {
+    int64_t prev, end;
+  } checks, filters;
+} repl_job_t;
+
+static int64_t generation = 0;
+static mtev_cluster_t *my_cluster = NULL;
+static pthread_mutex_t noit_peer_lock = PTHREAD_MUTEX_INITIALIZER;
+static mtev_hash_table peers;
+
+static void possibly_start_job(noit_peer_t *peer);
+static void check_changes_free(void *v) { free(v); }
+static void filter_changes_free(void *v) {
+  free(((struct filter_changes *)v)->name);
+  free(v);
+}
+
+static void noit_peer_free(void *vnp) {
+  noit_peer_t *p = vnp;
+  free(p->cn);
+  free(p->addr);
+  while(p->checks.head) {
+    struct check_changes *tofree = p->checks.head;
+    p->checks.head = p->checks.head->next;
+    check_changes_free(tofree);
+  }
+  while(p->filters.head) {
+    struct filter_changes *tofree = p->filters.head;
+    p->filters.head = p->filters.head->next;
+    filter_changes_free(tofree);
+  }
+  free(p);
+}
+
+void
+noit_cluster_mark_check_changed(noit_check_t *check) {
+  pthread_mutex_lock(&noit_peer_lock);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  checks_produced++;
+  while(mtev_hash_adv(&peers, &iter)) {
+    noit_peer_t *peer = iter.value.ptr;
+    struct check_changes *change = calloc(1, sizeof(*change));
+    mtev_uuid_copy(change->checkid, check->checkid);
+    change->seq = checks_produced;
+    if(peer->checks.tail) peer->checks.tail->next = change;
+    else {
+      peer->checks.head = change;
+    }
+    peer->checks.tail = change;
+  }
+  checks_produced_netseq = htonll(checks_produced);
+  pthread_mutex_unlock(&noit_peer_lock);
+}
+
+void
+noit_cluster_mark_filter_changed(const char *name) {
+  pthread_mutex_lock(&noit_peer_lock);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  filters_produced++;
+  while(mtev_hash_adv(&peers, &iter)) {
+    noit_peer_t *peer = iter.value.ptr;
+    struct filter_changes *change = calloc(1, sizeof(*change));
+    change->name = strdup(name);
+    change->seq = filters_produced;
+    if(peer->filters.tail) peer->filters.tail->next = change;
+    else {
+      peer->filters.head = change;
+    }
+    peer->filters.tail = change;
+  }
+  filters_produced_netseq = htonll(filters_produced);
+  pthread_mutex_unlock(&noit_peer_lock);
+}
+
+void
+noit_cluster_xml_check_changes(uuid_t peerid, const char *cn,
+                               int64_t prev_end, int64_t limit,
+                               xmlNodePtr parent) {
+  void *vp;
+  int64_t last_seen = 0;
+  noit_peer_t *peer;
+  mtev_hash_table dedup;
+  mtev_hash_init(&dedup);
+  pthread_mutex_lock(&noit_peer_lock);
+
+  if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
+    mtevL(clerr, "Check changes request by unknown peer.\n");
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+  peer = vp;
+  if(strcmp(peer->cn, cn)) {
+    mtevL(clerr, "Check changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+
+  struct check_changes *node = peer->checks.head;
+  /* First eat anything we know they've seen */
+  while(peer->checks.head && peer->checks.head->seq <= prev_end) {
+    struct check_changes *tofree = peer->checks.head;
+    peer->checks.head = peer->checks.head->next;
+    if(NULL == peer->checks.head) peer->checks.tail = NULL;
+    check_changes_free(tofree);
+  }
+  for(node = peer->checks.head; node && node->seq <= limit; node = node->next) {
+    if(mtev_hash_store(&dedup, (const char *)node->checkid, UUID_SIZE, NULL)) {
+      noit_check_t *check = noit_poller_lookup(node->checkid);
+      if(check) {
+        xmlNodePtr checknode = noit_check_to_xml(check, parent->doc, parent);
+        xmlAddChild(parent, checknode);
+        last_seen = node->seq;
+      }
+    }
+  }
+  pthread_mutex_unlock(&noit_peer_lock);
+  char produced_str[32];
+  snprintf(produced_str, sizeof(produced_str), "%"PRId64, last_seen);
+  xmlSetProp(parent, (xmlChar *)"seq", (xmlChar *)produced_str);
+  mtev_hash_destroy(&dedup, NULL, NULL);
+}
+
+void
+noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
+                               int64_t prev_end, int64_t limit,
+                               xmlNodePtr parent) {
+  void *vp;
+  int64_t last_seen = 0;
+  noit_peer_t *peer;
+  mtev_hash_table dedup;
+  mtev_hash_init(&dedup);
+  pthread_mutex_lock(&noit_peer_lock);
+
+  if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
+    mtevL(clerr, "Check changes request by unknown peer.\n");
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+  peer = vp;
+  if(strcmp(peer->cn, cn)) {
+    mtevL(clerr, "Check changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+
+  struct filter_changes *node = peer->filters.head;
+  /* First eat anything we know they've seen */
+  while(peer->filters.head && peer->filters.head->seq <= prev_end) {
+    struct filter_changes *tofree = peer->filters.head;
+    peer->filters.head = peer->filters.head->next;
+    if(NULL == peer->filters.head) peer->filters.tail = NULL;
+    filter_changes_free(tofree);
+  }
+  for(node = peer->filters.head; node && node->seq <= limit; node = node->next) {
+    if(mtev_hash_store(&dedup, (const char *)node->name, strlen(node->name), NULL)) {
+      char xpath[512];
+      snprintf(xpath, sizeof(xpath), "//filtersets//filterset[@name=\"%s\"]", node->name);
+      mtev_conf_section_t filternode = mtev_conf_get_section(NULL, xpath);
+      if(filternode) {
+        xmlAddChild(parent, xmlCopyNode(filternode,1));
+        last_seen = node->seq;
+      }
+    }
+  }
+  pthread_mutex_unlock(&noit_peer_lock);
+  char produced_str[32];
+  snprintf(produced_str, sizeof(produced_str), "%"PRId64, last_seen);
+  xmlSetProp(parent, (xmlChar *)"seq", (xmlChar *)produced_str);
+  mtev_hash_destroy(&dedup, NULL, NULL);
+}
+
+static void
+clear_old_peers() {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  while(mtev_hash_adv(&peers, &iter)) {
+    noit_peer_t *peer = iter.value.ptr;
+    if(peer->generation < generation) {
+      mtevL(cldeb, "removing peer %s\n", peer->cn);
+      mtev_hash_delete(&peers, iter.key.str, UUID_SIZE, NULL, noit_peer_free);
+    }
+  }
+}
+
+static int
+repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
+  repl_job_t *rj = closure;
+  void *vp;
+  if(mask == EVENTER_ASYNCH_WORK) {
+    uuid_t my_id;
+    char my_id_str[UUID_STR_LEN+1];
+    pthread_mutex_lock(&noit_peer_lock);
+    if(!mtev_hash_retrieve(&peers, (const char *)rj->peerid, UUID_SIZE, &vp)) {
+      pthread_mutex_unlock(&noit_peer_lock);
+      return 0;
+    }
+    pthread_mutex_unlock(&noit_peer_lock);
+
+    mtev_cluster_get_self(my_id);
+    uuid_unparse_lower(my_id, my_id_str);
+
+    mtev_memory_begin();
+    mtev_cluster_node_t *node = mtev_cluster_get_node(my_cluster, rj->peerid);
+    if(node) {
+      struct sockaddr *addr;
+      socklen_t addrlen;
+      const char *cn = mtev_cluster_node_get_cn(node);
+      char port_str[10];
+      char host_port[128];
+      char connect_str[128];
+      char url[1024];
+      long code, httpcode;
+      struct curl_slist *connect_to = NULL;
+      CURL *curl;
+      switch(mtev_cluster_node_get_addr(node, &addr, &addrlen)) {
+        case AF_INET:
+          inet_ntop(AF_INET, &((struct sockaddr_in *)addr)->sin_addr,
+                    host_port, sizeof(host_port));
+          strlcat(host_port, ":", sizeof(host_port));
+          snprintf(port_str, sizeof(port_str), "%u",
+                   ntohs(((struct sockaddr_in *)addr)->sin_port));
+          strlcat(host_port, port_str, sizeof(host_port));
+          break;
+        case AF_INET6:
+          host_port[0] = '[';
+          inet_ntop(AF_INET, &((struct sockaddr_in6 *)addr)->sin6_addr,
+                    host_port+1, sizeof(host_port)-1);
+          strlcat(host_port, "]:", sizeof(host_port));
+          snprintf(port_str, sizeof(port_str), "%u",
+                   ntohs(((struct sockaddr_in6 *)addr)->sin6_port));
+          strlcat(host_port, port_str, sizeof(host_port));
+          break;
+        default:
+          strlcpy(host_port, mtev_cluster_node_get_cn(node), sizeof(host_port));
+      }
+      snprintf(connect_str, sizeof(connect_str), "%s:43191:%s", cn, host_port);
+      connect_to = curl_slist_append(NULL, connect_str);
+      
+      curl = curl_easy_init();
+      /* First pull filtersets */
+      if(rj->filters.end || rj->filters.prev) {
+        snprintf(url, sizeof(url),
+                 "https://%s:43191/filters/updates?peer=%s&prev=%"PRId64"&end=%"PRId64,
+                 cn, my_id_str, rj->filters.prev, rj->filters.end);
+        mtevL(cldeb, "Pulling %s\n", url);
+        curl_easy_setopt(curl, CURLOPT_TCP_NODELAY, 1);
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_CONNECT_TO, connect_to);
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
+        curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 131072);
+        curl_easy_setopt(curl, CURLOPT_CAINFO, cainfo);
+        curl_easy_setopt(curl, CURLOPT_SSLCERT, certinfo);
+        curl_easy_setopt(curl, CURLOPT_SSLKEY, keyinfo);
+        httpcode = 0;
+        code = curl_easy_perform(curl);
+        if(code == CURLE_OK &&
+           curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpcode) &&
+           httpcode == 200) {
+        } else {
+           mtevL(cldeb, "curl error: %ld/%ld\n", code, httpcode);
+           usleep(100000);
+        }
+      }
+      curl_easy_cleanup(curl);
+      curl_slist_free_all(connect_to);
+    }
+    mtev_memory_end();
+
+  }
+  else if(mask == EVENTER_ASYNCH) {
+    pthread_mutex_lock(&noit_peer_lock);
+    if(mtev_hash_retrieve(&peers, (const char *)rj->peerid, UUID_SIZE, &vp)) {
+      noit_peer_t *peer = vp;
+      peer->job_inflight = mtev_false;
+      possibly_start_job(peer);
+    }
+    pthread_mutex_unlock(&noit_peer_lock);
+    free(closure);
+  }
+  return 0;
+}
+static void
+possibly_start_job(noit_peer_t *peer) {
+  if(peer->job_inflight) return;
+  if(peer->checks.last_batch || peer->filters.last_batch ||
+     peer->checks.available != peer->checks.fetched ||
+     peer->filters.available != peer->filters.fetched) {
+    /* We have work to do */
+    repl_job_t *rj = calloc(1, sizeof(*rj));
+    mtev_uuid_copy(rj->peerid, peer->id);
+    rj->checks.prev = peer->checks.fetched;
+    rj->checks.end = peer->checks.available;
+    rj->filters.prev = peer->filters.fetched;
+    rj->filters.end = peer->filters.available;
+    if(rj->checks.prev == rj->checks.end && peer->checks.last_batch == 0) {
+      rj->checks.prev = rj->checks.end = 0;
+    }
+    if(rj->filters.prev == rj->filters.end && peer->filters.last_batch == 0) {
+      rj->filters.prev = rj->filters.end = 0;
+    }
+    peer->job_inflight = true;
+    eventer_add_asynch(repl_jobq, eventer_alloc_asynch(repl_work, rj));
+  }
+}
+
+static void
+update_peer(mtev_cluster_node_t *node) {
+  void *vp;
+  int64_t *check_seqnet = NULL, *filter_seqnet = NULL;
+  noit_peer_t *peer;
+  uuid_t nodeid;
+  struct sockaddr *addr;
+  socklen_t addrlen;
+  struct timeval boot;
+  const char *cn = mtev_cluster_node_get_cn(node);
+  (void)mtev_cluster_node_get_addr(node, &addr, &addrlen);
+  boot = mtev_cluster_node_get_boot_time(node);
+
+  /* must have lock here */
+  mtev_cluster_node_get_id(node, nodeid);
+  if(mtev_hash_retrieve(&peers, (const char *)nodeid, UUID_SIZE, &vp)) {
+    peer = vp;
+    mtevL(cldeb, "updating peer %s\n", cn);
+  } else {
+    peer = calloc(1, sizeof(*peer));
+    mtev_uuid_copy(peer->id, nodeid);
+    mtev_hash_store(&peers, (const char *)peer->id, UUID_SIZE, peer);
+    mtevL(cldeb, "adding peer %s\n", cn);
+  }
+
+  peer->generation = generation;
+
+  if(!peer->cn || strcmp(peer->cn, cn)) {
+    free(peer->cn);
+    peer->cn = strdup(cn);
+  }
+  if(!peer->addr || (peer->addrlen != addrlen) ||
+     memcmp(peer->addr, addr, addrlen)) {
+    free(peer->addr);
+    peer->addrlen = addrlen;
+    peer->addr = malloc(peer->addrlen);
+    memcpy(peer->addr, addr, peer->addrlen);
+  }
+  if(memcmp(&peer->boot, &boot, sizeof(boot))) {
+    /* boot time changes, we know nothing now */
+    memcpy(&peer->boot, &boot, sizeof(boot));
+    peer->checks.fetched = 0;
+    peer->filters.fetched = 0;
+  }
+  if(mtev_cluster_get_heartbeat_payload(node,
+        NOIT_MTEV_CLUSTER_APP_ID, NOIT_MTEV_CLUSTER_CHECK_SEQ_KEY,
+        (void **)&check_seqnet) > 0) {
+    peer->checks.available = ntohll(*check_seqnet);
+  }
+  if(mtev_cluster_get_heartbeat_payload(node,
+        NOIT_MTEV_CLUSTER_APP_ID, NOIT_MTEV_CLUSTER_FILTER_SEQ_KEY,
+        (void **)&filter_seqnet) > 0) {
+    peer->filters.available = ntohll(*filter_seqnet);
+  }
+
+  possibly_start_job(peer);
+
+  if(check_seqnet) {
+    mtevL(cldeb, "    node %s -> check:[%"PRId64" -> %"PRId64"]\n",
+          mtev_cluster_node_get_cn(node), peer->checks.fetched,
+          peer->checks.available);
+  }
+  if(filter_seqnet) {
+    mtevL(cldeb, "    node %s -> filter:[%"PRId64" -> %"PRId64"]\n",
+          mtev_cluster_node_get_cn(node), peer->filters.fetched,
+          peer->filters.available);
+  }
+}
+static void
+attach_to_cluster(mtev_cluster_t *nc) {
+  int i, n;
+  if(nc == my_cluster) return;
+  my_cluster = nc;
+  pthread_mutex_lock(&noit_peer_lock);
+  generation++;
+  if(!my_cluster) {
+    mtev_hash_delete_all(&peers, NULL, noit_peer_free);
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+  mtev_cluster_node_t *nodeset[MAX_CLUSTER_NODES];
+  n = mtev_cluster_get_nodes(my_cluster, nodeset, MAX_CLUSTER_NODES, mtev_false);
+  for(i=0; i<n; i++) {
+    update_peer(nodeset[i]);
+  }
+  clear_old_peers();
+  pthread_mutex_unlock(&noit_peer_lock);
+  eventer_jobq_set_min_max(repl_jobq, 0, i);
+
+  mtev_cluster_set_heartbeat_payload(my_cluster,
+    NOIT_MTEV_CLUSTER_APP_ID,
+    NOIT_MTEV_CLUSTER_CHECK_SEQ_KEY,
+    &checks_produced_netseq,
+    sizeof(int64_t));
+  mtev_cluster_set_heartbeat_payload(my_cluster,
+    NOIT_MTEV_CLUSTER_APP_ID,
+    NOIT_MTEV_CLUSTER_FILTER_SEQ_KEY,
+    &filters_produced_netseq,
+    sizeof(int64_t));
+}
+
+static mtev_hook_return_t
+cluster_topo_cb(void *closure,
+                mtev_cluster_node_changes_t node_changes,
+                mtev_cluster_node_t *updated_node,
+                mtev_cluster_t *cluster,
+                struct timeval old_boot_time) {
+  if(!strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    attach_to_cluster(cluster);
+    if(!mtev_cluster_is_that_me(updated_node)) update_peer(updated_node);
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_boolean
+alive_nodes(mtev_cluster_node_t *node, mtev_boolean me, void *closure) {
+  return !mtev_cluster_node_is_dead(node);
+}
+mtev_boolean
+noit_should_run_check(noit_check_t *check, mtev_cluster_node_t **node) {
+  /* No clustering means I own everything */
+  if(!my_cluster) return mtev_true;
+
+  if(!strcmp(check->module, "selfcheck")) return mtev_true;
+
+  mtev_boolean i_own;
+  mtev_cluster_node_t *nodeset[MAX_CLUSTER_NODES];
+  int w = MAX_CLUSTER_NODES;
+
+  i_own = mtev_cluster_filter_owners(my_cluster, check->checkid, UUID_SIZE,
+                                     nodeset, &w, alive_nodes, NULL);
+
+  /* something is very wrong, we better run the check */
+  if(w < 1) return mtev_true;
+
+  /* Fill in the address of the node */
+  if(w > 0 && node) *node = nodeset[0];
+  return i_own;
+}
+
+void noit_mtev_cluster_init() {
+  cldeb = mtev_log_stream_find("debug/cluster");
+  clerr = mtev_log_stream_find("error/cluster");
+  mtev_hash_init(&peers);
+
+  repl_jobq = eventer_jobq_create_ms("noit_cluster", EVENTER_JOBQ_MS_GC);
+  mtevAssert(repl_jobq);
+  eventer_jobq_set_min_max(repl_jobq, 0, 1);
+
+  mtev_cluster_init();
+  mtev_cluster_handle_node_update_hook_register("noit-cluster", cluster_topo_cb, NULL);
+  attach_to_cluster(mtev_cluster_by_name(NOIT_MTEV_CLUSTER_NAME));
+
+}
