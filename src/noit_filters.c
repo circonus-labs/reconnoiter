@@ -125,7 +125,7 @@ filterset_free(void *vp) {
   if(fs->name) free(fs->name);
   free(fs);
 }
-void
+mtev_boolean
 noit_filter_compile_add(mtev_conf_section_t setinfo) {
   mtev_conf_section_t *rules;
   int j, fcnt;
@@ -136,7 +136,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
                               filterset_name, sizeof(filterset_name))) {
     mtevL(noit_error,
           "filterset with no name, skipping as it cannot be referenced.\n");
-    return;
+    return mtev_false;
   }
   set = calloc(1, sizeof(*set));
   set->ref_cnt = 1;
@@ -247,11 +247,26 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     }
   }
   free(rules);
+  mtev_boolean used_new_one = mtev_false;
+  void *vset;
   LOCKFS();
-  mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
-                    NULL, filterset_free);
+  if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
+    filterset_t *oldset = vset;
+    if(oldset->seq >= set->seq) { /* no update */
+      filterset_free(set);
+    } else {
+      mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
+                        NULL, filterset_free);
+      used_new_one = mtev_true;
+    }
+  }
+  else {
+    mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
+    used_new_one = mtev_true;
+  }
   UNLOCKFS();
-  noit_cluster_mark_filter_changed(set->name);
+  if(used_new_one) noit_cluster_mark_filter_changed(set->name);
+  return used_new_one;
 }
 int
 noit_filter_exists(const char *name) {
@@ -264,7 +279,7 @@ noit_filter_exists(const char *name) {
 }
 
 int
-  noit_filter_get_seq(const char *name, int64_t *seq) {
+noit_filter_get_seq(const char *name, int64_t *seq) {
   int exists;
   void *v;
   LOCKFS();
@@ -302,6 +317,40 @@ noit_filters_from_conf() {
   free(sets);
 }
 
+int
+noit_filters_process_repl(xmlDocPtr doc) {
+  int i = 0;
+  xmlNodePtr root, child, next = NULL, node;
+  root = xmlDocGetRootElement(doc);
+  mtev_conf_section_t filtersets = mtev_conf_get_section(NULL, "/noit/filtersets");
+  mtevAssert(filtersets);
+  for(child = xmlFirstElementChild(root); child; child = next) {
+    next = xmlNextElementSibling(child);
+    if(noit_filter_compile_add(child)) {
+      char filterset_name[256];
+      char xpath[1024];
+      mtevAssert(mtev_conf_get_stringbuf(child, "@name",
+                                         filterset_name, sizeof(filterset_name)));
+
+      snprintf(xpath, sizeof(xpath), "/noit/filtersets//filterset[@name=\"%s\"]",
+               filterset_name);
+      node = mtev_conf_get_section(NULL, xpath);
+      if(node) {
+        CONF_REMOVE(node);
+        xmlUnlinkNode(node);
+        xmlFreeNode(node);
+      }
+      xmlUnlinkNode(child);
+      xmlAddChild(filtersets, child);
+      CONF_DIRTY(child);
+    }
+    i++;
+  }
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
+  return i;
+}
 void
 noit_refresh_filtersets(mtev_console_closure_t ncct,
                         mtev_conf_t_userdata_t *info) {

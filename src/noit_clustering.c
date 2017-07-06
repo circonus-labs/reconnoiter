@@ -37,11 +37,33 @@
 #include "noit_filters.h"
 #include <curl/curl.h>
 
-#define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
+#include <errno.h>
 
-static char *cainfo = "/export/home/jesus/src/reconnoiter/src/../test/test-ca.crt";
-static char *certinfo = "/export/home/jesus/src/reconnoiter/src/../test/test-noit.crt";
-static char *keyinfo = "/export/home/jesus/src/reconnoiter/src/../test/test-noit.key";
+#define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
+#define REPL_FAIL_WAIT_US 500000
+
+static char *cainfo;
+static char *certinfo;
+static char *keyinfo;
+
+static void
+noit_cluster_setup_ssl(int port) {
+  char xpath[1024];
+  if(cainfo && certinfo && keyinfo) return;
+  snprintf(xpath, sizeof(xpath), "//listeners//listener[@port=\"%d\"]", port);
+  mtev_conf_section_t listener = mtev_conf_get_section(NULL, xpath);
+  if(!listener) return;
+  mtev_hash_table *sslconfig = mtev_conf_get_hash(listener, "sslconfig");
+#define SSLSETUP(sslconfig, name, var) do { \
+  const char *v; \
+  if(mtev_hash_retr_str(sslconfig, name, strlen(name), &v)) \
+    var = strdup(v); \
+} while(0)
+  SSLSETUP(sslconfig, "ca_chain", cainfo);
+  SSLSETUP(sslconfig, "certificate_file", certinfo);
+  SSLSETUP(sslconfig, "key_file", keyinfo);
+#undef SSLSETUP
+}
 
 static mtev_log_stream_t clerr, cldeb;
 static eventer_jobq_t *repl_jobq;
@@ -94,6 +116,8 @@ typedef struct repl_job_t {
   uuid_t peerid;
   struct {
     int64_t prev, end;
+    int batch_size;
+    mtev_boolean success;
   } checks, filters;
 } repl_job_t;
 
@@ -275,6 +299,88 @@ clear_old_peers() {
   }
 }
 
+struct curl_tls {
+  CURL *curl;
+  mtev_boolean ssl_is_setup;
+};
+static pthread_key_t curl_tls;
+void curl_tls_free(void *v) {
+  struct curl_tls *ctls = v;
+  curl_easy_cleanup(ctls->curl);
+  free(v);
+}
+
+static CURL *get_curl_handle() {
+  struct curl_tls *ctls;
+  ctls = pthread_getspecific(curl_tls);
+  if(!ctls) {
+    CURL *curl;
+    curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_TCP_NODELAY, 1);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
+    curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 131072);
+    ctls = calloc(1, sizeof(*ctls));
+    ctls->curl = curl;
+    pthread_setspecific(curl_tls, ctls);
+  }
+  if(cainfo && certinfo && keyinfo && !ctls->ssl_is_setup) {
+    curl_easy_setopt(ctls->curl, CURLOPT_CAINFO, cainfo);
+    curl_easy_setopt(ctls->curl, CURLOPT_SSLCERT, certinfo);
+    curl_easy_setopt(ctls->curl, CURLOPT_SSLKEY, keyinfo);
+    ctls->ssl_is_setup = mtev_true;
+  }
+  return ctls->ssl_is_setup ? ctls->curl : NULL;
+}
+static size_t write_data_to_file(void *buff, size_t s, size_t n, void *vd) {
+  int *fd = vd;
+  size_t len = s*n;
+  while((len == write(*fd, buff, len)) == -1 && errno == EINTR);
+  return len;
+}
+static xmlDocPtr
+fetch_xml_from_noit(CURL *curl, const char *url, struct curl_slist *connect_to) {
+  xmlDocPtr doc = NULL;
+  int fd = -1;
+  char tfile[PATH_MAX];
+  long code, httpcode;
+
+  strlcpy(tfile, "/tmp/noitext.XXXXXX", PATH_MAX);
+  fd = mkstemp(tfile);
+  if(fd < 0) return NULL;
+  unlink(tfile);
+
+  mtevL(cldeb, "Pulling %s\n", url);
+  curl_easy_setopt(curl, CURLOPT_URL, url);
+  curl_easy_setopt(curl, CURLOPT_CONNECT_TO, connect_to);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &fd);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_to_file);
+  httpcode = 0;
+  code = curl_easy_perform(curl);
+  if(code == CURLE_OK &&
+     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpcode) == CURLE_OK &&
+     httpcode == 200) {
+    struct stat sb;
+    int rv;
+    while((rv = fstat(fd, &sb)) == -1 && errno == EINTR);
+    if(rv == 0) {
+      void *buff = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+      if(buff != MAP_FAILED) {
+        doc = xmlParseMemory(buff, sb.st_size);
+        munmap(buff, sb.st_size);
+      } else {
+        mtevL(clerr, "curl mmap failed: %s\n", strerror(errno));
+      }
+    } else {
+      mtevL(clerr, "curl stat error: %s\n", strerror(errno));
+    }
+  } else {
+     mtevL(cldeb, "curl error: %ld/%ld\n", code, httpcode);
+  }
+  close(fd);
+  return doc;
+}
 static int
 repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
   repl_job_t *rj = closure;
@@ -291,6 +397,8 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
 
     mtev_cluster_get_self(my_id);
     uuid_unparse_lower(my_id, my_id_str);
+    CURL *curl = get_curl_handle();
+    if(curl == NULL) return 0;
 
     mtev_memory_begin();
     mtev_cluster_node_t *node = mtev_cluster_get_node(my_cluster, rj->peerid);
@@ -302,9 +410,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       char host_port[128];
       char connect_str[128];
       char url[1024];
-      long code, httpcode;
       struct curl_slist *connect_to = NULL;
-      CURL *curl;
       switch(mtev_cluster_node_get_addr(node, &addr, &addrlen)) {
         case AF_INET:
           inet_ntop(AF_INET, &((struct sockaddr_in *)addr)->sin_addr,
@@ -329,34 +435,23 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       snprintf(connect_str, sizeof(connect_str), "%s:43191:%s", cn, host_port);
       connect_to = curl_slist_append(NULL, connect_str);
       
-      curl = curl_easy_init();
       /* First pull filtersets */
       if(rj->filters.end || rj->filters.prev) {
         snprintf(url, sizeof(url),
                  "https://%s:43191/filters/updates?peer=%s&prev=%"PRId64"&end=%"PRId64,
                  cn, my_id_str, rj->filters.prev, rj->filters.end);
-        mtevL(cldeb, "Pulling %s\n", url);
-        curl_easy_setopt(curl, CURLOPT_TCP_NODELAY, 1);
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_CONNECT_TO, connect_to);
-        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
-        curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 131072);
-        curl_easy_setopt(curl, CURLOPT_CAINFO, cainfo);
-        curl_easy_setopt(curl, CURLOPT_SSLCERT, certinfo);
-        curl_easy_setopt(curl, CURLOPT_SSLKEY, keyinfo);
-        httpcode = 0;
-        code = curl_easy_perform(curl);
-        if(code == CURLE_OK &&
-           curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpcode) &&
-           httpcode == 200) {
-        } else {
-           mtevL(cldeb, "curl error: %ld/%ld\n", code, httpcode);
-           usleep(100000);
+        xmlDocPtr doc = fetch_xml_from_noit(curl, url, connect_to);
+        if(doc) {
+          rj->filters.batch_size = noit_filters_process_repl(doc);
+          rj->filters.success = mtev_true;
+          xmlFreeDoc(doc);
+        }
+        else {
+          usleep(REPL_FAIL_WAIT_US);
         }
       }
-      curl_easy_cleanup(curl);
+      
+      curl_easy_setopt(curl, CURLOPT_CONNECT_TO, NULL);
       curl_slist_free_all(connect_to);
     }
     mtev_memory_end();
@@ -367,6 +462,14 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
     if(mtev_hash_retrieve(&peers, (const char *)rj->peerid, UUID_SIZE, &vp)) {
       noit_peer_t *peer = vp;
       peer->job_inflight = mtev_false;
+      peer->filters.last_batch = rj->filters.batch_size;
+      if(rj->filters.success && rj->filters.end) {
+        peer->filters.fetched = rj->filters.end;
+      }
+      peer->checks.last_batch = rj->checks.batch_size;
+      if(rj->checks.end) {
+        peer->checks.fetched = rj->checks.end;
+      }
       possibly_start_job(peer);
     }
     pthread_mutex_unlock(&noit_peer_lock);
@@ -508,6 +611,20 @@ cluster_topo_cb(void *closure,
   if(!strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     attach_to_cluster(cluster);
     if(!mtev_cluster_is_that_me(updated_node)) update_peer(updated_node);
+    else {
+      struct sockaddr *addr;
+      int port = 43191;
+      switch(mtev_cluster_node_get_addr(updated_node, &addr, NULL)) {
+        case AF_INET:
+          port = ntohs(((struct sockaddr_in *)addr)->sin_port);
+          break;
+        case AF_INET6:
+          port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+          break;
+        default: break;
+      }
+      noit_cluster_setup_ssl(port);
+    }
   }
   return MTEV_HOOK_CONTINUE;
 }
@@ -539,6 +656,7 @@ noit_should_run_check(noit_check_t *check, mtev_cluster_node_t **node) {
 }
 
 void noit_mtev_cluster_init() {
+  pthread_key_create(&curl_tls, curl_tls_free);
   cldeb = mtev_log_stream_find("debug/cluster");
   clerr = mtev_log_stream_find("error/cluster");
   mtev_hash_init(&peers);
