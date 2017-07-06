@@ -140,7 +140,7 @@ typedef struct noit_check {
   void **module_metadata;
   mtev_hash_table **module_configs;
   struct timeval initial_schedule_time;
-  uint64_t config_seq;          /* If non-zero, must increase */
+  int64_t config_seq;          /* If non-zero, must increase */
 
   void *statistics;
 } noit_check_t;
@@ -402,6 +402,15 @@ API_EXPORT(mtev_hash_table *)
   noit_check_stats_metrics(stats_t *s);
 API_EXPORT(void) 
   noit_check_init_globals(void);
+
+API_EXPORT(xmlNodePtr)
+  noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent);
+
+API_EXPORT(int)
+  noit_check_process_repl(xmlDocPtr);
+
+API_EXPORT(void)
+  noit_check_build_cluster_changelog(void *);
 
 MTEV_HOOK_PROTO(check_config_fixup,
                 (noit_check_t *check),

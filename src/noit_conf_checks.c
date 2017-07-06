@@ -53,6 +53,7 @@
 #include "noit_conf_checks.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_clustering.h"
 
 static void register_console_config_check_commands();
 static mtev_hash_table check_attrs;
@@ -564,6 +565,13 @@ noit_console_show_check(mtev_console_closure_t ncct,
       if(NOIT_CHECK_DISABLED(check)) nc_printf(ncct, "%sdisabled", idx++?",":"");
       if(!idx) nc_printf(ncct, "idle");
       nc_write(ncct, "\n", 1);
+      if(mtev_cluster_enabled()) {
+        mtev_cluster_node_t *where = NULL;
+        mtev_boolean mine = noit_should_run_check(check, &where);
+        nc_printf(ncct, " clustered running on %s%s\n",
+                  where ? mtev_cluster_node_get_cn(where) : "...",
+                  mine ? " (locally)" : "");
+      }
       if (check->fire_event != NULL) {
         struct timeval now, diff;
         mtev_gettimeofday(&now, NULL);

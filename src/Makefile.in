@@ -131,7 +131,7 @@ B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decode
 NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_check_resolver.o noit_check_log.o \
 	noit_check.o noit_check_tools.o \
-	noit_module.o noit_conf_checks.o \
+	noit_module.o noit_conf_checks.o noit_clustering.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_check_rest.o noit_filters_rest.o noit_websocket_handler.o \
 	$(LIBNOIT_OBJS:%.lo=%.o)

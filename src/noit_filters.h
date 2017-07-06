@@ -51,7 +51,7 @@ API_EXPORT(mtev_boolean)
                        noit_check_t *check,
                        metric_t *metric);
 
-API_EXPORT(void)
+API_EXPORT(mtev_boolean)
   noit_filter_compile_add(mtev_conf_section_t setinfo);
 
 API_EXPORT(int)
@@ -61,7 +61,7 @@ API_EXPORT(int)
   noit_filter_exists(const char *name);
 
 API_EXPORT(int)
-  noit_filter_get_seq(const char *name, uint64_t *seq);
+  noit_filter_get_seq(const char *name, int64_t *seq);
 
 API_EXPORT(void)
   noit_filters_rest_init();
@@ -71,5 +71,11 @@ API_EXPORT(int)
 
 API_EXPORT(void)
   noit_filters_init_globals(void);
+
+API_EXPORT(int)
+  noit_filters_process_repl(xmlDocPtr);
+
+API_EXPORT(void)
+  noit_filtersets_build_cluster_changelog(void *);
 
 #endif

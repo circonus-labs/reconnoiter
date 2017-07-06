@@ -44,6 +44,7 @@
 #include "noit_check.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
+#include "noit_clustering.h"
 
 #include <pcre.h>
 #include <libxml/tree.h>
@@ -86,7 +87,7 @@ typedef struct _filterrule {
 typedef struct {
   mtev_atomic32_t ref_cnt;
   char *name;
-  uint64_t seq;
+  int64_t seq;
   filterrule_t *rules;
 } filterset_t;
 
@@ -124,7 +125,7 @@ filterset_free(void *vp) {
   if(fs->name) free(fs->name);
   free(fs);
 }
-void
+mtev_boolean
 noit_filter_compile_add(mtev_conf_section_t setinfo) {
   mtev_conf_section_t *rules;
   int j, fcnt;
@@ -135,7 +136,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
                               filterset_name, sizeof(filterset_name))) {
     mtevL(noit_error,
           "filterset with no name, skipping as it cannot be referenced.\n");
-    return;
+    return mtev_false;
   }
   set = calloc(1, sizeof(*set));
   set->ref_cnt = 1;
@@ -246,10 +247,26 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     }
   }
   free(rules);
+  mtev_boolean used_new_one = mtev_false;
+  void *vset;
   LOCKFS();
-  mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
-                    NULL, filterset_free);
+  if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
+    filterset_t *oldset = vset;
+    if(oldset->seq >= set->seq) { /* no update */
+      filterset_free(set);
+    } else {
+      mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
+                        NULL, filterset_free);
+      used_new_one = mtev_true;
+    }
+  }
+  else {
+    mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
+    used_new_one = mtev_true;
+  }
   UNLOCKFS();
+  if(used_new_one && set->seq >= 0) noit_cluster_mark_filter_changed(set->name, NULL);
+  return used_new_one;
 }
 int
 noit_filter_exists(const char *name) {
@@ -262,7 +279,7 @@ noit_filter_exists(const char *name) {
 }
 
 int
-  noit_filter_get_seq(const char *name, uint64_t *seq) {
+noit_filter_get_seq(const char *name, int64_t *seq) {
   int exists;
   void *v;
   LOCKFS();
@@ -298,6 +315,42 @@ noit_filters_from_conf() {
     noit_filter_compile_add(sets[i]);
   }
   free(sets);
+}
+
+int
+noit_filters_process_repl(xmlDocPtr doc) {
+  int i = 0;
+  xmlNodePtr root, child, next = NULL, node;
+  root = xmlDocGetRootElement(doc);
+  mtev_conf_section_t filtersets = mtev_conf_get_section(NULL, "/noit/filtersets");
+  mtevAssert(filtersets);
+  for(child = xmlFirstElementChild(root); child; child = next) {
+    next = xmlNextElementSibling(child);
+
+    char filterset_name[256];
+    mtevAssert(mtev_conf_get_stringbuf(child, "@name",
+                                       filterset_name, sizeof(filterset_name)));
+    if(noit_filter_compile_add(child)) {
+      char xpath[1024];
+
+      snprintf(xpath, sizeof(xpath), "/noit/filtersets//filterset[@name=\"%s\"]",
+               filterset_name);
+      node = mtev_conf_get_section(NULL, xpath);
+      if(node) {
+        CONF_REMOVE(node);
+        xmlUnlinkNode(node);
+        xmlFreeNode(node);
+      }
+      xmlUnlinkNode(child);
+      xmlAddChild(filtersets, child);
+      CONF_DIRTY(child);
+    }
+    i++;
+  }
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
+  return i;
 }
 
 void
@@ -643,6 +696,16 @@ filterset_accum(noit_check_t *check, void *closure) {
   return 0;
 }
 
+void
+noit_filtersets_build_cluster_changelog(void *vpeer) {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  LOCKFS();
+  while(mtev_hash_adv(filtersets, &iter)) {
+    filterset_t *set = iter.value.ptr;
+    if(set->seq >= 0) noit_cluster_mark_filter_changed(set->name, vpeer);
+  }
+  UNLOCKFS();
+}
 int
 noit_filtersets_cull_unused() {
   mtev_hash_table active;

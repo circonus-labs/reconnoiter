@@ -43,11 +43,13 @@
 #include <mtev_rest.h>
 #include <mtev_conf.h>
 #include <mtev_conf_private.h>
+#include <mtev_uuid.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_clustering.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
@@ -235,7 +237,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   int error_code = 500, complete = 0, mask = 0;
   mtev_boolean exists;
   int64_t seq;
-  uint64_t old_seq;
+  int64_t old_seq;
   const char *error = "internal error";
 
   if(npats != 2) goto error;
@@ -296,8 +298,47 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+static int
+rest_show_filter_updates(mtev_http_rest_closure_t *restc,
+                         int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_request *req = mtev_http_session_request(ctx);
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root;
+  int64_t prev = 0, end = 0;
+
+  const char *prev_str = mtev_http_request_querystring(req, "prev"); 
+  if(prev_str) prev = strtoll(prev_str, NULL, 10);
+  const char *end_str = mtev_http_request_querystring(req, "end"); 
+  if(end_str) end = strtoll(end_str, NULL, 10);
+  const char *peer_str = mtev_http_request_querystring(req, "peer");
+  uuid_t peerid;
+  if(!peer_str || !restc->remote_cn || mtev_uuid_parse(peer_str, peerid) != 0) {
+    mtev_http_response_server_error(ctx, "text/xml");
+    mtev_http_response_end(ctx);
+    return 0;
+  }
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewNode(NULL, (xmlChar *)"filtersets");
+  xmlDocSetRootElement(doc, root);
+  noit_cluster_xml_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+
+  if(doc) xmlFreeDoc(doc);
+
+  return 0;
+}
+
+
 void
 noit_filters_rest_init() {
+  mtevAssert(mtev_http_rest_register_auth(
+    "GET", "/filters/", "^updates$",
+    rest_show_filter_updates, mtev_http_rest_client_cert_auth
+  ) == 0);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^show(/.*)(?<=/)([^/]+)$",
     rest_show_filter, mtev_http_rest_client_cert_auth

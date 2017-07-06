@@ -62,7 +62,7 @@
 #include <mtev_conf.h>
 #include <mtev_events_rest.h>
 #include <mtev_stats.h>
-#include <mtev_cluster.h>
+#include <noit_clustering.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_jlog_listener.h"
@@ -262,6 +262,7 @@ static int child_main() {
   noit_filters_rest_init();
   noit_livestream_listener_init();
   noit_websocket_handler_init();
+  noit_mtev_cluster_init();
 
   mtev_dso_init();
   noit_module_init();
@@ -273,7 +274,6 @@ static int child_main() {
   }
 
   mtev_listener_init(APPNAME);
-  mtev_cluster_init();
   noit_metric_director_init();
 
   /* Drop privileges */
