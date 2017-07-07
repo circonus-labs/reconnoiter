@@ -28,6 +28,32 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* BIG IDEA:
+ *
+ * The ideal behind clustering in reconnoiter is to ensure that if a single
+ * instance of reconnoiter goes down, another instance will continue running
+ * the checks.  This is more complicated for push checks (data sent to broker)
+ * than for pull checks (broker queries for data).
+ *
+ * Regardless, there are two things in reconnoiter that make checks "go":
+ * (1) checks, (2) filtersets.  In order to synchronize broker configuration
+ * we need to replicate these two things.  It is up to the operatore to make
+ * sure the noitd's are all configured similarly enough to run the checks.
+ *
+ * clustering leverages libmtev "cluster" tech.
+ * Each time the configuration of the cluster changes, node state is cleared.
+ * Each time a node changes state, that node state is cleared.
+ * Each noitd maintains an outbound queue of changes to filtersets and checks
+ * from which other noitds consume.
+ * When the state of a node is cleared, all checks and all filtersets are
+ * considered changed and queued for that broker.
+ *
+ * The state is small enough on the brokers that simple "replay from scratch"
+ * is tenable.
+ * Checks and filtersets have a "seq" that must increase which resolves
+ * conflicts. The operator is responible for assigned "seq" numbers.
+ */
+
 #include <mtev_defines.h>
 #include <mtev_cluster.h>
 #include <mtev_uuid.h>
