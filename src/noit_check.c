@@ -2042,7 +2042,7 @@ void
 noit_stats_set_metric_with_timestamp(noit_check_t *check,
                       const char *name, metric_type_t type,
                       const void *value,
-                      uint64_t timestamp) {
+                      struct timeval *timestamp) {
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
   memset(m, 0, sizeof(*m));
@@ -2060,14 +2060,14 @@ void
 noit_stats_set_metric(noit_check_t *check,
                       const char *name, metric_type_t type,
                       const void *value) {
-  noit_stats_set_metric_with_timestamp(check, name, type, value, 0);
+  noit_stats_set_metric_with_timestamp(check, name, type, value, NULL);
 }
 
 void
 noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
                              const char *name, metric_type_t t,
                              const char *v,
-                             uint64_t timestamp) {
+                             struct timeval *timestamp) {
   char *endptr;
   stats_t *c;
   c = noit_check_get_stats_inprogress(check);
@@ -2134,7 +2134,7 @@ void
 noit_stats_set_metric_coerce(noit_check_t *check,
                              const char *name, metric_type_t t,
                              const char *v) {
-  noit_stats_set_metric_coerce_with_timestamp(check, name, t, v, 0);
+  noit_stats_set_metric_coerce_with_timestamp(check, name, t, v, NULL);
 }
 static void
 record_immediate_metric(noit_check_t *check,
