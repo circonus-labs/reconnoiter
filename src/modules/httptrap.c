@@ -33,6 +33,7 @@
 #include <mtev_defines.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <math.h>
@@ -103,6 +104,8 @@ struct rest_json_payload {
   int array_depth[MAX_DEPTH];
   unsigned char last_special_key;
   unsigned char saw_complex_type;
+  mtev_boolean got_timestamp;
+  struct timeval last_timestamp;
   httptrap_vop_t vop_flag;
   
   metric_type_t last_type;
@@ -249,12 +252,21 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     _YD("[%3d] cb_number %s\n", json->depth, str);
     return 1;
   }
+  if(json->last_special_key == HT_EX_TS) {
+    /* For now, only look at timestamp if we're asynch */
+    if (!json->immediate) return 1;
+    uint64_t ts = strtoull(numberVal, NULL, 10);
+    json->last_timestamp.tv_sec = (ts / 1000);
+    json->last_timestamp.tv_usec = (ts % 1000) * 1000;
+    json->saw_complex_type |= HT_EX_TS;
+    json->got_timestamp = mtev_true;
+    return 1;
+  }
   if(rv) return 1;
   /* If we get a number for _flags, it simply doesn't
    * match any flags, so... no op
    */
   if(json->last_special_key == HT_EX_FLAGS) return 1;
-  if(json->last_special_key == HT_EX_TS) return 1;
   if(json->last_special_key) {
     _YD("[%3d] cb_number [BAD]\n", json->depth);
     return 0;
@@ -361,7 +373,11 @@ httptrap_yajl_cb_end_map(void *ctx) {
   _YD("[%3d]%-.*s cb_end_map\n", json->depth, json->depth, "");
   json->depth--;
   metric_name = json->keys[json->depth];
-  if(json->saw_complex_type == 0x3) {
+  if((json->saw_complex_type & HT_EX_VALUE) &&
+     (
+       (json->saw_complex_type & HT_EX_TYPE) ||
+       (json->saw_complex_type & HT_EX_TS)
+     )) {
     long double total = 0, cnt = 0, accum = 1;
     double newval;
     mtev_boolean use_computed_value = mtev_false;
@@ -414,10 +430,13 @@ httptrap_yajl_cb_end_map(void *ctx) {
     }
           
     for(p=json->last_value;p;p=p->next) {
-      noit_stats_set_metric_coerce(json->check, metric_name,
-                                   json->last_type, p->v);
+      noit_stats_set_metric_coerce_with_timestamp(json->check,
+            metric_name,
+            json->last_type,
+            p->v,
+            (json->got_timestamp) ? &json->last_timestamp : NULL);
       last_p = p;
-      if(p->v != NULL && IS_METRIC_TYPE_NUMERIC(json->last_type)) {
+      if((p->v != NULL) && (json->saw_complex_type & HT_EX_TYPE) && (IS_METRIC_TYPE_NUMERIC(json->last_type))) {
         total += strtold(p->v, NULL);
         cnt = cnt + accum;
         use_computed_value = mtev_true;
@@ -443,14 +462,24 @@ httptrap_yajl_cb_end_map(void *ctx) {
     }
     if(json->immediate && last_p != NULL) {
       if(use_computed_value) {
-        noit_stats_log_immediate_metric(json->check, metric_name, 'n', &newval);
+        noit_stats_log_immediate_metric_timed(json->check,
+                metric_name,
+                'n',
+                &newval,
+                (json->got_timestamp) ? &json->last_timestamp : NULL);
       }
       else {
-        noit_stats_log_immediate_metric(json->check, metric_name, json->last_type, last_p->v);
+        noit_stats_log_immediate_metric_timed(json->check,
+                metric_name,
+                json->last_type,
+                last_p->v,
+                (json->got_timestamp) ? &json->last_timestamp : NULL);
       }
     }
   }
   json->saw_complex_type = 0;
+  json->got_timestamp = mtev_false;
+  json->last_type = METRIC_GUESS;
   json->vop_flag = HTTPTRAP_VOP_REPLACE;
   for(p=json->last_value;p;) {
     struct value_list *savenext;
