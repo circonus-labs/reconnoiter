@@ -2036,10 +2036,13 @@ noit_stats_get_last_metric(noit_check_t *check, const char *name) {
   return m;
 }
 
+/* TODO: Actually use timestamp, does nothing yet - timestamp
+ * is included here to ease future transition to using it */
 void
-noit_stats_set_metric(noit_check_t *check,
+noit_stats_set_metric_with_timestamp(noit_check_t *check,
                       const char *name, metric_type_t type,
-                      const void *value) {
+                      const void *value,
+                      uint64_t timestamp) {
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
   memset(m, 0, sizeof(*m));
@@ -2054,28 +2057,36 @@ noit_stats_set_metric(noit_check_t *check,
 }
 
 void
-noit_stats_set_metric_coerce(noit_check_t *check,
+noit_stats_set_metric(noit_check_t *check,
+                      const char *name, metric_type_t type,
+                      const void *value) {
+  noit_stats_set_metric_with_timestamp(check, name, type, value, 0);
+}
+
+void
+noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
                              const char *name, metric_type_t t,
-                             const char *v) {
+                             const char *v,
+                             uint64_t timestamp) {
   char *endptr;
   stats_t *c;
   c = noit_check_get_stats_inprogress(check);
   if(v == NULL) {
    bogus:
     check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_false);
-    noit_stats_set_metric(check, name, t, NULL);
+    noit_stats_set_metric_with_timestamp(check, name, t, NULL, timestamp);
     return;
   }
   switch(t) {
     case METRIC_STRING:
-      noit_stats_set_metric(check, name, t, v);
+      noit_stats_set_metric_with_timestamp(check, name, t, v, timestamp);
       break;
     case METRIC_INT32:
     {
       int32_t val;
       val = strtol(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, name, t, &val);
+      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT32:
@@ -2083,7 +2094,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       uint32_t val;
       val = strtoul(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, name, t, &val);
+      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
       break;
     }
     case METRIC_INT64:
@@ -2091,7 +2102,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       int64_t val;
       val = strtoll(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, name, t, &val);
+      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT64:
@@ -2099,7 +2110,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       uint64_t val;
       val = strtoull(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, name, t, &val);
+      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
       break;
     }
     case METRIC_DOUBLE:
@@ -2107,16 +2118,23 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       double val;
       val = strtod(v, &endptr);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, name, t, &val);
+      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
       break;
     }
     case METRIC_GUESS:
-      noit_stats_set_metric(check, name, t, v);
+      noit_stats_set_metric_with_timestamp(check, name, t, v, timestamp);
       break;
     case METRIC_ABSENT:
       mtevAssert(0 && "ABSENT metrics may not be passed to noit_stats_set_metric_coerce");
   }
   check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_true);
+}
+
+void
+noit_stats_set_metric_coerce(noit_check_t *check,
+                             const char *name, metric_type_t t,
+                             const char *v) {
+  noit_stats_set_metric_coerce_with_timestamp(check, name, t, v, 0);
 }
 static void
 record_immediate_metric(noit_check_t *check,
