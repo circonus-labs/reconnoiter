@@ -432,7 +432,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
     for(p=json->last_value;p;p=p->next) {
       noit_stats_set_metric_coerce_with_timestamp(json->check,
             metric_name,
-            json->last_type,
+            (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
             p->v,
             (json->got_timestamp) ? &json->last_timestamp : NULL);
       last_p = p;
@@ -471,7 +471,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
       else {
         noit_stats_log_immediate_metric_timed(json->check,
                 metric_name,
-                json->last_type,
+                (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
                 last_p->v,
                 (json->got_timestamp) ? &json->last_timestamp : NULL);
       }
@@ -479,7 +479,6 @@ httptrap_yajl_cb_end_map(void *ctx) {
   }
   json->saw_complex_type = 0;
   json->got_timestamp = mtev_false;
-  json->last_type = METRIC_GUESS;
   json->vop_flag = HTTPTRAP_VOP_REPLACE;
   for(p=json->last_value;p;) {
     struct value_list *savenext;
