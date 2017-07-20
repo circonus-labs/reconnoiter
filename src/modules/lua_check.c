@@ -1008,7 +1008,7 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
   }
   if(check) {
     noit_lua_log_results(self, check);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
   }
   mtev_lua_resume_clean_events(ri);
   mtev_lua_cancel_coro(ri);
@@ -1046,7 +1046,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   }
 
   noit_lua_log_results(self, check);
-  check->flags &= ~NP_RUNNING;
+  noit_check_end(check);
 
   if(int_cl->free) int_cl->free(int_cl);
   return 0;
@@ -1086,7 +1086,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
 
   /* We cannot be running */
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   if(!ri->coro_state) mtev_lua_new_coro(ri);
 
@@ -1128,7 +1128,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
 
  fail:
   noit_lua_log_results(ci->self, ci->check);
-  check->flags &= ~NP_RUNNING;
+  noit_check_end(check);
   return -1;
 }
 

@@ -236,7 +236,7 @@ static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_lock(&active_events_lock);
   mtevAssert(mtev_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
   pthread_mutex_unlock(&active_events_lock);
-  ci->check->flags &= ~NP_RUNNING;
+  noit_check_end(ci->check);
   if(ci->h != NULL) {
     dns_module_dns_ctx_release(ci->h);
     ci->h = NULL;
@@ -749,7 +749,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   mtev_hash_table check_attrs_hash;
 
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   mtev_gettimeofday(&now, NULL);
   memcpy(&check->last_fire_time, &now, sizeof(now));

@@ -1786,7 +1786,7 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   if(!once) return -1;
   if(!check) return -1;
   mtevAssert(!(check->flags & NP_RUNNING));
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
   inp = noit_check_get_stats_inprogress(check);
   mtev_gettimeofday(&now, NULL);
   noit_check_stats_whence(inp, &now);
@@ -1794,8 +1794,48 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
            check->module);
   noit_check_stats_status(inp, buff);
   noit_check_set_stats(check);
-  check->flags &= ~NP_RUNNING;
+  noit_check_end(check);
   return 0;
+}
+void noit_check_begin(noit_check_t *check) {
+  const char *force_str = NULL;
+  bool force = false;
+  mtevAssert(!NOIT_CHECK_RUNNING(check));
+  check->flags |= NP_RUNNING;
+  Zipkin_Span *active = mtev_zipkin_active_span(NULL);
+  int64_t trace_id, parent_id,
+          *trace_id_ptr = NULL, *parent_id_ptr = NULL;
+
+  if(active) {
+    bool has_parent = mtev_zipkin_span_get_ids(active, &trace_id, &parent_id, NULL);
+    trace_id_ptr = &trace_id;
+    if(has_parent)
+      parent_id_ptr = &parent_id;
+  }
+  (void)mtev_hash_retr_str(check->config, "_zipkin_trace", strlen("_zipkin_trace"), &force_str);
+  if(force_str) {
+    if(strcmp(force_str, "false") && strcmp(force_str, "off")) force = true;
+  }
+  check->span = mtev_zipkin_span_new(trace_id_ptr, parent_id_ptr, NULL,
+                                     check->name, true, false, force);
+  if(check->span) {
+    mtev_zipkin_span_attach_logs(check->span, true);
+    if(!active) {
+      eventer_t e = eventer_get_this_event();
+      mtev_zipkin_event_trace_level_t lvl = ZIPKIN_TRACE_EVENT_CALLBACKS;
+      mtev_zipkin_attach_to_eventer(e, check->span, false, &lvl);
+    }
+    mtev_zipkin_span_annotate(check->span, NULL, "check_begin", false);
+  }
+}
+void noit_check_end(noit_check_t *check) {
+  mtevAssert(NOIT_CHECK_RUNNING(check));
+  check->flags &= ~NP_RUNNING;
+  if(check->span) {
+    mtev_zipkin_span_annotate(check->span, NULL, "check_end", false);
+    mtev_zipkin_span_publish(check->span);
+    check->span = NULL;
+  }
 }
 void
 noit_check_stats_clear(noit_check_t *check, stats_t *s) {

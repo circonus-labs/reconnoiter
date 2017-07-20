@@ -191,7 +191,7 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
      */
     selfcheck_log_results(ci->self, ci->check);
     selfcheck_cleanup(ci->self, ci->check);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
     return 0;
   }
   switch(mask) {
@@ -223,7 +223,7 @@ static int selfcheck_initiate(noit_module_t *self, noit_check_t *check,
 
   /* We cannot be running */
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   ci->self = self;
   ci->check = check;

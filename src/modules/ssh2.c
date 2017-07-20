@@ -165,7 +165,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
     ssh2_cleanup(ci->self, ci->check);
     eventer_remove_fde(e);
     eventer_close(e, &mask);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
     return 0;
   }
   switch(mask) {
@@ -241,7 +241,7 @@ static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void 
     ssh2_cleanup(ci->self, ci->check);
     eventer_remove_fde(e);
     eventer_close(e, &mask);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
     return 0;
   }
 
@@ -272,7 +272,7 @@ static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
     ssh2_cleanup(ci->self, ci->check);
     eventer_remove_fde(e);
     eventer_close(e, &mask);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
     return 0;
   }
 
@@ -297,7 +297,7 @@ static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
   }
   ssh2_log_results(ci->self, ci->check);
   ssh2_cleanup(ci->self, ci->check);
-  check->flags &= ~NP_RUNNING;
+  noit_check_end(check);
   return 0;
 }
 static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
@@ -316,7 +316,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
 
   /* We cannot be running */
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   ci->self = self;
   ci->check = check;
@@ -395,7 +395,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
   if(fd >= 0) close(fd);
   ssh2_log_results(ci->self, ci->check);
   ssh2_cleanup(ci->self, ci->check);
-  check->flags &= ~NP_RUNNING;
+  noit_check_end(check);
   return -1;
 }
 

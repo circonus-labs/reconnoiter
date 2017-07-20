@@ -36,7 +36,7 @@ static int example_initiate(noit_module_t *self, noit_check_t *check,
   struct timeval now, diff;
 
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   mtev_hash_retrieve(check->config, "limit", strlen("limit"), (void **)&limit);
   ci->limit = atoi(limit);
@@ -59,7 +59,7 @@ static int example_initiate(noit_module_t *self, noit_check_t *check,
   }
 
   noit_check_set_stats(check);
-  check->flags &= ~NP_RUNNING;
+  noit_check_end(check);
 
   return 0;
 }

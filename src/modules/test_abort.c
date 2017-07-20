@@ -103,7 +103,7 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
     noit_stats_set_state(check, ci->timed_out ? NP_BAD : NP_GOOD);
     mtevL(nlerr, "test_abort: EVENTER_READ | EVENTER_WRITE\n");
     noit_check_set_stats(check);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
     return 0;
   }
   switch(mask) {
@@ -159,7 +159,7 @@ static int test_abort_initiate(noit_module_t *self, noit_check_t *check,
   mtevL(nlerr, "test_abort_initiate\n");
   /* We cannot be running */
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   ci->self = self;
   ci->check = check;

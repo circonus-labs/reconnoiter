@@ -45,6 +45,7 @@
 #include <mtev_hooks.h>
 #include <mtev_conf.h>
 #include <mtev_console.h>
+#include <mtev_zipkin.h>
 
 #include <libxml/tree.h>
 
@@ -143,7 +144,11 @@ typedef struct noit_check {
   int64_t config_seq;          /* If non-zero, must increase */
 
   void *statistics;
+  Zipkin_Span *span;
 } noit_check_t;
+
+API_EXPORT(void) noit_check_begin(noit_check_t *);
+API_EXPORT(void) noit_check_end(noit_check_t *);
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
 #define NOIT_CHECK_DISABLED(a) ((a)->flags & NP_DISABLED)

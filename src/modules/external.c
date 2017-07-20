@@ -464,7 +464,7 @@ static int external_handler(eventer_t e, int mask,
       free(data->cr);
       data->cr = NULL;
       if (ci && ci->check) {
-        ci->check->flags &= ~NP_RUNNING;
+        noit_check_end(ci->check);
       }
       continue;
     }
@@ -483,7 +483,7 @@ static int external_handler(eventer_t e, int mask,
     if (!ci->errortype) {
       external_log_results(self, check);
     }
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
   }
 
  widowed:
@@ -644,7 +644,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
   if (!mask) {
     if (!ci->written) {
       mtevL(noit_error, "never wrote to external_proc for %lld - marking check not running\n", (long long int)ci->check_no);
-      ci->check->flags &= ~NP_RUNNING;
+      noit_check_end(ci->check);
     }
     free(ecl);
   }
@@ -686,7 +686,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   data = noit_module_get_userdata(self);
 
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
   mtevL(data->nldeb, "external_invoke(%p,%s)\n",
         self, check->target);
 
@@ -722,7 +722,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
           (strncmp(data->path, resolved_path, strlen(data->path)) != 0) ) {
     ci->errortype = EXTERNAL_ERROR_BADPATH;
     external_log_results(self, check);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
     return 0;
   }
 
