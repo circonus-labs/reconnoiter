@@ -1826,6 +1826,12 @@ void noit_check_begin(noit_check_t *check) {
       mtev_zipkin_attach_to_eventer(e, check->span, false, &lvl);
     }
     mtev_zipkin_span_annotate(check->span, NULL, "check_begin", false);
+    char id_str[UUID_STR_LEN+1];
+    uuid_unparse_lower(check->checkid, id_str);
+    mtev_zipkin_span_bannotate_str(check->span, "check.uuid", false, id_str, true);
+    mtev_zipkin_span_bannotate_str(check->span, "check.module", false, check->module, true);
+    mtev_zipkin_span_bannotate_str(check->span, "check.target", false, check->target, true);
+    mtev_zipkin_span_bannotate_i32(check->span, "check.period", false, check->period);
   }
 }
 void noit_check_end(noit_check_t *check) {
