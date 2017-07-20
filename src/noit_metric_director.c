@@ -429,7 +429,7 @@ handle_metric_buffer(const char *payload, int payload_len,
         // mtev_fq will free the fq_msg -> copy the payload
         int nlen = payload_len;
         if(noit) nlen += noit->name_len+2;
-        char *copy = calloc(1, nlen);
+        char *copy = calloc(1, nlen+1);
         memcpy(copy, payload, payload_len);
         if(noit) memcpy(copy + payload_len + 1, noit->name, noit->name_len);
         noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
