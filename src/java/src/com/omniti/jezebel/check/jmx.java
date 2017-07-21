@@ -143,32 +143,6 @@ public class jmx implements JezebelCheck {
                         continue;
                     }
 
-                    if ( has_filter ) {
-                        Hashtable<String, String> property_list = objectName.getKeyPropertyList();
-                        boolean passed_filters = false;
-                        for ( HashMap<String, String> filter : filters ) {
-                            boolean passes = true;
-                            for ( Map.Entry<String, String> entry : filter.entrySet() ) {
-                                if ( 
-                                    ! property_list.containsKey(entry.getKey()) ||
-                                    ! property_list.get(entry.getKey()).equals(entry.getValue()) 
-                                ) {
-                                    passes = false;
-                                }
-                            }
-
-                            if ( passes ) {
-                                passed_filters = true;
-                                break; // as long as we pass one we are good to go
-                            }
-                        }
-
-                        // If we didn't pass the filters, ignore this object
-                        if ( ! passed_filters ) {
-                            continue;
-                        }
-                    }
-
                     String oname = objectName.getDomain() + ":" + objectName.getCanonicalKeyPropertyListString();
 
                     MBeanInfo mbi = mbsc.getMBeanInfo(objectName);
@@ -207,6 +181,7 @@ public class jmx implements JezebelCheck {
                         }
                     }
                     cache.put(objectName, attributes);
+                    if ( has_filter && ! passes_filter(objectName, filters) ) continue;
                     getAttributeValues(mbsc, oname, objectName, attributes, rr);
                 }
 
@@ -219,6 +194,7 @@ public class jmx implements JezebelCheck {
             else {
                 cache = attribute_cache.get(check.get("name"));
                 for (ObjectName objectName : cache.keySet()) {
+                    if ( has_filter && ! passes_filter(objectName, filters) ) continue;
                     String oname = objectName.getDomain() + ":" + objectName.getCanonicalKeyPropertyListString();
                     getAttributeValues(mbsc, oname, objectName, cache.get(objectName), rr);
                 }
@@ -355,5 +331,29 @@ public class jmx implements JezebelCheck {
             Jezebel.log("Exception: " + objectName+"`"+metricName, "error");
             Jezebel.exceptionTraceLogger(e);
         }
+    }
+
+    private boolean passes_filter (ObjectName objectName, ArrayList<HashMap<String, String>> filters) {
+        Hashtable<String, String> property_list = objectName.getKeyPropertyList();
+        boolean passed_filters = false;
+        for ( HashMap<String, String> filter : filters ) {
+            boolean passes = true;
+            for ( Map.Entry<String, String> entry : filter.entrySet() ) {
+                if (
+                    ! property_list.containsKey(entry.getKey()) ||
+                    ! property_list.get(entry.getKey()).equals(entry.getValue())
+                ) {
+                    passes = false;
+                }
+            }
+
+            if ( passes ) {
+                passed_filters = true;
+                break; // as long as we pass one we are good to go
+            }
+        }
+
+        // Should be true if we passed and false otherwise
+        return passed_filters;
     }
 }
