@@ -463,6 +463,8 @@ static int dns_module_check_timeout(eventer_t e, int mask, void *closure,
 static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
                                       struct timeval *now) {
   dns_ctx_handle_t *h = closure;
+  mtevAssert(h && h->timeout);
+  h->timeout = NULL; /* This will be free upon return from this function */
   dns_timeouts(h->ctx, 0, now->tv_sec);
   dns_module_dns_ctx_release(h);
   return 0;
@@ -470,27 +472,31 @@ static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
 static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
                                           int timeout, void *data) {
   dns_ctx_handle_t *h = data;
-  eventer_t e = NULL, newe = NULL;
+  eventer_t newe = NULL;
+
+  /* One way or another h->timeout is going to manipulated.
+   * if there is one (called directly), then we should clear it out.
+   */
+  if(h && h->timeout) {
+    eventer_t e = eventer_remove(h->timeout);
+    h->timeout = NULL;
+    if(e) eventer_free(e);
+    dns_module_dns_ctx_release(h); /* acquire happened on timeout assigment */
+  }
+
   if(ctx == NULL) {
-    if(h && h->timeout) e = eventer_remove(h->timeout);
+    /* This happens when the DNS context is being shut down permanenetly */
+    return;
   }
-  else {
-    mtevAssert(h->ctx == ctx);
-    if(h->timeout) e = eventer_remove(h->timeout);
-    if(timeout > 0) {
-      newe = eventer_in_s_us(dns_module_invoke_timeouts, h, timeout, 0);
-    }
-  }
-  if(e) {
-    eventer_free(e);
-    if(h) dns_module_dns_ctx_release(h);
-  }
-  if(newe) {
+
+  mtevAssert(h->ctx == ctx);
+
+  /* if(timeout < 0) no timeout is required at this time */
+  if(timeout >= 0) {
+    mtevAssert(h->timeout == NULL);
+    h->timeout = eventer_in_s_us(dns_module_invoke_timeouts, h, timeout, 0);
     dns_module_dns_ctx_acquire(h);
-    eventer_add(newe);
-  }
-  if(h) {
-    h->timeout = newe;
+    eventer_add(h->timeout);
   }
 }
 
