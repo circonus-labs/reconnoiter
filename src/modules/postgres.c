@@ -223,7 +223,7 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
      */
     postgres_log_results(ci->self, ci->check);
     postgres_cleanup(ci->self, ci->check);
-    check->flags &= ~NP_RUNNING;
+    noit_check_end(check);
     return 0;
   }
 
@@ -295,7 +295,7 @@ static int postgres_initiate(noit_module_t *self, noit_check_t *check,
 
   /* We cannot be running */
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   ci->self = self;
   ci->check = check;

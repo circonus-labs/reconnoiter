@@ -194,7 +194,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   }
   data = (struct check_info *)pcl->check->closure;
   data->timeout_event = NULL;
-  pcl->check->flags &= ~NP_RUNNING;
+  noit_check_end(pcl->check);
   ping_data = noit_module_get_userdata(pcl->self);
   k.addr_of_check = (uintptr_t)pcl->check ^ random_num;
   mtev_uuid_copy(k.checkid, pcl->check->checkid);
@@ -331,7 +331,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       free(eventer_get_closure(data->timeout_event));
       eventer_free(data->timeout_event);
       data->timeout_event = NULL;
-      check->flags &= ~NP_RUNNING;
+      noit_check_end(check);
       k.addr_of_check = (uintptr_t)check ^ random_num;
       mtev_uuid_copy(k.checkid, check->checkid);
       mtev_hash_delete(ping_data->in_flight, (const char *)&k,
@@ -536,7 +536,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
                         &config_val))
     count = atoi(config_val);
 
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
   ping_data = noit_module_get_userdata(self);
   k = calloc(1, sizeof(*k));
   k->addr_of_check = (uintptr_t)check ^ random_num;

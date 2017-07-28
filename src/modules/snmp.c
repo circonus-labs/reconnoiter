@@ -423,7 +423,7 @@ static int noit_snmp_check_timeout(eventer_t e, int mask, void *closure,
   remove_check(info);
   /* Log our findings */
   noit_snmp_log_results(info->self, info->check, NULL);
-  info->check->flags &= ~NP_RUNNING;
+  noit_check_end(info->check);
   return 0;
 }
 
@@ -872,7 +872,7 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
       info->ts = NULL;
     }
     noit_snmp_log_results(info->self, info->check, NULL);
-    info->check->flags &= ~NP_RUNNING;
+    noit_check_end(info->check);
   }
   return 1;
 }
@@ -1274,7 +1274,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   info->timedout = 0;
 
   BAIL_ON_RUNNING_CHECK(check);
-  check->flags |= NP_RUNNING;
+  noit_check_begin(check);
 
   mtev_gettimeofday(&check->last_fire_time, NULL);
   if(mtev_hash_retr_str(check->config, "separate_queries",
@@ -1405,7 +1405,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   noit_snmp_log_results(self, check, err);
   noit_snmp_session_cleanse(ts, 1);
   if(req) snmp_free_pdu(req);
-  check->flags &= ~NP_RUNNING;
+  noit_check_end(check);
   return 0;
 }
 
