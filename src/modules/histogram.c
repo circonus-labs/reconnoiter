@@ -70,7 +70,7 @@ static int
 histogram_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
   const char *duty;
-  char *duty_copy, *cp, *brk;
+  char *duty_copy, *cp, *brk = NULL;
   int i;
 
   if(!mtev_hash_retr_str(o, "duty", strlen("duty"), &duty)) {

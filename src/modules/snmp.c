@@ -239,58 +239,58 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
   struct check_info *info = check->closure;
   struct variable_list *vars;
 
-  if(pdu)
+  if(pdu) {
     for(vars = pdu->variables; vars; vars = vars->next_variable)
       info->nresults++;
 
-  /* manipulate the information ourselves */
-  for(vars = pdu->variables; vars; vars = vars->next_variable) {
-    char *sp;
-    int nresults = 0;
-    int oid_idx;
-    double float_conv;
-    uint64_t u64;
-    int64_t i64;
-    char *endptr;
-    char varbuff[256];
+    /* manipulate the information ourselves */
+    for(vars = pdu->variables; vars; vars = vars->next_variable) {
+      char *sp;
+      int nresults = 0;
+      int oid_idx;
+      double float_conv;
+      uint64_t u64;
+      int64_t i64;
+      char *endptr;
+      char varbuff[256];
 
-    snprint_variable(varbuff, sizeof(varbuff),
-                     vars->name, vars->name_length, vars);
+      snprint_variable(varbuff, sizeof(varbuff),
+                       vars->name, vars->name_length, vars);
 
-    /* find the oid to which this is the response */
-    oid_idx = nresults; /* our check->stats.inprogress idx is the most likely */
-    if(info->oids[oid_idx].oidlen != vars->name_length ||
-       memcmp(info->oids[oid_idx].oid, vars->name,
-              vars->name_length * sizeof(oid))) {
-      /* Not the most obvious guess */
-      for(oid_idx = info->noids - 1; oid_idx >= 0; oid_idx--) {
-        if(info->oids[oid_idx].oidlen == vars->name_length &&
-           !memcmp(info->oids[oid_idx].oid, vars->name,
-                  vars->name_length * sizeof(oid))) break;
+      /* find the oid to which this is the response */
+      oid_idx = nresults; /* our check->stats.inprogress idx is the most likely */
+      if(info->oids[oid_idx].oidlen != vars->name_length ||
+         memcmp(info->oids[oid_idx].oid, vars->name,
+                vars->name_length * sizeof(oid))) {
+        /* Not the most obvious guess */
+        for(oid_idx = info->noids - 1; oid_idx >= 0; oid_idx--) {
+          if(info->oids[oid_idx].oidlen == vars->name_length &&
+             !memcmp(info->oids[oid_idx].oid, vars->name,
+                     vars->name_length * sizeof(oid))) break;
+        }
       }
-    }
-    if(oid_idx < 0) {
-      mtevL(nlerr, "Unexpected oid results to %s`%s`%s: %s\n",
-            check->target, check->module, check->name, varbuff);
-      nresults++;
-      info->nresults++;
-      continue;
-    }
-    if(info->oids[oid_idx].seen == 0) {
-      info->oids[oid_idx].seen = 1;
-      info->noids_seen++;
-    }
+      if(oid_idx < 0) {
+        mtevL(nlerr, "Unexpected oid results to %s`%s`%s: %s\n",
+              check->target, check->module, check->name, varbuff);
+        nresults++;
+        info->nresults++;
+        continue;
+      }
+      if(info->oids[oid_idx].seen == 0) {
+        info->oids[oid_idx].seen = 1;
+        info->noids_seen++;
+      }
 
 #define SETM(a,b) noit_stats_set_metric(check, info->oids[oid_idx].confname, a, b)
-    if(info->oids[oid_idx].type_should_override) {
-      sp = strchr(varbuff, ' ');
-      if(sp) sp++;
-      noit_stats_set_metric_coerce(check, info->oids[oid_idx].confname,
-                                   info->oids[oid_idx].type_override,
-                                   sp);
-    }
-    else {
-      switch(vars->type) {
+      if(info->oids[oid_idx].type_should_override) {
+        sp = strchr(varbuff, ' ');
+        if(sp) sp++;
+        noit_stats_set_metric_coerce(check, info->oids[oid_idx].confname,
+                                     info->oids[oid_idx].type_override,
+                                     sp);
+      }
+      else {
+        switch(vars->type) {
         case ASN_OCTET_STR:
           sp = malloc(1 + vars->val_len);
           memcpy(sp, vars->val.string, vars->val_len);
@@ -352,10 +352,11 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
           if(sp) sp++;
           SETM(METRIC_STRING, (sp && *sp) ? sp : NULL);
           mtevL(nlerr, "snmp: unknown type[%d] %s\n", vars->type, varbuff);
+        }
       }
+      nresults++;
+      info->nresults++;
     }
-    nresults++;
-    info->nresults++;
   }
   return (info->noids_seen == info->noids) ? 1 : 0;
 }
