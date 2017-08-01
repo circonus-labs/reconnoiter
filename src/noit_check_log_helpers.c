@@ -466,14 +466,19 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
              ts, uuid_str, metric_name, type, value_str);
   }
 
+  return cnt + has_status;
+
  bad_line:
   if(*out) {
+    /* bad_line is not called during the loop through the values
+     * so there is no need to free (*out)[i] malloc'd for each row
+     */
     free(*out);
     *out = NULL;
   }
   if(error_str) mtevL(noit_error, "bundle: bad line due to %s\n", error_str);
 
-  return cnt + has_status;
+  return 0; 
  
 }
 
