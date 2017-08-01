@@ -160,6 +160,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
     if (field != NULL) {
       mtev_json_object_object_add(o, "status", mtev_json_object_new_string(field));
     }
+    free(status);
   } else if (metric->type == MESSAGE_TYPE_H) {
     histogram_t *histo = hist_alloc();
     ssize_t s = hist_deserialize_b64(histo, metric->value.value.v_string, strlen(metric->value.value.v_string));

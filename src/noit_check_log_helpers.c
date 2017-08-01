@@ -76,9 +76,11 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
       break;
     }
   case NOIT_COMPRESS_NONE:
-    compbuff = (char *)buf_in;
-    break;
-  }
+    {
+      ct = MTEV_COMPRESS_NONE;
+      break;
+    }
+  };
 
   /* Compress */
   if(0 != mtev_compress(ct, buf_in, len_in,
@@ -94,7 +96,7 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
   initial_dlen = ((dlen + 2) / 3 * 4);
   b64buff = malloc(initial_dlen);
   if (!b64buff) {
-    if(ctype != NOIT_COMPRESS_NONE) free(compbuff);
+    free(compbuff);
     return -1;
   }
   dlen = mtev_b64_encode((unsigned char *)compbuff, dlen,

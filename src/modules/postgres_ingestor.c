@@ -1329,6 +1329,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
         if(info->dsn) free(info->dsn);
         if(info->fqdn) free(info->fqdn);
         free(info);
+        info = NULL;
       }
     }
   }

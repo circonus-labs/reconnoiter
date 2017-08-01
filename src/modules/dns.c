@@ -484,7 +484,7 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
     dns_module_dns_ctx_release(h); /* acquire happened on timeout assigment */
   }
 
-  if(ctx == NULL) {
+  if(ctx == NULL || h == NULL) {
     /* This happens when the DNS context is being shut down permanenetly */
     return;
   }

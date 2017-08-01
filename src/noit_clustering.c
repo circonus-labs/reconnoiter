@@ -377,10 +377,10 @@ static CURL *get_curl_handle() {
 }
 static size_t write_data_to_file(void *buff, size_t s, size_t n, void *vd) {
   int *fd = vd;
-  size_t len = s*n;
+  ssize_t len = s*n;
   mtevL(cldeb, "XML[%.*s]\n", (int)len, (char *)buff);
-  while((len == write(*fd, buff, len)) == -1 && errno == EINTR);
-  return len;
+  while((len = write(*fd, buff, (size_t)len)) == -1 && errno == EINTR);
+  return len < 0 ? 0 : (size_t)len;
 }
 static xmlDocPtr
 fetch_xml_from_noit(CURL *curl, const char *url, struct curl_slist *connect_to) {
