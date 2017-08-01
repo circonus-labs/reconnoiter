@@ -467,7 +467,7 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
   if(!conf->mean && !conf->sum && conf->n_quantiles < 1) return;
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) return;
-  out_q = alloca(sizeof(double *) * conf->n_quantiles);
+  out_q = alloca(sizeof(double) * conf->n_quantiles);
 
   while(mtev_hash_next(metrics, &iter, &metric_name, &klen, &data)) {
     char mname[1024];

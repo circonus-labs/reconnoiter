@@ -276,16 +276,16 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
                              &ci->attrs, check->config);
 
       mysql_parse_dsn(dsn_buff, &dsn_h);
-      mtev_hash_retrieve(&dsn_h, "host", strlen("host"), (void**)&host);
-      mtev_hash_retrieve(&dsn_h, "user", strlen("user"), (void**)&user);
-      mtev_hash_retrieve(&dsn_h, "password", strlen("password"), (void**)&password);
-      mtev_hash_retrieve(&dsn_h, "dbname", strlen("dbname"), (void**)&dbname);
-      mtev_hash_retrieve(&dsn_h, "port", strlen("port"), (void**)&port_s);
+      (void)mtev_hash_retrieve(&dsn_h, "host", strlen("host"), (void**)&host);
+      (void)mtev_hash_retrieve(&dsn_h, "user", strlen("user"), (void**)&user);
+      (void)mtev_hash_retrieve(&dsn_h, "password", strlen("password"), (void**)&password);
+      (void)mtev_hash_retrieve(&dsn_h, "dbname", strlen("dbname"), (void**)&dbname);
+      (void)mtev_hash_retrieve(&dsn_h, "port", strlen("port"), (void**)&port_s);
       if(mtev_hash_retrieve(&dsn_h, "sslmode", strlen("sslmode"), (void**)&sslmode) &&
          !strcmp(sslmode, "require"))
         client_flag |= CLIENT_SSL;
       port = port_s ? strtol(port_s, NULL, 10) : 3306;
-      mtev_hash_retrieve(&dsn_h, "socket", strlen("socket"), (void**)&socket);
+      (void)mtev_hash_retrieve(&dsn_h, "socket", strlen("socket"), (void**)&socket);
 
       ci->conn = mysql_init(NULL); /* allocate us a handle */
       if(!ci->conn) AVAIL_BAIL("mysql_init failed");

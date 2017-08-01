@@ -1199,7 +1199,8 @@ stratcon_add_noit(const char *target, unsigned short port,
   mtev_conf_section_t *noit_configs, parent;
   xmlNodePtr newnoit, config, cnnode;
 
-  if(target && strlen(target) > 0) {
+  mtevAssert(target != NULL);
+  if(strlen(target) > 0) {
     snprintf(path, sizeof(path),
              "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
     noit_configs = mtev_conf_get_sections(NULL, path, &cnt);

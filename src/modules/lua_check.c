@@ -1043,10 +1043,9 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     noit_stats_set_status(check, "timeout");
     noit_stats_set_available(check, NP_UNAVAILABLE);
     noit_stats_set_state(check, NP_BAD);
+    noit_lua_log_results(self, check);
+    noit_check_end(check);
   }
-
-  noit_lua_log_results(self, check);
-  noit_check_end(check);
 
   if(int_cl->free) int_cl->free(int_cl);
   return 0;

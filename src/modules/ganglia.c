@@ -379,7 +379,6 @@ static int noit_ganglia_init(noit_module_t *self) {
   /* ipv4 socket and binding */
   conf->ipv4_fd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv4_fd < 0) {
-    close(conf->ipv4_fd);
     mtevL(noit_error, "ganglia: ipv4 socket failed: %s\n", strerror(errno));
     return -1;
   }
@@ -464,7 +463,7 @@ static int noit_ganglia_init(noit_module_t *self) {
   if(conf->ipv6_fd > 0) {
     memset(&mreqv6, 0, sizeof(mreqv6));
 
-    inet_pton(AF_INET6, multiaddr6, &mreqv6.ipv6mr_multiaddr.s6_addr);
+    (void)inet_pton(AF_INET6, multiaddr6, &mreqv6.ipv6mr_multiaddr.s6_addr);
 
     mreqv6.ipv6mr_interface = 0;
 

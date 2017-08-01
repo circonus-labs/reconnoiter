@@ -159,7 +159,7 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq) {
       xmlFreeNode(r);
       r = previous_child;
 
-      *seq = strtoll((const char *)v, NULL, 10);
+      if (seq && v) *seq = strtoll((const char *)v, NULL, 10);
 
       xmlFree(v);
     }
