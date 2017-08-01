@@ -237,7 +237,7 @@ APR_DECLARE(apr_status_t) stomp_read_buffer(stomp_connection *connection, char *
          if( tail->data[i-1]==0 ) {
             char endline[1];
             // We expect a newline after the null.
-            (void) apr_socket_recv(connection->socket, endline, &length);
+            rc = apr_socket_recv(connection->socket, endline, &length);
             CHECK_SUCCESS;
             if( endline[0] != '\n' ) {
                return APR_EGENERAL;

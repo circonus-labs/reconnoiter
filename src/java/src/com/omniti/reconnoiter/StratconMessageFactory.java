@@ -50,11 +50,9 @@ public class StratconMessageFactory {
     Method meth;
 
     this.clazz = clazz;
-    con = clazz.getDeclaredConstructor( new Class[] { String[].class } );
+    this.con = clazz.getDeclaredConstructor( new Class[] { String[].class } );
     meth = clazz.getMethod("numparts");
-    int len = (Integer)meth.invoke(clazz.newInstance());
-    this.con = con;
-    this.len = len;
+    this.len = (Integer)meth.invoke(clazz.newInstance());
   }
   StratconMessage make(String[] args)
                   throws InstantiationException, IllegalAccessException,

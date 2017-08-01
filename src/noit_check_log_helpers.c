@@ -468,8 +468,6 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
 
  bad_line:
   if(*out) {
-    int i;
-    for(i=0; i<cnt + has_status; i++) if((*out)[i]) free((*out)[i]);
     free(*out);
     *out = NULL;
   }

@@ -299,7 +299,7 @@ get_conn_pool_for_remote(const char *remote_str,
     pthread_mutex_lock(&ds_conns_lock);
     if(!mtev_hash_store(&ds_conns, cpool->queue_name, strlen(cpool->queue_name),
                         cpool)) {
-      mtev_hash_retrieve(&ds_conns, (const char *)queue_name,
+      (void)mtev_hash_retrieve(&ds_conns, (const char *)queue_name,
                          strlen(queue_name), &vcpool);
     }
     pthread_mutex_unlock(&ds_conns_lock);
