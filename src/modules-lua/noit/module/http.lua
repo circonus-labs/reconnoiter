@@ -417,7 +417,7 @@ function initiate(module, check)
         client:get_response(read_limit)
         if client.code ~= 401 or
            client.headers["www-authenticate"] == nil then
-            check.status("expected digest challenge, got " .. client.code)
+            check.status("expected digest challenge, got " .. (client.code or ""))
             return
         end
         local user = config.auth_user or ''
@@ -520,8 +520,8 @@ function initiate(module, check)
     local status = ''
     -- setup the code
     check.metric_string("code", client.code)
-    status = status .. 'code=' .. client.code
-    if codere ~= nil and codere(client.code) then
+    status = status .. 'code=' .. (client.code or "")
+    if codere ~= nil and code ~= nil and codere(client.code) then
       good = true
     end
 
