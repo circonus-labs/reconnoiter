@@ -475,6 +475,8 @@ static int external_handler(eventer_t e, int mask,
     ci->error = data->cr->stderrbuff;
     ci->stdout_truncated = data->cr->stdout_truncated;
     ci->stderr_truncated = data->cr->stderr_truncated;
+    free(data->cr->stdoutbuff);
+    free(data->cr->stderrbuff);
     free(data->cr);
     data->cr = NULL;
     check = ci->check;
