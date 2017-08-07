@@ -40,15 +40,15 @@ function onload(image)
   <loader>lua</loader>
   <object>noit.module.googleanalytics4</object>
   <moduleconfig>
-  <parameter name="api_key"
-             required="optional"
-             allowed=".+">The API Key used for username/password OAUTH 1.0 based authentication.</parameter>
-  <parameter name="client_id"
-             required="optional"
-             allowed=".+">The Google-Generated client ID used for OAUTH 2.0 authentication.</parameter>
-  <parameter name="client_secret"
-             required="optional"
-             allowed=".+">The Google-Generated client secret used for OAUTH 2.0 authentication.</parameter>
+    <parameter name="api_key"
+               required="optional"
+               allowed=".+">The API Key used for username/password OAUTH 1.0 based authentication.</parameter>
+    <parameter name="client_id"
+               required="optional"
+               allowed=".+">The Google-Generated client ID used for OAUTH 2.0 authentication.</parameter>
+    <parameter name="client_secret"
+               required="optional"
+               allowed=".+">The Google-Generated client secret used for OAUTH 2.0 authentication.</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name="username"
@@ -58,36 +58,39 @@ function onload(image)
                required="optional"
                allowed=".+">The password used to login to your Google Analytics account.</parameter>
     <parameter name="use_oauth"
-                required="optional"
-                allowed="^(?:true|false|on|off)$"
-                default="false">Use OAuth authorization instead of username/password.</parameter>
+               required="optional"
+               allowed="^(?:true|false|on|off)$"
+               default="false">Use OAuth authorization instead of username/password.</parameter>
     <parameter name="oauth_token"
                required="required"
                allowed=".+">The OAuth token used to access Google Analytics data.</parameter>
     <parameter name="oauth_token_secret"
                required="required"
                allowed=".+">The OAuth token secret key used to access Google Analytics data.</parameter>
-    <parameter name="table_id"
-               required="required"
-               allowed=".+">The table ID for the data feed to access.</parameter>
     <parameter name="oauth_version"
                required="required"
                allowed=".+">The version of OAuth used.</parameter>
+    <parameter name="table_id"
+               required="required"
+               allowed=".+">The table ID for the data feed to access.</parameter>
+    <parameter name="metric_group"
+               required="required"
+               allowed=".+">The Metric Group (dimension) to import.</parameter>
   </checkconfig>
   <examples>
     <example>
-      <title>Checking Google Analytics data for Acme, Inc.</title>
-      <para>This example checks the Google Analytics data feed for Acme, Inc.</para>
+      <title>Checking Google Analytics v4 data for Acme, Inc.</title>
+      <para>This example checks the Google Analytics v4 data feed for Acme, Inc.</para>
       <programlisting><![CDATA[
       <noit>
         <modules>
           <loader image="lua" name="lua">
             <config><directory>/opt/reconnoiter/libexec/modules-lua/?.lua</directory></config>
           </loader>
-          <module loader="lua" name="googleanalytics:m1" object="noit.module.googleanalytics4"/>
+          <module loader="lua" name="googleanalytics4" object="noit.module.googleanalytics4"/>
         </modules>
         <checks>
-          <acme module="googleanalytics:m1">
+          <acme module="googleanalytics4">
             <check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de"/>
           </acme>
         </checks>
@@ -145,6 +148,7 @@ function initiate(module, check)
         oauth_token        = check.config.oauth_token,
         oauth_token_secret = check.config.oauth_token_secret,
         table_id           = check.config.table_id,
+        metric_group       = check.config.metric_group,
         oauth_version      = check.config.oauth_version,
         metrics            = {}
     }
@@ -163,7 +167,7 @@ function initiate(module, check)
     -- NOTE: v4 api endpoint only allows requesting 10 metrics per report.
     --       add additional elements to the params.metrics table to retrieve
     --       more than 10 metrics.
-    if module.name() == 'googleanalytics4:User' then -- User
+    if params.metric_group == 'User' then
         params.metrics = {
             {
                 'users',
@@ -172,7 +176,7 @@ function initiate(module, check)
                 'sessionsPerUser'
             }
         }
-    elseif module.name() == 'googleanalytics4:Session' then -- Session
+    elseif params.metric_group == 'Session' then
         params.metrics = {
             {
                 'sessions',
@@ -184,13 +188,13 @@ function initiate(module, check)
                 'hits'
             }
         }
-    elseif module.name() == 'googleanalytics4:TrafficSources' then -- Traffic Sources
+    elseif params.metric_group == 'TrafficSources' then
         params.metrics = {
             {
                 'organicSearches'
             }
         }
-    elseif module.name() == 'googleanalytics4:Adwords' then -- Adwords
+    elseif params.metric_group == 'Adwords' then
         params.metrics = {
             {
                 'impressions',
@@ -208,7 +212,7 @@ function initiate(module, check)
                 'ROAS'
             }
         }
-    elseif module.name() == 'googleanalytics4:GoalConversions' then -- Goal Conversions
+    elseif params.metric_group == 'GoalConversions' then
         params.metrics = {
             {
                 'goalStartsAll',
@@ -220,7 +224,7 @@ function initiate(module, check)
                 'goalAbandonRateAll'
             }
         }
-    elseif module.name() == 'googleanalytics4:PageTracking' then -- Page Tracking
+    elseif params.metric_group == 'PageTracking' then
         params.metrics = {
             {
                 'pageValue',
@@ -235,7 +239,7 @@ function initiate(module, check)
                 'exitRate'
             }
         }
-    elseif module.name() == 'googleanalytics4:InternalSearch' then -- Internal Search
+    elseif params.metric_group == 'InternalSearch' then
         params.metrics = {
             {
                 'searchResultViews',
@@ -256,7 +260,7 @@ function initiate(module, check)
                 'goalValueAllPerSearch'
             }
         }
-    elseif module.name() == 'googleanalytics4:SiteSpeed' then -- Site Speed
+    elseif params.metric_group == 'SiteSpeed' then
         params.metrics = {
             {
                 'pageLoadTime',
@@ -282,7 +286,7 @@ function initiate(module, check)
                 'domLatencyMetricsSample'
             }
         }
-    elseif module.name() == 'googleanalytics4:AppTracking' then -- App Tracking
+    elseif params.metric_group == 'AppTracking' then
         params.metrics = {
             {
                 'screenviews',
@@ -292,7 +296,7 @@ function initiate(module, check)
                 'avgScreenviewDuration'
             }
         }
-    elseif module.name() == 'googleanalytics4:EventTracking' then -- Event Tracking
+    elseif params.metric_group == 'EventTracking' then
         params.metrics = {
             {
                 'totalEvents',
@@ -303,7 +307,7 @@ function initiate(module, check)
                 'eventsPerSessionWithEvent'
             }
         }
-    elseif module.name() == 'googleanalytics4:Ecommerce' then -- Ecommerce
+    elseif params.metric_group == 'Ecommerce' then
         params.metrics = {
             {
                 'transactions',
@@ -358,7 +362,7 @@ function initiate(module, check)
                 'transactionsPerUser'
             }
         }
-    elseif module.name() == 'googleanalytics4:SocialInteractions' then -- Social Interactions
+    elseif params.metric_group == 'SocialInteractions' then
         params.metrics = {
             {
                 'socialInteractions',
@@ -366,7 +370,7 @@ function initiate(module, check)
                 'socialInteractionsPerSession'
             }
         }
-    elseif module.name() == 'googleanalytics4:UserTimings' then -- User Timings
+    elseif params.metric_group == 'UserTimings' then
         params.metrics = {
             {
                 'userTimingValue',
@@ -374,7 +378,7 @@ function initiate(module, check)
                 'avgUserTimingValue'
             }
         }
-    elseif module.name() == 'googleanalytics4:Exceptions' then -- Exceptions
+    elseif params.metric_group == 'Exceptions' then
         params.metrics = {
             {
                 'exceptions',
@@ -383,7 +387,7 @@ function initiate(module, check)
                 'fatalExceptionsPerScreenview'
             }
         }
-    elseif module.name() == 'googleanalytics4:DoubleClickCampaignManager' then -- DoubleClick Campaign Manager
+    elseif params.metric_group == 'DoubleClickCampaignManager' then
         -- Restricted metrics - can only be queried under certain circumstances,
         -- unable to verify data received during testing...
         params.metrics = {
@@ -399,7 +403,7 @@ function initiate(module, check)
                 'dcmRPC'
             }
         }
-    elseif module.name() == 'googleanalytics4:Audience' then -- Audience
+    elseif params.metric_group == 'Audience' then
         -- Restricted metrics - can only be queried under certain circumstances,
         -- unable to verify data received during testing...
         params.metrics = {
@@ -416,7 +420,7 @@ function initiate(module, check)
                 'adsenseCoverage'
             }
         }
-    elseif module.name() == 'googleanalytics4:AdExchange' then -- Ad Exchange
+    elseif params.metric_group == 'AdExchange' then
         params.metrics = {
             {
                 'adxImpressions',
@@ -431,7 +435,7 @@ function initiate(module, check)
                 'adxECPM'
             }
         }
-    elseif module.name() == 'googleanalytics4:DoubleClickForPublishers' then -- DoubleClick for Publishers
+    elseif params.metric_group == 'DoubleClickForPublishers' then
         -- Restricted metrics - can only be queried under certain circumstances,
         -- unable to verify data received during testing...
         params.metrics = {
@@ -448,7 +452,7 @@ function initiate(module, check)
                 'dfpECPM'
             }
         }
-    elseif module.name() == 'googleanalytics4:DoubleClickForPublishersBackfill' then -- DoubleClick for Publishers Backfill
+    elseif params.metric_group == 'DoubleClickForPublishersBackfill' then
         -- Restricted metrics - can only be queried under certain circumstances,
         -- unable to verify data received during testing...
         params.metrics = {
@@ -465,7 +469,7 @@ function initiate(module, check)
                 'backfillECPM'
             }
         }
-    elseif module.name() == 'googleanalytics4:DoubleClickBidManager' then -- DoubleClick Bid Manager
+    elseif params.metric_group == 'DoubleClickBidManager' then
         -- Restricted metrics - can only be queried under certain circumstances,
         -- unable to verify data received during testing...
         params.metrics = {
@@ -481,7 +485,7 @@ function initiate(module, check)
                 'dbmROAS'
             }
         }
-    elseif module.name() == 'googleanalytics4:DoubleClickSearch' then -- DoubleClick Search
+    elseif params.metric_group == 'DoubleClickSearch' then
         -- Restricted metrics - can only be queried under certain circumstances,
         -- unable to verify data received during testing...
         params.metrics = {
@@ -497,7 +501,7 @@ function initiate(module, check)
             }
         }
     else
-        local err_msg = 'unknown googleanalytics4 module (' .. module.name() .. ')'
+        local err_msg = 'unknown googleanalytics4 metric group (' .. params.metric_group .. ')'
         mtev.log('error', '%s\n', err_msg)
         check.bad()
         check.unavailable()
