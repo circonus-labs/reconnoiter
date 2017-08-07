@@ -105,18 +105,6 @@ function orderedPairs(t)
     return orderedNext, t, nil
 end
 
--- function gastrjoin(delimiter, list)
---     local len = # list
---     if len == 0 then
---         return ''
---     end
---     local string = 'ga:' .. list[1]
---     for i = 2, len do
---         string = string .. delimiter .. 'ga:' .. list[i]
---     end
---     return string
--- end
-
 function escape(s)
     s = string.gsub(s, "([%%,:/&=+%c])", function (c)
         return string.format("%%%02X", string.byte(c))
@@ -151,7 +139,6 @@ function GoogleAnalytics:new(params, hooks)
     setmetatable(obj, GoogleAnalytics)
     obj.params = params or { }
     obj.hooks = hooks or { }
-    -- obj.metrics = gastrjoin(',', params.metrics or { })
     return obj
 end
 
@@ -169,13 +156,11 @@ function dump(o)
 end
 
 function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client_secret)
-    -- local baseurl = 'https://www.googleapis.com/analytics/v2.4/data?'
     local baseurl = 'https://analyticsreporting.googleapis.com/v4/reports:batchGet?'
     local port = 443
     local use_ssl = true
     local username = self.params.username
     local password = self.params.password
-    -- local table_id = self.params.table_id
     local view_id = self.params.table_id -- v4 'table id' is view id
 
     local use_oauth = self.params.use_oauth
@@ -204,13 +189,6 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
 
     local start_date = '2005-01-01'
     local end_date = os.date("%Y-%m-%d", os.time()+172800)
-
-    -- old code from v2 api calls
-    -- local metrics = self.metrics
-    -- table_id = 'ga:' .. table_id
-    -- local url = baseurl .. 'ids=' .. table_id ..
-    --            '&start-date=' .. start_date .. '&end-date=' .. end_date ..
-    --            '&metrics=' .. metrics
 
     local url = baseurl
     local output = ''
@@ -325,10 +303,6 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
             oauth_timestamp = oauth_timestamp,
             oauth_version = '1.0',
             oauth_token = oauth_token,
-            -- ids = table_id,
-            -- metrics = metrics,
-            -- startdate = start_date,
-            -- enddate = end_date,
             key = api_key
         }
 
@@ -352,14 +326,9 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
     headers.Authorization = gdata_auth
 
     local json = generate_json(view_id, start_date, end_date, self.params.metrics)
-    -- mtev.log('debug', 'googleanalytics4 args: %s\n', json)
 
     client:do_request("POST", uri, headers, json)
     client:get_response()
-
-    -- for line in string.gmatch(output, "([^\r\n]+)") do
-    --     mtev.log("debug", "googleanalytics4 response: %s\n", line)
-    -- end
 
     local metrics = 0
     local jsondoc = mtev.parsejson(output)
@@ -379,8 +348,6 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
     if jsondata['reports'] ~= nil then
         for report_idx, report in pairs(jsondata['reports']) do
             local report = jsondata['reports'][report_idx]
-
-            -- mtev.log('debug', 'googleanalytics4 processing report %d %s\n', report_idx, dump(report))
 
             local metric_headers = report['columnHeader']['metricHeader']['metricHeaderEntries']
             local metric_values = {}
