@@ -325,6 +325,8 @@ static void check_info_clean(struct check_info *ci) {
   if(ci->envlens) free(ci->envlens);
   if(ci->envs) free(ci->envs);
   if(ci->matcher) pcre_free(ci->matcher);
+  if(ci->output) free(ci->output);
+  if(ci->error) free(ci->error);
   memset(ci, 0, sizeof(*ci));
 }
 static int external_handler(eventer_t e, int mask,
