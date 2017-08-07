@@ -384,8 +384,7 @@ static int external_handler(eventer_t e, int mask,
       r.stdout_truncated = h.stdout_truncated;
       r.stderr_truncated = h.stderr_truncated;
       r.stdoutlen = h.stdoutlen;
-      data->cr = calloc(sizeof(*data->cr), 1);
-      memset(data->cr, 0, sizeof(*data->cr));
+      data->cr = calloc(1, sizeof(*data->cr));
       memcpy(data->cr, &r, sizeof(r));
       data->cr->stdoutbuff = malloc(data->cr->stdoutlen);
       memset(data->cr->stdoutbuff, 0, data->cr->stdoutlen);
