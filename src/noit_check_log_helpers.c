@@ -101,7 +101,7 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
   }
   dlen = mtev_b64_encode((unsigned char *)compbuff, dlen,
                          (char *)b64buff, initial_dlen);
-  if(ctype != NOIT_COMPRESS_NONE) free(compbuff);
+  free(compbuff);
   if(dlen == 0) {
     mtevL(noit_error, "Error base64'ing bundled metrics.\n");
     free(b64buff);
