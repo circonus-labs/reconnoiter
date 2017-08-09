@@ -140,7 +140,7 @@ nc_print_noit_conn_brief(mtev_console_closure_t ncct,
     const char *addrstr = NULL;
     struct sockaddr_in6 addr6;
     socklen_t len = sizeof(addr6);
-    if(getsockname(ctx->e->fd, (struct sockaddr *)&addr6, &len) == 0) {
+    if(getsockname(eventer_get_fd(ctx->e), (struct sockaddr *)&addr6, &len) == 0) {
       unsigned short port = 0;
       if(addr6.sin6_family == AF_INET) {
         addrstr = inet_ntop(addr6.sin6_family,
@@ -161,19 +161,21 @@ nc_print_noit_conn_brief(mtev_console_closure_t ncct,
     }
     else {
       nc_printf(ncct, "\tLocal address error[%d]: %s\n",
-                ctx->e->fd, strerror(errno));
+                eventer_get_fd(ctx->e), strerror(errno));
     }
   }
   feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
   nc_printf(ncct, "\tJLog event streamer [%s]\n", feedtype);
   mtev_gettimeofday(&now, NULL);
   if(ctx->timeout_event) {
-    sub_timeval(ctx->timeout_event->whence, now, &diff);
+    struct timeval te = eventer_get_whence(ctx->timeout_event);
+    sub_timeval(te, now, &diff);
     nc_printf(ncct, "\tTimeout scheduled for %lld.%06us\n",
               (long long)diff.tv_sec, (unsigned int) diff.tv_usec);
   }
   if(ctx->retry_event) {
-    sub_timeval(ctx->retry_event->whence, now, &diff);
+    struct timeval re = eventer_get_whence(ctx->retry_event);
+    sub_timeval(re, now, &diff);
     nc_printf(ncct, "\tNext attempt in %lld.%06us\n",
               (long long)diff.tv_sec, (unsigned int) diff.tv_usec);
   }
@@ -241,7 +243,7 @@ jlog_streamer_ctx_free(void *cl) {
   free(ctx);
 }
 
-#define Eread(a,b) e->opset->read(e->fd, (a), (b), &mask, e)
+#define Eread(a,b) eventer_read(e, (a), (b), &mask)
 static int
 __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   int len, mask;
@@ -315,7 +317,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
   (void)cn_expected;
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
-    if(write(e->fd, e, 0) == -1)
+    if(write(eventer_get_fd(e), e, 0) == -1)
       mtevL(noit_error, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
             nctx->remote_cn ? nctx->remote_cn : "(null)", strerror(errno));
  socket_error:
@@ -335,9 +337,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
   while(1) {
     switch(ctx->state) {
       case JLOG_STREAMER_WANT_INITIATE:
-        len = e->opset->write(e->fd, &ctx->jlog_feed_cmd,
-                              sizeof(ctx->jlog_feed_cmd),
-                              &mask, e);
+        len = eventer_write(e, &ctx->jlog_feed_cmd,
+                            sizeof(ctx->jlog_feed_cmd), &mask);
         if(len < 0) {
           if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
           mtevL(noit_error, "[%s] [%s] initiating stream failed -> %d/%s.\n", 
@@ -417,11 +418,10 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         ctx->total_events++;
         if(ctx->count == 0 && ctx->needs_chkpt) {
           eventer_t completion_e;
-          eventer_remove_fd(e->fd);
-          completion_e = eventer_alloc();
-          memcpy(completion_e, e, sizeof(*e));
+          eventer_remove_fde(e);
+          completion_e = eventer_alloc_copy(e);
           nctx->e = completion_e;
-          completion_e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
+          eventer_set_mask(completion_e, EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION);
           ctx->state = JLOG_STREAMER_IS_ASYNC;
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
                     NULL, completion_e);
@@ -451,8 +451,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         n_chkpt.marker = htonl(ctx->header.chkpt.marker);
 
         /* screw short writes.  I'd rather die than not write my data! */
-        len = e->opset->write(e->fd, &n_chkpt, sizeof(jlog_id),
-                              &mask, e);
+        len = eventer_write(e, &n_chkpt, sizeof(jlog_id), &mask);
         if(len < 0) {
           if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
           goto socket_error;
@@ -677,7 +676,6 @@ emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
 static int
 periodic_noit_metrics(eventer_t e, int mask, void *closure,
                       struct timeval *now) {
-  struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
   mtev_connection_ctx_t **ctxs;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key_id;
@@ -750,8 +748,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   free(ctxs);
   PUSH_BOTH(DS_OP_CHKPT, NULL);
 
-  add_timeval(e->whence, whence, &whence);
-  eventer_add_at(periodic_noit_metrics, (void *)0x1, whence);
+  eventer_add_in(periodic_noit_metrics, (void *)0x1, DEFAULT_NOIT_PERIOD_TV);
   return 0;
 }
 
@@ -839,7 +836,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
       const char *addrstr = NULL;
       struct sockaddr_in6 addr6;
       socklen_t len = sizeof(addr6);
-      if(getsockname(ctx->e->fd, (struct sockaddr *)&addr6, &len) == 0) {
+      if(getsockname(eventer_get_fd(ctx->e), (struct sockaddr *)&addr6, &len) == 0) {
         unsigned short port = 0;
         if(addr6.sin6_family == AF_INET) {
           addrstr = inet_ntop(addr6.sin6_family,
@@ -867,7 +864,8 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
     json_object_object_add(node, "remote", json_object_new_string(ctx->remote_str));
     json_object_object_add(node, "type", json_object_new_string(feedtype));
     if(ctx->retry_event) {
-      sub_timeval(ctx->retry_event->whence, now, &diff);
+      struct timeval re = eventer_get_whence(ctx->retry_event);
+      sub_timeval(re, now, &diff);
       snprintf(buff, sizeof(buff), "%llu.%06d",
                (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
       json_object_object_add(node, "next_attempt", json_object_new_string(buff));
@@ -1065,7 +1063,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
       const char *addrstr = NULL;
       struct sockaddr_in6 addr6;
       socklen_t len = sizeof(addr6);
-      if(getsockname(ctx->e->fd, (struct sockaddr *)&addr6, &len) == 0) {
+      if(getsockname(eventer_get_fd(ctx->e), (struct sockaddr *)&addr6, &len) == 0) {
         unsigned short port = 0;
         if(addr6.sin6_family == AF_INET) {
           addrstr = inet_ntop(addr6.sin6_family,
@@ -1093,7 +1091,8 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
     if(ctx->retry_event) {
-      sub_timeval(ctx->retry_event->whence, now, &diff);
+      struct timeval re = eventer_get_whence(ctx->retry_event);
+      sub_timeval(re, now, &diff);
       snprintf(buff, sizeof(buff), "%llu.%06d",
                (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
       xmlSetProp(node, (xmlChar *)"next_attempt", (xmlChar *)buff);

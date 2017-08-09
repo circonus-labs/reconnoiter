@@ -573,9 +573,10 @@ noit_console_show_check(mtev_console_closure_t ncct,
                   mine ? " (locally)" : "");
       }
       if (check->fire_event != NULL) {
-        struct timeval now, diff;
+        struct timeval then, now, diff;
         mtev_gettimeofday(&now, NULL);
-        sub_timeval(check->fire_event->whence, now, &diff);
+        then = eventer_get_whence(check->fire_event);
+        sub_timeval(then, now, &diff);
         nc_printf(ncct, " next run: %0.3f seconds\n",
                 diff.tv_sec + (diff.tv_usec / 1000000.0));
       }

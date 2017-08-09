@@ -389,15 +389,8 @@ setup_iep_connection_callback(eventer_t e, int mask, void *closure,
 
 static void
 setup_iep_connection_later(int seconds) {
-  eventer_t newe;
   if(!mtev_spinlock_trylock(&iep_conn_cnt)) return;
-  newe = eventer_alloc();
-  mtev_gettimeofday(&newe->whence, NULL);
-  newe->whence.tv_sec += seconds;
-  newe->mask = EVENTER_TIMER;
-  newe->callback = setup_iep_connection_callback;
-  newe->closure = NULL;
-  eventer_add(newe);
+  eventer_add_in_s_us(setup_iep_connection_callback, NULL, seconds, 0);
 }
 
 static int
@@ -505,16 +498,12 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   }
 
   /* process operand and push onto queue */
-  newe = eventer_alloc();
-  newe->thr_owner = eventer_choose_owner(0);
-  newe->mask = EVENTER_ASYNCH;
-  newe->callback = stratcon_iep_submitter;
   jc = calloc(1, sizeof(*jc));
   jc->line = operand;
   jc->remote = strdup(remote_str);
   mtev_gettimeofday(&jc->start, NULL);
-  newe->closure = jc;
-
+  newe = eventer_alloc_asynch(stratcon_iep_submitter, jc);
+  eventer_set_owner(newe, eventer_choose_owner(0));
   eventer_add_asynch(iep_jobq, newe);
 }
 
@@ -571,12 +560,12 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
     }
     mtevL(noit_iep, "IEP daemon is done, starting a new one\n");
     start_iep_daemon();
-    eventer_remove_fd(e->fd);
+    eventer_remove_fde(e);
     iep_daemon_info_free(info);
     return 0;
   }
   while(1) {
-    len = e->opset->read(e->fd, buff, sizeof(buff)-1, &newmask, e);
+    len = eventer_read(e, buff, sizeof(buff)-1, &newmask);
     if(len == -1 && (errno == EAGAIN || errno == EINTR))
       return newmask | EVENTER_EXCEPTION;
     if(len <= 0) goto read_error;
@@ -647,11 +636,9 @@ start_iep_daemon() {
     goto bail;
   }
 
-  newe = eventer_alloc();
-  newe->fd = info->stderr_pipe[0];
-  newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
-  newe->callback = stratcon_iep_err_handler;
-  newe->closure = info;
+  newe = eventer_alloc_fd(stratcon_iep_err_handler, info,
+                          info->stderr_pipe[0],
+                          EVENTER_READ | EVENTER_EXCEPTION);
   eventer_add(newe);
   info = NULL;
 

@@ -154,7 +154,7 @@ static int
 __safe_Ewrite(eventer_t e, void *b, int l, int *mask) {
   int w, sofar = 0;
   while(l > sofar) {
-    w = e->opset->write(e->fd, (char *)b + sofar, l - sofar, mask, e);
+    w = eventer_write(e, (char *)b + sofar, l - sofar, mask);
     if(w <= 0) return w;
     sofar += w;
   }
@@ -205,12 +205,12 @@ void *
 noit_jlog_thread_main(void *e_vptr) {
   int mask, bytes_read, sleeptime, max_sleeptime;
   eventer_t e = e_vptr;
-  acceptor_closure_t *ac = e->closure;
+  acceptor_closure_t *ac = eventer_get_closure(e);
   noit_jlog_closure_t *jcl = ac->service_ctx;
   char inbuff[sizeof(jlog_id)];
 
   mtev_memory_init_thread();
-  eventer_set_fd_blocking(e->fd);
+  eventer_set_fd_blocking(eventer_get_fd(e));
 
   max_sleeptime = DEFAULT_MSECONDS_BETWEEN_BATCHES;
   if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED)
@@ -262,9 +262,8 @@ noit_jlog_thread_main(void *e_vptr) {
       bytes_read = 0;
       while(bytes_read < sizeof(jlog_id)) {
         int len;
-        if((len = e->opset->read(e->fd, inbuff + bytes_read,
-                                 sizeof(jlog_id) - bytes_read,
-                                 &mask, e)) <= 0)
+        if((len = eventer_read(e, inbuff + bytes_read,
+                               sizeof(jlog_id) - bytes_read, &mask)) <= 0)
           goto alldone;
         bytes_read += len;
       }
@@ -290,7 +289,7 @@ noit_jlog_thread_main(void *e_vptr) {
        * disconnected client.
        */
       struct pollfd pfd;
-      pfd.fd = e->fd;
+      pfd.fd = eventer_get_fd(e);
       pfd.events = POLLIN | POLLHUP | POLLRDNORM;
       pfd.revents = 0;
       if(poll(&pfd, 1, 0) != 0) {
@@ -311,7 +310,7 @@ noit_jlog_thread_main(void *e_vptr) {
   }
 
  alldone:
-  e->opset->close(e->fd, &mask, e);
+  eventer_close(e, &mask);
   mtev_atomic_dec32(&jcl->feed_stats->connections);
   noit_jlog_closure_free(jcl);
   acceptor_closure_free(ac);
@@ -337,10 +336,10 @@ socket_error:
     /* Exceptions cause us to simply snip the connection */
     len = strlen(errstr);
     nlen = htonl(0 - len);
-    e->opset->write(e->fd, &nlen, sizeof(nlen), &newmask, e);
-    e->opset->write(e->fd, errstr, strlen(errstr), &newmask, e);
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &newmask, e);
+    eventer_write(e, &nlen, sizeof(nlen), &newmask);
+    eventer_write(e, errstr, strlen(errstr), &newmask);
+    eventer_remove_fde(e);
+    eventer_close(e, &newmask);
     if(jcl) noit_jlog_closure_free(jcl);
     acceptor_closure_free(ac);
     return 0;
@@ -434,9 +433,8 @@ socket_error:
   /* The jlog stuff is disk I/O and can block us.
    * We'll create a new thread to just handle this connection.
    */
-  eventer_remove_fd(e->fd);
-  newe = eventer_alloc();
-  memcpy(newe, e, sizeof(*e));
+  eventer_remove_fde(e);
+  newe = eventer_alloc_copy(e);
   pthread_attr_init(&tattr);
   pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
   mtev_gettimeofday(&jcl->feed_stats->last_connection, NULL);
@@ -448,7 +446,7 @@ socket_error:
   /* Undo our dup */
   eventer_free(newe);
   /* Creating the thread failed, close it down and deschedule. */
-  e->opset->close(e->fd, &newmask, e);
+  eventer_close(e, &newmask);
   return 0;
 }
 
