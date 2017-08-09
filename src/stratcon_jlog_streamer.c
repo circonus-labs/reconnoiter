@@ -494,7 +494,7 @@ void
 stratcon_jlog_streamer_recache_noit() {
   int di, cnt;
   mtev_conf_section_t *noit_configs;
-  noit_configs = mtev_conf_get_sections(NULL, "//noits//noit", &cnt);
+  noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, "//noits//noit", &cnt);
   pthread_mutex_lock(&noit_ip_by_cn_lock);
   mtev_hash_delete_all(&noit_ip_by_cn, free, free);
   for(di=0; di<cnt; di++) {
@@ -510,7 +510,7 @@ stratcon_jlog_streamer_recache_noit() {
                         strdup(address));
     }
   }
-  free(noit_configs);
+  mtev_conf_release_sections(noit_configs, cnt);
   pthread_mutex_unlock(&noit_ip_by_cn_lock);
 }
 void
@@ -920,7 +920,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
 
   if(!type || !strcmp(type, "configured")) {
     snprintf(path, sizeof(path), "//noits//noit");
-    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
     for(di=0; di<cnt; di++) {
       char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
@@ -953,7 +953,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
         }
       }
     }
-    free(noit_configs);
+    mtev_conf_release_sections(noit_configs, cnt);
   }
   mtev_hash_destroy(&seen, free, NULL);
 
@@ -1147,7 +1147,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
 
   if(!type || !strcmp(type, "configured")) {
     snprintf(path, sizeof(path), "//noits//noit");
-    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
     for(di=0; di<cnt; di++) {
       char address[64], port_str[32], remote_str[98], remote_dedup_key[2048];
       char expected_cn_buff[256], *expected_cn = NULL;
@@ -1180,7 +1180,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
         }
       }
     }
-    free(noit_configs);
+    mtev_conf_release_sections(noit_configs, cnt);
   }
   mtev_hash_destroy(&seen, free, NULL);
 
@@ -1203,26 +1203,32 @@ stratcon_add_noit(const char *target, unsigned short port,
   if(strlen(target) > 0) {
     snprintf(path, sizeof(path),
              "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
-    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
-    free(noit_configs);
+    noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
+    mtev_conf_release_sections(noit_configs, cnt);
     if(cnt != 0) return -1;
   }
   if(cn) {
     snprintf(path, sizeof(path),
              "//noits//noit/config/cn[text()=\"%s\"]", cn);
-    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
-    free(noit_configs);
+    noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
+    mtev_conf_release_sections(noit_configs, cnt);
     if(cnt != 0) return -1;
   }
 
-  parent = mtev_conf_get_section(NULL, "//noits//include//noits");
-  if(!parent) parent = mtev_conf_get_section(NULL, "//noits");
-  if(!parent) return -1;
+  parent = mtev_conf_get_section(MTEV_CONF_ROOT, "//noits//include//noits");
+  if(mtev_conf_section_is_empty(parent)) {
+    mtev_conf_release_section(parent);
+    parent = mtev_conf_get_section(MTEV_CONF_ROOT, "//noits");
+  }
+  if(mtev_conf_section_is_empty(parent)) {
+    mtev_conf_release_section(parent);
+    return -1;
+  }
   snprintf(port_str, sizeof(port_str), "%d", port);
   newnoit = xmlNewNode(NULL, (xmlChar *)"noit");
   xmlSetProp(newnoit, (xmlChar *)"address", (xmlChar *)target);
   xmlSetProp(newnoit, (xmlChar *)"port", (xmlChar *)port_str);
-  xmlAddChild(parent, newnoit);
+  xmlAddChild(mtev_conf_section_to_xmlnodeptr(parent), newnoit);
   if(cn) {
     config = xmlNewNode(NULL, (xmlChar *)"config");
     cnnode = xmlNewNode(NULL, (xmlChar *)"cn");
@@ -1246,6 +1252,7 @@ stratcon_add_noit(const char *target, unsigned short port,
                                  (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
                                  NULL,
                                  jlog_streamer_ctx_free);
+  mtev_conf_release_section(parent);
   return 1;
 }
 static int
@@ -1265,7 +1272,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
    * possibly limited by CN if specified. */
   snprintf(path, sizeof(path),
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
-  noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+  noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
   for(i=0; i<cnt; i++) {
     char expected_cn[256];
     if(mtev_conf_get_stringbuf(noit_configs[i], "self::node()/config/cn",
@@ -1279,27 +1286,27 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
     }
     else if(cn) continue;
     CONF_REMOVE(noit_configs[i]);
-    xmlUnlinkNode(noit_configs[i]);
-    xmlFreeNode(noit_configs[i]);
+    xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
+    xmlFreeNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
     n = 0;
   }
-  free(noit_configs);
+  mtev_conf_release_sections(noit_configs, cnt);
 
   /* A sweep through the config of all noits with this CN */
   if(cn) {
     snprintf(path, sizeof(path),
              "//noits/noit[self::node()/config/cn/text()=\"%s\"]", cn);
-    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
     for(i=0; i<cnt; i++) {
       pthread_mutex_lock(&noit_ip_by_cn_lock);
       mtev_hash_delete(&noit_ip_by_cn, cn, strlen(cn), free, free);
       pthread_mutex_unlock(&noit_ip_by_cn_lock);
       CONF_REMOVE(noit_configs[i]);
-      xmlUnlinkNode(noit_configs[i]);
-      xmlFreeNode(noit_configs[i]);
+      xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
+      xmlFreeNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
       n = 0;
     }
-    free(noit_configs);
+    mtev_conf_release_sections(noit_configs, cnt);
   }
 
   pthread_mutex_lock(&noits_lock);
@@ -1487,16 +1494,16 @@ stratcon_jlog_streamer_init(const char *toplevel) {
 
   uuid_clear(self_stratcon_id);
 
-  if(mtev_conf_get_stringbuf(NULL, "/stratcon/@id",
+  if(mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/stratcon/@id",
                              uuid_str, sizeof(uuid_str)) &&
      uuid_parse(uuid_str, self_stratcon_id) == 0) {
-    int period;
-    mtev_conf_get_boolean(NULL, "/stratcon/@extended_id",
+    int32_t period;
+    mtev_conf_get_boolean(MTEV_CONF_ROOT, "/stratcon/@extended_id",
                           &stratcon_selfcheck_extended_id);
     /* If a UUID was provided for stratcon itself, we will report metrics
      * on a large variety of things (including all noits).
      */
-    if(mtev_conf_get_int(NULL, "/stratcon/@metric_period", &period) &&
+    if(mtev_conf_get_int32(MTEV_CONF_ROOT, "/stratcon/@metric_period", &period) &&
        period > 0) {
       DEFAULT_NOIT_PERIOD_TV.tv_sec = period / 1000;
       DEFAULT_NOIT_PERIOD_TV.tv_usec = (period % 1000) * 1000;

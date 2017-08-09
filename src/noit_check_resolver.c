@@ -692,7 +692,7 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
 }
 
 void noit_check_resolver_init() {
-  int cnt;
+  int32_t cnt;
   mtev_conf_section_t *servers, *searchdomains;
   eventer_t e;
   if(dns_init(NULL, 0) < 0)
@@ -704,7 +704,7 @@ void noit_check_resolver_init() {
   }
 
   /* Optional servers */
-  servers = mtev_conf_get_sections(NULL, "//resolver//server", &cnt);
+  servers = mtev_conf_get_sections(MTEV_CONF_ROOT, "//resolver//server", &cnt);
   if(cnt) {
     int i;
     char server[128];
@@ -720,9 +720,9 @@ void noit_check_resolver_init() {
         }
       }
     }
-    free(servers);
   }
-  searchdomains = mtev_conf_get_sections(NULL, "//resolver//search", &cnt);
+  mtev_conf_release_sections(servers, cnt);
+  searchdomains = mtev_conf_get_sections(MTEV_CONF_ROOT, "//resolver//search", &cnt);
   if(cnt) {
     int i;
     char search[128];
@@ -739,16 +739,16 @@ void noit_check_resolver_init() {
         else if(dns_search_flag) dns_search_flag = 0; /* enable search */
       }
     }
-    free(searchdomains);
   }
+  mtev_conf_release_sections(searchdomains, cnt);
 
-  if(mtev_conf_get_int(NULL, "//resolver/@ndots", &cnt))
+  if(mtev_conf_get_int32(MTEV_CONF_ROOT, "//resolver/@ndots", &cnt))
     dns_set_opt(dns_ctx, DNS_OPT_NDOTS, cnt);
 
-  if(mtev_conf_get_int(NULL, "//resolver/@ntries", &cnt))
+  if(mtev_conf_get_int32(MTEV_CONF_ROOT, "//resolver/@ntries", &cnt))
     dns_set_opt(dns_ctx, DNS_OPT_NTRIES, cnt);
 
-  if(mtev_conf_get_int(NULL, "//resolver/@timeout", &cnt))
+  if(mtev_conf_get_int32(MTEV_CONF_ROOT, "//resolver/@timeout", &cnt))
     dns_set_opt(dns_ctx, DNS_OPT_TIMEOUT, cnt);
 
   if(dns_open(dns_ctx) < 0) {
@@ -815,7 +815,7 @@ int noit_check_should_resolve_targets(mtev_boolean *should_resolve) {
   static int inited = 0, cached_rv;;
   static mtev_boolean cached_should_resolve;
   if(!inited) {
-    cached_rv = mtev_conf_get_boolean(NULL, "//checks/@resolve_targets",
+    cached_rv = mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@resolve_targets",
                                       &cached_should_resolve);
     inited = 1;
   }

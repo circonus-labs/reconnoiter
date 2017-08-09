@@ -50,7 +50,7 @@ struct stomp_driver {
   char *pass;
   char *destination;
   char *hostname;
-  int port;
+  int32_t port;
 };
 
 static iep_thread_driver_t *noit_stomp_allocate(mtev_conf_section_t conf) {
@@ -67,7 +67,7 @@ static iep_thread_driver_t *noit_stomp_allocate(mtev_conf_section_t conf) {
   (void)mtev_conf_get_string(conf, "password", &dr->pass);
   (void)mtev_conf_get_string(conf, "hostname", &dr->hostname);
   if(!dr->hostname) dr->hostname = strdup("127.0.0.1");
-  if(!mtev_conf_get_int(conf, "port", &dr->port))
+  if(!mtev_conf_get_int32(conf, "port", &dr->port))
     dr->port = 61613;
   return (iep_thread_driver_t *)dr;
 }

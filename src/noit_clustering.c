@@ -77,8 +77,11 @@ noit_cluster_setup_ssl(int port) {
   char xpath[1024];
   if(cainfo && certinfo && keyinfo) return;
   snprintf(xpath, sizeof(xpath), "//listeners//listener[@port=\"%d\"]", port);
-  mtev_conf_section_t listener = mtev_conf_get_section(NULL, xpath);
-  if(!listener) return;
+  mtev_conf_section_t listener = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  if(mtev_conf_section_is_empty(listener)) {
+    mtev_conf_release_section(listener);
+    return;
+  }
   mtev_hash_table *sslconfig = mtev_conf_get_hash(listener, "sslconfig");
 #define SSLSETUP(sslconfig, name, var) do { \
   const char *v; \
@@ -89,6 +92,7 @@ noit_cluster_setup_ssl(int port) {
   SSLSETUP(sslconfig, "certificate_file", certinfo);
   SSLSETUP(sslconfig, "key_file", keyinfo);
 #undef SSLSETUP
+  mtev_conf_release_section(listener);
 }
 
 static mtev_log_stream_t clerr, cldeb;
@@ -315,11 +319,12 @@ noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
     if(mtev_hash_store(&dedup, (const char *)node->name, strlen(node->name), NULL)) {
       char xpath[512];
       snprintf(xpath, sizeof(xpath), "//filtersets//filterset[@name=\"%s\"]", node->name);
-      mtev_conf_section_t filternode = mtev_conf_get_section(NULL, xpath);
-      if(filternode) {
-        xmlAddChild(parent, xmlCopyNode(filternode,1));
+      mtev_conf_section_t filternode = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+      if(!mtev_conf_section_is_empty(filternode)) {
+        xmlAddChild(parent, xmlCopyNode(mtev_conf_section_to_xmlnodeptr(filternode),1));
         last_seen = node->seq;
       }
+      mtev_conf_release_section(filternode);
     }
   }
   pthread_mutex_unlock(&noit_peer_lock);

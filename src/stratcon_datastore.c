@@ -439,7 +439,7 @@ stratcon_datastore_core_init() {
   ingest_err = mtev_log_stream_find("error/ingest");
   if(!ds_err) ds_err = noit_error;
   if(!ingest_err) ingest_err = noit_error;
-  if(!mtev_conf_get_string(NULL, "//database/journal/path",
+  if(!mtev_conf_get_string(MTEV_CONF_ROOT, "//database/journal/path",
                            &basejpath)) {
     mtevL(noit_error, "//database/journal/path is unspecified\n");
     exit(-1);

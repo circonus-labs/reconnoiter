@@ -191,7 +191,7 @@ void stratcon_iep_submit_statements() {
   mtev_hash_init(&stmt_by_provider);
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//statement");
-  statement_configs = mtev_conf_get_sections(NULL, path, &cnt);
+  statement_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
   mtevL(noit_debug, "Found %d %s stanzas\n", cnt, path);
 
   /* Phase 1: sweep in all the statements */
@@ -302,7 +302,7 @@ void stratcon_iep_submit_statements() {
 
   mtev_hash_destroy(&stmt_by_provider, NULL, NULL);
   mtev_hash_destroy(&stmt_by_id, NULL, statement_node_free);
-  free(statement_configs);
+  mtev_conf_release_sections(statement_configs, cnt);
 }
 
 void stratcon_iep_submit_queries() {
@@ -311,7 +311,7 @@ void stratcon_iep_submit_queries() {
   char path[256];
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//query");
-  query_configs = mtev_conf_get_sections(NULL, path, &cnt);
+  query_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
   mtevL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
     char id[UUID_STR_LEN+1];
@@ -351,7 +351,7 @@ void stratcon_iep_submit_queries() {
     }
     stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, line, NULL);
   }
-  free(query_configs);
+  mtev_conf_release_sections(query_configs, cnt);
 }
 
 static struct driver_thread_data *
@@ -592,7 +592,7 @@ start_iep_daemon() {
   struct iep_daemon_info *info;
   char *cmd = NULL;
 
-  if(!mtev_conf_get_string(NULL, "/stratcon/iep/start/@command",
+  if(!mtev_conf_get_string(MTEV_CONF_ROOT, "/stratcon/iep/start/@command",
                            &cmd)) {
     mtevL(noit_iep, "No IEP start command provided.  You're on your own.\n");
     setup_iep_connection_later(0);
@@ -604,7 +604,7 @@ start_iep_daemon() {
   info->stderr_pipe[0] = info->stderr_pipe[1] = -1;
   info->command = cmd;
 
-  if(!mtev_conf_get_string(NULL, "/stratcon/iep/start/@directory",
+  if(!mtev_conf_get_string(MTEV_CONF_ROOT, "/stratcon/iep/start/@directory",
                            &info->directory))
     info->directory = strdup(".");
   if(pipe(info->stdin_pipe) != 0 ||
@@ -813,7 +813,7 @@ stratcon_iep_init() {
   if(!noit_iep) noit_iep = noit_error;
   if(!noit_iep_debug) noit_iep_debug = noit_debug;
 
-  if(mtev_conf_get_stringbuf(NULL, "/stratcon/iep/@inject_remote", remote, sizeof(remote))) {
+  if(mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/stratcon/iep/@inject_remote", remote, sizeof(remote))) {
     if(strcmp(remote, "ip") && strcmp(remote, "cn")) {
       mtevL(noit_iep, "Bad @remote_inject \"%s\", setting to \"cn\"\n", remote);
       strlcpy(remote, "ip", sizeof(remote));
@@ -822,13 +822,13 @@ stratcon_iep_init() {
   if(!strcmp(remote, "ip")) inject_remote_cn = mtev_false;
   else if(!strcmp(remote, "cn")) inject_remote_cn = mtev_true;
 
-  if(mtev_conf_get_boolean(NULL, "/stratcon/iep/@disabled", &disabled) &&
+  if(mtev_conf_get_boolean(MTEV_CONF_ROOT, "/stratcon/iep/@disabled", &disabled) &&
      disabled == mtev_true) {
     mtevL(noit_iep, "IEP system is disabled!\n");
     return;
   }
 
-  mqs = mtev_conf_get_sections(NULL, "/stratcon/iep/mq", &cnt);
+  mqs = mtev_conf_get_sections(MTEV_CONF_ROOT, "/stratcon/iep/mq", &cnt);
   for(i=0; i<cnt; i++) {
     if(mtev_conf_env_off(mqs[i], NULL)) continue;
     if(!mtev_conf_get_stringbuf(mqs[i], "@type",
@@ -849,7 +849,7 @@ stratcon_iep_init() {
     newdriver->next = drivers;
     drivers = newdriver;
   }
-  free(mqs);
+  mtev_conf_release_sections(mqs, cnt);
 
   eventer_name_callback("stratcon_iep_submitter", stratcon_iep_submitter);
   eventer_name_callback("stratcon_iep_err_handler", stratcon_iep_err_handler);

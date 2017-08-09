@@ -210,7 +210,7 @@ static int child_main() {
   if(xpath) {
     int cnt, i;
     mtev_conf_section_t *parts = NULL;
-    parts = mtev_conf_get_sections(NULL, xpath, &cnt);
+    parts = mtev_conf_get_sections(MTEV_CONF_ROOT, xpath, &cnt);
     if(cnt == 0) exit(2);
     for(i=0; i<cnt; i++) {
       const char *sup = "";
