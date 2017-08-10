@@ -59,7 +59,7 @@
 
 static struct dns_ctx *dns_ctx;
 static pthread_mutex_t nc_dns_cache_lock = PTHREAD_MUTEX_INITIALIZER;
-static mtev_skiplist nc_dns_cache;
+static mtev_skiplist *nc_dns_cache;
 static eventer_t dns_cache_timeout = NULL;
 static mtev_hash_table etc_hosts_cache;
 static int dns_search_flag = DNS_NOSRCH;
@@ -185,7 +185,7 @@ noit_check_resolver_remind_internal(const char *target,
   dns_cache_node *n;
   if(!target) return;
   if(needs_lock) DCLOCK();
-  n = mtev_skiplist_find(&nc_dns_cache, target, NULL);
+  n = mtev_skiplist_find(nc_dns_cache, target, NULL);
   if(n != NULL) {
     n->last_needed = time(NULL);
     if(needs_lock) DCUNLOCK();
@@ -194,7 +194,7 @@ noit_check_resolver_remind_internal(const char *target,
   n = calloc(1, sizeof(*n));
   n->target = strdup(target);
   n->last_needed = time(NULL);
-  mtev_skiplist_insert(&nc_dns_cache, n);
+  mtev_skiplist_insert(nc_dns_cache, n);
   if(needs_lock) DCUNLOCK();
 }
 
@@ -236,7 +236,7 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
 
   rv = -1;
   DCLOCK();
-  n = mtev_skiplist_find(&nc_dns_cache, target, NULL);
+  n = mtev_skiplist_find(nc_dns_cache, target, NULL);
   if(n != NULL) {
     if(n->last_updated == 0) goto leave; /* not resolved yet */
     rv = n->ip4_cnt + n->ip6_cnt;
@@ -267,25 +267,25 @@ static void blank_update_v4(dns_cache_node *n) {
   if(n->ip4) free(n->ip4);
   n->ip4 = NULL;
   n->ip4_cnt = 0;
-  mtev_skiplist_remove(&nc_dns_cache, n->target, NULL);
+  mtev_skiplist_remove(nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
   if (n->lookup_inflight_v6) {
     n->ttl = DEFAULT_FAILED_TTL;
   }
   n->lookup_inflight_v4 = mtev_false;
-  mtev_skiplist_insert(&nc_dns_cache, n);
+  mtev_skiplist_insert(nc_dns_cache, n);
 }
 static void blank_update_v6(dns_cache_node *n) {
   if(n->ip6) free(n->ip6);
   n->ip6 = NULL;
   n->ip6_cnt = 0;
-  mtev_skiplist_remove(&nc_dns_cache, n->target, NULL);
+  mtev_skiplist_remove(nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
   if (n->lookup_inflight_v4) {
     n->ttl = DEFAULT_FAILED_TTL;
   }
   n->lookup_inflight_v6 = mtev_false;
-  mtev_skiplist_insert(&nc_dns_cache, n);
+  mtev_skiplist_insert(nc_dns_cache, n);
 }
 static void blank_update(dns_cache_node *n) {
   blank_update_v4(n);
@@ -422,9 +422,9 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
     return;
   }
   DCLOCK();
-  mtev_skiplist_remove(&nc_dns_cache, n->target, NULL);
+  mtev_skiplist_remove(nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
-  mtev_skiplist_insert(&nc_dns_cache, n);
+  mtev_skiplist_insert(nc_dns_cache, n);
   DCUNLOCK();
   mtevL(noit_debug, "Resolved %s/%s -> %d records\n", n->target,
         (rtype == DNS_T_AAAA ? "IPv6" : (rtype == DNS_T_A ? "IPv4" : "???")),
@@ -455,19 +455,19 @@ void noit_check_resolver_maintain() {
   mtev_skiplist_node *sn;
 
   now = time(NULL);
-  sn = mtev_skiplist_getlist(nc_dns_cache.index);
+  sn = mtev_skiplist_getlist(mtev_skiplist_indexes(nc_dns_cache));
   mtevAssert(sn);
-  tlist = sn->data;
+  tlist = mtev_skiplist_data(sn);
   mtevAssert(tlist);
   sn = mtev_skiplist_getlist(tlist);
   while(sn) {
-    dns_cache_node *n = sn->data;
+    dns_cache_node *n = mtev_skiplist_data(sn);
     mtev_skiplist_next(tlist, &sn); /* move forward */
     /* remove if needed */
     if(n->last_updated + n->ttl > now) break;
     if(n->last_needed + DEFAULT_PURGE_AGE < now &&
        !(n->lookup_inflight_v4 || n->lookup_inflight_v6))
-      mtev_skiplist_remove(&nc_dns_cache, n->target, dns_cache_node_free);
+      mtev_skiplist_remove(nc_dns_cache, n->target, dns_cache_node_free);
     else {
       int abs;
       if(!dns_ptodn(n->target, strlen(n->target),
@@ -504,11 +504,11 @@ void noit_check_resolver_maintain() {
       mtev_skiplist_node *sn;
       /* dump it all */
       DCLOCK();
-      for(sn = mtev_skiplist_getlist(&nc_dns_cache); sn;
-          mtev_skiplist_next(&nc_dns_cache, &sn)) {
+      for(sn = mtev_skiplist_getlist(nc_dns_cache); sn;
+          mtev_skiplist_next(nc_dns_cache, &sn)) {
         int sbuffsize;
         char sbuff[1024];
-        dns_cache_node *n = (dns_cache_node *)sn->data;
+        dns_cache_node *n = (dns_cache_node *)mtev_skiplist_data(sn);
         sbuffsize = dns_cache_node_serialize(sbuff, sizeof(sbuff), n);
         if(sbuffsize > 0)
           noit_resolver_cache_store_hook_invoke(n->target, sbuff, sbuffsize);
@@ -560,15 +560,15 @@ noit_console_show_dns_cache(mtev_console_closure_t ncct,
   DCLOCK();
   if(argc == 0) {
     mtev_skiplist_node *sn;
-    for(sn = mtev_skiplist_getlist(&nc_dns_cache); sn;
-        mtev_skiplist_next(&nc_dns_cache, &sn)) {
-      dns_cache_node *n = (dns_cache_node *)sn->data;
+    for(sn = mtev_skiplist_getlist(nc_dns_cache); sn;
+        mtev_skiplist_next(nc_dns_cache, &sn)) {
+      dns_cache_node *n = (dns_cache_node *)mtev_skiplist_data(sn);
       nc_print_dns_cache_node(ncct, n->target, n);
     }
   }
   for(i=0;i<argc;i++) {
     dns_cache_node *n;
-    n = mtev_skiplist_find(&nc_dns_cache, argv[i], NULL);
+    n = mtev_skiplist_find(nc_dns_cache, argv[i], NULL);
     nc_print_dns_cache_node(ncct, argv[i], n);
   }
   DCUNLOCK();
@@ -589,7 +589,7 @@ noit_console_manip_dns_cache(mtev_console_closure_t ncct,
     /* adding */
     for(i=0;i<argc;i++) {
       dns_cache_node *n;
-      n = mtev_skiplist_find(&nc_dns_cache, argv[i], NULL);
+      n = mtev_skiplist_find(nc_dns_cache, argv[i], NULL);
       if(NULL != n) {
         nc_printf(ncct, " == Already in system ==\n");
         nc_print_dns_cache_node(ncct, argv[i], n);
@@ -603,12 +603,12 @@ noit_console_manip_dns_cache(mtev_console_closure_t ncct,
   else {
     for(i=0;i<argc;i++) {
       dns_cache_node *n;
-      n = mtev_skiplist_find(&nc_dns_cache, argv[i], NULL);
+      n = mtev_skiplist_find(nc_dns_cache, argv[i], NULL);
       if(NULL != n) {
         if(n->lookup_inflight_v4 || n->lookup_inflight_v6)
           nc_printf(ncct, "%s is currently resolving and cannot be removed.\n");
         else {
-          mtev_skiplist_remove(&nc_dns_cache, argv[i], dns_cache_node_free);
+          mtev_skiplist_remove(nc_dns_cache, argv[i], dns_cache_node_free);
           nc_printf(ncct, "%s removed.\n", argv[i]);
         }
       }
@@ -761,9 +761,9 @@ void noit_check_resolver_init() {
                        EVENTER_READ|EVENTER_EXCEPTION);
   eventer_add(e);
 
-  mtev_skiplist_init(&nc_dns_cache);
-  mtev_skiplist_set_compare(&nc_dns_cache, name_lookup, name_lookup_k);
-  mtev_skiplist_add_index(&nc_dns_cache, refresh_idx, refresh_idx_k);
+  nc_dns_cache = mtev_skiplist_alloc();
+  mtev_skiplist_set_compare(nc_dns_cache, name_lookup, name_lookup_k);
+  mtev_skiplist_add_index(nc_dns_cache, refresh_idx, refresh_idx_k);
 
   /* maybe load it from cache */
   if(noit_resolver_cache_load_hook_exists()) {
@@ -791,7 +791,7 @@ void noit_check_resolver_init() {
           n->last_updated = now.tv_sec - n->ttl + (lrand48() % fudge);
         }
         DCLOCK();
-        mtev_skiplist_insert(&nc_dns_cache, n);
+        mtev_skiplist_insert(nc_dns_cache, n);
         DCUNLOCK();
         n = NULL;
       }

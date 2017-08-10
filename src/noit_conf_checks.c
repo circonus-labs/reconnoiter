@@ -615,7 +615,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
                   noit_check_state_string(noit_check_stats_state(c, NULL)));
         status = noit_check_stats_status(c, NULL);
         nc_printf(ncct, " status: %s\n", status);
-        nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
+        nc_printf(ncct, " feeds: %d\n", check->feeds ? mtev_skiplist_size(check->feeds) : 0);
       }
 
       c = noit_check_get_stats_inprogress(check);

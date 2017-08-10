@@ -256,8 +256,8 @@ static pthread_mutex_t polls_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t recycling_lock = PTHREAD_MUTEX_INITIALIZER;
 static mtev_hash_table polls;
 static mtev_hash_table dns_ignore_list;
-static mtev_skiplist watchlist = { 0 };
-static mtev_skiplist polls_by_name = { 0 };
+static mtev_skiplist *watchlist;
+static mtev_skiplist *polls_by_name;
 static uint32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
@@ -277,7 +277,7 @@ noit_poller_lookup_by_name__nolock(char *target, char *name) {
   memset(&tmp_check, 0, sizeof(tmp_check));
   tmp_check.target = target;
   tmp_check.name = name;
-  return mtev_skiplist_find(&polls_by_name, &tmp_check, NULL);
+  return mtev_skiplist_find(polls_by_name, &tmp_check, NULL);
 }
 
 static int
@@ -312,14 +312,14 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
     mtevAssert(new_check->name || newname);
     /* This remove could fail -- no big deal */
     if(new_check->name != NULL)
-      mtev_skiplist_remove(&polls_by_name, new_check, NULL);
+      mtev_skiplist_remove(polls_by_name, new_check, NULL);
 
     /* optional update the name (at the critical point) */
     if(newname) new_check->name = newnamecopy;
 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
-    if(!mtev_skiplist_insert(&polls_by_name, new_check)) {
+    if(!mtev_skiplist_insert(polls_by_name, new_check)) {
       mtevL(noit_error, "Check %s`%s disabled due to naming conflict\n",
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
@@ -892,15 +892,15 @@ noit_poller_init() {
   noit_check_poller_scheduling_init();
   noit_check_resolver_init();
   noit_check_tools_init();
-  mtev_skiplist_init(&polls_by_name);
-  mtev_skiplist_set_compare(&polls_by_name, __check_name_compare,
+  polls_by_name = mtev_skiplist_alloc();
+  mtev_skiplist_set_compare(polls_by_name, __check_name_compare,
                             __check_name_compare);
-  mtev_skiplist_add_index(&polls_by_name, __check_target_ip_compare,
-                            __check_target_ip_compare);
-  mtev_skiplist_add_index(&polls_by_name, __check_target_compare,
-                            __check_target_compare);
-  mtev_skiplist_init(&watchlist);
-  mtev_skiplist_set_compare(&watchlist, __watchlist_compare,
+  mtev_skiplist_add_index(polls_by_name, __check_target_ip_compare,
+                          __check_target_ip_compare);
+  mtev_skiplist_add_index(polls_by_name, __check_target_compare,
+                          __check_target_compare);
+  watchlist = mtev_skiplist_alloc();
+  mtev_skiplist_set_compare(watchlist, __watchlist_compare,
                             __watchlist_compare);
   register_console_check_commands();
   eventer_name_callback("check_recycle_bin_processor",
@@ -916,12 +916,12 @@ noit_poller_init() {
 
 int
 noit_poller_check_count() {
-  return polls_by_name.size;
+  return mtev_skiplist_size(polls_by_name);
 }
 
 int
 noit_poller_transient_check_count() {
-  return watchlist.size;
+  return mtev_skiplist_size(watchlist);
 }
 
 noit_check_t *
@@ -989,9 +989,9 @@ noit_check_watch(uuid_t in, int period) {
     mtev_uuid_copy(n.checkid, in);
     f = noit_poller_lookup(in);
     n.period = period;
-    if(mtev_skiplist_find(&watchlist, &n, NULL) == NULL) {
+    if(mtev_skiplist_find(watchlist, &n, NULL) == NULL) {
       mtevL(noit_debug, "Watching %s@%d\n", uuid_str, period);
-      mtev_skiplist_insert(&watchlist, f);
+      mtev_skiplist_insert(watchlist, f);
     }
     return f;
   }
@@ -1019,7 +1019,7 @@ noit_check_watch(uuid_t in, int period) {
   mtev_uuid_copy(n.checkid, in);
   n.period = period;
 
-  f = mtev_skiplist_find(&watchlist, &n, NULL);
+  f = mtev_skiplist_find(watchlist, &n, NULL);
   if(f) return f;
   f = noit_check_clone(in);
   if(!f) return NULL;
@@ -1027,7 +1027,7 @@ noit_check_watch(uuid_t in, int period) {
   f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
   mtevL(noit_debug, "Watching %s@%d\n", uuid_str, period);
-  mtev_skiplist_insert(&watchlist, f);
+  mtev_skiplist_insert(watchlist, f);
   return f;
 }
 
@@ -1042,7 +1042,7 @@ noit_check_get_watch(uuid_t in, int period) {
     if(f) n.period = f->period;
   }
 
-  f = mtev_skiplist_find(&watchlist, &n, NULL);
+  f = mtev_skiplist_find(watchlist, &n, NULL);
   return f;
 }
 
@@ -1050,8 +1050,7 @@ void
 noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
   char *feedcopy;
   if(!check->feeds) {
-    check->feeds = calloc(1, sizeof(*check->feeds));
-    mtev_skiplist_init(check->feeds);
+    check->feeds = mtev_skiplist_alloc();
     mtev_skiplist_set_compare(check->feeds,
                               (mtev_skiplist_comparator_t)strcmp,
                               (mtev_skiplist_comparator_t)strcmp);
@@ -1060,21 +1059,21 @@ noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
   /* No error on failure -- it's already there */
   if(mtev_skiplist_insert(check->feeds, feedcopy) == NULL) free(feedcopy);
   mtevL(noit_debug, "check %s`%s @ %dms has %d feed(s): %s.\n",
-        check->target, check->name, check->period, check->feeds->size, feed);
+        check->target, check->name, check->period, mtev_skiplist_size(check->feeds), feed);
 }
 void
 noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
   if(!check->feeds) return;
   if(feed) {
     mtevL(noit_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
-          check->target, check->name, check->period, check->feeds->size, feed);
+          check->target, check->name, check->period, mtev_skiplist_size(check->feeds), feed);
     mtev_skiplist_remove(check->feeds, feed, free);
   }
-  if(check->feeds->size == 0) {
+  if(mtev_skiplist_size(check->feeds) == 0) {
     char uuid_str[UUID_STR_LEN + 1];
     uuid_unparse_lower(check->checkid, uuid_str);
     mtevL(noit_debug, "Unwatching %s@%d\n", uuid_str, check->period);
-    mtev_skiplist_remove(&watchlist, check, NULL);
+    mtev_skiplist_remove(watchlist, check, NULL);
     mtev_skiplist_destroy(check->feeds, free);
     free(check->feeds);
     check->feeds = NULL;
@@ -1507,7 +1506,7 @@ noit_poller_deschedule(uuid_t in, mtev_boolean log) {
 
   if(log) noit_check_log_delete(checker);
 
-  mtevAssert(mtev_skiplist_remove(&polls_by_name, checker, NULL));
+  mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
   mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
 
   check_deleted_hook_invoke(checker);
@@ -1543,7 +1542,7 @@ noit_poller_target_ip_do(const char *target_ip,
   noit_check_t *todo_onstack[8192];
   noit_check_t **todo = todo_onstack;
 
-  tlist = mtev_skiplist_find(polls_by_name.index,
+  tlist = mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
                              __check_target_ip_compare, NULL);
 
   pthread_mutex_lock(&polls_lock);
@@ -1553,8 +1552,8 @@ noit_poller_target_ip_do(const char *target_ip,
   pivot.name = "";
   pivot.target = "";
   mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
-  while(next && next->data) {
-    noit_check_t *check = next->data;
+  while(next && mtev_skiplist_data(next)) {
+    noit_check_t *check = mtev_skiplist_data(next);
     if(strcmp(check->target_ip, target_ip)) break;
     todo_count++;
     mtev_skiplist_next(tlist, &next);
@@ -1567,8 +1566,8 @@ noit_poller_target_ip_do(const char *target_ip,
   pivot.name = "";
   pivot.target = "";
   mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
-  while(next && next->data) {
-    noit_check_t *check = next->data;
+  while(next && mtev_skiplist_data(next)) {
+    noit_check_t *check = mtev_skiplist_data(next);
     if(strcmp(check->target_ip, target_ip)) break;
     if(count < todo_count) todo[count++] = check;
     mtev_skiplist_next(tlist, &next);
@@ -1593,7 +1592,7 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   noit_check_t *todo_onstack[8192];
   noit_check_t **todo = todo_onstack;
 
-  tlist = mtev_skiplist_find(polls_by_name.index,
+  tlist = mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
                              __check_target_compare, NULL);
 
   pthread_mutex_lock(&polls_lock);
@@ -1601,8 +1600,8 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   pivot.name = "";
   pivot.target = (char *)target;
   mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
-  while(next && next->data) {
-    noit_check_t *check = next->data;
+  while(next && mtev_skiplist_data(next)) {
+    noit_check_t *check = mtev_skiplist_data(next);
     if(strcmp(check->target, target)) break;
     todo_count++;
     mtev_skiplist_next(tlist, &next);
@@ -1614,8 +1613,8 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   pivot.name = "";
   pivot.target = (char *)target;
   mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
-  while(next && next->data) {
-    noit_check_t *check = next->data;
+  while(next && mtev_skiplist_data(next)) {
+    noit_check_t *check = mtev_skiplist_data(next);
     if(strcmp(check->target, target)) break;
     if(count < todo_count) todo[count++] = check;
     mtev_skiplist_next(tlist, &next);
@@ -1638,15 +1637,15 @@ noit_poller_do(int (*f)(noit_check_t *, void *),
   int i, count = 0, max_count = 0;
   noit_check_t **todo;
 
-  if(polls_by_name.size == 0) return 0;
+  max_count = mtev_skiplist_size(polls_by_name);
+  if(max_count == 0) return 0;
 
-  max_count = polls_by_name.size;
   todo = malloc(max_count * sizeof(*todo));
 
   pthread_mutex_lock(&polls_lock);
-  for(iter = mtev_skiplist_getlist(&polls_by_name); iter;
-      mtev_skiplist_next(&polls_by_name, &iter)) {
-    if(count < max_count) todo[count++] = (noit_check_t *)iter->data;
+  for(iter = mtev_skiplist_getlist(polls_by_name); iter;
+      mtev_skiplist_next(polls_by_name, &iter)) {
+    if(count < max_count) todo[count++] = (noit_check_t *)mtev_skiplist_data(iter);
   }
   pthread_mutex_unlock(&polls_lock);
 
@@ -2249,12 +2248,12 @@ noit_check_passive_set_stats(noit_check_t *check) {
   noit_check_set_stats(check);
 
   pthread_mutex_lock(&polls_lock);
-  mtev_skiplist_find_neighbors(&watchlist, &n, NULL, NULL, &next);
-  while(next && next->data && nwatches < 8192) {
-    noit_check_t *wcheck = next->data;
+  mtev_skiplist_find_neighbors(watchlist, &n, NULL, NULL, &next);
+  while(next && mtev_skiplist_data(next) && nwatches < 8192) {
+    noit_check_t *wcheck = mtev_skiplist_data(next);
     if(uuid_compare(n.checkid, wcheck->checkid)) break;
     watches[nwatches++] = wcheck;
-    mtev_skiplist_next(&watchlist, &next);
+    mtev_skiplist_next(watchlist, &next);
   }
   pthread_mutex_unlock(&polls_lock);
 
@@ -2382,11 +2381,11 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
   int nwatches = 0, i;
   noit_check_t *watches[8192];
 
-  nc_printf(ncct, "%d active watches.\n", watchlist.size);
+  nc_printf(ncct, "%d active watches.\n", mtev_skiplist_size(watchlist));
   pthread_mutex_lock(&polls_lock);
-  for(iter = mtev_skiplist_getlist(&watchlist); iter && nwatches < 8192;
-      mtev_skiplist_next(&watchlist, &iter)) {
-    noit_check_t *check = iter->data;
+  for(iter = mtev_skiplist_getlist(watchlist); iter && nwatches < 8192;
+      mtev_skiplist_next(watchlist, &iter)) {
+    noit_check_t *check = mtev_skiplist_data(iter);
     watches[nwatches++] = check;
   }
   pthread_mutex_unlock(&polls_lock);
@@ -2398,11 +2397,11 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
     uuid_unparse_lower(check->checkid, uuid_str);
     nc_printf(ncct, "%s:\n\t[%s`%s`%s]\n\tPeriod: %dms\n\tFeeds[%d]:\n",
               uuid_str, check->target, check->module, check->name,
-              check->period, check->feeds ? check->feeds->size : 0);
-    if(check->feeds && check->feeds->size) {
+              check->period, check->feeds ? mtev_skiplist_size(check->feeds) : 0);
+    if(check->feeds && mtev_skiplist_size(check->feeds)) {
       for(fiter = mtev_skiplist_getlist(check->feeds); fiter;
           mtev_skiplist_next(check->feeds, &fiter)) {
-        nc_printf(ncct, "\t\t%s\n", (const char *)fiter->data);
+        nc_printf(ncct, "\t\t%s\n", (const char *)mtev_skiplist_data(fiter));
       }
     }
   }
@@ -2467,7 +2466,7 @@ noit_console_conf_check_opts(mtev_console_closure_t ncct,
   if(argc == 2) {
     cmd_info_t *cmd;
     if(!strcmp("new", argv[0])) return NULL;
-    cmd = mtev_skiplist_find(&dstate->cmds, "attribute", NULL);
+    cmd = mtev_skiplist_find(dstate->cmds, "attribute", NULL);
     if(!cmd) return NULL;
     return mtev_console_opt_delegate(ncct, stack, cmd->dstate, argc-1, argv+1, idx);
   }
@@ -2553,14 +2552,14 @@ noit_console_short_checks_sl(mtev_console_closure_t ncct,
   noit_check_t **todo;
   mtev_skiplist_node *iter;
 
-  max_count = tlist->size;
+  max_count = mtev_skiplist_size(tlist);
   if(max_count == 0) return 0;
   todo = malloc(max_count * sizeof(*todo));
 
   pthread_mutex_lock(&polls_lock);
   for(iter = mtev_skiplist_getlist(tlist); i < max_count && iter;
       mtev_skiplist_next(tlist, &iter)) {
-    todo[i++] = iter->data;
+    todo[i++] = mtev_skiplist_data(iter);
   }
   pthread_mutex_unlock(&polls_lock);
 
@@ -2576,7 +2575,7 @@ noit_console_show_checks_name(mtev_console_closure_t ncct,
                               int argc, char **argv,
                               mtev_console_state_t *dstate,
                               void *closure) {
-  return noit_console_short_checks_sl(ncct, &polls_by_name);
+  return noit_console_short_checks_sl(ncct, polls_by_name);
 }
 
 static int
@@ -2585,7 +2584,7 @@ noit_console_show_checks_target(mtev_console_closure_t ncct,
                                    mtev_console_state_t *dstate,
                                    void *closure) {
   return noit_console_short_checks_sl(ncct,
-           mtev_skiplist_find(polls_by_name.index,
+           mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
            __check_target_compare, NULL));
 }
 
@@ -2595,7 +2594,7 @@ noit_console_show_checks_target_ip(mtev_console_closure_t ncct,
                                    mtev_console_state_t *dstate,
                                    void *closure) {
   return noit_console_short_checks_sl(ncct,
-           mtev_skiplist_find(polls_by_name.index,
+           mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
            __check_target_ip_compare, NULL));
 }
 
