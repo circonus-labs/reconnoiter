@@ -212,7 +212,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   char seq_str[64];
   char id_str[UUID_STR_LEN+1];
   struct json_object *j_last_run, *j_next_run;
-  struct timeval *t;
+  struct timeval *t, check_whence;
   uint64_t ms = 0;
   struct json_object *doc;
   uuid_unparse_lower(check->checkid, id_str);
@@ -240,7 +240,11 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   json_object_set_uint64(j_last_run, ms);
   json_object_object_add(doc, "last_run", j_last_run);
 
-  t = check->fire_event ? &check->fire_event->whence : NULL;
+  if(check->fire_event) {
+    check_whence = eventer_get_whence(check->fire_event);
+    t = &check_whence;
+  }
+  else t = NULL;
   if(t) {
     j_next_run = json_object_new_int(ms);
     json_object_set_int_overflow(j_next_run, json_overflow_uint64);

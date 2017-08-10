@@ -63,7 +63,7 @@ static void
 noit_check_recur_name_details(char *buf, int buflen,
                               eventer_t e, void *closure) {
   char id_str[UUID_STR_LEN+1];
-  recur_closure_t *rcl = e ? e->closure : NULL;
+  recur_closure_t *rcl = e ? eventer_get_closure(e) : NULL;
   if(!e) {
     snprintf(buf, buflen, "noit_check_recur_handler");
     return;
@@ -115,7 +115,7 @@ noit_check_schedule_next(noit_module_t *self,
                          struct timeval *now, dispatch_func_t dispatch,
                          noit_check_t *cause) {
   eventer_t newe;
-  struct timeval period, earliest, diff;
+  struct timeval period, earliest, diff, tgt;
   int64_t diffms, periodms, offsetms;
   recur_closure_t *rcl;
   int initial = last_check ? 1 : 0;
@@ -159,7 +159,6 @@ noit_check_schedule_next(noit_module_t *self,
   }
   periodms = period.tv_sec * 1000 + period.tv_usec / 1000;
 
-  newe = eventer_alloc();
   /* calculate the differnet between the initial schedule time and "now" */
   if(compare_timeval(earliest, *last_check) >= 0) {
     sub_timeval(earliest, *last_check, &diff);
@@ -174,20 +173,19 @@ noit_check_schedule_next(noit_module_t *self,
   diff.tv_sec = offsetms / 1000;
   diff.tv_usec = (offsetms % 1000) * 1000;
 
-  memcpy(&newe->whence, last_check, sizeof(*last_check));
-  add_timeval(newe->whence, diff, &newe->whence);
+  tgt = *last_check;
+  add_timeval(tgt, diff, &tgt);
 
-  sub_timeval(newe->whence, earliest, &diff);
+  sub_timeval(tgt, earliest, &diff);
   diffms = (int64_t)diff.tv_sec * 1000 + (int)diff.tv_usec / 1000;
-  mtevAssert(compare_timeval(newe->whence, earliest) > 0);
-  newe->mask = EVENTER_TIMER;
-  newe->callback = noit_check_recur_handler;
+  mtevAssert(compare_timeval(tgt, earliest) > 0);
+
   rcl = calloc(1, sizeof(*rcl));
   rcl->self = self;
   rcl->check = check;
   rcl->cause = cause;
   rcl->dispatch = dispatch;
-  newe->closure = rcl;
+  newe = eventer_alloc_timer(noit_check_recur_handler, rcl, &tgt);
 
   /* knuth's golden ratio approach */
   if(!self->thread_unsafe) {
@@ -201,18 +199,15 @@ noit_check_schedule_next(noit_module_t *self,
 void
 noit_check_run_full_asynch_opts(noit_check_t *check, eventer_func_t callback,
                                 int mask) {
-  struct timeval __now, p_int;
+  struct timeval __now, p_int, tgt;
   eventer_t e;
-  e = eventer_alloc();
-  e->fd = -1;
-  e->mask = EVENTER_ASYNCH | mask;
   mtev_gettimeofday(&__now, NULL);
-  memcpy(&e->whence, &__now, sizeof(__now));
+  memcpy(&tgt, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
-  add_timeval(e->whence, p_int, &e->whence);
-  e->callback = callback;
-  e->closure =  check->closure;
+  add_timeval(tgt, p_int, &tgt);
+  e = eventer_alloc_asynch_timeout(callback, check->closure, &tgt);
+  eventer_set_mask(e, EVENTER_ASYNCH | mask);
   eventer_add(e);
 }
 void

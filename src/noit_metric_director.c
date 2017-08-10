@@ -218,7 +218,7 @@ dmflush_observe(dmflush_t *ptr) {
   bool zero;
   ck_pr_dec_32_zero(&ptr->refcnt, &zero);
   if(zero) {
-    eventer_trigger(ptr->e, ptr->e->mask);
+    eventer_trigger(ptr->e, eventer_get_mask(ptr->e));
     free(ptr);
   }
 }
@@ -326,7 +326,7 @@ get_dedupe_hash(uint64_t whence)
 static int
 noit_metric_director_prune_dedup(eventer_t e, int mask, void *unused,
     struct timeval *now) {
-
+  struct timeval etime;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uint64_t now_hrtime = mtev_gethrtime() / 1000000000;
   const char *k;
@@ -371,8 +371,10 @@ noit_metric_director_prune_dedup(eventer_t e, int mask, void *unused,
     free(prev);
   }
 
-  e->whence.tv_sec = now->tv_sec + 5;
-  return 1;
+  etime = eventer_get_whence(e);
+  etime.tv_sec = now->tv_sec + 5;
+  eventer_add_at(noit_metric_director_prune_dedup, unused, etime);
+  return 0;
 }
 
 static void
@@ -562,12 +564,7 @@ void noit_metric_director_init() {
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
 
-  eventer_t e = eventer_alloc();
-  e->mask = EVENTER_TIMER;
-  e->callback = noit_metric_director_prune_dedup;
-  mtev_gettimeofday(&e->whence, NULL);
-  e->whence.tv_sec += 2;
-  eventer_add_timed(e);
+  eventer_add_in_s_us(noit_metric_director_prune_dedup, NULL, 2, 0);
 }
 
 void noit_metric_director_init_globals(void) {

@@ -344,13 +344,10 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       stratcon_datastore_journal(remote, remote_cn, (char *)operand);
       break;
     case DS_OP_CHKPT:
-      e = eventer_alloc();
       syncset = calloc(1, sizeof(*syncset));
-      e->mask = EVENTER_ASYNCH;
-      e->callback = stratcon_datastore_journal_sync;
       syncset->ws = stratcon_datastore_journal_remove(remote, remote_cn);
       syncset->completion = completion;
-      e->closure = syncset;
+      e = eventer_alloc_asynch(stratcon_datastore_journal_sync, syncset);
       eventer_add(e);
       break;
     case DS_OP_FIND_COMPLETE:

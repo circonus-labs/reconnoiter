@@ -353,7 +353,7 @@ free_realtime_recv_ctx(void *vctx) {
   }
   free(rrctx);
 }
-#define Eread(a,b) e->opset->read(e->fd, (a), (b), &mask, e)
+#define Eread(a,b) eventer_read(e, (a), (b), &mask)
 static int
 __read_on_ctx(eventer_t e, realtime_recv_ctx_t *ctx, int *newmask) {
   int len, mask;
@@ -426,8 +426,8 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
      * it and free it (which our caller will double free) and
      * we consider double frees to be harmful.
      */
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &mask, e);
+    eventer_remove_fde(e);
+    eventer_close(e, &mask);
     nctx->e = NULL;
     mtev_connection_ctx_dealloc(nctx);
     return 0;
@@ -439,9 +439,9 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
     ctx->bytes_expected = wlen; \
   } \
   while(ctx->bytes_written < ctx->bytes_expected) { \
-    while(-1 == (len = e->opset->write(e->fd, ((char *)data) + ctx->bytes_written, \
-                                       ctx->bytes_expected - ctx->bytes_written, \
-                                       &mask, e)) && errno == EINTR); \
+    while(-1 == (len = eventer_write(e, ((char *)data) + ctx->bytes_written, \
+                                     ctx->bytes_expected - ctx->bytes_written, \
+                                     &mask)) && errno == EINTR); \
     if(len < 0) { \
       if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
       goto socket_error; \
@@ -575,11 +575,7 @@ stratcon_request_dispatcher(mtev_http_session_ctx *ctx) {
       uuid_unparse_lower(node->checkid, uuid_str);
       mtevL(noit_error, "Resolving uuid: %s\n", uuid_str);
     }
-    completion = eventer_alloc();
-    completion->mask = EVENTER_TIMER;
-    completion->callback = stratcon_realtime_http_postresolve;
-    completion->closure = ctx;
-    mtev_gettimeofday(&completion->whence, NULL);
+    completion = eventer_in_s_us(stratcon_realtime_http_postresolve, ctx, 0, 0);
     stratcon_datastore_push(DS_OP_FIND_COMPLETE, NULL, NULL,
                             rc->checklist, completion);
   }
@@ -621,7 +617,7 @@ rest_stream_data(mtev_http_rest_closure_t *restc,
   mtev_http_process_querystring(mtev_http_session_request(ctx));
   /* Rewire the http context */
   e = mtev_http_connection_event(conn);
-  e->callback = stratcon_realtime_http_handler;
+  eventer_set_callback(e, stratcon_realtime_http_handler);
   mtev_http_session_set_dispatcher(ctx, stratcon_request_dispatcher,
                                    alloc_realtime_context(document_domain));
   return stratcon_request_dispatcher(ctx);

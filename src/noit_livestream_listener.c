@@ -158,7 +158,7 @@ static int
 __safe_Ewrite(eventer_t e, void *b, int l, int *mask) {
   int w, sofar = 0;
   while(l > sofar) {
-    w = e->opset->write(e->fd, (char *)b + sofar, l - sofar, mask, e);
+    w = eventer_write(e, (char *)b + sofar, l - sofar, mask);
     if(w <= 0) return w;
     sofar += w;
   }
@@ -170,13 +170,13 @@ void *
 noit_livestream_thread_main(void *e_vptr) {
   int mask;
   eventer_t e = e_vptr;
-  acceptor_closure_t *ac = e->closure;
+  acceptor_closure_t *ac = eventer_get_closure(e);
   noit_livestream_closure_t *jcl = ac->service_ctx;
   struct log_entry *le = NULL;
 
   mtev_memory_init_thread();
   /* Go into blocking mode */
-  if(eventer_set_fd_blocking(e->fd) == -1) {
+  if(eventer_set_fd_blocking(eventer_get_fd(e)) == -1) {
     mtevL(noit_error, "failed setting livestream to blocking: [%d] [%s]\n",
           errno, strerror(errno));
     goto alldone;
@@ -220,7 +220,7 @@ noit_livestream_thread_main(void *e_vptr) {
     if (le->buff) free(le->buff);
     free(le);
   }
-  e->opset->close(e->fd, &mask, e);
+  eventer_close(e, &mask);
   jcl->wants_shutdown = 1;
   acceptor_closure_free(ac);
   mtev_memory_maintenance();
@@ -242,8 +242,8 @@ noit_livestream_handler(eventer_t e, int mask, void *closure,
   if(mask & EVENTER_EXCEPTION || (jcl && jcl->wants_shutdown)) {
 socket_error:
     /* Exceptions cause us to simply snip the connection */
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &newmask, e);
+    eventer_remove_fde(e);
+    eventer_close(e, &newmask);
     mtev_log_stream_t ls = jcl->log_stream;
     /* will free the noit_livestream_closure_t */
     mtev_log_stream_close(ls);
@@ -258,19 +258,19 @@ socket_error:
     if(!ac->service_ctx) ac->service_ctx = noit_livestream_closure_alloc();
     jcl = ac->service_ctx;
     /* Setup logger to this channel */
-    mtevL(noit_debug, "livestream initializing on fd %d\n", e->fd);
+    mtevL(noit_debug, "livestream initializing on fd %d\n", eventer_get_fd(e));
     if(!jcl->period_read) {
       uint32_t nperiod;
-      len = e->opset->read(e->fd, &nperiod, sizeof(nperiod), &mask, e);
+      len = eventer_read(e, &nperiod, sizeof(nperiod), &mask);
       if(len == -1 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
       if(len != sizeof(nperiod)) goto socket_error;
       jcl->period = ntohl(nperiod);
       jcl->period_read = mtev_true;
       mtevL(noit_debug, "livestream initializing on fd %d [period %d]\n",
-            e->fd, jcl->period);
+            eventer_get_fd(e), jcl->period);
     }
     while(jcl->uuid_read < 36) {
-      len = e->opset->read(e->fd, jcl->uuid_str + jcl->uuid_read, 36 - jcl->uuid_read, &mask, e);
+      len = eventer_read(e, jcl->uuid_str + jcl->uuid_read, 36 - jcl->uuid_read, &mask);
       if(len == -1 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
       if(len == 0) goto socket_error;
       jcl->uuid_read += len;
@@ -281,7 +281,7 @@ socket_error:
       goto socket_error;
     }
     mtevL(noit_debug, "livestream initializing on fd %d [uuid %s]\n",
-          e->fd, jcl->uuid_str);
+          eventer_get_fd(e), jcl->uuid_str);
 
     jcl->feed = malloc(32);
     snprintf(jcl->feed, 32, "livestream/%d", mtev_atomic_inc32(&ls_counter));
@@ -291,7 +291,7 @@ socket_error:
 
     jcl->check = noit_check_watch(jcl->uuid, jcl->period);
     if(!jcl->check) {
-      e->opset->close(e->fd, &newmask, e);
+      eventer_close(e, &newmask);
       return 0;
     }
     /* This check must be watched from the livestream */
@@ -302,9 +302,8 @@ socket_error:
     if(!NOIT_CHECK_LIVE(jcl->check)) noit_check_activate(jcl->check);
   }
 
-  eventer_remove_fd(e->fd);
-  newe = eventer_alloc();
-  memcpy(newe, e, sizeof(*e));
+  eventer_remove_fde(e);
+  newe = eventer_alloc_copy(e);
   pthread_attr_init(&tattr);
   pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
   if(pthread_create(&tid, &tattr, noit_livestream_thread_main, newe) == 0) {
@@ -319,6 +318,6 @@ socket_error:
   /* Undo our dup */
   eventer_free(newe);
   /* Creating the thread failed, close it down and deschedule. */
-  e->opset->close(e->fd, &newmask, e);
+  eventer_close(e, &newmask);
   return 0;
 }
