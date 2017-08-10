@@ -368,7 +368,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         ctx->count = ntohl(dummy.count);
         ctx->needs_chkpt = 0;
         free(ctx->buffer); ctx->buffer = NULL;
-        STRATCON_STREAM_COUNT(e->fd, (char *)feedtype,
+        STRATCON_STREAM_COUNT(eventer_get_fd(e), (char *)feedtype,
                                    nctx->remote_str, (char *)cn_expected,
                                    ctx->count);
         if(ctx->count < 0)
@@ -389,7 +389,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         ctx->header.tv_sec = ntohl(dummy.header.tv_sec);
         ctx->header.tv_usec = ntohl(dummy.header.tv_usec);
         ctx->header.message_len = ntohl(dummy.header.message_len);
-        STRATCON_STREAM_HEADER(e->fd, (char *)feedtype,
+        STRATCON_STREAM_HEADER(eventer_get_fd(e), (char *)feedtype,
                                     nctx->remote_str, (char *)cn_expected,
                                     ctx->header.chkpt.log, ctx->header.chkpt.marker,
                                     ctx->header.tv_sec, ctx->header.tv_usec,
@@ -400,7 +400,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case JLOG_STREAMER_WANT_BODY:
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
-        STRATCON_STREAM_BODY(e->fd, (char *)feedtype,
+        STRATCON_STREAM_BODY(eventer_get_fd(e), (char *)feedtype,
                                   nctx->remote_str, (char *)cn_expected,
                                   ctx->header.chkpt.log, ctx->header.chkpt.marker,
                                   ctx->header.tv_sec, ctx->header.tv_usec,
@@ -462,7 +462,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
             nctx->remote_cn ? nctx->remote_cn : "(null)");
           goto socket_error;
         }
-        STRATCON_STREAM_CHECKPOINT(e->fd, (char *)feedtype,
+        STRATCON_STREAM_CHECKPOINT(eventer_get_fd(e), (char *)feedtype,
                                         nctx->remote_str, (char *)cn_expected,
                                         ctx->header.chkpt.log, ctx->header.chkpt.marker);
         ctx->state = JLOG_STREAMER_WANT_COUNT;
