@@ -218,7 +218,7 @@ static int child_main() {
       fprintf(stdout, "%d%s: ", i, sup); fflush(stdout);
       mtev_conf_write_section(parts[i], 1);
     }
-    free(parts);
+    mtev_conf_release_sections(parts, cnt);
     exit(0);
   }
 

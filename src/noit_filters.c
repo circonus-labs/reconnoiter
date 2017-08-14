@@ -194,7 +194,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
           mtev_hash_replace(rule->rname##_ht, htstr, strlen(htstr), NULL, free, NULL); \
       } \
     } \
-    free(htentries); \
+    mtev_conf_release_sections(htentries, hte_cnt); \
 } while(0);
     HT_COMPILE(target);
     HT_COMPILE(module);
