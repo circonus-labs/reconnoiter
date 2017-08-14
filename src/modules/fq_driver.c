@@ -98,7 +98,7 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
                                   int *account_id, int *check_id, char *dst,
                                   char *formatted, char **metric) {
   int i = 0;
-  const char *atab = payload, *u = NULL, *metric_start, *metric_end;
+  const char *atab = payload, *u = NULL, *metric_start = NULL, *metric_end = NULL;
 
   if(account_id) *account_id = 0;
   if(check_id) *check_id = 0;
@@ -122,7 +122,7 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
   atab--;
   if(atab - u < UUID_STR_LEN) return 0;
   if(atab - u > UUID_STR_LEN) {
-    const char *f;
+    const char *f = NULL;
     f = memchr(u, '`', payloadlen - (u - payload));
     if(f) {
       f = memchr(f+1, '`', payloadlen - (f + 1 - payload));
@@ -196,7 +196,7 @@ static void fq_logger(fq_client c, const char *err) {
 }
 
 static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
-  char *hostname, *cp, *brk, *round_robin;
+  char *hostname = NULL, *cp = NULL, *brk = NULL, *round_robin = NULL;
   int i;
 
 #define GETCONFSTR(w) mtev_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
@@ -238,7 +238,7 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
   if(global_fq_ctx.nhosts > MAX_HOSTS) global_fq_ctx.nhosts = MAX_HOSTS;
   for(i = 0, cp = strtok_r(hostname, ",", &brk);
       cp; cp = strtok_r(NULL, ",", &brk), i++) {
-    char *pcp;
+    char *pcp = NULL;
     fq_client *c = &global_fq_ctx.client[i];
 
     global_fq_ctx.ports[i] = global_fq_ctx.port;
@@ -300,7 +300,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
                               &account_id, &check_id, uuid_str,
                               uuid_formatted_str, &metric)) {
       if(*routingkey) {
-        char *replace;
+        char *replace = NULL;
         int newlen = strlen(driver->routingkey) + 1 + sizeof(uuid_str) + 2 * 32;
         replace = alloca(newlen);
         snprintf(replace, newlen, "%s.%x.%x.%d.%d%s", driver->routingkey,
@@ -431,7 +431,7 @@ static void noit_fq_free_metric_hash(void *d) {
   if (metrics_table) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     void *entry;
-    const char *key;
+    const char *key = NULL;
     int klen;
 
     while(mtev_hash_next(metrics_table, &iter, &key, &klen, &entry)) {
