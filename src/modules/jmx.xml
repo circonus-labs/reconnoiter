@@ -1,0 +1,51 @@
+<module>
+  <name>jmx</name>
+  <description><para>Perform checks against a JMX enabled service</para></description>
+  <loader>lua</loader>
+  <object>noit.module.jezebel</object>
+  <checkconfig>
+    <parameter name="port"
+               required="required"
+               allowed="\d+">The TCP port JMX is running on</parameter>
+    <parameter name="username"
+               required="optional"
+               allowed=".+">Username needed to authenticate with</parameter>
+    <parameter name="password"
+               required="optional"
+               allowed=".+">Password needed to authenticate with</parameter>
+    <parameter name="mbean_domains"
+               required="optional"
+               allowed=".+">Space seperated list of domains to extract metrics for.  Default is all domains (no list specified)</parameter>
+    <parameter name="uri"
+               required="optional"
+               default="/jmxrmi"
+               allowed=".+">The JMX URI endpoint to use. Default is "/jmxrmi"</parameter>
+    <parameter name="mbean_properties_(.+)"
+               required="optional"
+               allowed=".+">List of properties in the form type=Foo,name=Bar that will filter out JMX objects that don't match at least one of these settings</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>JVM Statistics</title>
+      <para></para>
+      <programlisting><![CDATA[
+        <noit>
+          <modules>
+            <module loader="lua" name="jmx" object="noit.module.jezebel"/>
+          </modules>
+          <checks>
+            <check uuid="ddceb610-4615-6a2f-f2d3-c7335f0044f9" module="jmx" target="127.0.0.1" period="60000" timeout="30000">
+              <config>
+                <port>3333</port>
+                <uri>/jmxrmi</uri>
+                <mbean_domains>java.lang java.nio</mbean_domains>
+                <mbean_properties_0>type=Memory</mbean_properties_0>
+                <mbean_properties_1>name=Code Cache,type=MemoryPool</mbean_properties_1>
+              </config>
+            </check>
+          </checks>
+        </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
