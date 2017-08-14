@@ -155,7 +155,7 @@ function initiate(module, check)
 
     local uuid         = check.checkid
     local table_hit    = cache_table[uuid]
-    local current_time = os.time()
+    local current_time = mtev.gettimeofday()
 
     if not table_hit then
         local new_hash = {}
@@ -530,7 +530,7 @@ function initiate(module, check)
     end
 
     -- Check about every 15 minutes
-    if current_time - cache_table[uuid]['timestamp'] >= 890 then
+    if (current_time - cache_table[uuid]['timestamp']) >= (current_time - (60 * 15)) then
         -- We've gone over the cache timeout... get new values
         cache_table[uuid]['metrics'] = {}
         local dns = mtev.dns()
