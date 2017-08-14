@@ -530,7 +530,7 @@ function initiate(module, check)
     end
 
     -- Check about every 15 minutes
-    if (current_time - cache_table[uuid]['timestamp']) >= (current_time - (60 * 15)) then
+    if cache_table[uuid]['timestamp'] + (60 * 15) >= current_time then
         -- We've gone over the cache timeout... get new values
         cache_table[uuid]['metrics'] = {}
         local dns = mtev.dns()
