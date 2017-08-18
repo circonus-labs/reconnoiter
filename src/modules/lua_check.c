@@ -1210,7 +1210,7 @@ noit_lua_loader_config(mtev_dso_loader_t *self, mtev_hash_table *o) {
     char *basepath = NULL;
     char cpath_lua[PATH_MAX];
     /* Set it to something reasonable.... we need the MTEV path and ours */
-    (void)mtev_conf_get_string(NULL, "//modules/@directory", &basepath);
+    (void)mtev_conf_get_string(MTEV_CONF_ROOT, "//modules/@directory", &basepath);
     if(basepath) {
       char *base, *brk;
       snprintf(cpath_lua, sizeof(cpath_lua),

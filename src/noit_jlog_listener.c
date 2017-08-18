@@ -51,9 +51,9 @@
 #include <unistd.h>
 #include <poll.h>
 
-static int MAX_ROWS_AT_ONCE = 10000;
-static int DEFAULT_MSECONDS_BETWEEN_BATCHES = 10000;
-static int DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES = 500;
+static int32_t MAX_ROWS_AT_ONCE = 10000;
+static int32_t DEFAULT_MSECONDS_BETWEEN_BATCHES = 10000;
+static int32_t DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES = 500;
 
 static mtev_hash_table feed_stats;
 
@@ -68,7 +68,7 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
 
 void
 noit_jlog_listener_init() {
-  xmlNodePtr node;
+  mtev_conf_section_t node;
   eventer_name_callback("log_transit/1.0", noit_jlog_handler);
   mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_FEED,
@@ -76,12 +76,13 @@ noit_jlog_listener_init() {
   mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_TEMP_FEED,
                                  noit_jlog_handler);
-  node = mtev_conf_get_section(NULL, "//logs");
-  if (node) {
-    mtev_conf_get_int(node, "//jlog/max_msg_batch_lines", &MAX_ROWS_AT_ONCE);
-    mtev_conf_get_int(node, "//jlog/default_mseconds_between_batches", &DEFAULT_MSECONDS_BETWEEN_BATCHES);
-    mtev_conf_get_int(node, "//jlog/default_transient_mseconds_between_batches", &DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES);
+  node = mtev_conf_get_section(MTEV_CONF_ROOT, "//logs");
+  if (!mtev_conf_section_is_empty(node)) {
+    mtev_conf_get_int32(node, "//jlog/max_msg_batch_lines", &MAX_ROWS_AT_ONCE);
+    mtev_conf_get_int32(node, "//jlog/default_mseconds_between_batches", &DEFAULT_MSECONDS_BETWEEN_BATCHES);
+    mtev_conf_get_int32(node, "//jlog/default_transient_mseconds_between_batches", &DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES);
   }
+  mtev_conf_release_section(node);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^feed$",
     rest_show_feed, mtev_http_rest_client_cert_auth

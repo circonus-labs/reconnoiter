@@ -63,12 +63,12 @@ struct amqp_driver {
   char password[80];
   char vhost[256];
   int sockfd;
-  int heartbeat;
+  int32_t heartbeat;
   int nhosts;
   int nconnects;
   int hostidx;
   char hostname[10][256];
-  int port;
+  int32_t port;
   struct timeval last_hb;
   int has_error; /* out of band */
 };
@@ -107,7 +107,7 @@ static iep_thread_driver_t *noit_rabbimq_allocate(mtev_conf_section_t conf) {
   GETCONFSTR(username);
   GETCONFSTR(password);
   if(!GETCONFSTR(vhost)) { dr->vhost[0] = '/'; dr->vhost[1] = '\0'; }
-  if(!mtev_conf_get_int(conf, "heartbeat", &dr->heartbeat))
+  if(!mtev_conf_get_int32(conf, "heartbeat", &dr->heartbeat))
     dr->heartbeat = 5000;
   dr->heartbeat = (dr->heartbeat + 999) / 1000;
 
@@ -120,7 +120,7 @@ static iep_thread_driver_t *noit_rabbimq_allocate(mtev_conf_section_t conf) {
     strlcpy(dr->hostname[i], cp, sizeof(dr->hostname[i]));
   free(hostname);
 
-  if(!mtev_conf_get_int(conf, "port", &dr->port))
+  if(!mtev_conf_get_int32(conf, "port", &dr->port))
     dr->port = 5672;
   mtev_atomic_inc64(&stats.concurrency);
   return (iep_thread_driver_t *)dr;

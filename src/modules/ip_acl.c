@@ -65,56 +65,55 @@ ip_acl_onload(mtev_image_t *self) {
   ip_acl_module_id = noit_check_register_module("ip_acl");
   if(ip_acl_module_id < 0) return -1;
 
-  acl_c = mtev_conf_get_sections(NULL, "/noit/acls//acl", &cnt);
-  if(acl_c) {
-    for(i=0; i<cnt; i++) {
-      char *name;
-      int j, rcnt, arcnt = 0;
-      mtev_conf_section_t *rule_c;
-      if(mtev_conf_env_off(acl_c[i], NULL)) continue;
-      if(mtev_conf_get_string(acl_c[i], "@name", &name)) {
-        rule_c = mtev_conf_get_sections(acl_c[i], "rule", &rcnt);
-        if(rule_c) {
-          btrie *acl = calloc(1, sizeof(*acl));
-          for(j=0; j<rcnt; j++) {
-            int mask = -1;
-            char dirstr[16] = "unspecified";
-            char *cp, target[256] = "";
-            union {
-              struct in_addr addr4;
-              struct in6_addr addr6;
-            } a;
+  acl_c = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/acls//acl", &cnt);
+  for(i=0; i<cnt; i++) {
+    char *name;
+    int j, rcnt, arcnt = 0;
+    mtev_conf_section_t *rule_c;
+    if(mtev_conf_env_off(acl_c[i], NULL)) continue;
+    if(mtev_conf_get_string(acl_c[i], "@name", &name)) {
+      rule_c = mtev_conf_get_sections(acl_c[i], "rule", &rcnt);
+      if(rule_c) {
+        btrie *acl = calloc(1, sizeof(*acl));
+        for(j=0; j<rcnt; j++) {
+          int mask = -1;
+          char dirstr[16] = "unspecified";
+          char *cp, target[256] = "";
+          union {
+            struct in_addr addr4;
+            struct in6_addr addr6;
+          } a;
 
-            if(mtev_conf_env_off(rule_c[j], NULL)) continue;
-            mtev_conf_get_stringbuf(rule_c[j], "self::node()", target, sizeof(target));
-            if(NULL != (cp = strchr(target, '/'))) {
-              *cp++ = '\0';
-              mask = atoi(cp);
-            }
-            if(!mtev_conf_get_stringbuf(rule_c[j], "@type", dirstr, sizeof(dirstr)) ||
-               (strcmp(dirstr, "deny") && strcmp(dirstr, "allow"))) {
-              mtevL(noit_error, "Unknown acl rule type \"%s\" in acl \"%s\"\n",
-                    dirstr, name);
-            }
-            else if(inet_pton(AF_INET, target, &a) == 1) {
-              if(mask == -1) mask = 32;
-              mtev_add_route_ipv4(acl, &a.addr4, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
-              arcnt++;
-            }
-            else if(inet_pton(AF_INET6, target, &a) == 1) {
-              if(mask == -1) mask = 128;
-              mtev_add_route_ipv6(acl, &a.addr6, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
-              arcnt++;
-            }
+          if(mtev_conf_env_off(rule_c[j], NULL)) continue;
+          mtev_conf_get_stringbuf(rule_c[j], "self::node()", target, sizeof(target));
+          if(NULL != (cp = strchr(target, '/'))) {
+            *cp++ = '\0';
+            mask = atoi(cp);
           }
-          mtevL(noit_debug, "ACL %s/%p -> %d/%d rules\n", name, acl, arcnt, rcnt);
-          mtev_hash_replace(&acls, name, strlen(name), acl, free, free_btrie);
-          free(rule_c);
+          if(!mtev_conf_get_stringbuf(rule_c[j], "@type", dirstr, sizeof(dirstr)) ||
+             (strcmp(dirstr, "deny") && strcmp(dirstr, "allow"))) {
+            mtevL(noit_error, "Unknown acl rule type \"%s\" in acl \"%s\"\n",
+                  dirstr, name);
+          }
+          else if(inet_pton(AF_INET, target, &a) == 1) {
+            if(mask == -1) mask = 32;
+            mtev_add_route_ipv4(acl, &a.addr4, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
+            arcnt++;
+          }
+          else if(inet_pton(AF_INET6, target, &a) == 1) {
+            if(mask == -1) mask = 128;
+            mtev_add_route_ipv6(acl, &a.addr6, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
+            arcnt++;
+          }
         }
+        mtevL(noit_debug, "ACL %s/%p -> %d/%d rules\n", name, acl, arcnt, rcnt);
+        mtev_hash_replace(&acls, name, strlen(name), acl, free, free_btrie);
       }
+      mtev_conf_release_sections(rule_c, rcnt);
     }
-    free(acl_c);
   }
+  mtev_conf_release_sections(acl_c, cnt);
+  
   return 0;
 }
 

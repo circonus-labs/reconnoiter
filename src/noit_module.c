@@ -250,7 +250,7 @@ void noit_module_init() {
   mtev_console_add_help("module", noit_module_help, noit_module_options);
 
   /* Load the modules (these *are* specific to the /noit/ root) */
-  sections = mtev_conf_get_sections(NULL, "/noit/modules//module", &cnt);
+  sections = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/modules//module", &cnt);
   if(!sections) cnt = 0;
   for(i=0; i<cnt; i++) {
     mtev_dso_loader_t *loader = &__noit_module_loader;
@@ -322,7 +322,7 @@ void noit_module_init() {
     }
     mtevL(noit_debug, "Module %s successfully loaded.\n", module_name);
   }
-  if(cnt) free(sections);
+  mtev_conf_release_sections(sections, cnt);
 }
 
 void noit_module_init_globals(void) {

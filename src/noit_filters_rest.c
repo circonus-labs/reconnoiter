@@ -58,7 +58,8 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
-  xmlNodePtr node, root;
+  mtev_conf_section_t section;
+  xmlNodePtr root;
   char xpath[1024];
   int error_code = 500;
 
@@ -67,11 +68,11 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
 
-  node = mtev_conf_get_section(NULL, xpath);
-  if(!node) goto not_found;
+  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  if(mtev_conf_section_is_empty(section)) goto not_found;
 
   doc = xmlNewDoc((xmlChar *)"1.0");
-  root = xmlCopyNode(node, 1);
+  root = xmlCopyNode(mtev_conf_section_to_xmlnodeptr(section), 1);
   xmlDocSetRootElement(doc, root);
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
@@ -90,18 +91,22 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
 
  cleanup:
   if(doc) xmlFreeDoc(doc);
+  mtev_conf_release_section(section);
   return 0;
 }
 
 static xmlNodePtr
 make_conf_path(char *path) {
+  mtev_conf_section_t section;
   xmlNodePtr start, tmp;
   char fullpath[1024], *tok, *brk;
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
   fullpath[strlen(fullpath)-1] = '\0';
-  start = mtev_conf_get_section(NULL, "/noit/filtersets");
-  if(!start) return NULL;
+  section = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/filtersets");
+  start = mtev_conf_section_to_xmlnodeptr(section);
+  mtev_conf_release_section(section);
+  if(mtev_conf_section_is_empty(section)) return NULL;
   for (tok = strtok_r(fullpath, "/", &brk);
        tok;
        tok = strtok_r(NULL, "/", &brk)) {
@@ -113,7 +118,7 @@ make_conf_path(char *path) {
     if(!tmp) {
       tmp = xmlNewNode(NULL, (xmlChar *)tok);
       xmlAddChild(start, tmp);
-      CONF_DIRTY(tmp);
+      CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(tmp));
     }
     start = tmp;
   }
@@ -175,7 +180,7 @@ static int
 rest_delete_filter(mtev_http_rest_closure_t *restc,
                    int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
-  xmlNodePtr node;
+  mtev_conf_section_t section;
   char xpath[1024];
   int error_code = 500;
 
@@ -183,12 +188,12 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
-  node = mtev_conf_get_section(NULL, xpath);
-  if(!node) goto not_found;
-  if(noit_filter_remove(node) == 0) goto not_found;
-  CONF_REMOVE(node);
-  xmlUnlinkNode(node);
-  xmlFreeNode(node);
+  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  if(mtev_conf_section_is_empty(section)) goto not_found;
+  if(noit_filter_remove(section) == 0) goto not_found;
+  CONF_REMOVE(section);
+  xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(section));
+  xmlFreeNode(mtev_conf_section_to_xmlnodeptr(section));
 
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(noit_error, "local config write failed\n");
@@ -208,6 +213,7 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  mtev_conf_release_section(section);
   return 0;
 }
 
@@ -232,7 +238,8 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
                 int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL, indoc = NULL;
-  xmlNodePtr node, parent, root, newfilter;
+  mtev_conf_section_t section;
+  xmlNodePtr parent, root, newfilter;
   char xpath[1024];
   int error_code = 500, complete = 0, mask = 0;
   mtev_boolean exists;
@@ -248,9 +255,9 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
-  node = mtev_conf_get_section(NULL, xpath);
+  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
   exists = noit_filter_get_seq(pats[1], &old_seq);
-  if(!node && exists == mtev_true) {
+  if(mtev_conf_section_is_empty(section) && exists == mtev_true) {
     /* It's someone else's */
     error_code = 403;
     goto error;
@@ -264,23 +271,24 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
 
   parent = make_conf_path(pats[0]);
   if(!parent) FAIL("invalid path");
-  if(node) {
-    CONF_REMOVE(node);
-    xmlUnlinkNode(node);
-    xmlFreeNode(node);
+  if(!mtev_conf_section_is_empty(section)) {
+    CONF_REMOVE(section);
+    xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(section));
+    xmlFreeNode(mtev_conf_section_to_xmlnodeptr(section));
   }
   xmlUnlinkNode(newfilter);
   xmlAddChild(parent, newfilter);
-  CONF_DIRTY(newfilter);
+  CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(newfilter));
 
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(noit_error, "local config write failed\n");
-  noit_filter_compile_add(newfilter);
+  noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(newfilter));
   if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
   restc->call_closure_free = NULL;
   restc->call_closure = NULL;
   restc->fastpath = rest_show_filter;
+  mtev_conf_release_section(section);
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
@@ -295,6 +303,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
 
  cleanup:
   if(doc) xmlFreeDoc(doc);
+  mtev_conf_release_section(section);
   return 0;
 }
 

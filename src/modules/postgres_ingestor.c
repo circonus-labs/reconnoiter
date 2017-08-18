@@ -92,7 +92,7 @@ static mtev_log_stream_t ingest_err = NULL;
 
 #define GET_QUERY(a) do { \
   if(a == NULL) \
-    if(!mtev_conf_get_string(NULL, a ## _conf, &(a))) \
+    if(!mtev_conf_get_string(MTEV_CONF_ROOT, a ## _conf, &(a))) \
       goto bad_row; \
 } while(0)
 
@@ -852,7 +852,7 @@ stratcon_database_connect(conn_q *cq) {
 
   dsn_meta[0] = '\0';
   if(!cq->dsn) {
-    t = mtev_conf_get_hash(NULL, "/stratcon/database/dbconfig");
+    t = mtev_conf_get_hash(MTEV_CONF_ROOT, "/stratcon/database/dbconfig");
     while(mtev_hash_next_str(t, &iter, &k, &klen, &v)) {
       if(dsn_meta[0]) strlcat(dsn_meta, " ", sizeof(dsn_meta));
       strlcat(dsn_meta, k, sizeof(dsn_meta));
@@ -866,14 +866,14 @@ stratcon_database_connect(conn_q *cq) {
   else {
     char options[32];
     strlcpy(dsn_meta, cq->dsn, sizeof(dsn_meta));
-    if(mtev_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/user",
+    if(mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/stratcon/database/dbconfig/user",
                                options, sizeof(options))) {
       strlcat(dsn_meta, " ", sizeof(dsn_meta));
       strlcat(dsn_meta, "user", sizeof(dsn_meta));
       strlcat(dsn_meta, "=", sizeof(dsn_meta));
       strlcat(dsn_meta, options, sizeof(dsn_meta));
     }
-    if(mtev_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/password",
+    if(mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/stratcon/database/dbconfig/password",
                                options, sizeof(options))) {
       strlcat(dsn_meta, " ", sizeof(dsn_meta));
       strlcat(dsn_meta, "password", sizeof(dsn_meta));
@@ -1630,7 +1630,7 @@ static int postgres_ingestor_init(mtev_dso_generic_t *self) {
   ingest_err = mtev_log_stream_find("error/ingest");
   if(!ds_err) ds_err = noit_error;
   if(!ingest_err) ingest_err = noit_error;
-  if(!mtev_conf_get_string(NULL, "/stratcon/database/journal/path",
+  if(!mtev_conf_get_string(MTEV_CONF_ROOT, "/stratcon/database/journal/path",
                            &basejpath)) {
     mtevL(noit_error, "/stratcon/database/journal/path is unspecified\n");
     exit(-1);

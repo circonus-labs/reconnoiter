@@ -159,7 +159,7 @@ static
 int configure_eventer() {
   int rv = 0;
   mtev_hash_table *table;
-  table = mtev_conf_get_hash(NULL, "/" APPNAME "/eventer/config");
+  table = mtev_conf_get_hash(MTEV_CONF_ROOT, "/" APPNAME "/eventer/config");
   if(table) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *key, *value;
@@ -196,7 +196,7 @@ static int child_main() {
   mtev_log_go_asynch();
 
   /* Lastly, run through all other system inits */
-  if(!mtev_conf_get_stringbuf(NULL, "/" APPNAME "/eventer/@implementation",
+  if(!mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/" APPNAME "/eventer/@implementation",
                               conf_str, sizeof(conf_str))) {
     mtevL(noit_stderr, "Cannot find '%s' in configuration\n",
           "/" APPNAME "/eventer/@implementation");

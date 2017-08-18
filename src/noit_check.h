@@ -240,9 +240,6 @@ API_EXPORT(int)
    noit_poller_do(int (*f)(noit_check_t *, void *),
                   void *closure);
 
-API_EXPORT(xmlNodePtr)
-  noit_get_check_xml_node(noit_check_t *check);
-
 API_EXPORT(int)
   noit_check_xpath_check(char *xpath, int len,
                   noit_check_t *check);

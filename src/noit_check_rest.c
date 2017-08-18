@@ -53,6 +53,8 @@
 #include "noit_check_tools.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
+#define NCLOCK mtev_conf_section_t nc__lock = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
+#define NCUNLOCK mtev_conf_release_section(nc__lock)
 
 #define NS_NODE_CONTENT(parent, ns, k, v, followup) do { \
   xmlNodePtr tmp; \
@@ -399,6 +401,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlDocPtr doc = NULL;
   xmlNodePtr node, root, attr, config, state, tmp, anode;
+  mtev_conf_section_t section;
   uuid_t checkid;
   noit_check_t *check;
   char xpath[1024], *uuid_conf = NULL, *module = NULL, *value = NULL;
@@ -415,6 +418,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   if(rv == 0) goto not_found;
   if(rv < 0) goto error;
 
+  NCLOCK;
   mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
@@ -422,13 +426,15 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   if(cnt != 1) goto error;
 
-  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  section = mtev_conf_section_from_xmlnodeptr(node);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
   if(!uuid_conf || uuid_parse(uuid_conf, checkid)) goto error;
 
   if(npats == 3 && !strcmp(pats[2], ".json")) {
     if(uuid_conf) xmlFree(uuid_conf);
     if(pobj) xmlXPathFreeObject(pobj);
+    NCUNLOCK;
     return rest_show_check_json(restc, checkid);
   }
 
@@ -436,12 +442,12 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
   xmlDocSetRootElement(doc, root);
 
-#define MYATTR(node,a,n,b) _mtev_conf_get_string(node, &(n), "@" #a, &(b))
-#define INHERIT(node,a,n,b) \
-  _mtev_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
-#define SHOW_ATTR(parent, node, a) do { \
+#define MYATTR(section,a,n,b) _mtev_conf_get_string(section, &(n), "@" #a, &(b))
+#define INHERIT(section,a,n,b) \
+  _mtev_conf_get_string(section, &(n), "ancestor-or-self::node()/@" #a, &(b))
+#define SHOW_ATTR(parent, node, section, a) do { \
   char *_value = NULL; \
-  INHERIT(node, a, anode, _value); \
+  INHERIT(section, a, anode, _value); \
   if(_value != NULL) { \
     int clen, plen;\
     char *_cpath, *_apath; \
@@ -467,31 +473,31 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   attr = xmlNewNode(NULL, (xmlChar *)"attributes");
   xmlAddChild(root, attr);
 
-  SHOW_ATTR(attr,node,uuid);
-  SHOW_ATTR(attr,node,seq);
+  SHOW_ATTR(attr,node,section,uuid);
+  SHOW_ATTR(attr,node,section,seq);
 
   /* Name is odd, it falls back transparently to module */
-  if(!INHERIT(node, module, tmp, module)) module = NULL;
+  if(!INHERIT(section, module, tmp, module)) module = NULL;
   xmlAddChild(attr, (tmp = xmlNewNode(NULL, (xmlChar *)"name")));
-  if(MYATTR(node, name, anode, value))
+  if(MYATTR(section, name, anode, value))
     xmlNodeAddContent(tmp, (xmlChar *)value);
   else if(module)
     xmlNodeAddContent(tmp, (xmlChar *)module);
   if(value) free(value);
   if(module) free(module);
 
-  SHOW_ATTR(attr,node,module);
-  SHOW_ATTR(attr,node,target);
-  SHOW_ATTR(attr,node,resolve_rtype);
-  SHOW_ATTR(attr,node,period);
-  SHOW_ATTR(attr,node,timeout);
-  SHOW_ATTR(attr,node,oncheck);
-  SHOW_ATTR(attr,node,filterset);
-  SHOW_ATTR(attr,node,disable);
+  SHOW_ATTR(attr,node,section,module);
+  SHOW_ATTR(attr,node,section,target);
+  SHOW_ATTR(attr,node,section,resolve_rtype);
+  SHOW_ATTR(attr,node,section,period);
+  SHOW_ATTR(attr,node,section,timeout);
+  SHOW_ATTR(attr,node,section,oncheck);
+  SHOW_ATTR(attr,node,section,filterset);
+  SHOW_ATTR(attr,node,section,disable);
 
   /* Add the config */
   config = xmlNewNode(NULL, (xmlChar *)"config");
-  configh = mtev_conf_get_hash(node, "config");
+  configh = mtev_conf_get_hash(section, "config");
   while(mtev_hash_next(configh, &iter, &k, &klen, &data))
     NODE_CONTENT(config, k, data);
   mtev_hash_destroy(configh, free, free);
@@ -509,7 +515,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
     ns = xmlSearchNs(root->doc, root, (xmlChar *)nsname);
     if(!ns) ns = xmlNewNs(root, (xmlChar *)buff, (xmlChar *)nsname);
     if(ns) {
-      configh = mtev_conf_get_namespaced_hash(node, "config", nsname);
+      configh = mtev_conf_get_namespaced_hash(section, "config", nsname);
       if(configh) {
         memset(&iter, 0, sizeof(iter));
         while(mtev_hash_next(configh, &iter, &k, &klen, &data)) {
@@ -552,6 +558,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
+  NCUNLOCK;
   return 0;
 }
 
@@ -572,15 +579,15 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
   *a = *c = NULL;
   root = xmlDocGetRootElement(doc);
   /* Make sure any present namespaces are in the master document already */
-  toplevel = mtev_conf_get_section(NULL, "/*");
-  master_config_root = (xmlNodePtr)toplevel; 
+  toplevel = mtev_conf_get_section(MTEV_CONF_ROOT, "/*");
+  master_config_root = mtev_conf_section_to_xmlnodeptr(toplevel);
   if(!master_config_root) {
     *error = "no document";
-    return 0;
+    goto out;
   }
   if(missing_namespaces(master_config_root, root)) {
     *error = "invalid namespace provided";
-    return 0;
+    goto out;
   }
       
   if(strcmp((char *)root->name, "check")) return 0;
@@ -598,7 +605,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
                              (char *)tmp, strlen((char *)tmp), 0, 0,
                              ovector, sizeof(ovector)/sizeof(*ovector)) > 0);
           xmlFree(tmp);
-          if(!valid) { *error = "invalid name"; return 0; }
+          if(!valid) { *error = "invalid name"; goto out; }
           name = 1;
         }
         else CHECK_N_SET(module) module = 1; /* This is validated by called */
@@ -613,7 +620,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
              should_resolve == mtev_false &&
              !valid) {
             *error = "invalid target";
-            return 0;
+            goto out;
           }
           target = 1;
         }
@@ -628,30 +635,30 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           xmlFree(tmp);
           if(invalid) {
             *error = "invalid reslove_rtype";
-            return 0;
+            goto out;
           }
         }
         else CHECK_N_SET(period) {
-          int pint;
+          int32_t pint;
           xmlChar *tmp;
           tmp = xmlNodeGetContent(an);
-          pint = mtev_conf_string_to_int((char *)tmp);
+          pint = mtev_conf_string_to_int32((char *)tmp);
           xmlFree(tmp);
           if(pint < 1000 || pint > 300000) {
             *error = "invalid period";
-            return 0;
+            goto out;
           }
           period = 1;
         }
         else CHECK_N_SET(timeout) {
-          int pint;
+          int32_t pint;
           xmlChar *tmp;
           tmp = xmlNodeGetContent(an);
-          pint = mtev_conf_string_to_int((char *)tmp);
+          pint = mtev_conf_string_to_int32((char *)tmp);
           xmlFree(tmp);
           if(pint < 0 || pint > 300000) {
             *error = "invalid timeout";
-            return 0;
+            goto out;
           }
           timeout = 1;
         }
@@ -660,7 +667,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           tmp = xmlNodeGetContent(an);
           if(!noit_filter_exists((char *)tmp)) {
             *error = "filterset does not exist";
-            return 0;
+            goto out;
           }
           filterset = 1;
         }
@@ -673,14 +680,14 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
                    !strcasecmp((char *)tmp, "false") ||
                    !strcasecmp((char *)tmp, "off"));
           xmlFree(tmp);
-          if(!valid) { *error = "bad disable parameter"; return 0; }
+          if(!valid) { *error = "bad disable parameter"; goto out; }
           target = 1;
         }
         else CHECK_N_SET(seq) {}
         else {
           mtevL(mtev_debug, "Unknown check set option: %s\n", an->name);
           *error = "unknown option specified";
-          return 0;
+          goto out;
         }
       }
     }
@@ -688,10 +695,15 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
       *c = tl;
       /* Noop, anything goes */
     }
-    else return 0;
+    else goto out;
   }
-  if(name && module && target && period && timeout && filterset) return 1;
+  if(name && module && target && period && timeout && filterset) {
+    mtev_conf_release_section(toplevel);
+    return 1;
+  }
   *error = "insufficient information";
+ out:
+  mtev_conf_release_section(toplevel);
   return 0;
 }
 static void
@@ -760,17 +772,22 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
     xmlFreeNode(oldconfig);
   }
   else xmlAddChild(check, config);
-  CONF_DIRTY(config);
+  CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(config));
 }
 static xmlNodePtr
 make_conf_path(char *path) {
+  mtev_conf_section_t section;
   xmlNodePtr start, tmp;
   char fullpath[1024], *tok, *brk;
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
   fullpath[sizeof(fullpath)-1] = '\0';
-  start = mtev_conf_get_section(NULL, "/noit/checks");
-  if(!start) return NULL;
+  section = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/checks");
+  start = mtev_conf_section_to_xmlnodeptr(section);
+  mtev_conf_release_section(section);
+  if(mtev_conf_section_is_empty(section)) {
+    return NULL;
+  }
   for (tok = strtok_r(fullpath, "/", &brk);
        tok;
        tok = strtok_r(NULL, "/", &brk)) {
@@ -783,7 +800,7 @@ make_conf_path(char *path) {
     if(!tmp) {
       tmp = xmlNewNode(NULL, (xmlChar *)tok);
       xmlAddChild(start, tmp);
-      CONF_DIRTY(tmp);
+      CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(tmp));
     }
     start = tmp;
   }
@@ -814,6 +831,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   if(rv == 0) FAIL("uuid not valid");
   if(rv < 0) FAIL("Tricky McTrickster... No");
 
+  NCLOCK;
   mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
@@ -823,14 +841,14 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   if(cnt != 1) FAIL("internal error, |checkid| > 1");
-  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
   if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
     FAIL("internal error uuid");
 
   /* delete this here */
   if(check) noit_poller_deschedule(check->checkid, mtev_true);
-  CONF_REMOVE(node);
+  CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
   xmlUnlinkNode(node);
   xmlFreeNode(node);
   mtev_conf_mark_changed();
@@ -854,6 +872,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   (void)error;
+  NCUNLOCK;
   return 0;
 }
 
@@ -888,6 +907,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(rv == 0) FAIL("uuid not valid");
   if(rv < 0) FAIL("Tricky McTrickster... No");
 
+  NCLOCK;
   mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
@@ -925,7 +945,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       configure_xml_check(parent, newcheck, attr, config, &seq);
       if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
       xmlAddChild(parent, newcheck);
-      CONF_DIRTY(newcheck);
+      CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(newcheck));
     }
   }
   if(exists) {
@@ -938,7 +958,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
 
     cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
     if(cnt != 1) FAIL("internal error, |checkid| > 1");
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
       FAIL("internal error uuid");
@@ -966,7 +986,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
-    CONF_DIRTY(node);
+    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
   }
 
   mtev_conf_mark_changed();
@@ -978,6 +998,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   restc->call_closure = NULL;
   if(pobj) xmlXPathFreeObject(pobj);
   restc->fastpath = rest_show_check;
+  NCUNLOCK;
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
@@ -994,6 +1015,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
+  NCUNLOCK;
   return 0;
 }
 
@@ -1002,19 +1024,20 @@ rest_show_config(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
-  xmlNodePtr node, root;
+  xmlNodePtr root;
+  mtev_conf_section_t node;
   char xpath[1024];
 
   snprintf(xpath, sizeof(xpath), "/noit%s", pats ? pats[0] : "");
-  node = mtev_conf_get_section(NULL, xpath);
+  node = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
 
-  if(!node) {
+  if(mtev_conf_section_is_empty(node)) {
     mtev_http_response_not_found(ctx, "text/xml");
     mtev_http_response_end(ctx);
   }
   else {
     doc = xmlNewDoc((xmlChar *)"1.0");
-    root = xmlCopyNode(node, 1);
+    root = xmlCopyNode(mtev_conf_section_to_xmlnodeptr(node), 1);
     xmlDocSetRootElement(doc, root);
     mtev_http_response_ok(ctx, "text/xml");
     mtev_http_response_xml(ctx, doc);
@@ -1022,6 +1045,7 @@ rest_show_config(mtev_http_rest_closure_t *restc,
   }
 
   if(doc) xmlFreeDoc(doc);
+  mtev_conf_release_section(node);
 
   return 0;
 }

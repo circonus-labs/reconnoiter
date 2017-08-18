@@ -55,6 +55,9 @@
 #include "noit_check_tools.h"
 #include "noit_clustering.h"
 
+#define NCLOCK mtev_conf_section_t nc__lock = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
+#define NCUNLOCK mtev_conf_release_section(nc__lock)
+
 static void register_console_config_check_commands();
 static mtev_hash_table check_attrs;
 
@@ -196,7 +199,7 @@ noit_config_check_update_attrs(xmlNodePtr node, int argc, char **argv) {
     xmlUnsetProp(node, (xmlChar *)attrinfo->name);
     if(val)
       xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)val);
-    CONF_DIRTY(node);
+    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
     mtev_conf_mark_changed();
   }
   return error;
@@ -211,6 +214,8 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
   xmlXPathObjectPtr pobj = NULL;
   xmlNodePtr node = NULL, newnode;
 
+  NCLOCK;
+
   /* attr val [or] no attr (sets of two) */
   if(argc % 2) goto out;
 
@@ -222,7 +227,7 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
      xmlXPathNodeSetGetLength(pobj->nodesetval) != 1) {
     goto out;
   }
-  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
   if((newnode = xmlNewChild(node, NULL, (xmlChar *)"check", NULL)) != NULL) {
     char outstr[37];
     uuid_generate(out);
@@ -236,13 +241,14 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
       xmlUnlinkNode(newnode);
     }
     else {
-      CONF_DIRTY(newnode);
+      CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(newnode));
       mtev_conf_mark_changed();
       rv = 0;
     }
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return rv;
 }
 
@@ -266,7 +272,6 @@ noit_console_check(mtev_console_closure_t ncct,
     mtev_console_config_cd(ncct, 1, fake_argv, NULL, NULL);
   }
 
-  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc < 1) {
     nc_printf(ncct, "requires at least one argument\n");
     return -1;
@@ -301,6 +306,8 @@ noit_console_check(mtev_console_closure_t ncct,
     return -1;
   }
 
+  NCLOCK;
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
@@ -312,7 +319,7 @@ noit_console_check(mtev_console_closure_t ncct,
     nc_printf(ncct, "Ambiguous check specified\n");
     goto out;
   }
-  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
   if(!node || !uuid_conf || uuid_parse(uuid_conf, checkid)) {
     nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -342,6 +349,7 @@ noit_console_check(mtev_console_closure_t ncct,
  out:
   if(uuid_conf) free(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return 0;
 }
 static int
@@ -355,7 +363,6 @@ noit_console_watch_check(mtev_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
-  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc < 1 || argc > 2) {
     nc_printf(ncct, "requires one or two arguments\n");
     return -1;
@@ -368,6 +375,8 @@ noit_console_watch_check(mtev_console_closure_t ncct,
     return -1;
   }
 
+  NCLOCK;
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
@@ -381,7 +390,7 @@ noit_console_watch_check(mtev_console_closure_t ncct,
     xmlNodePtr node;
     char *uuid_conf;
 
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -405,6 +414,7 @@ noit_console_watch_check(mtev_console_closure_t ncct,
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return 0;
 }
 static int
@@ -465,7 +475,6 @@ noit_console_show_check(mtev_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
-  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc > 1) {
     nc_printf(ncct, "requires zero or one arguments\n");
     return -1;
@@ -479,6 +488,8 @@ noit_console_show_check(mtev_console_closure_t ncct,
     return -1;
   }
 
+  NCLOCK;
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
@@ -499,10 +510,12 @@ noit_console_show_check(mtev_console_closure_t ncct,
     noit_check_t *check;
     mtev_hash_table *config;
     xmlNodePtr node, anode, mnode = NULL;
+    mtev_conf_section_t section;
     char *uuid_conf;
     char *module, *value;
 
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+    section = mtev_conf_section_from_xmlnodeptr(node);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -512,9 +525,9 @@ noit_console_show_check(mtev_console_closure_t ncct,
     nc_printf(ncct, "==== %s ====\n", uuid_conf);
     xmlFree(uuid_conf);
 
-#define MYATTR(a,n,b) _mtev_conf_get_string(node, &(n), "@" #a, &(b))
+#define MYATTR(a,n,b) _mtev_conf_get_string(section, &(n), "@" #a, &(b))
 #define INHERIT(a,n,b) \
-  _mtev_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
+  _mtev_conf_get_string(section, &(n), "ancestor-or-self::node()/@" #a, &(b))
 #define SHOW_ATTR(a) do { \
   anode = NULL; \
   value = NULL; \
@@ -541,7 +554,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
     SHOW_ATTR(filterset);
     SHOW_ATTR(disable);
     /* Print out all the config settings */
-    config = mtev_conf_get_hash(node, "config");
+    config = mtev_conf_get_hash(section, "config");
     while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
       nc_printf(ncct, " config::%s: %s\n", k, (const char *)data);
     }
@@ -627,6 +640,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return 0;
 }
 static int
@@ -641,7 +655,6 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
   char xpath[1024];
   uuid_t checkid;
 
-  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc < 1) {
     nc_printf(ncct, "requires one argument\n");
     return -1;
@@ -652,6 +665,9 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
     nc_printf(ncct, "could not find check '%s'\n", argv[0]);
     return -1;
   }
+
+  NCLOCK;
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
@@ -662,7 +678,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
   for(i=0; i<cnt; i++) {
     xmlNodePtr node;
     char *uuid_conf;
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -674,11 +690,11 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
         for(j=1;j<argc;j++)
           xmlUnsetProp(node, (xmlChar *)argv[j]);
         noit_conf_check_bump_seq(node);
-        CONF_DIRTY(node);
+        CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
       } else {
         nc_printf(ncct, "descheduling %s\n", uuid_conf);
         noit_poller_deschedule(checkid, mtev_true);
-        CONF_REMOVE(node);
+        CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
         xmlUnlinkNode(node);
       }
       mtev_conf_mark_changed();
@@ -692,10 +708,12 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
   nc_printf(ncct, "rebuilding causal map...\n");
   noit_poller_make_causal_map();
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return 0;
  bad:
   if(pobj) xmlXPathFreeObject(pobj);
   nc_printf(ncct, "%s\n", err);
+  NCUNLOCK;
   return -1;
 }
 static int
@@ -716,7 +734,6 @@ noit_console_config_show(mtev_console_closure_t ncct,
   xmlDocPtr master_config = NULL;
   xmlNodePtr node = NULL;
 
-  mtev_conf_xml_xpath(&master_config, &xpath_ctxt);
   if(argc > 1) {
     nc_printf(ncct, "too many arguments\n");
     return -1;
@@ -741,6 +758,8 @@ noit_console_config_show(mtev_console_closure_t ncct,
     return -1;
   }
 
+  NCLOCK;
+
   /* { / } is the only path that will end with a /
    * in XPath { / / * } means something _entirely different than { / * }
    * Ever notice how it is hard to describe xpath in C comments?
@@ -757,6 +776,7 @@ noit_console_config_show(mtev_console_closure_t ncct,
   else
     snprintf(xpath, sizeof(xpath), "/noit%s/%s/@*", basepath, path);
 
+  mtev_conf_xml_xpath(&master_config, &xpath_ctxt);
   current_ctxt = xpath_ctxt;
   pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET) {
@@ -766,7 +786,7 @@ noit_console_config_show(mtev_console_closure_t ncct,
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   titled = 0;
   for(i=0; i<cnt; i++) {
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "check")) continue;
     if(node->children && node->children == xmlGetLastChild(node) &&
       xmlNodeIsText(node->children)) {
@@ -793,9 +813,9 @@ noit_console_config_show(mtev_console_closure_t ncct,
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   if(cnt > 0) {
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
     titled = 0;
-    config = mtev_conf_get_hash(node, "config");
+    config = mtev_conf_get_hash(mtev_conf_section_from_xmlnodeptr(node), "config");
     while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
       if(!titled++) nc_printf(ncct, "== Section [Aggregated] Config ==\n");
       nc_printf(ncct, "config::%s: %s\n", k, (const char *)data);
@@ -819,7 +839,7 @@ noit_console_config_show(mtev_console_closure_t ncct,
   titled = 0;
   for(i=0; i<cnt; i++) {
     char *xmlpath;
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "check")) continue;
     if(!strcmp((char *)node->name, "filterset")) continue;
     xmlpath = (char *)xmlGetNodePath(node);
@@ -835,7 +855,7 @@ noit_console_config_show(mtev_console_closure_t ncct,
 
   titled = 0;
   for(i=0; i<cnt; i++) {
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "filterset")) {
       xmlAttr *attr;
       char *filter_name = NULL;
@@ -878,9 +898,11 @@ noit_console_config_show(mtev_console_closure_t ncct,
     }
   }
   xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return 0;
  bad:
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return -1;
 }
 
@@ -943,6 +965,8 @@ replace_config(mtev_console_closure_t ncct,
   path = info->path;
   if(!strcmp(path, "/")) path = "";
 
+  NCLOCK;
+
   mtev_conf_xml_xpath(NULL, &xpath_ctxt);
 
   /* Only if checks will fixate this attribute shall we check for
@@ -956,8 +980,8 @@ replace_config(mtev_console_closure_t ncct,
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   for(i=0; i<cnt; i++) {
     uuid_t checkid;
-    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
-    if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(mtev_conf_get_uuid(mtev_conf_section_from_xmlnodeptr(node), "@uuid", checkid)) {
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
       if(check && NOIT_CHECK_LIVE(check)) active++;
@@ -1002,7 +1026,7 @@ replace_config(mtev_console_closure_t ncct,
   if(xmlXPathNodeSetGetLength(pobj->nodesetval) > 0) {
     xmlNodePtr toremove;
     toremove = xmlXPathNodeSetItem(pobj->nodesetval, 0);
-    CONF_REMOVE(toremove);
+    CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(toremove));
     xmlUnlinkNode(toremove);
   }
   /* TODO: if there are no more children of config, remove config? */
@@ -1033,12 +1057,13 @@ replace_config(mtev_console_closure_t ncct,
     mtevAssert(confignode);
     /* Now we create a child */
     xmlNewChild(confignode, NULL, (xmlChar *)name, (xmlChar *)value);
-    CONF_DIRTY(confignode);
+    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(confignode));
   }
   mtev_conf_mark_changed();
   rv = 0;
  out:
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return rv;
 }
 static int
@@ -1049,10 +1074,13 @@ replace_attr(mtev_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlNodePtr node;
+  mtev_conf_section_t section;
   char xpath[1024], *path;
 
   path = info->path;
   if(!strcmp(path, "/")) path = "";
+
+  NCLOCK;
 
   mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(attrinfo->checks_fixate) {
@@ -1067,8 +1095,8 @@ replace_attr(mtev_console_closure_t ncct,
     cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
     for(i=0; i<cnt; i++) {
       uuid_t checkid;
-      node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
-      if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
+      node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+      if(mtev_conf_get_uuid(mtev_conf_section_from_xmlnodeptr(node), "@uuid", checkid)) {
         noit_check_t *check;
         check = noit_poller_lookup(checkid);
         if(check && NOIT_CHECK_LIVE(check)) active++;
@@ -1084,7 +1112,8 @@ replace_attr(mtev_console_closure_t ncct,
     nc_printf(ncct, "Internal error: context node disappeared\n");
     goto out;
   }
-  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  section = mtev_conf_section_from_xmlnodeptr(node);
   if(attrinfo->checks_fixate &&
      !strcmp((const char *)node->name, "check")) {
     uuid_t checkid;
@@ -1092,7 +1121,7 @@ replace_attr(mtev_console_closure_t ncct,
      * change something we shouldn't.
      * This is the counterpart noted above.
      */
-    if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
+    if(mtev_conf_get_uuid(section, "@uuid", checkid)) {
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
       if(check && NOIT_CHECK_LIVE(check)) active++;
@@ -1108,11 +1137,12 @@ replace_attr(mtev_console_closure_t ncct,
     xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)value);
   if(!strcmp((const char *)node->name, "check"))
     noit_conf_check_bump_seq(node);
-  CONF_DIRTY(node);
+  CONF_DIRTY(section);
   mtev_conf_mark_changed();
   rv = 0;
  out:
   if(pobj) xmlXPathFreeObject(pobj);
+  NCUNLOCK;
   return rv;
 }
 int
@@ -1242,14 +1272,15 @@ noit_delete_section_impl(void *closure, const char *root, const char *path,
                          const char *name, const char **err) {
   mtev_hook_return_t rv = MTEV_HOOK_CONTINUE;
   char xpath[1024];
-  mtev_conf_section_t exists = NULL;
+  mtev_conf_section_t exists;
 
   snprintf(xpath, sizeof(xpath), "/%s%s/%s//check", root, path, name);
-  exists = mtev_conf_get_section(NULL, xpath);
-  if(exists) {
+  exists = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  if(!mtev_conf_section_is_empty(exists)) {
     if(err) *err = "cannot delete section, has checks";
     rv = MTEV_HOOK_ABORT;
   }
+  mtev_conf_release_section(exists);
   return rv;
 }
 

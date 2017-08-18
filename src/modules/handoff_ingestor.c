@@ -290,7 +290,7 @@ static int handoff_ingestor_init(mtev_dso_generic_t *self) {
   if(!ds_err) ds_err = mtev_error;
   if(!ingest_err) ingest_err = mtev_error;
   mtev_hash_init(&uuid_map);
-  if(!mtev_conf_get_string(NULL, "/stratcon/database/journal/path",
+  if(!mtev_conf_get_string(MTEV_CONF_ROOT, "/stratcon/database/journal/path",
                            &basejpath)) {
     mtevL(mtev_error, "/stratcon/database/journal/path is unspecified\n");
     exit(-1);

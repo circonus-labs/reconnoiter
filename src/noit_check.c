@@ -246,7 +246,7 @@ struct vp_w_free {
 };
 
 static mtev_boolean system_needs_causality = mtev_false;
-static int text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
+static int32_t text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
 static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
 static int reg_module_used = -1;
@@ -541,7 +541,7 @@ noit_check_fake_last_check(noit_check_t *check,
   if(!(check->flags & NP_TRANSIENT)) check_slots_inc_tv(&lc_copy);
 }
 static void
-noit_poller_process_check_conf(mtev_conf_section_t node) {
+noit_poller_process_check_conf(mtev_conf_section_t section) {
   void *vcheck;
   char uuid_str[37];
   char target[256] = "";
@@ -573,15 +573,15 @@ noit_poller_process_check_conf(mtev_conf_section_t node) {
     moptions_used = mtev_true;
   }
 
-#define MYATTR(type,a,...) mtev_conf_get_##type(node, "@" #a, __VA_ARGS__)
+#define MYATTR(type,a,...) mtev_conf_get_##type(section, "@" #a, __VA_ARGS__)
 #define INHERIT(type,a,...) \
-  mtev_conf_get_##type(node, "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+  mtev_conf_get_##type(section, "ancestor-or-self::node()/@" #a, __VA_ARGS__)
 
   if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
     mtevL(noit_stderr, "check has no uuid\n");
     return;
   }
-  if(mtev_conf_env_off(node, NULL)) {
+  if(mtev_conf_env_off(section, NULL)) {
     mtevL(noit_stderr, "check %s environmentally disabled.\n", uuid_str);
     return;
   }
@@ -620,7 +620,7 @@ noit_poller_process_check_conf(mtev_conf_section_t node) {
     busted = mtev_true;
   }
 
-  if(!INHERIT(int, period, &period) || period == 0)
+  if(!INHERIT(int32, period, &period) || period == 0)
     no_period = 1;
 
   if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
@@ -636,7 +636,7 @@ noit_poller_process_check_conf(mtev_conf_section_t node) {
           uuid_str);
     busted = mtev_true;
   }
-  if(!INHERIT(int, timeout, &timeout)) {
+  if(!INHERIT(int32, timeout, &timeout)) {
     mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
     busted = mtev_true;
   }
@@ -644,9 +644,9 @@ noit_poller_process_check_conf(mtev_conf_section_t node) {
     mtevL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
     timeout = period/2;
   }
-  options = mtev_conf_get_hash(node, "config");
+  options = mtev_conf_get_hash(section, "config");
   for(ridx=0; ridx<reg_module_id; ridx++) {
-    moptions[ridx] = mtev_conf_get_namespaced_hash(node, "config",
+    moptions[ridx] = mtev_conf_get_namespaced_hash(section, "config",
                                                    reg_module_names[ridx]);
   }
 
@@ -695,11 +695,11 @@ noit_poller_process_checks(const char *xpath) {
   int i, cnt = 0;
   mtev_conf_section_t *sec;
   __config_load_generation++;
-  sec = mtev_conf_get_sections(NULL, xpath, &cnt);
+  sec = mtev_conf_get_sections(MTEV_CONF_ROOT, xpath, &cnt);
   for(i=0; i<cnt; i++) {
     noit_poller_process_check_conf(sec[i]);
   }
-  if(sec) free(sec);
+  mtev_conf_release_sections(sec, cnt);
 }
 
 int
@@ -861,7 +861,7 @@ noit_check_dns_ignore_list_init() {
   int cnt;
 
   noit_check_dns_ignore_tld("onion", "true");
-  dns = mtev_conf_get_sections(NULL, "/noit/dns/extension", &cnt);
+  dns = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/dns/extension", &cnt);
   if(dns) {
     int i = 0;
     for (i = 0; i < cnt; i++) {
@@ -880,10 +880,11 @@ noit_check_dns_ignore_list_init() {
       free(ignore);
     }
   }
+  mtev_conf_release_sections(dns, cnt);
 }
 static void
 noit_check_poller_scheduling_init() {
-  mtev_conf_get_boolean(NULL, "//checks/@priority_scheduling", &priority_scheduling);
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
 }
 void
 noit_poller_init() {
@@ -905,7 +906,7 @@ noit_poller_init() {
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
   eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
-  mtev_conf_get_int(NULL, "noit/@text_size_limit", &text_size_limit);
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "noit/@text_size_limit", &text_size_limit);
   if (text_size_limit <= 0) {
     text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
@@ -975,7 +976,7 @@ noit_check_clone(uuid_t in) {
 noit_check_t *
 noit_check_watch(uuid_t in, int period) {
   /* First look for a copy that is being watched */
-  int minimum_pi = 1000, granularity_pi = 500;
+  int32_t minimum_pi = 1000, granularity_pi = 500;
   mtev_conf_section_t check_node;
   char uuid_str[UUID_STR_LEN + 1];
   char xpath[1024];
@@ -997,17 +998,18 @@ noit_check_watch(uuid_t in, int period) {
 
   /* Find the check */
   snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
-  check_node = mtev_conf_get_section(NULL, xpath);
-  mtev_conf_get_int(NULL, "//checks/@transient_min_period", &minimum_pi);
-  mtev_conf_get_int(NULL, "//checks/@transient_period_granularity", &granularity_pi);
-  if(check_node) {
-    mtev_conf_get_int(check_node,
+  check_node = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
+  if(!mtev_conf_section_is_empty(check_node)) {
+    mtev_conf_get_int32(check_node,
                       "ancestor-or-self::node()/@transient_min_period",
                       &minimum_pi);
-    mtev_conf_get_int(check_node,
+    mtev_conf_get_int32(check_node,
                       "ancestor-or-self::node()/@transient_period_granularity",
                       &granularity_pi);
   }
+  mtev_conf_release_section(check_node);
 
   /* apply the bounds */
   period /= granularity_pi;
@@ -1690,16 +1692,6 @@ noit_poller_lookup_by_module(const char *ip, const char *mod,
   return noit_poller_target_do(ip, ip_module_collector, &crutch);
 }
 
-xmlNodePtr
-noit_get_check_xml_node(noit_check_t *check) {
-  char xpath[1024];
-  xmlNodePtr node;
-  noit_check_xpath_check(xpath, sizeof(xpath), check);
-
-  node = mtev_conf_get_section(NULL, xpath);
-  return node;
-}
-
 int
 noit_check_xpath_check(char *xpath, int len,
                   noit_check_t *check) {
@@ -1747,18 +1739,23 @@ noit_check_xpath(char *xpath, int len,
 
 char*
 noit_check_path(noit_check_t *check) {
+  char xpath[1024];
+  mtev_conf_section_t section;
   xmlNodePtr node, parent;
   mtev_prependable_str_buff_t *path;
   char *path_str;
   int path_str_len;
 
-  path = mtev_prepend_str_alloc();
+  noit_check_xpath_check(xpath, sizeof(xpath), check);
+  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
 
-  node = noit_get_check_xml_node(check);
-  if(node == NULL) {
+  if(mtev_conf_section_is_empty(section)) {
+    mtev_conf_release_section(section);
     return NULL;
   }
 
+  node = mtev_conf_section_to_xmlnodeptr(section);
+  path = mtev_prepend_str_alloc();
   mtev_prepend_str(path, "/", 1);
   parent = node->parent;
   while(parent && strcmp((char*)parent->name, CHECKS_XPATH_PARENT)) {
@@ -1772,6 +1769,7 @@ noit_check_path(noit_check_t *check) {
   memcpy(path_str, path->string, path_str_len);
   mtev_prepend_str_free(path);
   path_str[path_str_len] = '\0';
+  mtev_conf_release_section(section);
   return path_str;
 }
 
@@ -2777,18 +2775,20 @@ noit_check_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL, node;
   root = xmlDocGetRootElement(doc);
-  mtev_conf_section_t checks = mtev_conf_get_section(NULL, "/noit/checks");
-  mtevAssert(checks);
+  mtev_conf_section_t section;
+  mtev_conf_section_t checks = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/checks");
+  mtevAssert(!mtev_conf_section_is_empty(checks));
   for(child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
 
     uuid_t checkid;
     int64_t seq;
     char uuid_str[UUID_STR_LEN+1], seq_str[32];
-    mtevAssert(mtev_conf_get_stringbuf(child, "@uuid",
+    section = mtev_conf_section_from_xmlnodeptr(child);
+    mtevAssert(mtev_conf_get_stringbuf(section, "@uuid",
                                        uuid_str, sizeof(uuid_str)));
     mtev_uuid_parse(uuid_str, checkid);
-    mtevAssert(mtev_conf_get_stringbuf(child, "@seq",
+    mtevAssert(mtev_conf_get_stringbuf(section, "@seq",
                                        seq_str, sizeof(seq_str)));
     seq = strtoll(seq_str, NULL, 10);
 
@@ -2802,21 +2802,25 @@ noit_check_process_repl(xmlDocPtr doc) {
 
       snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
                uuid_str);
-      node = mtev_conf_get_section(NULL, xpath);
-      if(node) {
-        CONF_REMOVE(node);
+      section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+      if(!mtev_conf_section_is_empty(section)) {
+        CONF_REMOVE(section);
+        node = mtev_conf_section_to_xmlnodeptr(section);
         xmlUnlinkNode(node);
         xmlFreeNode(node);
       }
+      mtev_conf_release_section(section);
     }
 
-    mtev_conf_correct_namespace(checks, child);
+    section = mtev_conf_section_from_xmlnodeptr(child);
+    mtev_conf_correct_namespace(checks, section);
     xmlUnlinkNode(child);
-    xmlAddChild(checks, child);
-    CONF_DIRTY(child);
-    noit_poller_process_check_conf(child);
+    xmlAddChild(mtev_conf_section_to_xmlnodeptr(checks), child);
+    CONF_DIRTY(section);
+    noit_poller_process_check_conf(section);
     i++;
   }
+  mtev_conf_release_section(checks);
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(noit_error, "local config write failed\n");
