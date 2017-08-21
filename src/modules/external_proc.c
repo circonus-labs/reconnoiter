@@ -80,8 +80,8 @@ void proc_state_free(struct proc_state *ps) {
   if(ps->stderr_fd >= 0) close(ps->stderr_fd);
 }
 
-mtev_skiplist active_procs;
-mtev_skiplist done_procs;
+mtev_skiplist *active_procs;
+mtev_skiplist *done_procs;
 
 static int __proc_state_check_no(const void *av, const void *bv) {
   struct proc_state *a = (struct proc_state *)av;
@@ -121,22 +121,22 @@ static void process_siglist() {
     int status = 0;
     pid = waitpid(0, &status, WNOHANG);
     if(pid <= 0) break;
-    ps = mtev_skiplist_find_compare(&active_procs, &pid, &iter, __proc_state_pid);
+    ps = mtev_skiplist_find_compare(active_procs, &pid, &iter, __proc_state_pid);
     mtevL((ps?nldeb:nlerr), "reaped pid %d (check: %lld) -> %x\n",
           pid, (long long int)(ps?ps->check_no:-1), status);
     if(ps) {
-      int rv = mtev_skiplist_remove_compare(&active_procs, &ps->pid, NULL,  __proc_state_pid);
+      int rv = mtev_skiplist_remove_compare(active_procs, &ps->pid, NULL,  __proc_state_pid);
       if (!rv) {
         mtevL(noit_error, "error: couldn't remove PID %d from active_procs in external\n", ps->pid);
       }
-      mtev_skiplist_insert(&done_procs, ps);
+      mtev_skiplist_insert(done_procs, ps);
     }
   }
 }
 
 static void fetch_and_kill_by_check(int64_t check_no) {
   struct proc_state *ps;
-  ps = mtev_skiplist_find(&active_procs, &check_no, NULL);
+  ps = mtev_skiplist_find(active_procs, &check_no, NULL);
   if(ps) {
     ps->cancelled = 1;
     kill(ps->pid, SIGKILL);
@@ -254,8 +254,8 @@ static int write_out_backing_fd(int ofd, int bfd, uint32_t max_out_len) {
 static void finish_procs() {
   struct proc_state *ps;
   process_siglist();
-  mtevL(nldeb, "%d done procs to cleanup\n", done_procs.size);
-  while((ps = mtev_skiplist_pop(&done_procs, NULL)) != NULL) {
+  mtevL(nldeb, "%d done procs to cleanup\n", mtev_skiplist_size(done_procs));
+  while((ps = mtev_skiplist_pop(done_procs, NULL)) != NULL) {
     mtevL(nldeb, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
     if(ps->cancelled == 0) {
       assert_write(out_fd, &ps->check_no,
@@ -295,7 +295,7 @@ int external_proc_spawn(struct proc_state *ps) {
 
   /* Here.. fork has succeeded */
   if(ps->pid) {
-    mtev_skiplist_insert(&active_procs, ps);
+    mtev_skiplist_insert(active_procs, ps);
     return 0;
   }
   /* Run the process */
@@ -310,7 +310,7 @@ int external_proc_spawn(struct proc_state *ps) {
   exit(-1);
  prefork_fail:
   ps->status = -1;
-  mtev_skiplist_insert(&done_procs, ps);
+  mtev_skiplist_insert(done_procs, ps);
   return -1;
 }
 
@@ -330,13 +330,15 @@ int external_child(external_data_t *data) {
     return -1;
   }
 
-  mtev_skiplist_init(&active_procs);
-  mtev_skiplist_set_compare(&active_procs, __proc_state_check_no,
+  active_procs = mtev_skiplist_alloc();
+  mtev_skiplist_init(active_procs);
+  mtev_skiplist_set_compare(active_procs, __proc_state_check_no,
                             __proc_state_check_no_key);
-  mtev_skiplist_add_index(&active_procs, __proc_state_pid,
+  mtev_skiplist_add_index(active_procs, __proc_state_pid,
                           __proc_state_pid_key);
-  mtev_skiplist_init(&done_procs);
-  mtev_skiplist_set_compare(&done_procs, __proc_state_check_no,
+  done_procs = mtev_skiplist_alloc();
+  mtev_skiplist_init(done_procs);
+  mtev_skiplist_set_compare(done_procs, __proc_state_check_no,
                             __proc_state_check_no_key);
 
   while(1) {
