@@ -155,7 +155,7 @@ noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
     mtev_skiplist_node *curr, *next;
     curr = next = mtev_skiplist_getlist(check->feeds);
     while(curr) {
-      const char *feed_name = (char *)curr->data;
+      const char *feed_name = (char *)mtev_skiplist_data(curr);
       mtev_log_stream_t ls = mtev_log_stream_find(feed_name);
       mtev_skiplist_next(check->feeds, &next);
       if(!ls ||

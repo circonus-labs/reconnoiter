@@ -52,7 +52,7 @@ struct check_test_closure {
   enum { WANTS_XML = 0, WANTS_JSON } output;
 };
 
-static mtev_skiplist in_progress;
+static mtev_skiplist *in_progress;
 static eventer_t sweeper_event = NULL;
 static int default_sweep_interval = 10; /* 10ms seems good */
 
@@ -79,8 +79,8 @@ check_test_onload(mtev_image_t *self) {
   nldeb = mtev_log_stream_find("debug/checktest");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
-  mtev_skiplist_init(&in_progress);
-  mtev_skiplist_set_compare(&in_progress, check_complete_heap,
+  in_progress = mtev_skiplist_alloc();
+  mtev_skiplist_set_compare(in_progress, check_complete_heap,
                             check_complete_heap_key);
   return 0;
 }
@@ -256,11 +256,11 @@ check_test_sweeper(eventer_t e, int mask, void *closure,
   int left = 0;
   mtev_skiplist_node *iter = NULL;
   sweeper_event = NULL;
-  iter = mtev_skiplist_getlist(&in_progress);
+  iter = mtev_skiplist_getlist(in_progress);
   while(iter) {
-    struct check_test_closure *cl = iter->data;
+    struct check_test_closure *cl = mtev_skiplist_data(iter);
     /* advance here, we might delete */
-    mtev_skiplist_next(&in_progress,&iter);
+    mtev_skiplist_next(in_progress,&iter);
     if(NOIT_CHECK_DISABLED(cl->check)) {
       if(NOIT_CHECK_SHOULD_RESOLVE(cl->check))
         noit_check_resolve(cl->check);
@@ -275,7 +275,7 @@ check_test_sweeper(eventer_t e, int mask, void *closure,
     }
     else if(NOIT_CHECK_RUNNING(cl->check)) left++;
     else
-      mtev_skiplist_remove(&in_progress, cl->restc,
+      mtev_skiplist_remove(in_progress, cl->restc,
                            (mtev_freefunc_t)rest_test_check_result);
   }
 
@@ -297,7 +297,7 @@ static int
 rest_test_check_err(mtev_http_rest_closure_t *restc,
                     int npats, char **pats) {
   mtev_http_response *res = mtev_http_session_response(restc->http_ctx);
-  mtev_skiplist_remove(&in_progress, restc,
+  mtev_skiplist_remove(in_progress, restc,
                        (mtev_freefunc_t)rest_test_check_result);
   if(mtev_http_response_complete(res) != mtev_true) {
     mtev_http_response_standard(restc->http_ctx, 500, "ERROR", "text/html");
@@ -334,7 +334,7 @@ rest_test_check(mtev_http_rest_closure_t *restc,
       cl->output = WANTS_JSON;
     cl->check = tcheck;
     cl->restc = restc;
-    mtev_skiplist_insert(&in_progress, cl);
+    mtev_skiplist_insert(in_progress, cl);
     check_test_schedule_sweeper();
     if(restc->call_closure_free)
       restc->call_closure_free(restc->call_closure);
