@@ -454,6 +454,7 @@ static int dns_module_check_timeout(eventer_t e, int mask, void *closure,
                                     struct timeval *now) {
   struct dns_check_info *ci;
   ci = closure;
+  mtevAssert(ci->timeout_event != NULL);
   ci->timeout_event = NULL;
   dns_check_log_results(ci);
   __deactivate_ci(ci);
@@ -495,6 +496,7 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
   if(timeout >= 0) {
     mtevAssert(h->timeout == NULL);
     h->timeout = eventer_in_s_us(dns_module_invoke_timeouts, h, timeout, 0);
+    eventer_set_owner(h->timeout, eventer_get_owner(h->e));
     dns_module_dns_ctx_acquire(h);
     eventer_add(h->timeout);
   }
@@ -869,7 +871,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
       ci->error = strdup("submission error");
     }
     else {
-      dns_timeouts(ci->h->ctx, -1, now.tv_sec);
+      dns_module_eventer_dns_utm_fn(ci->h->ctx, 0, ci->h);
     }
   }
 
