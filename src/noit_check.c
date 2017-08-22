@@ -853,7 +853,7 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_check_dns_ignore_tld(const char* extension, const char* ignore) {
-  mtev_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), NULL, NULL);
+  mtev_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), free, free);
 }
 static void 
 noit_check_dns_ignore_list_init() {
