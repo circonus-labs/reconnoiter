@@ -530,7 +530,9 @@ function initiate(module, check)
     end
 
     -- Check about every 15 minutes
-    if cache_table[uuid]['timestamp'] + (60 * 15) >= current_time then
+    -- Don't let transient checks gather data, they timeout too fast
+    if check.flags("NP_TRANSIENT") == 0 and
+       cache_table[uuid]['timestamp'] + (60 * 15) >= current_time then
         -- We've gone over the cache timeout... get new values
         cache_table[uuid]['metrics'] = {}
         local dns = mtev.dns()
