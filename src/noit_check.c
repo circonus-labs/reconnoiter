@@ -301,11 +301,10 @@ noit_console_show_timing_slots(mtev_console_closure_t ncct,
 }
 static int
 noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
-  char *oldname = NULL, *newnamecopy;
+  char *oldname = NULL;
   if(newname) {
     /* track this stuff outside the lock to avoid allocs */
     oldname = new_check->name;
-    newnamecopy = strdup(newname);
   }
   pthread_mutex_lock(&polls_lock);
   if(!(new_check->flags & NP_TRANSIENT)) {
@@ -315,7 +314,9 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
       mtev_skiplist_remove(polls_by_name, new_check, NULL);
 
     /* optional update the name (at the critical point) */
-    if(newname) new_check->name = newnamecopy;
+    if(newname) {
+      new_check->name = strdup(newname);
+    }
 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
