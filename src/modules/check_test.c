@@ -204,8 +204,12 @@ rest_test_check_result(struct check_test_closure *cl) {
 
   mtevL(nlerr, "Flushing check test result\n");
 
-  if(cl->restc->call_closure_free)
+  if(cl->restc->call_closure_free) {
     cl->restc->call_closure_free(cl->restc->call_closure);
+    /* We have to free this manually because the closure set by
+     * rest_get_xml_upload doesn't do it */
+    free(cl->restc->call_closure);
+  }
   cl->restc->call_closure_free = NULL;
   cl->restc->call_closure = NULL;
   cl->restc->fastpath = NULL;
@@ -336,8 +340,12 @@ rest_test_check(mtev_http_rest_closure_t *restc,
     cl->restc = restc;
     mtev_skiplist_insert(in_progress, cl);
     check_test_schedule_sweeper();
-    if(restc->call_closure_free)
+    if(restc->call_closure_free) {
       restc->call_closure_free(restc->call_closure);
+      /* We have to free this manually because the closure set by
+       * rest_get_xml_upload doesn't do it */
+      free(restc->call_closure);
+    }
     restc->call_closure_free = NULL;
     restc->call_closure = NULL;
     restc->fastpath = rest_test_check_err;

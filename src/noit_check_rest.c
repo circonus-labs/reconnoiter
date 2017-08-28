@@ -997,7 +997,12 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(noit_error, "local config write failed\n");
   noit_poller_reload(xpath);
-  if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
+  if(restc->call_closure_free) {
+    restc->call_closure_free(restc->call_closure);
+    /* We have to free this manually because the closure set by
+     * rest_get_xml_upload doesn't do it */
+    free(restc->call_closure);
+  }
   restc->call_closure_free = NULL;
   restc->call_closure = NULL;
   if(pobj) xmlXPathFreeObject(pobj);
