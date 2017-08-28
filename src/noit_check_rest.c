@@ -663,9 +663,12 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           timeout = 1;
         }
         else CHECK_N_SET(filterset) {
+          int valid;
           xmlChar *tmp;
           tmp = xmlNodeGetContent(an);
-          if(!noit_filter_exists((char *)tmp)) {
+          valid = noit_filter_exists((char *)tmp);
+          xmlFree(tmp);
+          if(!valid) {
             *error = "filterset does not exist";
             goto out;
           }
@@ -962,6 +965,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
       FAIL("internal error uuid");
+    xmlFree(uuid_conf);
 
     /* make sure this isn't a dup */
     for(a = attr->children; a; a = a->next) {
