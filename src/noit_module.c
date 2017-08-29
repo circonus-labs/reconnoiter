@@ -313,7 +313,7 @@ void noit_module_init() {
               "Configure failed on %s\n", module_name);
         continue;
       }
-      if(include_sections) free(include_sections);
+      if(include_sections) mtev_conf_release_sections(include_sections, section_cnt);
     }
     if(module->init && module->init(module)) {
       mtevL(noit_stderr,
