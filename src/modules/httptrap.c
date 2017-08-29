@@ -873,10 +873,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
-  if (restc && restc->call_closure && restc->call_closure_free) {
-    restc->call_closure_free(restc->call_closure);
-    restc->call_closure = restc->call_closure_free = NULL;
-  }
   return 0;
 }
 
