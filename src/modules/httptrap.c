@@ -734,8 +734,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     mtev_boolean allowed = mtev_false;
     httptrap_closure_t *ccl = NULL;
     const char *delimiter = NULL;
-    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
-    rxc->delimiter = DEFAULT_HTTPTRAP_DELIMITER;
     check = noit_poller_lookup(check_id);
     if(!check) {
       error = "no such check";
@@ -756,6 +754,9 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       error = "secret mismatch";
       goto error;
     }
+
+    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    rxc->delimiter = DEFAULT_HTTPTRAP_DELIMITER;
 
     /* check "delimiter" then "httptrap_delimiter" as a fallback */
     (void)mtev_hash_retr_str(check->config, "delimiter", strlen("delimiter"), &delimiter);
