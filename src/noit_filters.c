@@ -546,6 +546,8 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
                       sec2 = MTEV_CONF_EMPTY,
                       byebye = MTEV_CONF_EMPTY;
   mtev_conf_t_userdata_t *info;
+  mtev_conf_section_t add_arg;
+  mtev_boolean add_arg_initialized = mtev_false;
   char xpath[1024];
   int rv = -1;
 
@@ -578,7 +580,6 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
   else {
     xmlNodePtr (*add_func)(xmlNodePtr, xmlNodePtr);
     xmlNodePtr add_arg_node, new_rule;
-    mtev_conf_section_t add_arg;
     int i, needs_type = 1;
     if(argc < 1 || argc % 2) {
       nc_printf(ncct, "even number of arguments required\n");
@@ -588,6 +589,7 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
       int rulenum = atoi(argv[1]);
       snprintf(xpath, sizeof(xpath), "rule[%d]", rulenum);
       add_arg = mtev_conf_get_section(fsnode, xpath);
+      add_arg_initialized = mtev_true;
       if(mtev_conf_section_is_empty(add_arg)) {
         nc_printf(ncct, "%s rule not found\n", xpath);
         goto bail;
@@ -623,6 +625,9 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
   }
   rv = 0;
  bail:
+  if (add_arg_initialized) {
+    mtev_conf_release_section(add_arg);
+  }
   mtev_conf_release_section(fsnode);
   mtev_conf_release_section(sec2);
   mtev_conf_release_section(byebye);
