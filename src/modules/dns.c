@@ -87,9 +87,11 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
   dns_ctx_handle_t *h = vh;
   free(h->ns);
   free(h->hkey);
+  if (h->e) eventer_remove_fde(h->e);
   dns_close(h->ctx);
   dns_free(h->ctx);
   mtevAssert(h->timeout == NULL);
+  if(h->e) eventer_free(h->e);
   free(h);
 }
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
