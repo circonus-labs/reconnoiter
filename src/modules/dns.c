@@ -85,6 +85,9 @@ static int cstring_cmp(const void *a, const void *b) {
 static dns_ctx_handle_t *default_ctx_handle = NULL;
 static void dns_module_dns_ctx_handle_free(void *vh) {
   dns_ctx_handle_t *h = vh;
+  if (!h) {
+    return;
+  }
   free(h->ns);
   free(h->hkey);
   dns_close(h->ctx);
@@ -94,6 +97,9 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
 }
 static void dns_module_dns_ctx_handle_free_and_remove_eventer(void *vh) {
   dns_ctx_handle_t *h = vh;
+  if (!h) {
+    return;
+  }
   eventer_t e = h->e;
   if (e) {
     eventer_remove_fde(e);
