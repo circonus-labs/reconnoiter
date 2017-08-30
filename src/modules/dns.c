@@ -85,12 +85,29 @@ static int cstring_cmp(const void *a, const void *b) {
 static dns_ctx_handle_t *default_ctx_handle = NULL;
 static void dns_module_dns_ctx_handle_free(void *vh) {
   dns_ctx_handle_t *h = vh;
+  if (!h) {
+    return;
+  }
   free(h->ns);
   free(h->hkey);
   dns_close(h->ctx);
   dns_free(h->ctx);
   mtevAssert(h->timeout == NULL);
   free(h);
+}
+static void dns_module_dns_ctx_handle_free_and_remove_eventer(void *vh) {
+  dns_ctx_handle_t *h = vh;
+  if (!h) {
+    return;
+  }
+  eventer_t e = h->e;
+  if (e) {
+    eventer_remove_fde(e);
+  }
+  dns_module_dns_ctx_handle_free(h);
+  if (e) {
+    eventer_free(e);
+  }
 }
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
   mtev_atomic_inc32(&h->refcnt);
@@ -178,7 +195,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const cha
   pthread_mutex_unlock(&dns_ctx_store_lock);
   return h;
 }
-static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
+static int dns_module_dns_ctx_release(dns_ctx_handle_t *h, mtev_boolean within_event_callback) {
   int rv = 0, last;
   if(h->ns == NULL) {
     /* Special case for the default */
@@ -190,7 +207,10 @@ static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
   if(last == 0) {
     /* I was the last one */
     mtevAssert(mtev_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
-                            NULL, dns_module_dns_ctx_handle_free));
+                            NULL,
+                            (within_event_callback == mtev_true) ?
+                            dns_module_dns_ctx_handle_free :
+                            dns_module_dns_ctx_handle_free_and_remove_eventer));
     rv = 1;
   }
   pthread_mutex_unlock(&dns_ctx_store_lock);
@@ -238,7 +258,7 @@ static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_unlock(&active_events_lock);
   noit_check_end(ci->check);
   if(ci->h != NULL) {
-    dns_module_dns_ctx_release(ci->h);
+    dns_module_dns_ctx_release(ci->h, mtev_false);
     ci->h = NULL;
   }
 }
@@ -443,7 +463,7 @@ static int dns_module_eventer_callback(eventer_t e, int mask, void *closure,
   dns_ctx_handle_t *h = closure;
   dns_module_dns_ctx_acquire(h);
   dns_ioevent(h->ctx, now->tv_sec);
-  if(dns_module_dns_ctx_release(h)) {
+  if(dns_module_dns_ctx_release(h, mtev_true)) {
     /* We've been closed */
     return 0;
   }
@@ -467,7 +487,7 @@ static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
   mtevAssert(h && h->timeout);
   h->timeout = NULL; /* This will be free upon return from this function */
   dns_timeouts(h->ctx, 0, now->tv_sec);
-  dns_module_dns_ctx_release(h);
+  dns_module_dns_ctx_release(h, mtev_false);
   return 0;
 }
 static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
@@ -482,7 +502,10 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
     eventer_t e = eventer_remove(h->timeout);
     h->timeout = NULL;
     if(e) eventer_free(e);
-    dns_module_dns_ctx_release(h); /* acquire happened on timeout assigment */
+    if (dns_module_dns_ctx_release(h, mtev_false)) {
+      /* acquire happened on timeout assigment */
+      return;
+    }
   }
 
   if(ctx == NULL || h == NULL) {
@@ -834,7 +857,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
      ((ci->h->ns == NULL && nameserver != NULL) ||
       (ci->h->ns != NULL && nameserver == NULL) ||
       (ci->h->ns && strcmp(ci->h->ns, nameserver)))) {
-    dns_module_dns_ctx_release(ci->h);
+    dns_module_dns_ctx_release(ci->h, mtev_false);
     ci->h = NULL;
   }
   /* use the cached one, unless we don't have one */
