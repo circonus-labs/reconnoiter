@@ -158,7 +158,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
   const char *fingerprint;
   ssh2_check_info_t *ci = closure;
   struct timeval diff;
-  int timeout_ms = 2000; /* 2s */
+  int timeout_ms = 3000; /* 3s */
   if(ci->state == WANT_CLOSE) {
     noit_check_t *check = ci->check;
     ssh2_log_results(ci->self, ci->check);
