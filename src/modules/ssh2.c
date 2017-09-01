@@ -202,8 +202,12 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
       libssh2_session_set_timeout(ci->session, timeout_ms);
 #endif
       if (libssh2_session_startup(ci->session, eventer_get_fd(e))) {
+        char *err = NULL;
+        char *err_buff = malloc(65535);
+        libssh2_session_last_error(ci->session, &err, NULL, 0);
         ci->timed_out = 0;
-        ci->error = strdup("ssh session startup failed");
+        snprintf(err_buff, 65534, "ssh session startup failed: %s\n", (err == NULL) ? "unknown" : err);
+        ci->error = err_buff;
         return 0;
       }
       fingerprint = libssh2_hostkey_hash(ci->session, LIBSSH2_HOSTKEY_HASH_MD5);
