@@ -158,7 +158,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
   const char *fingerprint;
   ssh2_check_info_t *ci = closure;
   struct timeval diff;
-  int timeout_ms = 10; /* 10ms, gets set below */
+  int timeout_ms = 2000; /* 2s */
   if(ci->state == WANT_CLOSE) {
     noit_check_t *check = ci->check;
     ssh2_log_results(ci->self, ci->check);
@@ -194,10 +194,6 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
       set_method(mac_sc, LIBSSH2_METHOD_MAC_SC);
       set_method(comp_cs, LIBSSH2_METHOD_COMP_CS);
       set_method(comp_sc, LIBSSH2_METHOD_COMP_SC);
-      if(compare_timeval(*now, eventer_get_whence(e)) < 0) {
-        sub_timeval(eventer_get_whence(e), *now, &diff);
-        timeout_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
-      }
 #if LIBSSH2_VERSION_NUM >= 0x010209
       libssh2_session_set_timeout(ci->session, timeout_ms);
 #endif
