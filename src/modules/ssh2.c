@@ -80,6 +80,7 @@ typedef struct {
   char fingerprint[33]; /* 32 hex characters */
   eventer_t synch_fd_event;
   eventer_t timeout_event; /* Only used for connect() */
+  struct timeval timeout_timeval;
 } ssh2_check_info_t;
 
 static mtev_log_stream_t nlerr = NULL;
@@ -194,11 +195,11 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
       set_method(mac_sc, LIBSSH2_METHOD_MAC_SC);
       set_method(comp_cs, LIBSSH2_METHOD_COMP_CS);
       set_method(comp_sc, LIBSSH2_METHOD_COMP_SC);
-      if(compare_timeval(*now, eventer_get_whence(e)) < 0) {
-        sub_timeval(eventer_get_whence(e), *now, &diff);
+#if LIBSSH2_VERSION_NUM >= 0x010209
+      if(compare_timeval(*now, ci->timeout_timeval) < 0) {
+        sub_timeval(ci->timeout_timeval, *now, &diff);
         timeout_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
       }
-#if LIBSSH2_VERSION_NUM >= 0x010209
       libssh2_session_set_timeout(ci->session, timeout_ms);
 #endif
       if (libssh2_session_startup(ci->session, eventer_get_fd(e))) {
@@ -232,6 +233,7 @@ static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void 
                                                     struct timeval *now) {
   ssh2_check_info_t *ci = closure;
   eventer_t asynch_e;
+  struct timeval timeout_tv;
 
   if(mask & EVENTER_EXCEPTION) {
     noit_check_t *check = ci->check;
@@ -245,10 +247,14 @@ static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void 
     return 0;
   }
 
-  /* We steal the timeout_event as it has the exact timeout we want. */
+  /* We steal the timeout_event as it has the exact timeout we want and copy
+   * the value into ci->timeout_timeval */
   mtevAssert(ci->timeout_event);
   asynch_e = eventer_remove(ci->timeout_event);
   mtevAssert(asynch_e);
+  timeout_tv = eventer_get_whence(asynch_e);
+  memcpy(&ci->timeout_timeval, &timeout_tv, sizeof(ci->timeout_timeval));
+
   eventer_free(asynch_e);
   ci->timeout_event = NULL;
 
