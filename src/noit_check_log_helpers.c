@@ -155,6 +155,7 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
   }
   if(compbuff) free(compbuff);
 
+  mtev_stream_decompress_finish(ctx);
   mtev_destroy_stream_decompress_ctx(ctx);
 
   return 0;
