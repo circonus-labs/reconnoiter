@@ -366,6 +366,7 @@ connect_iep_driver(struct driver_list *d) {
   }
   if(!data->driver_data)
     data->driver_data = data->mq_driver->allocate(d->section);
+  if(!data->driver_data) return NULL;
   rc = data->mq_driver->connect(data->driver_data);
   if(rc < 0) return NULL;
   if(rc == 0) {
