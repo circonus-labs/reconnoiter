@@ -238,14 +238,14 @@ static int
 handoff_http_handler(eventer_t e, int mask, void *closure,
                      struct timeval *now) {
   int done = 0, rv;
-  acceptor_closure_t *ac = closure;
-  mtev_http_session_ctx *http_ctx = ac->service_ctx;
+  mtev_acceptor_closure_t *ac = closure;
+  mtev_http_session_ctx *http_ctx = mtev_acceptor_closure_ctx(ac);
   rv = mtev_http_session_drive(e, mask, http_ctx, now, &done);
   if(done) {
     pthread_mutex_lock(&http_ctx_lock);
     the_one_and_only = NULL;
     pthread_mutex_unlock(&http_ctx_lock);
-    acceptor_closure_free(ac);
+    mtev_acceptor_closure_free(ac);
   }
   return rv;
 }
@@ -255,12 +255,10 @@ handoff_stream(mtev_http_rest_closure_t *restc, int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_http_connection *conn = mtev_http_session_connection(ctx);
   eventer_t e;
-  acceptor_closure_t *ac = restc->ac;
+  mtev_acceptor_closure_t *ac = restc->ac;
 
-  if(ac->service_ctx_free)
-    ac->service_ctx_free(ac->service_ctx);
-  ac->service_ctx = ctx;
-  ac->service_ctx_free = mtev_http_ctx_acceptor_free;
+  mtev_acceptor_closure_ctx_free(ac);
+  mtev_acceptor_closure_set_ctx(ac, ctx, mtev_http_ctx_acceptor_free);
 
   e = mtev_http_connection_event(conn);
   eventer_set_callback(e, handoff_http_handler);

@@ -65,7 +65,7 @@ reverse_check_hook_impl(void *closure, noit_check_t *check) {
 }
 
 mtev_reverse_acl_decision_t
-reverse_check_allow(const char *id, acceptor_closure_t *ac) {
+reverse_check_allow(const char *id, mtev_acceptor_closure_t *ac) {
   mtev_hash_table *config;
   noit_check_t *check;
   const char *key;

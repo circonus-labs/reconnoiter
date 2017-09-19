@@ -170,8 +170,8 @@ void *
 noit_livestream_thread_main(void *e_vptr) {
   int mask;
   eventer_t e = e_vptr;
-  acceptor_closure_t *ac = eventer_get_closure(e);
-  noit_livestream_closure_t *jcl = ac->service_ctx;
+  mtev_acceptor_closure_t *ac = eventer_get_closure(e);
+  noit_livestream_closure_t *jcl = mtev_acceptor_closure_ctx(ac);
   struct log_entry *le = NULL;
 
   mtev_memory_init_thread();
@@ -222,7 +222,7 @@ noit_livestream_thread_main(void *e_vptr) {
   }
   eventer_close(e, &mask);
   jcl->wants_shutdown = 1;
-  acceptor_closure_free(ac);
+  mtev_acceptor_closure_free(ac);
   mtev_memory_maintenance();
   /* Our semaphores are counting semaphores, not locks. */
   /* coverity[missing_unlock] */
@@ -236,8 +236,8 @@ noit_livestream_handler(eventer_t e, int mask, void *closure,
   pthread_t tid;
   pthread_attr_t tattr;
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
-  acceptor_closure_t *ac = closure;
-  noit_livestream_closure_t *jcl = ac->service_ctx;
+  mtev_acceptor_closure_t *ac = closure;
+  noit_livestream_closure_t *jcl = mtev_acceptor_closure_ctx(ac);
 
   if(mask & EVENTER_EXCEPTION || (jcl && jcl->wants_shutdown)) {
 socket_error:
@@ -248,15 +248,17 @@ socket_error:
     /* will free the noit_livestream_closure_t */
     mtev_log_stream_close(ls);
     mtev_log_stream_free(ls);
-    ac->service_ctx = NULL;
-    acceptor_closure_free(ac);
+    mtev_acceptor_closure_set_ctx(ac, NULL, NULL);
+    mtev_acceptor_closure_free(ac);
     return 0;
   }
 
-  if(!ac->service_ctx || !jcl->feed) {
+  if(!jcl || !jcl->feed) {
     int len;
-    if(!ac->service_ctx) ac->service_ctx = noit_livestream_closure_alloc();
-    jcl = ac->service_ctx;
+    if(!jcl) {
+      jcl = noit_livestream_closure_alloc();
+      mtev_acceptor_closure_set_ctx(ac, jcl, NULL);
+    }
     /* Setup logger to this channel */
     mtevL(noit_debug, "livestream initializing on fd %d\n", eventer_get_fd(e));
     if(!jcl->period_read) {
@@ -314,7 +316,7 @@ socket_error:
   mtev_log_stream_t ls = jcl->log_stream;
   mtev_log_stream_close(ls);
   mtev_log_stream_free(ls);
-  ac->service_ctx = NULL;
+  mtev_acceptor_closure_set_ctx(ac, NULL, NULL);
   /* Undo our dup */
   eventer_free(newe);
   /* Creating the thread failed, close it down and deschedule. */
