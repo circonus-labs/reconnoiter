@@ -206,22 +206,22 @@ void *
 noit_jlog_thread_main(void *e_vptr) {
   int mask, bytes_read, sleeptime, max_sleeptime;
   eventer_t e = e_vptr;
-  acceptor_closure_t *ac = eventer_get_closure(e);
-  noit_jlog_closure_t *jcl = ac->service_ctx;
+  mtev_acceptor_closure_t *ac = eventer_get_closure(e);
+  noit_jlog_closure_t *jcl = mtev_acceptor_closure_ctx(ac);
   char inbuff[sizeof(jlog_id)];
 
   mtev_memory_init_thread();
   eventer_set_fd_blocking(eventer_get_fd(e));
 
   max_sleeptime = DEFAULT_MSECONDS_BETWEEN_BATCHES;
-  if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED)
+  if(mtev_acceptor_closure_cmd(ac) == NOIT_JLOG_DATA_TEMP_FEED)
     max_sleeptime = DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES;
 
   sleeptime = max_sleeptime;
   while(1) {
     jlog_id client_chkpt;
     sleeptime = MIN(sleeptime, max_sleeptime);
-    jlog_get_checkpoint(jcl->jlog, ac->remote_cn, &jcl->chkpt);
+    jlog_get_checkpoint(jcl->jlog, mtev_acceptor_closure_remote_cn(ac), &jcl->chkpt);
     jcl->count = jlog_ctx_read_interval(jcl->jlog, &jcl->start, &jcl->finish);
     if(jcl->count < 0) {
       char idxfile[PATH_MAX];
@@ -276,7 +276,8 @@ noit_jlog_thread_main(void *e_vptr) {
       if(memcmp(&jcl->chkpt, &client_chkpt, sizeof(jlog_id))) {
         mtevL(noit_error,
               "client %s submitted invalid checkpoint %u:%u expected %u:%u\n",
-              ac->remote_cn, client_chkpt.log, client_chkpt.marker,
+              mtev_acceptor_closure_remote_cn(ac),
+              client_chkpt.log, client_chkpt.marker,
               jcl->chkpt.log, jcl->chkpt.marker);
         goto alldone;
       }
@@ -300,7 +301,7 @@ noit_jlog_thread_main(void *e_vptr) {
          * here then "shit went wrong"
          */
         mtevL(noit_error, "jlog client %s disconnected while idle\n",
-              ac->remote_cn);
+              mtev_acceptor_closure_remote_cn(ac));
         goto alldone;
       }
     }
@@ -314,7 +315,7 @@ noit_jlog_thread_main(void *e_vptr) {
   eventer_close(e, &mask);
   mtev_atomic_dec32(&jcl->feed_stats->connections);
   noit_jlog_closure_free(jcl);
-  acceptor_closure_free(ac);
+  mtev_acceptor_closure_free(ac);
   mtev_memory_maintenance();
   return NULL;
 }
@@ -326,8 +327,8 @@ noit_jlog_handler(eventer_t e, int mask, void *closure,
   pthread_t tid;
   pthread_attr_t tattr;
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
-  acceptor_closure_t *ac = closure;
-  noit_jlog_closure_t *jcl = ac->service_ctx;
+  mtev_acceptor_closure_t *ac = closure;
+  noit_jlog_closure_t *jcl = mtev_acceptor_closure_ctx(ac);
   char errbuff[256];
   const char *errstr = "unknown error";
 
@@ -342,17 +343,18 @@ socket_error:
     eventer_remove_fde(e);
     eventer_close(e, &newmask);
     if(jcl) noit_jlog_closure_free(jcl);
-    acceptor_closure_free(ac);
+    mtev_acceptor_closure_free(ac);
     return 0;
   }
 
-  if(!ac->service_ctx) {
+  if(!jcl) {
     mtev_log_stream_t ls;
     const char *logname, *type;
     int first_attempt = 1;
     char path[PATH_MAX], subscriber[256], *sub;
-    jcl = ac->service_ctx = noit_jlog_closure_alloc();
-    if(!mtev_hash_retr_str(ac->config,
+    jcl = noit_jlog_closure_alloc();
+    mtev_acceptor_closure_set_ctx(ac, jcl, NULL);
+    if(!mtev_hash_retr_str(mtev_acceptor_closure_config(ac),
                            "log_transit_feed_name",
                            strlen("log_transit_feed_name"),
                            &logname)) {
@@ -376,13 +378,14 @@ socket_error:
       mtevL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
-    if(ac->cmd == NOIT_JLOG_DATA_FEED) {
-      if(!ac->remote_cn) {
+    if(mtev_acceptor_closure_cmd(ac) == NOIT_JLOG_DATA_FEED) {
+      const char *remote_cn = mtev_acceptor_closure_remote_cn(ac);
+      if(!remote_cn) {
         errstr = "jlog transit started to unidentified party.";
         mtevL(noit_error, "%s\n", errstr);
         goto socket_error;
       }
-      strlcpy(subscriber, ac->remote_cn, sizeof(subscriber));
+      strlcpy(subscriber, remote_cn, sizeof(subscriber));
       jcl->feed_stats = noit_jlog_feed_stats(subscriber);
     }
     else {
@@ -403,7 +406,7 @@ socket_error:
     }
 
     jcl->jlog = jlog_new(path);
-    if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED) {
+    if(mtev_acceptor_closure_cmd(ac) == NOIT_JLOG_DATA_TEMP_FEED) {
  add_sub:
       if(jlog_ctx_add_subscriber(jcl->jlog, jcl->subscriber, JLOG_END) == -1) {
         snprintf(errbuff, sizeof(errbuff),
@@ -557,7 +560,7 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
   xmlXPathObjectPtr pobj = NULL;
   xmlDocPtr doc = NULL, indoc = NULL;
   xmlNodePtr node, root;
-  acceptor_closure_t *ac = restc->ac;
+  mtev_acceptor_closure_t *ac = restc->ac;
   int error_code = 500, complete = 0, mask = 0, rv;
   const char *error = "internal error", *logname;
   char *name, *copy_from;
@@ -575,7 +578,7 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
     error = "xml parse error";
     goto error;
   }
-  if(!mtev_hash_retr_str(ac->config,
+  if(!mtev_hash_retr_str(mtev_acceptor_closure_config(ac),
                          "log_transit_feed_name",
                          strlen("log_transit_feed_name"),
                          &logname)) {

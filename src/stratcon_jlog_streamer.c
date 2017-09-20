@@ -1451,7 +1451,7 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
 }
 
 mtev_reverse_acl_decision_t
-mtev_reverse_socket_allow_noits(const char *id, acceptor_closure_t *ac) {
+mtev_reverse_socket_allow_noits(const char *id, mtev_acceptor_closure_t *ac) {
   if(!strncmp(id, "noit/", 5)) return MTEV_ACL_ALLOW;
   return MTEV_ACL_ABSTAIN;
 }

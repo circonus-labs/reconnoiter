@@ -585,10 +585,10 @@ int
 stratcon_realtime_http_handler(eventer_t e, int mask, void *closure,
                                struct timeval *now) {
   int done = 0, rv;
-  acceptor_closure_t *ac = closure;
-  mtev_http_session_ctx *http_ctx = ac->service_ctx;
+  mtev_acceptor_closure_t *ac = closure;
+  mtev_http_session_ctx *http_ctx = mtev_acceptor_closure_ctx(ac);
   rv = mtev_http_session_drive(e, mask, http_ctx, now, &done);
-  if(done) acceptor_closure_free(ac);
+  if(done) mtev_acceptor_closure_free(ac);
   return rv;
 }
 static int
@@ -599,15 +599,13 @@ rest_stream_data(mtev_http_rest_closure_t *restc,
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_http_connection *conn = mtev_http_session_connection(ctx);
   eventer_t e;
-  acceptor_closure_t *ac = restc->ac;
+  mtev_acceptor_closure_t *ac = restc->ac;
 
   /* Rewire the handler */
-  if(ac->service_ctx_free)
-    ac->service_ctx_free(ac->service_ctx);
-  ac->service_ctx = ctx;
-  ac->service_ctx_free = mtev_http_ctx_acceptor_free;
+  mtev_acceptor_closure_ctx_free(ac);
+  mtev_acceptor_closure_set_ctx(ac, ctx, mtev_http_ctx_acceptor_free);
 
-  if(!mtev_hash_retr_str(ac->config,
+  if(!mtev_hash_retr_str(mtev_acceptor_closure_config(ac),
                          "document_domain", strlen("document_domain"),
                          &document_domain)) {
     mtevL(noit_error, "Document domain not set!  Realtime streaming will be broken\n");
