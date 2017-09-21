@@ -103,7 +103,7 @@ noit_fb_finalize_metriclist(void *builder, size_t *out_size)
 {
   ns(MetricList_metrics_end((flatcc_builder_t *)builder));
   ns(MetricList_end_as_root((flatcc_builder_t *)builder));
-  void *buffer = flatcc_builder_finalize_aligned_buffer((flatcc_builder_t *)builder, out_size);
+  void *buffer = flatcc_builder_finalize_buffer((flatcc_builder_t *)builder, out_size);
   flatcc_builder_clear((flatcc_builder_t *)builder);
   free(builder);
   return buffer;
@@ -130,7 +130,7 @@ noit_fb_finalize_metricbatch(void *builder, size_t *out_size)
 {
   ns(MetricBatch_metrics_end((flatcc_builder_t *)builder));
   ns(MetricBatch_end_as_root((flatcc_builder_t *)builder));
-  void *buffer = flatcc_builder_finalize_aligned_buffer((flatcc_builder_t *)builder, out_size);
+  void *buffer = flatcc_builder_finalize_buffer((flatcc_builder_t *)builder, out_size);
   flatcc_builder_clear((flatcc_builder_t *)builder);
   free(builder);
   return buffer;
@@ -229,7 +229,7 @@ noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
   ns(Metric_value_end(B));
   ns(Metric_end_as_root(B));
 
-  void *buffer = flatcc_builder_finalize_aligned_buffer(B, out_size);
+  void *buffer = flatcc_builder_finalize_buffer(B, out_size);
   flatcc_builder_clear(B);
   return buffer;
 }
@@ -266,7 +266,7 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
   ns(Metric_value_end(B));
   ns(Metric_end_as_root(B));
 
-  void *buffer = flatcc_builder_finalize_aligned_buffer(B, out_size);
+  void *buffer = flatcc_builder_finalize_buffer(B, out_size);
   flatcc_builder_clear(B);
   return buffer;
 }
@@ -292,7 +292,7 @@ noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
   ns(MetricBatch_metrics_push_end(B));
   ns(MetricBatch_metrics_end(B));
   ns(MetricBatch_end_as_root(B));
-  void *buffer = flatcc_builder_finalize_aligned_buffer(B, out_size);
+  void *buffer = flatcc_builder_finalize_buffer(B, out_size);
   flatcc_builder_clear(B);
   return buffer;
 }
