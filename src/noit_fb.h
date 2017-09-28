@@ -145,8 +145,5 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
 #define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
 #undef nsc
 #define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
-#define metric_field(m,x) ns(Metric_%%x(m))
-#define metric_batch_field(m,x) ns(MetricBatch_%%x(m))
-#define metric_value_field(m,x) ns(MetricValue_%%x(m))
 
 #endif /* NOIT_FB_H */
