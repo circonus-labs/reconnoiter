@@ -35,14 +35,15 @@
 #include "noit_fb.h"
 
 static void
-flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m)
+flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t generation)
 {
   char uuid_str[256*3+37];
   int len = sizeof(uuid_str);
 
   ns(MetricValue_name_create_str(B, m->metric_name));
+  ns(MetricValue_generation_add(B, generation));
 
-#define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD)     \
+#define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD)                             \
   if (m->metric_value.MFIELD != NULL) {                                 \
     ns(FBTYPE ## _ref_t) x = ns(FBTYPE ## _create(B, *m->metric_value.MFIELD)); \
     ns(MetricValue_value_ ## FBTYPE ##_add(B, x));                      \
@@ -139,7 +140,7 @@ noit_fb_finalize_metricbatch(void *builder, size_t *out_size)
 
 void
 noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
-                                 const char *check_name, int account_id, metric_t *m)
+                                 const char *check_name, int account_id, metric_t *m, const uint16_t generation)
 {
   ns(MetricList_metrics_push_start(builder));
   ns(Metric_timestamp_add)(builder, whence_ms);
@@ -147,14 +148,15 @@ noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *
   ns(Metric_check_uuid_create_str(builder, check_uuid));
   ns(Metric_account_id_add)(builder, account_id);
   ns(Metric_value_start(builder));
-  flatbuffer_encode_metric(builder, m);
+  flatbuffer_encode_metric(builder, m, generation);
   ns(Metric_value_end(builder));
   ns(MetricList_metrics_push_end(builder));
 }
 
 void
 noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const char *check_uuid,
-                                    const char *check_name, int account_id, const char *name, histogram_t *h)
+                                    const char *check_name, int account_id, const char *name, histogram_t *h,
+                                    const uint16_t generation)
 {
   ns(MetricList_metrics_push_start(builder));
   ns(Metric_timestamp_add)(builder, whence_ms);
@@ -163,6 +165,7 @@ noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const ch
   ns(Metric_account_id_add)(builder, account_id);
   ns(Metric_value_start(builder));
   ns(MetricValue_name_create_str(builder, name));
+  ns(MetricValue_generation_add(builder, generation));
   ns(MetricValue_value_Histogram_start(builder));
   ns(Histogram_buckets_start(builder));
   for (int i = 0; i < hist_bucket_count(h); i++) {
@@ -182,18 +185,19 @@ noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const ch
 }
 
 void
-noit_fb_add_metric_to_metricbatch(void *builder, metric_t *m)
+noit_fb_add_metric_to_metricbatch(void *builder, metric_t *m, const uint16_t generation)
 {
   ns(MetricBatch_metrics_push_start(builder));
-  flatbuffer_encode_metric(builder, m);
+  flatbuffer_encode_metric(builder, m, generation);
   ns(MetricBatch_metrics_push_end(builder));
 }
 
 void
-noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_t *h)
+noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_t *h, const uint16_t generation)
 {
   ns(MetricBatch_metrics_push_start(builder));
   ns(MetricValue_name_create_str(builder, name));
+  ns(MetricValue_generation_add(builder, generation));
   ns(MetricValue_value_Histogram_start(builder));
   ns(Histogram_buckets_start(builder));
   for (int i = 0; i < hist_bucket_count(h); i++) {
@@ -213,7 +217,8 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
 
 void *
 noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
-                         const char *check_name, int account_id, metric_t *m, size_t *out_size)
+                         const char *check_name, int account_id, metric_t *m, const uint16_t generation,
+                         size_t *out_size)
 {
   flatcc_builder_t builder;
   flatcc_builder_t *B = &builder;
@@ -225,7 +230,7 @@ noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
   ns(Metric_check_uuid_create_str(B, check_uuid));
   ns(Metric_account_id_add)(B, account_id);
   ns(Metric_value_start(B));
-  flatbuffer_encode_metric(B, m);
+  flatbuffer_encode_metric(B, m, generation);
   ns(Metric_value_end(B));
   ns(Metric_end_as_root(B));
 
@@ -237,7 +242,7 @@ noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
 void *
 noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
                             const char *check_name, int account_id, const char *name,
-                            histogram_t *h, size_t *out_size)
+                            histogram_t *h, const uint16_t generation, size_t *out_size)
 {
   flatcc_builder_t builder;
   flatcc_builder_t *B = &builder;
@@ -249,6 +254,7 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
   ns(Metric_account_id_add)(B, account_id);
   ns(Metric_value_start(B));
   ns(MetricValue_name_create_str(B, name));
+  ns(MetricValue_generation_add(B, generation));
   ns(MetricValue_value_Histogram_start(B));
   ns(Histogram_buckets_start(B));
   for (int i = 0; i < hist_bucket_count(h); i++) {
@@ -274,8 +280,9 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
 
 void *
 noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid, 
-                                                       const char *check_name, int account_id, metric_t *m,
-                                                       size_t* out_size)
+                              const char *check_name, int account_id, metric_t *m,
+                              const uint16_t generation,
+                              size_t* out_size)
 {
   flatcc_builder_t builder, *B;
   B = &builder;
@@ -288,7 +295,7 @@ noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
   ns(MetricBatch_account_id_add(B, account_id));
   ns(MetricBatch_metrics_start(B));
   ns(MetricBatch_metrics_push_start(B));
-  flatbuffer_encode_metric(B, m);
+  flatbuffer_encode_metric(B, m, generation);
   ns(MetricBatch_metrics_push_end(B));
   ns(MetricBatch_metrics_end(B));
   ns(MetricBatch_end_as_root(B));

@@ -289,7 +289,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
    */
   int account_id = account_id_from_name(check_name);
   void *buffer = noit_fb_serialize_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id,
-                                               m, &size);
+                                               m, 0, &size);
 
   unsigned int outsize;
   char *outbuf = NULL;
@@ -575,7 +575,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     metric_t *m = (metric_t *)vm;
     if(!noit_apply_filterset(check->filterset, check, m)) continue;
     if(m->logged) continue;
-    noit_fb_add_metric_to_metricbatch(B, m);
+    noit_fb_add_metric_to_metricbatch(B, m, 0);
   }
 
   size_t fb_size;

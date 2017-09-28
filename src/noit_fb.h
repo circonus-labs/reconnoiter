@@ -48,25 +48,25 @@
 API_EXPORT(void *)
 noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
                               const char *check_name, int account_id, metric_t *m,
-                              size_t* out_size);
+                              const uint16_t generation, size_t* out_size);
 
 /*!
-  \fn noit_fb_serialize_metric(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m, size_t *out_size)
+  \fn noit_fb_serialize_metric(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m, const uint16_t generation, size_t *out_size)
   \brief Make a Metric flatbuffer from a numeric or string 
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
 noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
-                         const char *check_name, int account_id, metric_t *m, size_t *out_size);
+                         const char *check_name, int account_id, metric_t *m, const uint16_t generation, size_t *out_size);
 
 /*!
-  \fn noit_fb_serialize_histogram(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, size_t *out_size)
+  \fn noit_fb_serialize_histogram(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation, size_t *out_size)
   \brief Make a Metric flatbuffer from a histogram
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
 noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
-                            const char *check_name, int account_id, const char *name, histogram_t *m, size_t *out_size);
+                            const char *check_name, int account_id, const char *name, histogram_t *m, const uint16_t generation, size_t *out_size);
 
 
 /*!
@@ -111,42 +111,39 @@ noit_fb_finalize_metricbatch(void *builder, size_t *out_size);
 
 
 /*!
-  \fn noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m)
+  \fn noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m, const uint16_t generation)
   \brief Add a record to the MetricList flatbuffer
 */
 API_EXPORT(void)
 noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
-                                 const char *check_name, int account_id, metric_t *m);
+                                 const char *check_name, int account_id, metric_t *m, const uint16_t generation);
 
 /*!
-  \fn noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h)
+  \fn noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation)
   \brief Add a record to the MetricList flatbuffer
 */
 API_EXPORT(void)
 noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
-                                    const char *check_name, int account_id, const char *name, histogram_t *h);
+                                    const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation);
 
 /*!
-  \fn noit_fb_add_metric_to_metricbatch(void *builder, metric_t *m)
+  \fn noit_fb_add_metric_to_metricbatch(void *builder, metric_t *m, const uint16_t generation)
   \brief Add a record to the MetricBatch flatbuffer
 */
 API_EXPORT(void)
-noit_fb_add_metric_to_metricbatch(void *builder, metric_t *m);
+noit_fb_add_metric_to_metricbatch(void *builder, metric_t *m, const uint16_t generation);
 
 /*!
-  \fn noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_t *h)
+  \fn noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_t *h, const uint16_t generation)
   \brief Add a record to the MetricBatch flatbuffer
 */
 API_EXPORT(void)
-noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_t *h);
+noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_t *h, const uint16_t generation);
 
 /* convenience macros */
 #undef ns
 #define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
 #undef nsc
 #define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
-#define metric_field(m,x) ns(Metric_%%x(m))
-#define metric_batch_field(m,x) ns(MetricBatch_%%x(m))
-#define metric_value_field(m,x) ns(MetricValue_%%x(m))
 
 #endif /* NOIT_FB_H */
