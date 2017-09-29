@@ -1,11 +1,11 @@
 This is Reconnoiter
 ===================
 
-To build, check out the instructions in BUILDING.
+To build, check out the instructions in [BUILDING](./BUILDING.md).
 
-The main website is: <http://labs.omniti.com/labs/reconnoiter>
+Documentation is automatically generated from the source tree.
 
-Documentation automatically generated from the git tree and
-published at <https://labs.omniti.com/labs/reconnoiter/docs/>
+Published docs are available at <https://login.circonus.com/resources/reconnoiter/>
+(does not require a Circonus login.)
 
 Enjoy.
