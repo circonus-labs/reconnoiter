@@ -150,7 +150,8 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq) {
     char *type;
     CHECK_N_SET(rule) {
       type = (char *)xmlGetProp(r, (xmlChar *)"type");
-      if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow"))) {
+      if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow") &&
+                   strncmp(type, "skipto:", strlen("skipto:")))) {
         if(type) xmlFree(type);
         return NULL;
       }
