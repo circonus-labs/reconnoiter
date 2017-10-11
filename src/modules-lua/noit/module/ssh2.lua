@@ -191,10 +191,20 @@ function parse_kexdhinit(check, buf)
 
   local r, hostkey, server_f, h_sig = string.unpack(buf, ">aaa", 2)
   local _, type, sig = string.unpack(h_sig, ">aa")
+  local digest_sha1   = mtev.sha1(hostkey)
+  local digest_sha256 = mtev.sha256(hostkey)
 
   decoded.type = type
   decoded.fingerprint = mtev.md5_hex(hostkey)
   decoded.fingerprint_sha1 = mtev.sha1_hex(hostkey)
+  decoded.fingerprint_sha256 = mtev.sha256_hex(hostkey)
+  decoded.fingerprint_sha1_base64 = mtev.base64_encode(digest_sha1)
+  decoded.fingerprint_sha256_base64 = mtev.base64_encode(digest_sha256)
+
+  -- strip any base64 padding to match OpenSSH behavior
+  decoded.fingerprint_sha1_base64 = string.gsub(decoded.fingerprint_sha1_base64, "=", "")
+  decoded.fingerprint_sha256_base64 = string.gsub(decoded.fingerprint_sha256_base64, "=", "")
+
   if type == 'ssh-rsa' then
     local _, _, _, n = string.unpack(hostkey, ">aaa")
     decoded.type = 'RSA'
@@ -208,6 +218,9 @@ function parse_kexdhinit(check, buf)
   check.metric_string("key-type", decoded.type)
   check.metric_string("fingerprint", decoded.fingerprint)
   check.metric_string("fingerprint_sha1", decoded.fingerprint_sha1)
+  check.metric_string("fingerprint_sha1_base64", decoded.fingerprint_sha1_base64)
+  check.metric_string("fingerprint_sha256", decoded.fingerprint_sha256)
+  check.metric_string("fingerprint_sha256_base64", decoded.fingerprint_sha256_base64)
   check.metric_int32("bits", decoded.bits)
   
   return decoded
