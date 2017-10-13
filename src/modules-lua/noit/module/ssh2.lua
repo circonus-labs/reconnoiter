@@ -52,7 +52,7 @@ function onload(image)
     <parameter name="method_hostkey"
                required="optional"
                default="ssh-rsa"
-               allowed="^(?:ssh-dss|ssh-rsa)$">The host key algorithm supported.</parameter>
+               allowed="^(?:ssh-rsa|ecdsa-sha2-nistp256|ssh-ed25519|ssh-dss)$">The host key algorithm supported.</parameter>
     <parameter name="method_crypt_cs"
                required="optional"
                allowed="^(?:aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour128|arcfour|cast128-cbc|3des-cbc|none)$">The encryption algorithm used from client to server.</parameter>
@@ -123,7 +123,7 @@ local KEXALG = {
   'diffie-hellman-group1-sha1'
 }
 
-local KEYALG = { 'ssh-rsa', 'ssh-dss' }
+local KEYALG = { 'ssh-rsa', 'ecdsa-sha2-nistp256', 'ssh-dss' }
 
 local ENCALG = {
   'aes128-cbc', 'aes192-cbc', 'aes256-cbc', 'aes128-ctr', 'aes192-ctr',
@@ -209,6 +209,36 @@ function parse_kexdhinit(check, buf)
     local _, _, _, n = string.unpack(hostkey, ">aaa")
     decoded.type = 'RSA'
     decoded.bits = mtev.bignum_bin2bn(n):num_bits()
+  elseif type == 'ecdsa-sha2-nistp256' then
+    decoded.type = 'ECDSA'
+
+    -- ECDSA host key data, as unpacked above:
+    --   (uint32_t) host key type len + (string) host key type 
+    --   (uint32_t) EC curve ID len + (string) EC curve ID
+    --   (uint32_t) ECDSA pubkey len + (string) ECDSA pubkey (Q)
+    -- https://tools.ietf.org/html/rfc5656#section-3.1
+
+    local _, key_type, ec_curve, qlen, comp = string.unpack(hostkey, ">aaIb")
+    mtev.log("debug/ssh2", "Got key data: type: %s, EC curve: %s, Qlen: %d, compression: %d\n", key_type, ec_curve, qlen, comp)
+
+    -- The first byte of Q indicates whether point compression is in use
+    -- 0x2 or 0x3 indicates compression, so the remaining bytes are the X coordinate only
+    -- 0x4 indicates no compression, and the remaining bytes are the X coordinate, followed by the Y coordinate.
+    -- http://www.secg.org/sec1-v2.pdf, section 2.3.3
+    -- Note that at least as of release 7.6, OpenSSH does not support encoding with point compression.
+
+    if comp == 4 then
+      decoded.bits = ((qlen-1)/2)*8
+    else
+      decoded.bits = (qlen-1)*8
+    end
+  elseif type == 'ssh-ed25519' then
+    -- https://tools.ietf.org/html/draft-ietf-curdle-ssh-ed25519-01
+    decoded.type = 'Ed25519'
+
+    -- always 256 bits
+    -- https://tools.ietf.org/html/rfc8032#section-5.1.5
+    decoded.bits = 256
   elseif type == 'ssh-dss' then
     local _, _, p = string.unpack(hostkey, ">aa")
     decoded.type = 'DSA'
