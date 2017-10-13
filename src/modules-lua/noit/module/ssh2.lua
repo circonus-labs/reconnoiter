@@ -123,7 +123,7 @@ local KEXALG = {
   'diffie-hellman-group1-sha1'
 }
 
-local KEYALG = { 'ssh-rsa', 'ecdsa-sha2-nistp256', 'ssh-dss' }
+local KEYALG = { 'ssh-rsa', 'ecdsa-sha2-nistp256', 'ssh-ed25519', 'ssh-dss' }
 
 local ENCALG = {
   'aes128-cbc', 'aes192-cbc', 'aes256-cbc', 'aes128-ctr', 'aes192-ctr',
