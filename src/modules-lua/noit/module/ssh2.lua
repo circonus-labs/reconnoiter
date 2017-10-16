@@ -225,7 +225,7 @@ function parse_kexdhinit(check, buf)
     -- https://tools.ietf.org/html/rfc5656#section-3.1
 
     local _, key_type, ec_curve, qlen, comp = string.unpack(hostkey, ">aaIb")
-    mtev.log("debug/ssh2", "Got key data: type: %s, EC curve: %s, Qlen: %d, compression: %d\n", key_type, ec_curve, qlen, comp)
+    mtev.log("debug/ssh2", "ssh2 ECDSA key data: type: %s, EC curve: %s, Qlen: %d, compression: %d\n", key_type, ec_curve, qlen, comp)
 
     -- The first byte of Q indicates whether point compression is in use
     -- 0x2 or 0x3 indicates compression, so the remaining bytes are the X coordinate only
