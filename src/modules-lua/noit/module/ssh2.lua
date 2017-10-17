@@ -61,10 +61,10 @@ function onload(image)
                allowed="^(?:chacha20-poly1305@openssh.com|aes256-gcm@openssh.com|aes128-gcm@openssh.com|aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour|3des-cbc|none)$">The encryption algorithm used from server to client.</parameter>
     <parameter name="method_mac_cs"
                required="optional"
-               allowed="^(?:hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$">The message authentication code algorithm used from client to server.</parameter>
+               allowed="^(?:hmac-sha2-512-etm@openssh.com|hmac-sha2-256-etm@openssh.com|umac-128-etm@openssh.com|umac-64-etm@openssh.com|hmac-sha2-512|hmac-sha2-256|hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$">The message authentication code algorithm used from client to server.</parameter>
     <parameter name="method_mac_sc"
                required="optional"
-               allowed="^(?:hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$">The message authentication code algorithm used from server to client.</parameter>
+               allowed="^(?:hmac-sha2-512-etm@openssh.com|hmac-sha2-256-etm@openssh.com|umac-128-etm@openssh.com|umac-64-etm@openssh.com|hmac-sha2-512|hmac-sha2-256|hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$">The message authentication code algorithm used from server to client.</parameter>
     <parameter name="method_comp_cs"
                required="optional"
                default="none"
@@ -139,8 +139,12 @@ local ENCALG = {
   '3des-cbc', 'blowfish-cbc', 'arcfour'
 }
 
-local MACALG = { 'hmac-sha1', 'hmac-md5', 'hmac-ripemd160', 'hmac-sha1-96',
-  'hmac-md5-96', 'hmac-ripemd160-96', 'hmac-ripemd160@openssh.com' }
+local MACALG = {
+  'hmac-sha2-512-etm@openssh.com', 'hmac-sha2-256-etm@openssh.com', 
+  'umac-128-etm@openssh.com', 'umac-64-etm@openssh.com',
+  'hmac-sha2-512', 'hmac-sha2-256', 'hmac-sha1', 'hmac-sha1-96',
+  'hmac-md5', 'hmac-md5-96', 'hmac-ripemd160' 
+}
 
 local BN_2
 local MSG, DH_prime2409, DH_group14, DH_group16, DH_group18 -- these are big, assigned at the end
