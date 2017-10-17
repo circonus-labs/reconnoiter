@@ -132,15 +132,12 @@ local KEXALG = {
 local KEYALG = { 'ssh-rsa', 'ecdsa-sha2-nistp256', 'ssh-ed25519', 'ssh-dss' }
 
 local ENCALG = {
-  'aes128-cbc', 'aes192-cbc', 'aes256-cbc', 'aes128-ctr', 'aes192-ctr',
-  'aes256-ctr', 'rijndael128-cbc', 'rijndael192-cbc', 'rijndael256-cbc',
-  '3des-cbc', '3des-ecb', '3des-cfb', '3des-ofb', '3des-ctr',
-  'blowfish-cbc', 'blowfish-ecb', 'blowfish-cfb', 'blowfish-ofb',
-  'blowfish-ctr', 'twofish128-ctr', 'twofish128-cbc', 'twofish192-ctr',
-  'twofish192-cbc', 'twofish256-ctr', 'twofish256-cbc', 'twofish-cbc',
-  'twofish-ecb', 'twofish-cfb', 'twofish-ofb', 'cast128-cbc', 'cast128-ecb',
-  'cast128-cfb', 'cast128-ofb', 'idea-cbc', 'idea-ecb', 'idea-cfb',
-  'idea-ofb', 'arcfour', 'arcfour128', 'arcfour256' }
+  'chacha20-poly1305@openssh.com',
+  'aes128-gcm@openssh.com', 'aes256-gcm@openssh.com',
+  'aes128-ctr', 'aes192-ctr', 'aes256-ctr',
+  'aes128-cbc', 'aes192-cbc', 'aes256-cbc',
+  '3des-cbc', 'blowfish-cbc', 'arcfour'
+}
 
 local MACALG = { 'hmac-sha1', 'hmac-md5', 'hmac-ripemd160', 'hmac-sha1-96',
   'hmac-md5-96', 'hmac-ripemd160-96', 'hmac-ripemd160@openssh.com' }
