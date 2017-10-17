@@ -55,10 +55,10 @@ function onload(image)
                allowed="^(?:ssh-rsa|ecdsa-sha2-nistp256|ssh-ed25519|ssh-dss)$">The host key algorithm supported.</parameter>
     <parameter name="method_crypt_cs"
                required="optional"
-               allowed="^(?:aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour128|arcfour|cast128-cbc|3des-cbc|none)$">The encryption algorithm used from client to server.</parameter>
+               allowed="^(?:chacha20-poly1305@openssh.com|aes256-gcm@openssh.com|aes128-gcm@openssh.com|aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour|3des-cbc|none)$">The encryption algorithm used from client to server.</parameter>
     <parameter name="method_crypt_sc"
                required="optional"
-               allowed="^(?:aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour128|arcfour|cast128-cbc|3des-cbc|none)$">The encryption algorithm used from server to client.</parameter>
+               allowed="^(?:chacha20-poly1305@openssh.com|aes256-gcm@openssh.com|aes128-gcm@openssh.com|aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour|3des-cbc|none)$">The encryption algorithm used from server to client.</parameter>
     <parameter name="method_mac_cs"
                required="optional"
                allowed="^(?:hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$">The message authentication code algorithm used from client to server.</parameter>
