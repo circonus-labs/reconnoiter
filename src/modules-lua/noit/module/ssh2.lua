@@ -52,19 +52,19 @@ function onload(image)
     <parameter name="method_hostkey"
                required="optional"
                default="ssh-rsa"
-               allowed="^(?:ssh-rsa|ecdsa-sha2-nistp256|ssh-ed25519|ssh-dss)$">The host key algorithm supported.</parameter>
+               allowed="^(?:ssh-dss|ssh-rsa|ecdsa-sha2-nistp256|ssh-ed25519)$">The host key algorithm supported.</parameter>
     <parameter name="method_crypt_cs"
                required="optional"
-               allowed="^(?:chacha20-poly1305@openssh.com|aes256-gcm@openssh.com|aes128-gcm@openssh.com|aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour|3des-cbc|none)$">The encryption algorithm used from client to server.</parameter>
+               allowed="^(?:chacha20-poly1305@openssh.com|aes256-gcm@openssh.com|aes128-gcm@openssh.com|aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|rijndael128-cbc|rijndael192-cbc|rijndael256-cbc|blowfish-cbc|blowfish-ecb|blowfish-cfb|blowfish-ofb|blowfish-ctr|twofish128-ctr|twofish128-cbc|twofish192-ctr|twofish192-cbc|twofish256-ctr|twofish256-cbc|twofish-cbc|twofish-ecb|twofish-cfb|twofish-ofb|arcfour256|arcfour128|arcfour|cast128-cbc|cast128-ecb|cast128-cfb|cast128-ofb|idea-cbc|idea-ecb|idea-cfb|idea-ofb|3des-cbc|3des-ecb|3des-cfb|3des-ofb|3des-ctr|none)$">The encryption algorithm used from client to server.</parameter>
     <parameter name="method_crypt_sc"
                required="optional"
-               allowed="^(?:chacha20-poly1305@openssh.com|aes256-gcm@openssh.com|aes128-gcm@openssh.com|aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour|3des-cbc|none)$">The encryption algorithm used from server to client.</parameter>
+               allowed="^(?:chacha20-poly1305@openssh.com|aes256-gcm@openssh.com|aes128-gcm@openssh.com|aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|rijndael128-cbc|rijndael192-cbc|rijndael256-cbc|blowfish-cbc|blowfish-ecb|blowfish-cfb|blowfish-ofb|blowfish-ctr|twofish128-ctr|twofish128-cbc|twofish192-ctr|twofish192-cbc|twofish256-ctr|twofish256-cbc|twofish-cbc|twofish-ecb|twofish-cfb|twofish-ofb|arcfour256|arcfour128|arcfour|cast128-cbc|cast128-ecb|cast128-cfb|cast128-ofb|idea-cbc|idea-ecb|idea-cfb|idea-ofb|3des-cbc|3des-ecb|3des-cfb|3des-ofb|3des-ctr|none)$">The encryption algorithm used from client to server.</parameter>
     <parameter name="method_mac_cs"
                required="optional"
-               allowed="^(?:hmac-sha2-512-etm@openssh.com|hmac-sha2-256-etm@openssh.com|umac-128-etm@openssh.com|umac-64-etm@openssh.com|hmac-sha2-512|hmac-sha2-256|hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$">The message authentication code algorithm used from client to server.</parameter>
+               allowed="^(?:hmac-sha2-512-etm@openssh.com|hmac-sha2-256-etm@openssh.com|umac-128-etm@openssh.com|umac-64-etm@openssh.com|hmac-sha2-512|hmac-sha2-256|hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|hmac-ripemd160@openssh.com|none)$">The message authentication code algorithm used from client to server.</parameter>
     <parameter name="method_mac_sc"
                required="optional"
-               allowed="^(?:hmac-sha2-512-etm@openssh.com|hmac-sha2-256-etm@openssh.com|umac-128-etm@openssh.com|umac-64-etm@openssh.com|hmac-sha2-512|hmac-sha2-256|hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$">The message authentication code algorithm used from server to client.</parameter>
+               allowed="^(?:hmac-sha2-512-etm@openssh.com|hmac-sha2-256-etm@openssh.com|umac-128-etm@openssh.com|umac-64-etm@openssh.com|hmac-sha2-512|hmac-sha2-256|hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|hmac-ripemd160@openssh.com|none)$">The message authentication code algorithm used from server to client.</parameter>
     <parameter name="method_comp_cs"
                required="optional"
                default="none"
@@ -129,21 +129,27 @@ local KEXALG = {
   'diffie-hellman-group1-sha1'
 }
 
-local KEYALG = { 'ssh-rsa', 'ecdsa-sha2-nistp256', 'ssh-ed25519', 'ssh-dss' }
+local KEYALG = { 'ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256', 'ssh-ed25519' }
 
 local ENCALG = {
-  'chacha20-poly1305@openssh.com',
-  'aes128-gcm@openssh.com', 'aes256-gcm@openssh.com',
-  'aes128-ctr', 'aes192-ctr', 'aes256-ctr',
-  'aes128-cbc', 'aes192-cbc', 'aes256-cbc',
-  '3des-cbc', 'blowfish-cbc', 'arcfour'
+  'chacha20-poly1305@openssh.com', 'aes256-gcm@openssh.com', 'aes128-gcm@openssh.com', 
+  'aes128-cbc', 'aes192-cbc', 'aes256-cbc', 'aes128-ctr', 'aes192-ctr',
+  'aes256-ctr', 'rijndael128-cbc', 'rijndael192-cbc', 'rijndael256-cbc',
+  '3des-cbc', '3des-ecb', '3des-cfb', '3des-ofb', '3des-ctr',
+  'blowfish-cbc', 'blowfish-ecb', 'blowfish-cfb', 'blowfish-ofb',
+  'blowfish-ctr', 'twofish128-ctr', 'twofish128-cbc', 'twofish192-ctr',
+  'twofish192-cbc', 'twofish256-ctr', 'twofish256-cbc', 'twofish-cbc',
+  'twofish-ecb', 'twofish-cfb', 'twofish-ofb', 'cast128-cbc', 'cast128-ecb',
+  'cast128-cfb', 'cast128-ofb', 'idea-cbc', 'idea-ecb', 'idea-cfb',
+  'idea-ofb', 'arcfour', 'arcfour128', 'arcfour256'
 }
 
 local MACALG = {
   'hmac-sha2-512-etm@openssh.com', 'hmac-sha2-256-etm@openssh.com', 
   'umac-128-etm@openssh.com', 'umac-64-etm@openssh.com',
-  'hmac-sha2-512', 'hmac-sha2-256', 'hmac-sha1', 'hmac-sha1-96',
-  'hmac-md5', 'hmac-md5-96', 'hmac-ripemd160' 
+  'hmac-sha2-512', 'hmac-sha2-256',
+  'hmac-sha1', 'hmac-md5', 'hmac-ripemd160', 'hmac-sha1-96',
+  'hmac-md5-96', 'hmac-ripemd160-96', 'hmac-ripemd160@openssh.com'
 }
 
 local BN_2
