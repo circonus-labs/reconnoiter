@@ -66,6 +66,7 @@ stratcon_ingest_sweep_journals_int(const char *base,
                                    char *first, char *second, 
                                    char *third, mtev_boolean sweeping,
                                    int (*test)(const char *),
+                                   int (*unlink_test)(const char *),
                                    int (*ingest)(const char *fullpath,
                                                  const char *remote_str,
                                                  const char *remote_cn,
@@ -110,17 +111,25 @@ stratcon_ingest_sweep_journals_int(const char *base,
   for(i=0; i<cnt; i++) {
     if(!strcmp(entries[i], ".") || !strcmp(entries[i], "..")) continue;
     if(!first)
-      stratcon_ingest_sweep_journals_int(base, entries[i], NULL, NULL, sweeping, test, ingest);
+      stratcon_ingest_sweep_journals_int(base, entries[i], NULL, NULL, sweeping, test, unlink_test, ingest);
     else if(!second)
-      stratcon_ingest_sweep_journals_int(base, first, entries[i], NULL, sweeping, test, ingest);
+      stratcon_ingest_sweep_journals_int(base, first, entries[i], NULL, sweeping, test, unlink_test, ingest);
     else if(!third)
-      stratcon_ingest_sweep_journals_int(base, first, second, entries[i], sweeping, test, ingest);
-    else if(test(entries[i])) {
+      stratcon_ingest_sweep_journals_int(base, first, second, entries[i], sweeping, test, unlink_test, ingest);
+    else
+    {
       char fullpath[PATH_MAX];
       snprintf(fullpath, sizeof(fullpath), "%s/%s/%s/%s/%s", base,
                first,second,third,entries[i]);
       mtev_watchdog_child_heartbeat();
-      ingest(fullpath,first,second,third,sweeping);
+      if(test && test(entries[i])) {
+        ingest(fullpath,first,second,third,sweeping);
+      }
+      else if (unlink_test && unlink_test(entries[i])) {
+        if ((unlink(fullpath) != 0) && (errno != ENOENT)) {
+          mtevL(mtev_error, "Couldn't unlink file %s - %s\n", fullpath, strerror(errno));
+        }
+      }
     }
   }
   for(i=0; i<cnt; i++)
@@ -129,11 +138,12 @@ stratcon_ingest_sweep_journals_int(const char *base,
 }
 void
 stratcon_ingest_sweep_journals(const char *base, int (*test)(const char *),
+                               int (*unlink_test)(const char *),
                                int (*ingest)(const char *fullpath,
                                              const char *remote_str,
                                              const char *remote_cn,
                                              const char *id_str,
                                              const mtev_boolean sweeping)) {
-  stratcon_ingest_sweep_journals_int(base, NULL,NULL,NULL, mtev_true, test, ingest);
+  stratcon_ingest_sweep_journals_int(base, NULL,NULL,NULL, mtev_true, test, unlink_test, ingest);
 }
 
