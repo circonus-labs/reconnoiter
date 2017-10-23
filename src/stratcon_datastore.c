@@ -424,6 +424,9 @@ stratcon_datastore_saveconfig(void *unused) {
 static int is_raw_ingestion_file(const char *file) {
   return (strlen(file) == 16);
 }
+static int should_unlink_invalid_raw_ingestion_file(const char *file) {
+  return ((strlen(file) == 20) && (!strncmp(file+16, ".tmp", 4)));
+}
 
 void
 stratcon_datastore_core_init() {
@@ -451,6 +454,7 @@ stratcon_datastore_init() {
 
   stratcon_ingest_sweep_journals(basejpath,
                                  is_raw_ingestion_file,
+                                 should_unlink_invalid_raw_ingestion_file,
                                  stratcon_ingest);
 
   mtevAssert(mtev_http_rest_register_auth(

@@ -37,6 +37,7 @@
 API_EXPORT(void)
   stratcon_ingest_sweep_journals(const char *base, 
                                  int (*test)(const char *),
+                                 int (*unlink_test)(const char *),
                                  int (*ingest)(const char *fullpath,
                                                const char *remote_str,
                                                const char *remote_cn,

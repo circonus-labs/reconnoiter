@@ -1617,6 +1617,10 @@ static int is_postgres_ingestor_file(const char *file) {
   mtev_watchdog_child_heartbeat();
   return (strlen(file) == 19 && !strcmp(file + 16, ".pg"));
 }
+static int should_unlink_invalid_postgres_file(const char *file) {
+  /* Should never unlink for now */
+  return 0;
+}
 static int postgres_ingestor_init(mtev_dso_generic_t *self) {
   stratcon_datastore_core_init();
   mtev_hash_init(&ds_conns);
@@ -1638,6 +1642,7 @@ static int postgres_ingestor_init(mtev_dso_generic_t *self) {
   stratcon_ingest_all_check_info();
   stratcon_ingest_all_storagenode_info();
   stratcon_ingest_sweep_journals(basejpath, is_postgres_ingestor_file,
+                                 should_unlink_invalid_postgres_file,
                                  stratcon_ingest_launch_file_ingestion);
   return stratcon_datastore_set_ingestor(&postgres_ingestor_api);
 }
