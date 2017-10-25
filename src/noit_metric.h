@@ -76,6 +76,8 @@ typedef enum {
   MESSAGE_TYPE_M = 'M'
 } noit_message_type;
 
+#define NOIT_TAG_MAX_COMPONENT_LEN 127
+
 typedef struct {
   uint16_t total_size;
   uint8_t category_size;
@@ -158,9 +160,13 @@ API_EXPORT(mtev_boolean)
 API_EXPORT(void)
   noit_metric_tagset_builder_start(noit_metric_tagset_builder_t *builder);
 API_EXPORT(mtev_boolean)
-  noit_metric_tagset_builder_add(noit_metric_tagset_builder_t *builder,
-                                       const char *tagset,
-                                       size_t tagstr_len);
+  noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
+                                      const char *tagset,
+                                      size_t tagstr_len);
+API_EXPORT(mtev_boolean)
+  noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder,
+                                     const char *tagset,
+                                     size_t tagstr_len);
 API_EXPORT(mtev_boolean)
   noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder, noit_metric_tagset_t *out,
                                  char **canonical);

@@ -73,7 +73,7 @@ noit_metric_extract_tags(const char *in, int *inlen,
     return mtev_true;
   }
 
-  if(!noit_metric_tagset_builder_add(builder, tag_start + st_off, end - (tag_start + st_off)))
+  if(!noit_metric_tagset_builder_add_many(builder, tag_start + st_off, end - (tag_start + st_off)))
     return mtev_false;
 
   *inlen = tag_start - in;
@@ -336,10 +336,11 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
   }
   /* make sure we covered everything */
   if(colon_pos == 0 || colon_pos >= cur_size - 1) return 0;
-  /* tag category and name must both be <= 127 */
-  if(colon_pos > 127 || cur_size - colon_pos - 1 > 127) return 0;
+  /* tag category and name must both be <= NOIT_TAG_MAX_COMPONENT_LEN */
+  if(colon_pos > NOIT_TAG_MAX_COMPONENT_LEN ||
+     cur_size - colon_pos - 1 > NOIT_TAG_MAX_COMPONENT_LEN) return 0;
   /* this next check is redundany to the previous */
-  /* if(current_size > 255) return 0; */
+  /* if(current_size > 1 + (2*NOIT_TAG_MAX_COMPONENT_LEN)) return 0; */
   output->total_size = cur_size;
   output->category_size = colon_pos + 1;
   output->tag = tagnm;
@@ -459,9 +460,6 @@ noit_metric_tagset_from_tags(noit_metric_tagset_t *lookup,
     return NULL;
   }
   canonical[canonical_size] = '\0';
-  /* reparse the tags, so that they point into the canonical string.
-   * (this simplifies life-time management for the lookup_t
-   * structure.) */
   noit_metric_tags_parse(canonical, canonical_size, tags, tag_count, &canonical_size);
 
   return canonical;
@@ -469,9 +467,9 @@ noit_metric_tagset_from_tags(noit_metric_tagset_t *lookup,
 
 int
 noit_metric_tagset_init(noit_metric_tagset_t *lookup,
-                        const char *tagnm, size_t tagnmlen) {
+                        const char *tagsetstr, size_t tagsetstrlen) {
   memset((void *) lookup, '\0', sizeof(*lookup));
-  size_t tag_count = noit_metric_tags_count(tagnm, tagnmlen);
+  size_t tag_count = noit_metric_tags_count(tagsetstr, tagsetstrlen);
   if(tag_count == 0) {
     lookup->tags = 0;
     lookup->tag_count = 0;
@@ -480,12 +478,12 @@ noit_metric_tagset_init(noit_metric_tagset_t *lookup,
   }
   noit_metric_tag_t *tags = (noit_metric_tag_t *) calloc(tag_count, sizeof(noit_metric_tag_t));
   size_t canonical_size;
-  ssize_t parsed_tag_count = noit_metric_tags_parse(tagnm, tagnmlen, tags, tag_count, &canonical_size);
+  ssize_t parsed_tag_count = noit_metric_tags_parse(tagsetstr, tagsetstrlen, tags, tag_count, &canonical_size);
   if(parsed_tag_count <= 0) {
     free((void *) tags);
     return -1;
   }
-  lookup->tags = tags;
+  lookup->tags = realloc(tags, tag_count * sizeof(noit_metric_tag_t *));
   lookup->tag_count = tag_count;
   lookup->canonical_size = canonical_size;
   return 0;
@@ -493,7 +491,7 @@ noit_metric_tagset_init(noit_metric_tagset_t *lookup,
 
 void
 noit_metric_tagset_cleanup(noit_metric_tagset_t *lookup) {
-  if(lookup->tags) free((void *) lookup->tags);
+  free((void *) lookup->tags);
   memset((void *) lookup, '\0', sizeof(*lookup));
 }
 
@@ -522,8 +520,38 @@ noit_metric_tagset_builder_clean(noit_metric_tagset_builder_t *builder) {
 }
 
 mtev_boolean
-noit_metric_tagset_builder_add(noit_metric_tagset_builder_t *builder,
-                               const char *tagstr, size_t tagstr_len) {
+noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
+                                    const char *tagstr, size_t tagstr_len) {
+  if(builder->tag_count < 0) return mtev_false;
+  noit_metric_tag_t tag;
+  while(tagstr_len > 0) {
+    const char *next = noit_metric_tags_parse_one(tagstr, tagstr_len, &tag);
+    if(next && (tag.total_size == tagstr_len || *next == ',')) {
+      noit_metric_tagset_builder_el_t *el =
+        (noit_metric_tagset_builder_el_t *) calloc(1, sizeof(noit_metric_tagset_builder_el_t));
+      el->tag = tag;
+      el->next = builder->list;
+      builder->list = el;
+      builder->sum_tag_size += tag.total_size;
+      builder->tag_count++;
+    } else {
+      noit_metric_tagset_builder_clean(builder);
+      builder->tag_count = -1;
+      return mtev_false;
+    }
+    tagstr += tag.total_size;
+    tagstr_len -= tag.total_size;
+    if(*next == ',') {
+      tagstr++;
+      tagstr_len--;
+    }
+  }
+  return mtev_true;
+}
+
+mtev_boolean
+noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder,
+                                   const char *tagstr, size_t tagstr_len) {
   if(builder->tag_count < 0) return mtev_false;
   noit_metric_tag_t tag;
   if(!noit_metric_tags_parse_one(tagstr, tagstr_len, &tag) || tag.total_size != tagstr_len) {
