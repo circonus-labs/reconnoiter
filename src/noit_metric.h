@@ -77,9 +77,23 @@ typedef enum {
 } noit_message_type;
 
 typedef struct {
+  uint16_t total_size;
+  uint8_t category_size;
+  const char *tag;
+} noit_metric_tag_t;
+
+typedef struct noit_metric_tagset_t {
+  noit_metric_tag_t *tags;
+  int tag_count;
+  int canonical_size;
+} noit_metric_tagset_t;
+
+typedef struct {
   uuid_t id;
   const char *name;
   int name_len;
+  noit_metric_tagset_t stream;
+  noit_metric_tagset_t measurement;
 } noit_metric_id_t;
 
 typedef struct {
@@ -106,6 +120,7 @@ typedef struct {
   noit_metric_id_t id;
   noit_metric_value_t value;
   noit_message_type type;
+  mtev_boolean original_allocated;
   char* original_message;
   size_t original_message_len;
   mtev_atomic32_t refcnt;
@@ -117,5 +132,37 @@ void noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len
 
 /* If possible coerce the metric to a double, return success */
 API_EXPORT(mtev_boolean) noit_metric_as_double(metric_t *m, double *);
+
+typedef struct noit_metric_tagset_builder_el_t {
+  struct noit_metric_tagset_builder_el_t *next;
+  noit_metric_tag_t tag;
+} noit_metric_tagset_builder_el_t;
+
+typedef struct noit_metric_tagset_builder_t {
+  noit_metric_tagset_builder_el_t *list;
+  /* gets set to -1 if we attempt to add an invalid tag. */
+  int tag_count;
+  int sum_tag_size;
+} noit_metric_tagset_builder_t;
+
+API_EXPORT(mtev_boolean)
+  noit_metric_tagset_is_taggable_char(char test_char);
+
+API_EXPORT(int)
+  noit_metric_tagset_init(noit_metric_tagset_t *lookup, const char *tagstr, size_t tagstr_len);
+API_EXPORT(void)
+  noit_metric_tagset_cleanup(noit_metric_tagset_t *lookup);
+API_EXPORT(mtev_boolean)
+  noit_metric_tagset_is_populated(const noit_metric_tagset_t *tagset);
+
+API_EXPORT(void)
+  noit_metric_tagset_builder_start(noit_metric_tagset_builder_t *builder);
+API_EXPORT(mtev_boolean)
+  noit_metric_tagset_builder_add(noit_metric_tagset_builder_t *builder,
+                                       const char *tagset,
+                                       size_t tagstr_len);
+API_EXPORT(mtev_boolean)
+  noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder, noit_metric_tagset_t *out,
+                                 char **canonical);
 
 #endif

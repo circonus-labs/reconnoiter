@@ -86,18 +86,6 @@ typedef unsigned short caql_cnt_t;
 static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
 
-static void noit_metric_director_free_message(noit_metric_message_t* message) {
-  if(message->original_message) {
-    if(message->value.type == METRIC_STRING &&
-       !message->value.is_null && message->value.value.v_string) {
-      free(message->value.value.v_string);
-    }
-    free(message->original_message);
-    message->original_message = NULL;
-  }
-  free(message);
-}
-
 void
 noit_metric_director_message_ref(void *m) {
   noit_metric_message_t *message = (noit_metric_message_t *)m;
@@ -108,7 +96,7 @@ void
 noit_metric_director_message_deref(void *m) {
   noit_metric_message_t *message = (noit_metric_message_t *)m;
   if (mtev_atomic_dec32(&message->refcnt) == 0) {
-    noit_metric_director_free_message(message);
+    noit_metric_message_free(message);
   }
 }
 
@@ -437,14 +425,12 @@ handle_metric_buffer(const char *payload, int payload_len,
         noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
 
         message->type = copy[0];
+        message->original_allocated = mtev_true;
         message->original_message = copy;
         message->original_message_len = payload_len;
         noit_metric_director_message_ref(message);
 
-        int rv = noit_message_decoder_parse_line(copy, payload_len,
-            &message->id.id, &message->id.name,
-            &message->id.name_len, &message->noit.name, &message->noit.name_len,
-            &message->value, has_noit);
+        int rv = noit_message_decoder_parse_line(message, has_noit);
 
         if(message->noit.name == NULL && noit) {
           message->noit.name_len = noit->name_len;
