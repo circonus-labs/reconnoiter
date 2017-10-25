@@ -966,6 +966,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
       FAIL("internal error uuid");
     xmlFree(uuid_conf);
+    uuid_conf = NULL;
 
     /* make sure this isn't a dup */
     for(a = attr->children; a; a = a->next) {
