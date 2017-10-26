@@ -38,11 +38,17 @@
 #include "noit_metric.h"
 
 API_EXPORT(int)
-noit_message_decoder_parse_line(const char *payload, int payload_len,
-    uuid_t *id, const char **metric_name, int *metric_name_len,
-    const char **noit_name, int *noit_name_len,
-    noit_metric_value_t *metric, int has_noit);
+  noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit);
+
+API_EXPORT(void)
+  noit_metric_process_tags(noit_metric_message_t *metric);
 
 API_EXPORT(int)
   noit_is_timestamp(const char *line, int len);
+
+API_EXPORT(void)
+  noit_metric_message_clear(noit_metric_message_t* message);
+
+API_EXPORT(void)
+  noit_metric_message_free(noit_metric_message_t* message);
 #endif

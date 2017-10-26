@@ -101,22 +101,13 @@ static void
 send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string, size_t len)
 {
 #ifdef HAVE_WSLAY
-  noit_metric_message_t message = {};
+  noit_metric_message_t message = { .original_message = (char *)metric_string, .original_message_len = len };
   char *json = NULL;
   size_t json_len = 0;
 
-#define FREE_MESSAGE(message) do { \
-  if(message.value.type == METRIC_STRING && \
-     !message.value.is_null && \
-     message.value.value.v_string) { \
-       free(message.value.value.v_string); \
-  } \
-} while(0)
-
-  int rval = noit_message_decoder_parse_line(metric_string, len, &message.id.id, &message.id.name,
-                                             &message.id.name_len, NULL, NULL, &message.value, mtev_false);
+  int rval = noit_message_decoder_parse_line(&message, mtev_false);
   if (rval < 0) {
-    FREE_MESSAGE(message);
+    noit_metric_message_clear(&message);
     return;
   }
 
@@ -141,7 +132,7 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
                                       (const unsigned char *)json, json_len);
         free(json);
   }
-  FREE_MESSAGE(message);
+  noit_metric_message_clear(&message);
 #endif
 }
 
