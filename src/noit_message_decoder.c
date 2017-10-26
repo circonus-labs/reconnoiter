@@ -483,7 +483,7 @@ noit_metric_tagset_init(noit_metric_tagset_t *lookup,
     free((void *) tags);
     return -1;
   }
-  lookup->tags = realloc(tags, tag_count * sizeof(noit_metric_tag_t *));
+  lookup->tags = realloc(tags, tag_count * sizeof(noit_metric_tag_t));
   lookup->tag_count = tag_count;
   lookup->canonical_size = canonical_size;
   return 0;
