@@ -155,6 +155,15 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
   if(!message->id.name)
     return -3;
 
+  const char *acctid_str = check_id_str;
+  acctid_str = memchr(acctid_str, '`', message->id.name - acctid_str);
+  if(acctid_str) acctid_str = memchr(acctid_str+1, '`', message->id.name - acctid_str - 1);
+  if(acctid_str && acctid_str < message->id.name - 6 && memcmp(acctid_str, "`c_", 3) == 0) {
+    acctid_str += 3;
+    const char *fe = memchr(acctid_str, '_', message->id.name - acctid_str);
+    if(fe) message->id.account_id = strtoull(acctid_str, NULL, 10);
+  }
+
   memcpy(id_str_copy, message->id.name - UUID_STR_LEN - 1, UUID_STR_LEN);
   id_str_copy[UUID_STR_LEN] = '\0';
 

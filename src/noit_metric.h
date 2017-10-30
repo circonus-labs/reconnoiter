@@ -94,6 +94,7 @@ typedef struct {
   uuid_t id;
   const char *name;
   int name_len;
+  uint64_t account_id;
   noit_metric_tagset_t stream;
   noit_metric_tagset_t measurement;
 } noit_metric_id_t;
