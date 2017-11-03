@@ -237,12 +237,12 @@ function initiate(module, check)
 
   --Pull the data once a minute, but don't pull it more frequently than
   --that.
-  --Don't pull at all if we're transient; transient checks timeout too quickly
-  --to succeed and fire frequently enough to prevent the original check from
-  --getting a chance to pull.
+  --Don't pull at all if we're transient(except for the first run, to support `/checks/test`);
+  --transient checks timeout too quickly to succeed and fire frequently enough to prevent the
+  --original check from getting a chance to pull.
   local cache_timeout = 55
-  if check.flags("NP_TRANSIENT") == 0 and
-    current_time - cache_table[uuid]['timestamp'] >= cache_timeout then
+  if not table_hit or (check.flags("NP_TRANSIENT") == 0 and
+                       current_time - cache_table[uuid]['timestamp'] >= cache_timeout) then
     -- We've gone over the cache timeout... get new values
     local dimension_count = 1
     for key, value in pairs(check.config) do
