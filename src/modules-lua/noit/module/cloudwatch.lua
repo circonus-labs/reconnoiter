@@ -120,7 +120,7 @@ function init(module)
   return 0
 end
 
-function initiate(module, check)
+function initiate(module, check, cause, once)
   local config = check.interpolate(check.config)
   local get_default = 0
     
@@ -241,7 +241,7 @@ function initiate(module, check)
   --to succeed and fire frequently enough to prevent the original check from
   --getting a chance to pull.
   local cache_timeout = 55
-  if check.flags("NP_TRANSIENT") == 0 and
+  if once or check.flags("NP_TRANSIENT") == 0 and
     current_time - cache_table[uuid]['timestamp'] >= cache_timeout then
     -- We've gone over the cache timeout... get new values
     local dimension_count = 1
