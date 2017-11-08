@@ -246,6 +246,7 @@ static int child_main() {
   noit_check_tools_shared_init();
 
   /* Initialize all of our listeners */
+  mtev_dso_init();
   mtev_console_init(APPNAME);
   mtev_console_conf_init();
   mtev_capabilities_listener_init();
@@ -264,7 +265,6 @@ static int child_main() {
   noit_websocket_handler_init();
   noit_mtev_cluster_init();
 
-  mtev_dso_init();
   noit_module_init();
   mtev_dso_post_init();
   if(strict_module_load &&
