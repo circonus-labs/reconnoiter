@@ -140,7 +140,7 @@ end
 
 local GoogleAnalytics = require 'noit.GoogleAnalytics4'
 
-function initiate(module, check)
+function initiate(module, check, cause, once)
     local params = {
         username           = check.config.username,
         password           = check.config.password,
@@ -531,7 +531,7 @@ function initiate(module, check)
 
     -- Check about every 15 minutes
     -- Don't let transient checks gather data, they timeout too fast
-    if check.flags("NP_TRANSIENT") == 0 and
+    if once or check.flags("NP_TRANSIENT") == 0 and
        cache_table[uuid]['timestamp'] + (60 * 15) >= current_time then
         -- We've gone over the cache timeout... get new values
         cache_table[uuid]['metrics'] = {}

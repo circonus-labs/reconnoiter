@@ -219,6 +219,7 @@ static int child_main() {
 
   mtev_watchdog_child_eventer_heartbeat();
 
+  mtev_dso_init();
   mtev_console_init(APPNAME);
   mtev_console_conf_init();
   mtev_http_rest_init();
@@ -231,7 +232,6 @@ static int child_main() {
   stratcon_realtime_http_init(APPNAME);
   mtev_listener_init(APPNAME);
 
-  mtev_dso_init();
   mtev_dso_post_init();
   if(strict_module_load && mtev_dso_load_failures() > 0) {
     mtevL(noit_stderr, "Failed to load some modules and -M given.\n");

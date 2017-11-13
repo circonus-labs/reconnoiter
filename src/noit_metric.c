@@ -35,6 +35,7 @@
 #include "noit_metric.h"
 
 #include <mtev_json_object.h>
+#include <mtev_str.h>
 #include <circllhist.h>
 
 #include <stdio.h>
@@ -86,6 +87,24 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
     mtev_json_object_object_add(o, "noit", mtev_json_object_new_string(name));
   }
   mtev_json_object_object_add(o, "check_uuid", mtev_json_object_new_string(uuid_str));
+  if(metric->id.stream.tags) {
+    mtev_json_object *jst_tags = mtev_json_object_new_array();
+    for(int i=0;i<metric->id.stream.tag_count;i++) {
+      mtev_json_object_array_add(jst_tags,
+                                 mtev_json_object_new_string_len(metric->id.stream.tags[i].tag,
+                                 metric->id.stream.tags[i].total_size));
+    }
+    mtev_json_object_object_add(o, "stream_tags", jst_tags);
+  }
+  if(metric->id.measurement.tag_count) {
+    mtev_json_object *jm_tags = mtev_json_object_new_array();
+    for(int i=0;i<metric->id.measurement.tag_count;i++) {
+      mtev_json_object_array_add(jm_tags,
+                                 mtev_json_object_new_string_len(metric->id.measurement.tags[i].tag,
+                                 metric->id.measurement.tags[i].total_size));
+    }
+    mtev_json_object_object_add(o, "measurement_tags", jm_tags);
+  }
 
   if (metric->value.type == METRIC_ABSENT) {
     mtev_json_object_object_add(o, "value_type", NULL);

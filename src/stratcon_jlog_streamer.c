@@ -1258,12 +1258,13 @@ static int
 stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key_id;
-  int klen, n = -1, i, cnt = 0;
+  int klen, i, cnt = 0;
   void *vconn;
-  mtev_connection_ctx_t **ctx;
   mtev_conf_section_t *noit_configs;
   char path[256];
   char remote_str[256];
+
+  if(cn && *cn == '\0') cn = NULL;
 
   snprintf(remote_str, sizeof(remote_str), "%s:%d", target, port);
 
@@ -1287,7 +1288,6 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
     CONF_REMOVE(noit_configs[i]);
     xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
     xmlFreeNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
-    n = 0;
   }
   mtev_conf_release_sections(noit_configs, cnt);
 
@@ -1303,13 +1303,13 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
       CONF_REMOVE(noit_configs[i]);
       xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
       xmlFreeNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
-      n = 0;
     }
     mtev_conf_release_sections(noit_configs, cnt);
   }
 
+  int n = 0;
+  mtev_connection_ctx_t **ctx = malloc(sizeof(*ctx) * mtev_hash_size(&noits));
   pthread_mutex_lock(&noits_lock);
-  ctx = malloc(sizeof(*ctx) * mtev_hash_size(&noits));
   while(mtev_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     const char *expected_cn;

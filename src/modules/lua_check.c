@@ -1057,8 +1057,8 @@ int_cl_free(void *vcl) {
 }
 
 static int
-noit_lua_initiate(noit_module_t *self, noit_check_t *check,
-                  noit_check_t *cause) {
+noit_lua_initiate_ex(noit_module_t *self, noit_check_t *check,
+                     noit_check_t *cause, mtev_boolean once) {
   LMC_DECL(L, self, object);
   /* deal with unused warning */
   (void)L;
@@ -1122,7 +1122,8 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
     noit_lua_setup_check(ri->coro_state, ci->cause);
   else
     lua_pushnil(ri->coro_state);
-  mtev_lua_lmc_resume(lmc, ri, 3);
+  lua_pushboolean(ri->coro_state, once);
+  mtev_lua_lmc_resume(lmc, ri, 4);
   return 0;
 
  fail:
@@ -1131,11 +1132,24 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   return -1;
 }
 
+static int
+noit_lua_initiate(noit_module_t *self, noit_check_t *check,
+                  noit_check_t *cause) {
+  return noit_lua_initiate_ex(self, check, cause, mtev_false);
+}
+
+static int
+noit_lua_initiate_once(noit_module_t *self, noit_check_t *check,
+                       noit_check_t *cause) {
+  return noit_lua_initiate_ex(self, check, cause, mtev_true);
+}
+
 /* This is the standard wrapper */
 static int
 noit_lua_module_initiate_check(noit_module_t *self, noit_check_t *check,
                                int once, noit_check_t *cause) {
-  INITIATE_CHECK(noit_lua_initiate, self, check, cause);
+  INITIATE_CHECK_EX(noit_lua_initiate, noit_lua_initiate_once,
+                    self, check, cause);
   return 0;
 }
 

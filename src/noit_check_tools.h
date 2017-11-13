@@ -160,11 +160,11 @@ MTEV_HOOK_PROTO(check_postflight,
   } \
 } while(0)
 
-#define INITIATE_CHECK(func, self, check, cause) do { \
+#define INITIATE_CHECK_EX(func, oncefunc, self, check, cause) do { \
   if(once) { \
     if(MTEV_HOOK_CONTINUE == \
        check_preflight_hook_invoke(self, check, cause)) \
-      func(self, check, cause); \
+      oncefunc(self, check, cause); \
     check_postflight_hook_invoke(self, check, cause); \
   } \
   else if(!check->fire_event) { \
@@ -172,6 +172,10 @@ MTEV_HOOK_PROTO(check_postflight,
     noit_check_fake_last_check(check, &epoch, NULL); \
     noit_check_schedule_next(self, &epoch, check, NULL, func, cause); \
   } \
+} while(0)
+
+#define INITIATE_CHECK(func, self, check, cause) do { \
+  INITIATE_CHECK_EX(func, func, self, check, cause); \
 } while(0)
 
 #endif
