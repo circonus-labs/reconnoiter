@@ -155,31 +155,10 @@ void parse_clargs(int argc, char **argv) {
   }
 }
 
-static
-int configure_eventer() {
-  int rv = 0;
-  mtev_hash_table *table;
-  table = mtev_conf_get_hash(MTEV_CONF_ROOT, "/" APPNAME "/eventer/config");
-  if(table) {
-    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-    const char *key, *value;
-    int klen;
-    while(mtev_hash_next_str(table, &iter, &key, &klen, &value)) {
-      int subrv;
-      if((subrv = eventer_propset(key, value)) != 0)
-        rv = subrv;
-    }
-    mtev_hash_destroy(table, free, free);
-    free(table);
-  }
-  return rv;
-}
-
 const char *reverse_prefix = "noit/"; /* namespace out connections */
 const char *reverse_prefix_cns[] = { "noit/", NULL };
 
 static int child_main() {
-  char conf_str[1024];
   char stratcon_version[80];
 
   mtev_watchdog_child_heartbeat();
@@ -195,24 +174,9 @@ static int child_main() {
   mtevL(noit_notice, "process starting: %d\n", (int)getpid());
   mtev_log_go_asynch();
 
-  /* Lastly, run through all other system inits */
-  if(!mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/" APPNAME "/eventer/@implementation",
-                              conf_str, sizeof(conf_str))) {
-    mtevL(noit_stderr, "Cannot find '%s' in configuration\n",
-          "/" APPNAME "/eventer/@implementation");
-    exit(2);
-  }
-  if(eventer_choose(conf_str) == -1) {
-    mtevL(noit_stderr, "Cannot choose eventer %s\n", conf_str);
-    exit(2);
-  }
-  if(configure_eventer() != 0) {
-    mtevL(noit_stderr, "Cannot configure eventer\n");
-    exit(2);
-  }
   if(eventer_init() == -1) {
-    mtevL(noit_stderr, "Cannot init eventer %s\n", conf_str);
-    exit(2);
+    mtevL(noit_stderr, "Cannot initialize eventer\n");
+    exit(-1);
   }
   /* rotation init requires, eventer_init() */
   mtev_conf_log_init_rotate(APPNAME, mtev_false);
