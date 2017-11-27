@@ -132,6 +132,8 @@ noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
   char uuid_str[256*3+37];
   const char *v;
 
+  if(whence->tv_sec == 0 && whence->tv_usec == 0) return;
+
   SETUP_LOG(metrics, );
   if(metrics_log) {
     v = mtev_log_stream_get_property(metrics_log, "extended_id");
