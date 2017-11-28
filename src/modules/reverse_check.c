@@ -93,9 +93,14 @@ reverse_check_allow(const char *id, mtev_acceptor_closure_t *ac) {
   return MTEV_ACL_DENY;
 }
 
+static mtev_hook_return_t
+reverse_check_post_init(void *unused) {
+  check_config_fixup_hook_register("reverse_check", reverse_check_hook_impl, NULL);
+  return MTEV_HOOK_CONTINUE;
+}
 static int
 reverse_check_init(mtev_dso_generic_t *self) {
-  check_config_fixup_hook_register("reverse_check", reverse_check_hook_impl, NULL);
+  dso_post_init_hook_register("reverse_check", reverse_check_post_init, NULL);
   mtev_reverse_socket_acl(reverse_check_allow);
   return 0;
 }
