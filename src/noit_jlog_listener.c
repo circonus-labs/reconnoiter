@@ -313,6 +313,7 @@ noit_jlog_thread_main(void *e_vptr) {
 
  alldone:
   eventer_close(e, &mask);
+  eventer_free(e);
   mtev_atomic_dec32(&jcl->feed_stats->connections);
   noit_jlog_closure_free(jcl);
   mtev_acceptor_closure_free(ac);
