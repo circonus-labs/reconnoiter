@@ -69,9 +69,18 @@ end
 function process(check, output)
   for line in output:gmatch("[^\r\n]+") do
     if line:sub(1,1) ~= "#" then
-      local name, value = line:match("(.+)%s+(%d+)$")
+      line = line:gsub("\\.", "")
+      line = line:gsub("\\", "")
+      local name, value = line:match("(%S+%b{})%s+(.+)$")
+      local time = nil
+      if name == nil or value == nil then name, value = line:match("(%S+)%s+(.+)$") end
+      value = value:gsub("%s+([-]?%d+)$", function(m, v) time = m return "" end)
       name = normalize_name(name)
-      set_check_metric(check, name, 'n', value)
+      if time ~= nil then
+        check.metric_double(name, value, time / 1000, (time % 1000) * 1000)
+      else
+        check.metric_double(name, value)
+      end
     end
   end
 end
