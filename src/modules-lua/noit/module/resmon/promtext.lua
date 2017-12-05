@@ -4,7 +4,7 @@ function onload(image)
   image.xml_description([=[
 <module>
   <name>promtext</name>
-  <description><para>The Prometheus-compatible module pulls stats from scrapping endpoints</para>
+  <description><para>The Prometheus-compatible module pulls stats from scraping endpoints</para>
   </description>
   <loader>lua</loader>
   <object>noit.module.resmon</object>
@@ -16,7 +16,7 @@ function onload(image)
     <parameter name="port"
                required="optional"
                default="9163"
-               allowed="\d+">The TCP port can be specified to overide the default of 9163.</parameter>
+               allowed="\d+">The TCP port can be specified to override the default of 9163.</parameter>
   </checkconfig>
 </module>
 ]=]);
