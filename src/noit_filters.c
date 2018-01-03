@@ -414,6 +414,7 @@ noit_apply_filterset(const char *filterset,
   if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
     filterrule_t *r, *skipto_rule = NULL;
+    mtev_boolean ret = mtev_false;
     int idx = 0;
     mtev_atomic_inc32(&fs->ref_cnt);
     UNLOCKFS();
@@ -434,7 +435,8 @@ noit_apply_filterset(const char *filterset,
           skipto_rule = r->skipto_rule;
           continue;
         }
-        return (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
+        ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
+        break;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
 #define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && mtev_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
@@ -454,11 +456,12 @@ noit_apply_filterset(const char *filterset,
           skipto_rule = r->skipto_rule;
           continue;
         }
-        return (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
+        ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
+        break;
       }
     }
     filterset_free(fs);
-    return mtev_false;
+    return ret;
   }
   UNLOCKFS();
   return mtev_false;
