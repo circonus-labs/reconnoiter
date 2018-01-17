@@ -56,6 +56,11 @@
 #include <unistd.h>
 #include <errno.h>
 
+#ifdef HAVE_WSLAY
+static const char *heartbeat_str = "{\"type\":\"heartbeat\"}";
+static const int heartbeat_str_len = 20;
+#endif
+
 static mtev_atomic32_t ls_counter = 0;
 
 typedef struct {
@@ -97,18 +102,28 @@ noit_websocket_closure_free(void *jcl) {
   free(w);
 }
 
-static void
+static void send_heartbeat(noit_websocket_closure_t *wcl)
+{
+#ifdef HAVE_WSLAY
+mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
+                              WSLAY_TEXT_FRAME,
+                              (const unsigned char *)heartbeat_str, heartbeat_str_len);
+#endif
+}
+
+static int
 send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string, size_t len)
 {
 #ifdef HAVE_WSLAY
   noit_metric_message_t message = { .original_message = (char *)metric_string, .original_message_len = len };
   char *json = NULL;
   size_t json_len = 0;
+  int sent = 0;
 
   int rval = noit_message_decoder_parse_line(&message, mtev_false);
   if (rval < 0) {
     noit_metric_message_clear(&message);
-    return;
+    return sent;
   }
 
   message.type = metric_string[0];
@@ -121,6 +136,7 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
         mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
                                       WSLAY_TEXT_FRAME,
                                       (const unsigned char *)json, json_len);
+        sent++;
         free(json);
         break;
       }
@@ -130,33 +146,36 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
         mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
                                       WSLAY_TEXT_FRAME,
                                       (const unsigned char *)json, json_len);
+        sent++;
         free(json);
   }
   noit_metric_message_clear(&message);
 #endif
+  return sent;
 }
 
 
-static void
+static int
 filter_and_send(noit_websocket_closure_t *wcl, const char *buf, size_t len)
 {
   char **out = NULL;
-  int count = 0;
+  int count = 0, sent = 0;
 
   if (buf == NULL || len == 0) {
-    return;
+    return sent;
   }
 
   if (buf[0] == 'B') {
     count = noit_check_log_b_to_sm(buf, len, &out, 0);
     for (int i = 0; i < count; i++) {
-      send_individual_metric(wcl, out[i], strlen(out[i]));
+      sent += send_individual_metric(wcl, out[i], strlen(out[i]));
       free(out[i]);
     }
     free(out);
   } else {
-    send_individual_metric(wcl, buf, len);
+    sent += send_individual_metric(wcl, buf, len);
   }
+  return sent;
 }
 
 static int
@@ -187,7 +206,11 @@ noit_websocket_logio_write(mtev_log_stream_t ls, const struct timeval *whence,
   /* the send side of the websocket is already handled via queueing
    * so there is no need to spawn a thread to deal with IO
    */
-  filter_and_send(jcl, buf, len);
+  if (filter_and_send(jcl, buf, len) == 0) {
+    /* If we didn't send any metrics, we need to send a heartbeat to make sure
+     * we're still alive so the other side can clean up, if necessary */
+    send_heartbeat(jcl);
+  }
 
   return len;
 }
