@@ -86,6 +86,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
   if(!strncmp(query, "and(", 4) ||
      !strncmp(query, "or(", 3)) {
     *endq = strchr(query, '(');
+    if(*endq == NULL) goto error; /* This is not possible, but coverity */
     node = calloc(1, sizeof(*node));
     node->operation = (*query == 'a') ? OP_AND_ARGS : OP_OR_ARGS;
     noit_metric_tag_search_ast_t *arg = NULL;
