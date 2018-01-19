@@ -165,9 +165,15 @@ filter_and_send(noit_websocket_closure_t *wcl, const char *buf, size_t len)
     return sent;
   }
 
+  char *tmp = alloca(len);
+  memcpy(tmp, buf, len-1);
+  tmp[len-1] = 0;
+
   if (buf[0] == 'B') {
     count = noit_check_log_b_to_sm(buf, len, &out, 0);
+    mtevL(mtev_error, "PHIL: SENDING -%s-, COUNT %d\n", tmp, count);
     for (int i = 0; i < count; i++) {
+      mtevL(mtev_error, "PHIL: SEND METRIC %s\n", out[i]);
       sent += send_individual_metric(wcl, out[i], strlen(out[i]));
       free(out[i]);
     }

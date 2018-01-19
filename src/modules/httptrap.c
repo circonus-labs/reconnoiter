@@ -77,7 +77,6 @@ typedef struct _mod_config {
 
 typedef struct httptrap_closure_s {
   noit_module_t *self;
-  int stats_count;
 } httptrap_closure_t;
 
 typedef enum {
@@ -661,21 +660,32 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     // Don't count the first run
     struct timeval now, *last;
     char human_buffer[256];
-    ccl = (httptrap_closure_t*)check->closure;
+    int stats_count = 0;
+    stats_t *s = noit_check_get_stats_inprogress(check);
+
     mtev_gettimeofday(&now, NULL);
     sub_timeval(now, check->last_fire_time, &duration);
     noit_stats_set_whence(check, &now);
     noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
 
+    /* We just want to set the number of metrics here to the number
+     * of metrics in the stats_t struct */
+    if (s) {
+      mtev_hash_table *metrics = noit_check_stats_metrics(s);
+      if (metrics) {
+        stats_count = mtev_hash_size(metrics);
+      }
+    }
+
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
-             check->generation, ccl->stats_count);
+             check->generation, stats_count);
     mtevL(nldeb, "httptrap(%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
-    noit_stats_set_available(check, (ccl->stats_count > 0) ?
+    noit_stats_set_available(check, (stats_count > 0) ?
         NP_AVAILABLE : NP_UNAVAILABLE);
-    noit_stats_set_state(check, (ccl->stats_count > 0) ?
+    noit_stats_set_state(check, (stats_count > 0) ?
         NP_GOOD : NP_BAD);
     noit_stats_set_status(check, human_buffer);
     if(check->last_fire_time.tv_sec)
@@ -683,7 +693,6 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
 
     memcpy(&check->last_fire_time, &now, sizeof(now));
   }
-  ccl->stats_count = 0;
   return 0;
 }
 
