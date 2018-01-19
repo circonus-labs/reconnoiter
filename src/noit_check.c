@@ -2261,24 +2261,18 @@ noit_check_passive_set_stats(noit_check_t *check) {
   for(i=0;i<nwatches;i++) {
     void *backup;
     noit_check_t *wcheck = watches[i];
-    mtevL(mtev_error, "PHIL: SENDING DATA FOR %s\n", wcheck->name);
     /* Swap the real check's stats into place */
     backup = wcheck->statistics;
     wcheck->statistics = check->statistics;
 
     if(check_passive_log_stats_hook_invoke(check) == MTEV_HOOK_CONTINUE) {
       /* Write out our status */
-      mtevL(mtev_error, "PHIL: LOG STATUS FOR %s\n", wcheck->name);
       noit_check_log_status(wcheck);
-      mtevL(mtev_error, "PHIL: DONE LOG STATUS FOR %s\n", wcheck->name);
       /* Write out all metrics */
-      mtevL(mtev_error, "PHIL: LOG METRICS FOR %s\n", wcheck->name);
       noit_check_log_metrics(wcheck);
-      mtevL(mtev_error, "PHIL: DONE LOG METRICS FOR %s\n", wcheck->name);
     }
     /* Swap them back out */
     wcheck->statistics = backup;
-    mtevL(mtev_error, "PHIL: DONE SENDING DATA FOR %s\n", wcheck->name);
   }
 }
 static void
