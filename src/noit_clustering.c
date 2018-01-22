@@ -37,7 +37,7 @@
  *
  * Regardless, there are two things in reconnoiter that make checks "go":
  * (1) checks, (2) filtersets.  In order to synchronize broker configuration
- * we need to replicate these two things.  It is up to the operatore to make
+ * we need to replicate these two things.  It is up to the operator to make
  * sure the noitd's are all configured similarly enough to run the checks.
  *
  * clustering leverages libmtev "cluster" tech.
