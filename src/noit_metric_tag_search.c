@@ -53,12 +53,36 @@ noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
   free(node);
 }
 
+static char *
+build_regex_from_expansion(const char *expansion) {
+  /* brace expansion has already been done, all we need to do here
+ *    * is translate '*' to '[^.]*', '?' to '[^.]', and '.' to '\.',
+ *       */
+  size_t ridx = 0;
+  char *regex = (char *)calloc(1, strlen(expansion) * 2 + 3); /* 2 == '.*' */
+  regex[ridx++] = '^';
+  for (size_t i = 0; i < strlen(expansion); i++) {
+    if (expansion[i] == '*') {
+      regex[ridx++] = '.';
+      regex[ridx++] = '*';
+    } else if (expansion[i] == '?') {
+      regex[ridx++] = '.';
+    } else if (expansion[i] == '.') {
+      regex[ridx++] = '\\';
+      regex[ridx++] = '.';
+    } else {
+      regex[ridx++] = expansion[i];
+    }
+  }
+  regex[ridx++] = '$';
+  return regex;
+}
 static mtev_boolean
 noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
   const char *query = *endq;
+  const char *error;
+  int erroffset;
   if(*query == '/') {
-    const char *error;
-    int erroffset;
     *endq = query+1;
     while(**endq && **endq != '/') (*endq)++;
     if(**endq != '/') return mtev_false;
@@ -75,6 +99,17 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
     while(**endq && (noit_metric_tagset_is_taggable_char(**endq) || **endq == '*')) (*endq)++;
     if(*endq == query) return mtev_false;
     m->str = mtev__strndup(query, *endq - query);
+    if(strchr(m->str, '*') || strchr(m->str, '?')) {
+      char *previous = m->str;
+      m->str = build_regex_from_expansion(m->str);
+      free(previous);
+      m->re = pcre_compile(m->str,
+                           0, &error, &erroffset, NULL);
+      if(!m->re) {
+        *endq = query; /* We don't know where in the original string */
+        return mtev_false;
+      }
+    }
   }
   return mtev_true;
 }
