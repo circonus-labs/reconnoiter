@@ -700,7 +700,7 @@ noit_console_filter_configure(mtev_console_closure_t ncct,
     nc_printf(ncct, "created new filterset\n");
   }
 
-  if(info) {
+  if(info && !mtev_conf_section_is_empty(fsnode)) {
     char *xmlpath = NULL;
     free(info->path);
     xmlpath = (char *)xmlGetNodePath(mtev_conf_section_to_xmlnodeptr(fsnode));
