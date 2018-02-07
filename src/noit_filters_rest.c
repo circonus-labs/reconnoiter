@@ -244,8 +244,8 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   char xpath[1024];
   int error_code = 500, complete = 0, mask = 0;
   mtev_boolean exists;
-  int64_t seq;
-  int64_t old_seq;
+  int64_t seq = 0;
+  int64_t old_seq = 0;
   const char *error = "internal error";
 
   if(npats != 2) goto error;
