@@ -1210,7 +1210,7 @@ noit_check_update(noit_check_t *new_check,
     uuid_t cluster_id;
     mtev_cluster_get_self(cluster_id);
     if(uuid_compare(cluster_id, new_check->checkid)) {
-      mtevL(mtev_error, "Setting global cluster identity to '%s'\n", uuid_str);
+      mtevL(mtev_notice, "Setting global cluster identity to '%s'\n", uuid_str);
       mtev_cluster_set_self(new_check->checkid);
     }
   }

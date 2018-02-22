@@ -449,10 +449,10 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
     uuid_unparse_lower(my_id, my_id_str);
     CURL *curl = get_curl_handle();
     if(curl == NULL) {
+      mtevL(clerr, "Can't get curl handle: waiting %fs\n", (double)REPL_FAIL_WAIT_US/1000000);
       usleep(REPL_FAIL_WAIT_US);
       return 0;
     }
-
 
     mtev_memory_begin();
     mtev_cluster_node_t *node = mtev_cluster_get_node(my_cluster, rj->peerid);
