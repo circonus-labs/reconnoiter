@@ -71,6 +71,16 @@ typedef enum {
   OP_MATCH
 } noit_metric_tag_search_op_t;
 
+typedef struct noit_var_match_t {
+  char *str;
+  pcre *re;
+} noit_var_match_t;
+
+typedef struct noit_metric_tag_match_t {
+  noit_var_match_t cat;
+  noit_var_match_t name;
+} noit_metric_tag_match_t;
+
 typedef struct noit_metric_tag_search_ast_t {
   noit_metric_tag_search_op_t operation;
   union {
@@ -78,12 +88,7 @@ typedef struct noit_metric_tag_search_ast_t {
       int cnt;
       struct noit_metric_tag_search_ast_t **node;
     } args;
-    struct noit_metric_tag_match_t {
-      struct noit_var_match_t {
-        char *str;
-        pcre *re;
-      } cat, name;
-    } spec;
+    noit_metric_tag_match_t spec;
   } contents;
   void *user_data;
   void (*user_data_free)(void *);
