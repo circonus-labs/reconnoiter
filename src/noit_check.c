@@ -2755,7 +2755,9 @@ noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
     if(!ns) ns = xmlNewNs(parent ? parent : node, (xmlChar *)buff, (xmlChar *)nsname);
     memset(&iter, 0, sizeof(iter));
     while(mtev_hash_adv(config, &iter)) {
-      xmlNewChild(confnode, ns, (xmlChar *)iter.key.str, (xmlChar *)iter.value.str);
+      xmlNodePtr confnodechild;
+      confnodechild = xmlNewChild(confnode, ns, (xmlChar*) "value", (xmlChar *)iter.value.str);
+      XMLSETPROP(confnodechild, "name", iter.key.str, "%s");
     }
   }
   return node;
