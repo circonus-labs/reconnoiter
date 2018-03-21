@@ -308,7 +308,9 @@ testconfig.prototype.make_noit_config = function(name, opts) {
   if(!opts.hasOwnProperty('rest_acls'))
     opts['rest_acls'] = [ { 'type': 'deny', 'rules': [ { 'type': 'allow' } ] } ];
   var cwd = opts['cwd'];
-  var file = cwd + "/logs/" + name + "_noit.conf";
+  var logroot = cwd + "/logs/";
+  if(!fs.existsSync(logroot)) fs.mkdirSync(logroot);
+  var file = logroot + name + "_noit.conf";
   var fd = fs.openSync(file, "w", { mode: '0644' });
   fs.writeSync(fd, "<?xml version=\"1.0\" encoding=\"utf8\" standalone=\"yes\"?>\n");
   fs.writeSync(fd, "<noit>\n");
