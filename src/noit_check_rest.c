@@ -53,8 +53,14 @@
 #include "noit_check_tools.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
-#define NCLOCK mtev_conf_section_t nc__lock = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
-#define NCUNLOCK mtev_conf_release_section(nc__lock)
+
+#define NCINIT \
+  mtev_boolean nc__locked = mtev_false; \
+  mtev_conf_section_t nc__lock
+#define NCLOCK \
+  nc__locked = mtev_true; \
+  nc__lock = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
+#define NCUNLOCK if(nc__locked) mtev_conf_release_section(nc__lock)
 
 #define NS_NODE_CONTENT(parent, ns, k, v, followup) do { \
   xmlNodePtr tmp; \
@@ -411,6 +417,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   int klen;
   void *data;
   mtev_hash_table *configh;
+  NCINIT;
 
   if(npats != 2 && npats != 3) goto error;
 
@@ -822,6 +829,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
+  NCINIT;
 
   if(npats != 2) goto error;
 
@@ -893,6 +901,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
+  NCINIT;
 
   if(npats != 2) goto error;
 

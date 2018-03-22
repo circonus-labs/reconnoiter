@@ -2814,9 +2814,8 @@ noit_check_process_repl(xmlDocPtr doc) {
       mtev_conf_release_section(section);
     }
 
-    section = mtev_conf_section_from_xmlnodeptr(child);
-    mtev_conf_correct_namespace(checks, section);
-    xmlUnlinkNode(child);
+    xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);
+    child = xmlDocCopyNode(child, checks_node->doc, 1);
     xmlAddChild(mtev_conf_section_to_xmlnodeptr(checks), child);
     CONF_DIRTY(section);
     noit_poller_process_check_conf(section);
