@@ -51,7 +51,7 @@
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
-  mtev_hash_table attrs;
+  mtev_hash_table *attrs;
   size_t logsize;
   int timed_out;
 } selfcheck_info_t;
@@ -82,7 +82,10 @@ static int selfcheck_os_version(char *buff, int len) {
 static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
   selfcheck_info_t *ci = check->closure;
   if(ci) {
-    noit_check_release_attrs(&ci->attrs);
+    if(ci->attrs) {
+      noit_check_release_attrs(ci->attrs);
+      free(ci->attrs);
+    }
     memset(ci, 0, sizeof(*ci));
   }
 }
@@ -199,7 +202,7 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
       /* Check the length of the log */
       FETCH_CONFIG_OR(feedname, "feed");
       noit_check_interpolate(feedname_buff, sizeof(feedname_buff), feedname,
-                             &ci->attrs, check->config);
+                             ci->attrs, check->config);
       feed = mtev_log_stream_find(feedname_buff);
       if(!feed) ci->logsize = -1;
       else ci->logsize = mtev_log_stream_size(feed);
@@ -229,7 +232,8 @@ static int selfcheck_initiate(noit_module_t *self, noit_check_t *check,
   ci->check = check;
 
   ci->timed_out = 1;
-  noit_check_make_attrs(check, &ci->attrs);
+  ci->attrs = calloc(1, sizeof(*ci->attrs));
+  noit_check_make_attrs(check, ci->attrs);
   mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
