@@ -54,6 +54,7 @@ static pthread_mutex_t filterset_lock;
 static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
+static char* filtersets_replication_path = NULL;
 
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
 typedef struct _filterrule {
@@ -323,7 +324,7 @@ noit_filters_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL;
   root = xmlDocGetRootElement(doc);
-  mtev_conf_section_t filtersets = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/filtersets");
+  mtev_conf_section_t filtersets = mtev_conf_get_section(MTEV_CONF_ROOT, filtersets_replication_path);
   mtevAssert(!mtev_conf_section_is_empty(filtersets));
   for(child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
@@ -333,7 +334,6 @@ noit_filters_process_repl(xmlDocPtr doc) {
                                        filterset_name, sizeof(filterset_name)));
     if(noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(child))) {
       char xpath[1024];
-
       snprintf(xpath, sizeof(xpath), "/noit/filtersets//filterset[@name=\"%s\"]",
                filterset_name);
       mtev_conf_section_t oldsection = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
@@ -882,6 +882,19 @@ noit_filters_init() {
   mtev_capabilities_add_feature("filterset:hash", NULL);
   register_console_filter_commands();
   noit_filters_from_conf();
+
+  // The replication_prefix attribute instructs noit to put replicated filtersets into a sub-node of
+  // of /noit/filtersets in noit.conf. This was introduced to for situations filtersets should be
+  // placed in a sub-tree which is "shattered" into a backingstore.
+  char *replication_prefix = NULL;
+  mtev_conf_get_string(MTEV_CONF_ROOT, "/noit/filtersets/@replication_prefix", &replication_prefix);
+  if(replication_prefix) {
+    mtevL(mtev_debug, "Using filterset replication prefix: %s\n", replication_prefix);
+    asprintf(&filtersets_replication_path, "/noit/filtersets/%s", replication_prefix);
+  }
+  else {
+    filtersets_replication_path = "/noit/filtersets";
+  }
 }
 
 void
@@ -889,4 +902,3 @@ noit_filters_init_globals(void) {
   filtersets = calloc(1, sizeof(mtev_hash_table));
   mtev_hash_init(filtersets);
 }
-
