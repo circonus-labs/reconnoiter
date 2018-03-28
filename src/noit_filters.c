@@ -46,6 +46,7 @@
 #include "noit_filters.h"
 #include "noit_clustering.h"
 
+#include <stdio.h>
 #include <pcre.h>
 #include <libxml/tree.h>
 
@@ -886,9 +887,8 @@ noit_filters_init() {
   // The replication_prefix attribute instructs noit to put replicated filtersets into a sub-node of
   // of /noit/filtersets in noit.conf. This was introduced to for situations filtersets should be
   // placed in a sub-tree which is "shattered" into a backingstore.
-  char *replication_prefix = NULL;
-  mtev_conf_get_string(MTEV_CONF_ROOT, "/noit/filtersets/@replication_prefix", &replication_prefix);
-  if(replication_prefix) {
+  char *replication_prefix;
+  if(mtev_conf_get_string(MTEV_CONF_ROOT, "/noit/filtersets/@replication_prefix", &replication_prefix)) {
     mtevL(mtev_debug, "Using filterset replication prefix: %s\n", replication_prefix);
     asprintf(&filtersets_replication_path, "/noit/filtersets/%s", replication_prefix);
   }
