@@ -151,7 +151,9 @@ MTEV_HOOK_PROTO(check_postflight,
 
 #define BAIL_ON_RUNNING_CHECK(check) do { \
   if(!noit_should_run_check(check, NULL)) { \
-    mtevL(mtev_debug, "Check %s is running on another node\n", check->name); \
+    static mtev_log_stream_t noit_cluster_debug = NULL; \
+    if(!noit_cluster_debug) noit_cluster_debug = mtev_log_stream_find("debug/cluster"); \
+    mtevL(noit_cluster_debug, "Check %s is running on another node\n", check->name); \
     return -1; \
   } \
   if(check->flags & NP_RUNNING) { \
