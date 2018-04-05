@@ -214,3 +214,43 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
   mtev_json_object_put(o);
 }
 
+/*
+  perl -e '$valid = qr/[A-Za-z0-9\._-]/;
+  foreach $i (0..7) {
+  foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
+  print "\n";
+  }'
+*/
+static uint8_t vtagmap[256] = {
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+static inline mtev_boolean
+noit_metric_tagset_is_taggable_char(char c) {
+  uint8_t cu = c;
+  return vtagmap[cu] == 1;
+}
+
+mtev_boolean
+noit_metric_tagset_is_taggable_key(const char *key, size_t len)
+{
+  /* it's likely faster to just check all the chars than to have a branch and
+     decide to exit early */
+  size_t sum_good = 0;
+  for (size_t i = 0; i < len; i++) {
+    sum_good += (size_t)noit_metric_tagset_is_taggable_char(key[i]);
+  }
+  return len == sum_good;
+}
+
+mtev_boolean
+noit_metric_tagset_is_taggable_value(const char *val, size_t len)
+{
+  return noit_metric_tagset_is_taggable_key(val, len);
+}

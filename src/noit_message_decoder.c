@@ -280,29 +280,6 @@ void noit_metric_message_free(noit_metric_message_t* message) {
 }
 
 
-/*
-   perl -e '$valid = qr/[A-Za-z0-9\._-]/;
-     foreach $i (0..7) {
-       foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
-       print "\n";
-     }'
- */
-static uint8_t vtagmap[256] = {
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-};
-mtev_boolean
-noit_metric_tagset_is_taggable_char(char c) {
-  uint8_t cu = c;
-  return vtagmap[cu] == 1;
-}
-
 size_t
 noit_metric_tags_count(const char *str, size_t strlen) {
   if(!strlen) return 0;
@@ -339,7 +316,7 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
     }
     else {
       /* expect a valid tag character */
-      if(!noit_metric_tagset_is_taggable_char(test_char)) return 0;
+      if(!noit_metric_tagset_is_taggable_key(&test_char, 1)) return 0;
     }
     cur_size++;
   }

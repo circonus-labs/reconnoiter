@@ -96,7 +96,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
     (*endq)++;
   }
   else {
-    while(**endq && (noit_metric_tagset_is_taggable_char(**endq) || **endq == '*')) (*endq)++;
+    while(**endq && (noit_metric_tagset_is_taggable_key(*endq, 1) || **endq == '*')) (*endq)++;
     if(*endq == query) return mtev_false;
     m->str = mtev__strndup(query, *endq - query);
     if(strchr(m->str, '*') || strchr(m->str, '?')) {

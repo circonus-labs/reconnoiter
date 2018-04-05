@@ -128,7 +128,7 @@ LIBNOIT_OBJS=noit_check_log_helpers.lo noit_fb.lo bundle.pb-c.lo \
 	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo \
 	noit_metric_tag_search.lo
 
-B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o
+B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o noit_metric.o
 
 NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_check_resolver.o noit_check_log.o \
