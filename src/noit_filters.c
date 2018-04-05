@@ -31,6 +31,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
+#include <stdio.h>
+#undef _GNU_SOURCE
+
 #include <mtev_defines.h>
 
 #include <mtev_log.h>
@@ -46,7 +50,6 @@
 #include "noit_filters.h"
 #include "noit_clustering.h"
 
-#include <stdio.h>
 #include <pcre.h>
 #include <libxml/tree.h>
 

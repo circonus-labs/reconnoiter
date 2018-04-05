@@ -316,7 +316,7 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
     }
     else {
       /* expect a valid tag character */
-      if(!noit_metric_tagset_is_taggable_char(test_char)) return 0;
+      if(!noit_metric_tagset_is_taggable_key(&test_char, 1)) return 0;
     }
     cur_size++;
   }
