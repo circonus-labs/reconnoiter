@@ -33,7 +33,7 @@ clean:	clean-keys clean-tests
 # This stuff if all cert stuff to make testing the daemons easier
 
 test_tags:
-	$(CC) -g -o test_tags -I../src $(CFLAGS) -I$(MTEV_INCLUDEDIR) test_tags.c -L../src -lnoit
+	$(CC) -g -o test_tags -I../src $(CPPFLAGS) $(CFLAGS) -I$(MTEV_INCLUDEDIR) test_tags.c -L../src -lnoit
 
 others:
 	$(MAKE) -C ../src tests
