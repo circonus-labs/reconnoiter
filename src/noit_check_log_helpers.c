@@ -148,11 +148,13 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
       break;
   }
 
-  if (0 != mtev_stream_decompress(ctx, (const unsigned char *)compbuff, &dlen, (unsigned char *)buf_out, (size_t *)&len_out)) {
+  size_t size_t_len_out = len_out;
+  if (0 != mtev_stream_decompress(ctx, (const unsigned char *)compbuff, &dlen, (unsigned char *)buf_out, (size_t *)&size_t_len_out)) {
     mtevL(noit_error, "Failed to decompress b64 encoded chunk\n");
     if(compbuff) free(compbuff);
     return -1;
   }
+  len_out = size_t_len_out;
   if(compbuff) free(compbuff);
 
   mtev_stream_decompress_finish(ctx);
