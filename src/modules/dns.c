@@ -493,7 +493,6 @@ static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
 static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
                                           int timeout, void *data) {
   dns_ctx_handle_t *h = data;
-  eventer_t newe = NULL;
 
   /* One way or another h->timeout is going to manipulated.
    * if there is one (called directly), then we should clear it out.

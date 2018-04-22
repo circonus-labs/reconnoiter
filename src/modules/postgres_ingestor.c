@@ -1092,10 +1092,8 @@ build_insert_batch(pg_interim_journal_t *ij) {
       /* Bundle records are special and need to be expanded into
        * traditional records here
        */
-        noit_compression_type_t ctype = NOIT_COMPRESS_NONE;
         switch(lcp[1]) {
           case '1': /* version 1 */
-            ctype = NOIT_COMPRESS_ZLIB; /*no break fall through */
           case '2': /* version 2 */
               expand_b_record(&head, &last, lcp, cp - lcp);
             break;

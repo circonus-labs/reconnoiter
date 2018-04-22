@@ -285,7 +285,7 @@ check_test_sweeper(eventer_t e, int mask, void *closure,
 
 static void
 check_test_schedule_sweeper() {
-  struct timeval now, diff;
+  struct timeval diff;
   if(sweeper_event) return;
   diff.tv_sec = default_sweep_interval / 1000L;
   diff.tv_usec = (default_sweep_interval * 1000L) % 1000000L;

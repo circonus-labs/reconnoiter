@@ -658,7 +658,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     ccl->self = self;
   } else {
     // Don't count the first run
-    struct timeval now, *last;
+    struct timeval now;
     char human_buffer[256];
     int stats_count = 0;
     stats_t *s = noit_check_get_stats_inprogress(check);
@@ -721,7 +721,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   const char *error = "internal error", *secret = NULL;
   mtev_http_session_ctx *ctx = restc->http_ctx;
   const unsigned int DEBUGDATA_OUT_SIZE=4096;
-  const unsigned int JSON_OUT_SIZE=DEBUGDATA_OUT_SIZE+128;
   char debugdata_out[DEBUGDATA_OUT_SIZE];
   int debugflag=0;
   const char *debugchkflag;
@@ -741,7 +740,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
 
   if(restc->call_closure == NULL) {
     mtev_boolean allowed = mtev_false;
-    httptrap_closure_t *ccl = NULL;
     const char *delimiter = NULL;
     check = noit_poller_lookup(check_id);
     if(!check) {

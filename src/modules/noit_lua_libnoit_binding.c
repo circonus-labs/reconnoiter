@@ -192,7 +192,6 @@ noit_message_index_func(lua_State *L) {
 
 static int
 noit_lua_free_message(lua_State *L) {
-  const char *k;
   noit_metric_message_t **udata;
   if(!luaL_checkudata(L, 1, "metric_message_t")) {
     luaL_error(L, "metatable error, arg1 not a metric_message_t!");

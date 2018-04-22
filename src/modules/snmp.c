@@ -429,7 +429,6 @@ static int noit_snmp_check_timeout(eventer_t e, int mask, void *closure,
 }
 
 static void _set_ts_timeout(struct target_session *ts, struct timeval *t) {
-  struct timeval now;
   eventer_t e = NULL;
   if(ts->timeoutevent) {
     e = eventer_remove(ts->timeoutevent);
@@ -1259,7 +1258,7 @@ probe_engine_step1_cb(int operation,
 
 static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
                           noit_check_t *cause) {
-  struct timeval when, to;
+  struct timeval to;
   struct snmp_pdu *req = NULL;
   struct target_session *ts;
   struct check_info *info = check->closure;
