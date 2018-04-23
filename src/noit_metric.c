@@ -34,6 +34,7 @@
 
 #include "noit_metric.h"
 
+#include <mtev_b64.h>
 #include <mtev_json_object.h>
 #include <mtev_str.h>
 #include <circllhist.h>
