@@ -216,9 +216,9 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 }
 
 /*
- * Adds '"' and '=' to allow for base64 encoding
+ * map for ascii tags
  
-  perl -e '$valid = qr/[A-Za-z0-9\._="-]/;
+  perl -e '$valid = qr/[A-Za-z0-9\._-]/;
   foreach $i (0..7) {
   foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
   print "\n";
@@ -226,7 +226,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 */
 static uint8_t vtagmap[256] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -234,17 +234,63 @@ static uint8_t vtagmap[256] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
+
+/*
+ * map for base64 encoded tags
+ 
+  perl -e '$valid = qr/[A-Za-z0-9+\/=]/;
+  foreach $i (0..7) {
+  foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
+  print "\n";
+  }'
+*/
+static uint8_t base64_vtagmap[256] = {
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+
+
 static inline mtev_boolean
 noit_metric_tagset_is_taggable_char(char c) {
   uint8_t cu = c;
   return vtagmap[cu] == 1;
 }
+static inline mtev_boolean
+noit_metric_tagset_is_taggable_b64_char(char c) {
+  uint8_t cu = c;
+  return base64_vtagmap[cu] == 1;
+}
 
 mtev_boolean
 noit_metric_tagset_is_taggable_key(const char *key, size_t len)
 {
-  /* it's likely faster to just check all the chars than to have a branch and
-     decide to exit early */
+  /* there are 2 tag formats supported, plain old tags that obey the vtagmap
+     charset, and base64 encoded tags that obey the:
+
+     ^b"<base64 chars>"$ format
+  */
+  if (len >= 2) {
+    /* must start with b" */
+    const char *x = strnstrn(key, 2, "b\"", 2);
+    if (x) {
+      /* and end with " */
+      const char *y = strnstrn(&key[len - 2], 1, "\"", 1);
+      if (y) {
+	size_t sum_good = 0;
+	for (size_t i = 2; i < len - 3 /* skip the wrapping chars */; i++) {
+	  sum_good += (size_t)noit_metric_tagset_is_taggable_b64_char(key[i]);
+	}
+	return len == sum_good;
+      }
+      return mtev_false;
+    }
+  }
   size_t sum_good = 0;
   for (size_t i = 0; i < len; i++) {
     sum_good += (size_t)noit_metric_tagset_is_taggable_char(key[i]);
