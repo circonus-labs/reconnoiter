@@ -152,6 +152,9 @@ API_EXPORT(mtev_boolean)
   noit_metric_tagset_is_taggable_key(const char *key, size_t len);
 API_EXPORT(mtev_boolean)
   noit_metric_tagset_is_taggable_value(const char *val, size_t len);
+API_EXPORT(size_t)
+  noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, 
+                                const char *encoded_tag, size_t encoded_size);
 API_EXPORT(int)
   noit_metric_tagset_init(noit_metric_tagset_t *lookup, const char *tagstr, size_t tagstr_len);
 API_EXPORT(void)

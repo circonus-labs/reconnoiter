@@ -34,6 +34,7 @@
 
 #include "noit_metric.h"
 
+#include <mtev_b64.h>
 #include <mtev_json_object.h>
 #include <mtev_str.h>
 #include <circllhist.h>
@@ -215,6 +216,8 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 }
 
 /*
+ * map for ascii tags
+ 
   perl -e '$valid = qr/[A-Za-z0-9\._-]/;
   foreach $i (0..7) {
   foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
@@ -231,17 +234,61 @@ static uint8_t vtagmap[256] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
+
+/*
+ * map for base64 encoded tags
+ 
+  perl -e '$valid = qr/[A-Za-z0-9+\/=]/;
+  foreach $i (0..7) {
+  foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
+  print "\n";
+  }'
+*/
+static uint8_t base64_vtagmap[256] = {
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+
+
 static inline mtev_boolean
 noit_metric_tagset_is_taggable_char(char c) {
   uint8_t cu = c;
   return vtagmap[cu] == 1;
 }
+static inline mtev_boolean
+noit_metric_tagset_is_taggable_b64_char(char c) {
+  uint8_t cu = c;
+  return base64_vtagmap[cu] == 1;
+}
 
 mtev_boolean
 noit_metric_tagset_is_taggable_key(const char *key, size_t len)
 {
-  /* it's likely faster to just check all the chars than to have a branch and
-     decide to exit early */
+  /* there are 2 tag formats supported, plain old tags that obey the vtagmap
+     charset, and base64 encoded tags that obey the:
+
+     ^b"<base64 chars>"$ format
+  */
+  if (len >= 3) {
+    /* must start with b" */
+    if (memcmp(key, "b\"", 2) == 0) {
+      /* and end with " */
+      if (key[len - 1] == '"') {
+	size_t sum_good = 0;
+	for (size_t i = 2; i < len - 1; i++) {
+	  sum_good += (size_t)noit_metric_tagset_is_taggable_b64_char(key[i]);
+	}
+	return len == sum_good;
+      }
+      return mtev_false;
+    }
+  }
   size_t sum_good = 0;
   for (size_t i = 0; i < len; i++) {
     sum_good += (size_t)noit_metric_tagset_is_taggable_char(key[i]);
@@ -253,4 +300,47 @@ mtev_boolean
 noit_metric_tagset_is_taggable_value(const char *val, size_t len)
 {
   return noit_metric_tagset_is_taggable_key(val, len);
+}
+
+size_t
+noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *encoded_tag, size_t encoded_size)
+{
+  const char *colon = (const char *)memchr(encoded_tag, ':', encoded_size);
+  if (!colon) return 0;
+
+  const char *encoded = encoded_tag;
+  const char *encoded_end = encoded + encoded_size;
+  char *decoded = decoded_tag;
+  if (memcmp(encoded, "b\"", 2) == 0) {
+    encoded += 2;
+    const char *eend = (const char *)memchr(encoded, '"', colon - encoded);
+    if (!eend) return 0;
+    size_t elen = eend - encoded;
+    int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, max_len);
+    decoded += len;
+    encoded += elen + 1; // skip enclosing quote
+  }
+  else {
+    memcpy(decoded, encoded, colon - encoded);
+    decoded += (colon - encoded);
+    encoded += (colon - encoded);
+  }
+  encoded++; // skip over the colon
+  *decoded = 0x1f; //replace colon with ascii unit sep
+  decoded++;
+  if (memcmp(encoded, "b\"", 2) == 0) {
+    encoded += 2;
+    const char *eend = memchr(encoded, '"', encoded_end - encoded);
+    if (!eend || eend != encoded_end - 1) return 0;
+    size_t elen = eend - encoded;
+    int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, max_len - (decoded - decoded_tag));
+    decoded += len;
+    encoded += elen + 1; // skip enclosing quote
+  }
+  else {
+    memcpy(decoded, encoded, encoded_size - (encoded - encoded_tag));
+    decoded += encoded_size - (encoded - encoded_tag);
+  }
+  *decoded = '\0';
+  return decoded - decoded_tag;
 }

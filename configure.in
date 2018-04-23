@@ -62,8 +62,6 @@ if test x"$FLATCC_CHECK" != x"yes" ; then
 else
   AC_PATH_PROG(FLATCC, flatcc)
 fi
-
-
 if test -z "$ac_cv_path_LUA"; then
 	AC_PATH_PROG(LUA, lua)
 fi
@@ -71,6 +69,8 @@ AC_SUBST(PERL)
 
 ENABLE_LUA=$enable_lua
 AC_SUBST(ENABLE_LUA)
+MAKE_CTESTS=1
+AC_SUBST(MAKE_CTESTS)
 
 MAPFLAGS=""
 if test "x$GCC" = "xyes" ; then
@@ -100,6 +100,12 @@ if test "$?" -ne "0" ; then
     AC_MSG_ERROR([*** mtev-config not found ***])
 fi
 AC_SUBST(MTEV_LIBDIR)
+
+MTEV_INCLUDEDIR=`mtev-config --includedir 2>/dev/null`
+if test "$?" -ne "0" ; then
+    AC_MSG_ERROR([*** mtev-config not found ***])
+fi
+AC_SUBST(MTEV_INCLUDEDIR)
 
 case $host in
 *-*-darwin*)
