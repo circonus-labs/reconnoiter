@@ -149,6 +149,9 @@ typedef struct noit_metric_tagset_builder_t {
 } noit_metric_tagset_builder_t;
 
 API_EXPORT(mtev_boolean)
+  noit_metric_tagset_is_taggable_b64_char(char c);
+
+API_EXPORT(mtev_boolean)
   noit_metric_tagset_is_taggable_key(const char *key, size_t len);
 API_EXPORT(mtev_boolean)
   noit_metric_tagset_is_taggable_value(const char *val, size_t len);

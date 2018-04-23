@@ -261,7 +261,8 @@ noit_metric_tagset_is_taggable_char(char c) {
   uint8_t cu = c;
   return vtagmap[cu] == 1;
 }
-static inline mtev_boolean
+
+mtev_boolean
 noit_metric_tagset_is_taggable_b64_char(char c) {
   uint8_t cu = c;
   return base64_vtagmap[cu] == 1;
@@ -280,11 +281,11 @@ noit_metric_tagset_is_taggable_key(const char *key, size_t len)
     if (memcmp(key, "b\"", 2) == 0) {
       /* and end with " */
       if (key[len - 1] == '"') {
-	size_t sum_good = 0;
-	for (size_t i = 2; i < len - 1; i++) {
-	  sum_good += (size_t)noit_metric_tagset_is_taggable_b64_char(key[i]);
-	}
-	return len == sum_good;
+        size_t sum_good = 0;
+        for (size_t i = 2; i < len - 1; i++) {
+          sum_good += (size_t)noit_metric_tagset_is_taggable_b64_char(key[i]);
+        }
+        return len == sum_good;
       }
       return mtev_false;
     }
