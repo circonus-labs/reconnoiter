@@ -34,7 +34,13 @@
 #include <mtev_defines.h>
 #include <mtev_hooks.h>
 #include <uuid/uuid.h>
+#include <fq.h>
 #include "noit_message_decoder.h"
+
+typedef struct {
+  noit_metric_message_t *message;
+  struct fq_msgid id;
+} message_and_id;
 
 /**
  * Funnel metrics to certain threads for processing.
@@ -66,10 +72,10 @@ void noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
 void noit_adjust_checks_interest(short cnt);
 
 /* This gets the next line you've subscribed to, if avaialable. */
-noit_metric_message_t *noit_metric_director_lane_next();
+message_and_id *noit_metric_director_lane_next();
 
-void noit_metric_director_message_ref(void *message);
-void noit_metric_director_message_deref(void *message);
+void noit_metric_director_message_and_id_ref(void *msg_and_id);
+void noit_metric_director_message_and_id_deref(void *msg_and_id);
 void noit_metric_director_init_globals(void);
 void noit_metric_director_flush(eventer_t e);
 

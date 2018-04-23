@@ -38,6 +38,7 @@
 #include <mtev_fq.h>
 #include <mtev_hooks.h>
 #include <mtev_uuid.h>
+#include <mtev_dso.h>
 
 #include <openssl/md5.h>
 
@@ -87,16 +88,18 @@ static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
 
 void
-noit_metric_director_message_ref(void *m) {
-  noit_metric_message_t *message = (noit_metric_message_t *)m;
-  mtev_atomic_inc32(&message->refcnt);
+noit_metric_director_message_and_id_ref(void *m) {
+  message_and_id *msg_and_id = (message_and_id *)m;
+  mtev_atomic_inc32(&msg_and_id->message->refcnt);
 }
 
 void
-noit_metric_director_message_deref(void *m) {
-  noit_metric_message_t *message = (noit_metric_message_t *)m;
+noit_metric_director_message_and_id_deref(void *m) {
+  message_and_id *msg_and_id = (message_and_id *)m;
+  noit_metric_message_t *message = msg_and_id->message;
   if (mtev_atomic_dec32(&message->refcnt) == 0) {
     noit_metric_message_free(message);
+    free(msg_and_id);
   }
 }
 
@@ -181,7 +184,7 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
 }
 
 static void
-distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *message) {
+distribute_message_with_interests(caql_cnt_t *interests, message_and_id *msg_and_id) {
   mtev_atomic_inc64(&number_of_messages_received);
 
   int i;
@@ -192,8 +195,8 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       ck_fifo_spsc_enqueue_lock(fifo);
       fifo_entry = ck_fifo_spsc_recycle(fifo);
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
-      noit_metric_director_message_ref(message);
-      ck_fifo_spsc_enqueue(fifo, fifo_entry, message);
+      noit_metric_director_message_and_id_ref(msg_and_id);
+      ck_fifo_spsc_enqueue(fifo, fifo_entry, msg_and_id);
       ck_fifo_spsc_enqueue_unlock(fifo);
 
       mtev_atomic_inc64(&number_of_messages_distributed);
@@ -232,7 +235,8 @@ noit_metric_director_flush(eventer_t e) {
 }
 
 static void
-distribute_metric(noit_metric_message_t *message) {
+distribute_metric(message_and_id *msg_and_id) {
+  noit_metric_message_t *message = msg_and_id->message;
   void *vhash, *vinterests;
   caql_cnt_t *interests = NULL;
   char uuid_str[UUID_STR_LEN + 1];
@@ -242,7 +246,7 @@ distribute_metric(noit_metric_message_t *message) {
     if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,
         message->id.name_len, &vinterests)) {
       interests = vinterests;
-      distribute_message_with_interests(interests, message);
+      distribute_message_with_interests(interests, msg_and_id);
     }
   }
 
@@ -269,7 +273,7 @@ distribute_metric(noit_metric_message_t *message) {
           }
         }
         if(call_hook) {
-          distribute_message_with_interests(hook_interests, message);
+          distribute_message_with_interests(hook_interests, msg_and_id);
         }
       default: break;
     }
@@ -277,8 +281,8 @@ distribute_metric(noit_metric_message_t *message) {
 }
 
 static void
-distribute_check(noit_metric_message_t *message) {
-  distribute_message_with_interests(check_interests, message);
+distribute_check(message_and_id *msg_and_id) {
+  distribute_message_with_interests(check_interests, msg_and_id);
 }
 
 static mtev_hash_table *
@@ -366,29 +370,29 @@ noit_metric_director_prune_dedup(eventer_t e, int mask, void *unused,
 }
 
 static void
-distribute_message(noit_metric_message_t *message) {
-  if(message->type == 'H' || message->type == 'M') {
-    distribute_metric(message);
+distribute_message(message_and_id *msg_and_id) {
+  if(msg_and_id->message->type == 'H' || msg_and_id->message->type == 'M') {
+    distribute_metric(msg_and_id);
   } else {
-    distribute_check(message);
+    distribute_check(msg_and_id);
   }
 }
 
-noit_metric_message_t *noit_metric_director_lane_next() {
-  noit_metric_message_t *msg = NULL;
+message_and_id *noit_metric_director_lane_next() {
+  message_and_id *msg_and_id = NULL;
   if(my_lane.fifo == NULL)
     return NULL;
  again:
   ck_fifo_spsc_dequeue_lock(my_lane.fifo);
-  if(ck_fifo_spsc_dequeue(my_lane.fifo, &msg) == false) {
-    msg = NULL;
+  if(ck_fifo_spsc_dequeue(my_lane.fifo, &msg_and_id) == false) {
+    msg_and_id = NULL;
   }
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
-  if((uintptr_t)msg & FLUSHFLAG) {
-    dmflush_observe(DMFLUSH_UNFLAG((dmflush_t *)msg));
+  if((uintptr_t)msg_and_id & FLUSHFLAG) {
+    dmflush_observe(DMFLUSH_UNFLAG((dmflush_t *)msg_and_id));
     goto again;
   }
-  return msg;
+  return msg_and_id;
 }
 static noit_noit_t *
 get_noit(const char *payload, int payload_len, noit_noit_t *data) {
@@ -403,7 +407,7 @@ get_noit(const char *payload, int payload_len, noit_noit_t *data) {
 }
 static void
 handle_metric_buffer(const char *payload, int payload_len,
-    int has_noit, noit_noit_t *noit) {
+    int has_noit, noit_noit_t *noit, struct fq_msgid *id) {
 
   if (payload_len <= 0) {
     return;
@@ -422,13 +426,15 @@ handle_metric_buffer(const char *payload, int payload_len,
         char *copy = calloc(1, nlen+1);
         memcpy(copy, payload, payload_len);
         if(noit) memcpy(copy + payload_len + 1, noit->name, noit->name_len);
+        message_and_id *msg_and_id = calloc(1, sizeof(message_and_id));
         noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
+        msg_and_id->message = message;
 
         message->type = copy[0];
         message->original_allocated = mtev_true;
         message->original_message = copy;
         message->original_message_len = payload_len;
-        noit_metric_director_message_ref(message);
+        noit_metric_director_message_and_id_ref(msg_and_id);
 
         int rv = noit_message_decoder_parse_line(message, has_noit);
 
@@ -438,10 +444,14 @@ handle_metric_buffer(const char *payload, int payload_len,
         }
 
         if(rv == 1) {
-          distribute_message(message);
+          if(id) {
+            memcpy(&msg_and_id->id, id, sizeof(struct fq_msgid));
+          }
+
+          distribute_message(msg_and_id);
         }
 
-        noit_metric_director_message_deref(message);
+        noit_metric_director_message_and_id_deref(msg_and_id);
       }
       break;
     case 'B':
@@ -453,7 +463,7 @@ handle_metric_buffer(const char *payload, int payload_len,
         n_metrics = noit_check_log_b_to_sm((const char *)payload, payload_len,
             &metrics, has_noit);
         for(i = 0; i < n_metrics; i++) {
-          handle_metric_buffer(metrics[i], strlen(metrics[i]), false, src_noit);
+          handle_metric_buffer(metrics[i], strlen(metrics[i]), false, src_noit, id);
           free(metrics[i]);
         }
         free(metrics);
@@ -516,7 +526,7 @@ static mtev_hook_return_t
 handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_msg *m,
                   void *payload, size_t payload_len) {
   if(check_duplicate(payload, payload_len) == mtev_false) {
-    handle_metric_buffer(payload, payload_len, 1, NULL);
+    handle_metric_buffer(payload, payload_len, 1, NULL, &m->sender_msgid);
   }
   return MTEV_HOOK_CONTINUE;
 }
@@ -531,23 +541,48 @@ handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whenc
      (strcmp(name,"metrics") && strcmp(name,"bundle") &&
       strcmp(name,"check") && strcmp(name,"status")))
     return MTEV_HOOK_CONTINUE;
-  handle_metric_buffer(line, len, -1, NULL);
+  handle_metric_buffer(line, len, -1, NULL, NULL);
   return MTEV_HOOK_CONTINUE;
 }
 
 void
-noit_metric_director_dedupe(mtev_boolean d) 
+noit_metric_director_dedupe(mtev_boolean d)
 {
   dedupe = d;
 }
 
+static int mtev_dso_generic_validate_magic(mtev_image_t *obj) {
+  if (MTEV_IMAGE_MAGIC(obj) != MTEV_GENERIC_MAGIC) return -1;
+  if (MTEV_IMAGE_VERSION(obj) != MTEV_GENERIC_ABI_VERSION) return -1;
+  return 0;
+}
+
+static mtev_hash_table empty_hash = MTEV_HASH_EMPTY;
+
 void noit_metric_director_init() {
-  nthreads = eventer_loop_concurrency();
-  mtevAssert(nthreads > 0);
-  thread_queues = calloc(sizeof(*thread_queues),nthreads);
-  check_interests = calloc(sizeof(*check_interests),nthreads);
-  if(mtev_fq_handle_message_hook_register_available())
-    mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
+  void *vmodule;
+  mtev_dso_generic_t *fq_image;
+  mtev_hash_init(&empty_hash);
+
+  /*
+     This is done so that we can prevent consuming fq messages before we reset
+     to our fq checkpoint, and to prevent fq messages from being consumed
+     before the interests are set by lua
+
+     This was a first attempt, it is likely too long of a delay during
+     startup, but I did not have a chance to find out by testing it with a
+     larger set of checks than dev
+  */
+  if (mtev_load_image("fq", "fq", &empty_hash, mtev_dso_generic_validate_magic, sizeof(mtev_dso_generic_t))) {
+    mtevFatal(mtev_error, "failed to load \"fq\"\n");
+  }
+  mtev_hash_retrieve(&empty_hash, "fq", strlen("fq"), &vmodule);
+  fq_image = (mtev_dso_generic_t *)vmodule;
+  if (fq_image->init(fq_image)) {
+    mtevFatal(mtev_error, "error in fq_image->init\n");
+  }
+
+  mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
 
   eventer_add_in_s_us(noit_metric_director_prune_dedup, NULL, 2, 0);
@@ -558,6 +593,10 @@ void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&dedupe_hashes, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   eventer_name_callback("noit_metric_director_prune_dedup",
                         noit_metric_director_prune_dedup);
+  nthreads = eventer_loop_concurrency();
+  mtevAssert(nthreads > 0);
+  thread_queues = calloc(sizeof(*thread_queues),nthreads);
+  check_interests = calloc(sizeof(*check_interests),nthreads);
 }
 
 int64_t

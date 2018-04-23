@@ -146,6 +146,7 @@ static const luaL_Reg noit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
+  { "metric_director_thread_ready", lua_noit_metric_director_thread_ready},
   { "checks_do", lua_noit_check_do },
   { NULL, NULL }
 };

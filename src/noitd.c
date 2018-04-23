@@ -274,7 +274,9 @@ static int child_main() {
   }
 
   mtev_listener_init(APPNAME);
-  noit_metric_director_init();
+
+  // needs to be after eventer_init, so it can't go in noitd_init_globals
+  noit_metric_director_init_globals();
 
   /* Drop privileges */
   mtev_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
@@ -305,7 +307,6 @@ noitd_init_globals(void) {
   noit_conf_checks_init_globals();
   noit_filters_init_globals();
   noit_jlog_listener_init_globals();
-  noit_metric_director_init_globals();
   noit_module_init_globals();
 }
 
