@@ -8,5 +8,6 @@ run() {
 		RV=$?
 	fi
 }
-
+export LD_LIBRARY_PATH=../../src
+run ../test_tags
 exit $RV

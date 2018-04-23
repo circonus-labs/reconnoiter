@@ -275,15 +275,13 @@ noit_metric_tagset_is_taggable_key(const char *key, size_t len)
 
      ^b"<base64 chars>"$ format
   */
-  if (len >= 2) {
+  if (len >= 3) {
     /* must start with b" */
-    const char *x = strnstrn(key, 2, "b\"", 2);
-    if (x) {
+    if (memcmp(key, "b\"", 2) == 0) {
       /* and end with " */
-      const char *y = strnstrn(&key[len - 2], 1, "\"", 1);
-      if (y) {
+      if (key[len - 1] == '"') {
 	size_t sum_good = 0;
-	for (size_t i = 2; i < len - 3 /* skip the wrapping chars */; i++) {
+	for (size_t i = 2; i < len - 1; i++) {
 	  sum_good += (size_t)noit_metric_tagset_is_taggable_b64_char(key[i]);
 	}
 	return len == sum_good;
@@ -307,20 +305,20 @@ noit_metric_tagset_is_taggable_value(const char *val, size_t len)
 size_t
 noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *encoded_tag, size_t encoded_size)
 {
-  const char *colon = (const char *)strnstrn(encoded_tag, encoded_size, ":", 1);
+  const char *colon = (const char *)memchr(encoded_tag, ':', encoded_size);
   if (!colon) return 0;
 
-  char *decoded = decoded_tag;
   const char *encoded = encoded_tag;
-  const char *m = (const char *)strnstrn(encoded, 2, "b\"", 2);
-  if (m) {
+  const char *encoded_end = encoded + encoded_size;
+  char *decoded = decoded_tag;
+  if (memcmp(encoded, "b\"", 2) == 0) {
     encoded += 2;
-    const char *eend = strchr(encoded, '"');
+    const char *eend = (const char *)memchr(encoded, '"', colon - encoded);
     if (!eend) return 0;
     size_t elen = eend - encoded;
     int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, max_len);
     decoded += len;
-    encoded += elen + 1; // encloding quote
+    encoded += elen + 1; // skip enclosing quote
   }
   else {
     memcpy(decoded, encoded, colon - encoded);
@@ -330,21 +328,19 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
   encoded++; // skip over the colon
   *decoded = 0x1f; //replace colon with ascii unit sep
   decoded++;
-  m = (const char *)strnstrn(encoded, 2, "b\"", 2);
-  if (m) {
+  if (memcmp(encoded, "b\"", 2) == 0) {
     encoded += 2;
-    const char *eend = strchr(encoded, '"');
-    if (!eend) return 0;
+    const char *eend = memchr(encoded, '"', encoded_end - encoded);
+    if (!eend || eend != encoded_end - 1) return 0;
     size_t elen = eend - encoded;
-    int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, decoded - decoded_tag);
+    int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, max_len - (decoded - decoded_tag));
     decoded += len;
-    encoded += elen + 1; // encloding quote
+    encoded += elen + 1; // skip enclosing quote
   }
   else {
     memcpy(decoded, encoded, encoded_size - (encoded - encoded_tag));
     decoded += encoded_size - (encoded - encoded_tag);
   }
   *decoded = '\0';
-  decoded++;
   return decoded - decoded_tag;
 }
