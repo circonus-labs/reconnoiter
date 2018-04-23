@@ -215,7 +215,9 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 }
 
 /*
-  perl -e '$valid = qr/[A-Za-z0-9\._-]/;
+ * Adds '"' and '=' to allow for base64 encoding
+ 
+  perl -e '$valid = qr/[A-Za-z0-9\._="-]/;
   foreach $i (0..7) {
   foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
   print "\n";
@@ -223,7 +225,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 */
 static uint8_t vtagmap[256] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+  0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -253,4 +255,49 @@ mtev_boolean
 noit_metric_tagset_is_taggable_value(const char *val, size_t len)
 {
   return noit_metric_tagset_is_taggable_key(val, len);
+}
+
+size_t
+noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *encoded_tag, size_t encoded_size)
+{
+  const char *colon = (const char *)strnstrn(encoded_tag, encoded_size, ":", 1);
+  if (!colon) return 0;
+
+  char *decoded = decoded_tag;
+  const char *encoded = encoded_tag;
+  const char *m = (const char *)strnstrn(encoded, 2, "b\"", 2);
+  if (m) {
+    encoded += 2;
+    const char *eend = strchr(encoded, '"');
+    if (!eend) return 0;
+    size_t elen = eend - encoded;
+    int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, max_len);
+    decoded += len;
+    encoded += elen + 1; // encloding quote
+  }
+  else {
+    memcpy(decoded, encoded, colon - encoded);
+    decoded += (colon - encoded);
+    encoded += (colon - encoded);
+  }
+  encoded++; // skip over the colon
+  *decoded = 0x1f; //replace colon with ascii unit sep
+  decoded++;
+  m = (const char *)strnstrn(encoded, 2, "b\"", 2);
+  if (m) {
+    encoded += 2;
+    const char *eend = strchr(encoded, '"');
+    if (!eend) return 0;
+    size_t elen = eend - encoded;
+    int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, decoded - decoded_tag);
+    decoded += len;
+    encoded += elen + 1; // encloding quote
+  }
+  else {
+    memcpy(decoded, encoded, encoded_size - (encoded - encoded_tag));
+    decoded += encoded_size - (encoded - encoded_tag);
+  }
+  *decoded = '\0';
+  decoded++;
+  return decoded - decoded_tag;
 }
