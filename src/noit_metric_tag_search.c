@@ -29,6 +29,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_b64.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
 #include "noit_metric_tag_search.h"
@@ -79,26 +80,60 @@ build_regex_from_expansion(const char *expansion) {
 }
 static mtev_boolean
 noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
+  char decoded_tag[512];
   const char *query = *endq;
   const char *error;
   int erroffset;
+  int is_encoded = memcmp(query, "b\"", 2) == 0 || memcmp(query, "b/", 2) == 0;
+  if (is_encoded) {
+    (*endq)++; // skip the 'b'
+    query = *endq;
+  }
   if(*query == '/') {
     *endq = query+1;
     while(**endq && **endq != '/') (*endq)++;
     if(**endq != '/') return mtev_false;
-    m->str = mtev__strndup(query + 1, *endq - query - 1);
+    if (is_encoded) {
+      int len = mtev_b64_decode(query + 1, *endq - query - 1, (unsigned char *)decoded_tag, 
+				sizeof(decoded_tag));
+      if (len == 0) return mtev_false;
+      m->str = mtev__strndup(decoded_tag, len);
+    } else {
+      m->str = mtev__strndup(query + 1, *endq - query - 1);
+    }
     m->re = pcre_compile(m->str,
                          0, &error, &erroffset, NULL);
     if(!m->re) {
-      *endq = query+1+erroffset;
+      if (!is_encoded) *endq = query+1+erroffset;
+      else *endq = query+1; // we can't easily know where in the encoded query the problem lies, so best to point to beginning of query
       return mtev_false;
     }
     (*endq)++;
   }
   else {
-    while(**endq && (noit_metric_tagset_is_taggable_key(*endq, 1) || **endq == '*')) (*endq)++;
+    if (is_encoded) {
+      if (*query != '"') return mtev_false;
+      *endq = query + 1;
+      query = *endq;
+    }
+
+    while(**endq &&
+          (is_encoded ?
+           noit_metric_tagset_is_taggable_b64_char(**endq) :
+           (noit_metric_tagset_is_taggable_key(*endq, 1) || **endq == '*' || **endq == '?') )) {
+      (*endq)++;
+    }
+
     if(*endq == query) return mtev_false;
-    m->str = mtev__strndup(query, *endq - query);
+    if (is_encoded) {
+      int len = mtev_b64_decode(query, *endq - query, (unsigned char *)decoded_tag, 
+				sizeof(decoded_tag));
+      if (len == 0) return mtev_false;
+      m->str = mtev__strndup(decoded_tag, len);
+      (*endq)++; // skip the trailing quotation mark
+    } else {
+      m->str = mtev__strndup(query, *endq - query);
+    }
     if(strchr(m->str, '*') || strchr(m->str, '?')) {
       char *previous = m->str;
       m->str = build_regex_from_expansion(m->str);
@@ -180,13 +215,26 @@ noit_metric_tag_search_parse(const char *query, int *erroff) {
 
 static mtev_boolean
 noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m) {
+  char decoded_tag[512];
+  const char *ssubj = subj;
+  int ssubj_len = subj_len;
+  if (memcmp(subj, "b\"", 2) == 0) {
+    const char *start = subj + 2;
+    const char *end = memchr(start, '"', 1);
+    if (!end) return mtev_false; // not decodable, no match
+    int len = mtev_b64_decode(start, end - start, (unsigned char *)decoded_tag, 
+			      sizeof(decoded_tag));
+    if (len == 0) return mtev_false; // decode failed, no match
+    ssubj_len = len;
+    ssubj = decoded_tag;
+  }
   if(m->re) {
     int ovector[30], rv;
-    if((rv = pcre_exec(m->re, NULL, subj, subj_len, 0, 0, ovector, 30)) >= 0) return mtev_true;
+    if((rv = pcre_exec(m->re, NULL, ssubj, ssubj_len, 0, 0, ovector, 30)) >= 0) return mtev_true;
     return mtev_false;
   }
   if(m->str == NULL) return mtev_true;
-  if(strlen(m->str) == subj_len && !memcmp(m->str, subj, subj_len)) return mtev_true;
+  if(strlen(m->str) == ssubj_len && !memcmp(m->str, ssubj, ssubj_len)) return mtev_true;
   return mtev_false;
 }
 static mtev_boolean

@@ -1,4 +1,5 @@
 #include "noit_metric.h"
+#include "noit_metric_tag_search.h"
 #include <assert.h>
 
 void test_tag_decode()
@@ -38,10 +39,91 @@ void test_tag_decode()
 
   eq = strncmp("category\037value", decoded, rval);
   assert(eq == 0);
+
+}
+
+void test_ast_decode()
+{
+  int erroroffset;
+
+  /* simple test */
+  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
+  assert(ast != NULL);
+  assert(ast->operation == OP_AND_ARGS);
+  assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+  assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+  noit_metric_tag_search_free(ast);
+  
+  /* base64 fixed category */
+  ast = noit_metric_tag_search_parse("and(foo:bar,not(b\"c29tZTpzdHVmZltoZXJlXQ==\":value))", &erroroffset);
+  assert(ast != NULL);
+  assert(ast->operation == OP_AND_ARGS);
+  assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+  assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+  assert(ast->contents.args.node[1]->operation == OP_NOT_ARGS);
+  noit_metric_tag_search_ast_t *not = ast->contents.args.node[1]->contents.args.node[0];
+  assert(not != NULL);
+  assert(strcmp(not->contents.spec.cat.str,"some:stuff[here]") == 0);
+  assert(strcmp(not->contents.spec.name.str,"value") == 0);
+  noit_metric_tag_search_free(ast);
+
+  /* base64 regex parse */
+  ast = noit_metric_tag_search_parse("and(foo:bar,not(b/c29tZS4q/:value))", &erroroffset);
+  assert(ast != NULL);
+  assert(ast->operation == OP_AND_ARGS);
+  assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+  assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+  assert(ast->contents.args.node[1]->operation == OP_NOT_ARGS);
+  not = ast->contents.args.node[1]->contents.args.node[0];
+  assert(not != NULL);
+  assert(strcmp(not->contents.spec.cat.str,"some.*") == 0);
+  assert(not->contents.spec.cat.re != NULL);
+  assert(strcmp(not->contents.spec.name.str,"value") == 0);
+  noit_metric_tag_search_free(ast);
+  
+}
+
+void test_tag_match()
+{
+  int erroroffset;
+  noit_metric_tagset_t tagset;
+  noit_metric_tagset_builder_t builder;
+  noit_metric_tagset_builder_start(&builder);
+
+  const char *tagstring = "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value";
+  noit_metric_tagset_builder_add_many(&builder, tagstring, strlen(tagstring));
+  char *canonical;
+  noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
+  
+  /* simple test */
+  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
+  mtev_boolean match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_true);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", &erroroffset);
+  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_true);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(b/c29tZS4q/:value)", &erroroffset);
+  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_true);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(quux:value)", &erroroffset);
+  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_false);
+  noit_metric_tag_search_free(ast);
+
 }
 
 int main(int argc, const char **argv)
 {
   test_tag_decode();
+  test_ast_decode();
   return 0;
 }
