@@ -86,6 +86,41 @@ void test_ast_decode()
   
 }
 
+void test_tag_match()
+{
+  int erroroffset;
+  noit_metric_tagset_t tagset;
+  noit_metric_tagset_builder_t builder;
+  noit_metric_tagset_builder_start(&builder);
+
+  const char *tagstring = "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value";
+  noit_metric_tagset_builder_add_many(&builder, tagstring, strlen(tagstring));
+  char *canonical;
+  noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
+  
+  /* simple test */
+  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
+  mtev_boolean match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_true);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", &erroroffset);
+  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_true);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(b/c29tZS4q/:value)", &erroroffset);
+  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_true);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(quux:value)", &erroroffset);
+  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+  assert(match == mtev_false);
+  noit_metric_tag_search_free(ast);
+
+}
+
 int main(int argc, const char **argv)
 {
   test_tag_decode();
