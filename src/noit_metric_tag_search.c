@@ -29,6 +29,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_b64.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
 #include "noit_metric_tag_search.h"
@@ -85,7 +86,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
   int erroffset;
   int is_encoded = memcmp(query, "b\"", 2) == 0 || memcmp(query, "b/", 2) == 0;
   if (is_encoded) {
-    (*endq)++;
+    (*endq)++; // skip the 'b'
     query = *endq;
   }
   if(*query == '/') {
@@ -93,7 +94,8 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
     while(**endq && **endq != '/') (*endq)++;
     if(**endq != '/') return mtev_false;
     if (is_encoded) {
-      int len = mtev_b64_decode(query + 1, *endq - query - 1, decoded_tag, sizeof(decoded_tag));
+      int len = mtev_b64_decode(query + 1, *endq - query - 1, (unsigned char *)decoded_tag, 
+				sizeof(decoded_tag));
       if (len == 0) return mtev_false;
       m->str = mtev__strndup(decoded_tag, len);
     } else {
@@ -117,17 +119,18 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
 
     while(**endq &&
           (is_encoded ?
-           (noit_metric_tagset_is_taggable_b64_char(**endq) || **endq == '"') :
+           noit_metric_tagset_is_taggable_b64_char(**endq) :
            (noit_metric_tagset_is_taggable_key(*endq, 1) || **endq == '*' || **endq == '?') )) {
       (*endq)++;
     }
 
     if(*endq == query) return mtev_false;
     if (is_encoded) {
-      int len = mtev_b64_decode(query, *endq - query, decoded_tag, sizeof(decoded_tag));
+      int len = mtev_b64_decode(query, *endq - query, (unsigned char *)decoded_tag, 
+				sizeof(decoded_tag));
       if (len == 0) return mtev_false;
       m->str = mtev__strndup(decoded_tag, len);
-      *endq++; // skip the trailing quotation mark
+      (*endq)++; // skip the trailing quotation mark
     } else {
       m->str = mtev__strndup(query, *endq - query);
     }
@@ -184,7 +187,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     if(!noit_metric_tag_match_compile(&node->contents.spec.cat, endq)) goto error;
     if(**endq == ':') {
       (*endq)++;
-      if(!noit_metric_tag_match_compile(&node->contents.spec.name, dec_endq)) goto error;
+      if(!noit_metric_tag_match_compile(&node->contents.spec.name, endq)) goto error;
     }
   }
   return node;
@@ -216,10 +219,11 @@ noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m) {
   const char *ssubj = subj;
   int ssubj_len = subj_len;
   if (memcmp(subj, "b\"", 2) == 0) {
-    char *start = subj + 2;
-    char *end = memchr(start, '"');
+    const char *start = subj + 2;
+    const char *end = memchr(start, '"', 1);
     if (!end) return mtev_false; // not decodable, no match
-    int len = mtev_b64_decode(start, end - start, decoded_tag, sizeof(decoded_tag));
+    int len = mtev_b64_decode(start, end - start, (unsigned char *)decoded_tag, 
+			      sizeof(decoded_tag));
     if (len == 0) return mtev_false; // decode failed, no match
     ssubj_len = len;
     ssubj = decoded_tag;
