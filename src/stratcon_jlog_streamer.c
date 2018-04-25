@@ -95,7 +95,7 @@ static const char *jlog_state_to_str(int state) {
 }
 
 static void change_state(jlog_streamer_ctx_t *ctx, mtev_connection_ctx_t *nctx, int new_state) {
-  mtevL(jlog_streamer_deb, "changing state from %s to %s - [%s] [%s]\n",
+  mtevL(jlog_streamer_deb, "changing state from \"%s\" to \"%s\" - [%s] [%s]\n",
           jlog_state_to_str(ctx->state),
           jlog_state_to_str(new_state),
           (nctx && nctx->remote_str) ? nctx->remote_str : "(null)",
