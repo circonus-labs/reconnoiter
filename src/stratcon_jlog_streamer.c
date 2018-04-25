@@ -60,6 +60,8 @@
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_iep.h"
 
+static mtev_log_stream_t jlog_streamer_err = NULL;
+static mtev_log_stream_t jlog_streamer_deb = NULL;
 pthread_mutex_t noits_lock;
 mtev_hash_table noits;
 pthread_mutex_t noit_ip_by_cn_lock;
@@ -77,6 +79,30 @@ static const char *feed_type_to_str(int jlog_feed_cmd) {
     case NOIT_JLOG_DATA_TEMP_FEED: return "transient/iep";
   }
   return "unknown";
+}
+
+static const char *jlog_state_to_str(int state) {
+  switch(state) {
+    case JLOG_STREAMER_WANT_INITIATE: return "initiate"; break;
+    case JLOG_STREAMER_WANT_COUNT: return "waiting for next batch"; break;
+    case JLOG_STREAMER_WANT_ERROR: return "waiting for error"; break;
+    case JLOG_STREAMER_WANT_HEADER: return "reading header"; break;
+    case JLOG_STREAMER_WANT_BODY: return "reading body"; break;
+    case JLOG_STREAMER_IS_ASYNC: return "asynchronously processing"; break;
+    case JLOG_STREAMER_WANT_CHKPT: return "checkpointing"; break;
+  }
+  return "unknown";
+}
+
+static void change_state(jlog_streamer_ctx_t *ctx, mtev_connection_ctx_t *nctx, int new_state) {
+  if (N_L_S_ON(jlog_streamer_deb)) {
+    mtevL(jlog_streamer_deb, "changing state from \"%s\" to \"%s\" - [%s] [%s]\n",
+          jlog_state_to_str(ctx->state),
+          jlog_state_to_str(new_state),
+          (nctx && nctx->remote_str) ? nctx->remote_str : "(null)",
+          (nctx && nctx->remote_cn) ? nctx->remote_cn : "(null)");
+  }
+  ctx->state = new_state;
 }
 
 #define GET_EXPECTED_CN(nctx, cn) do { \
@@ -271,7 +297,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
     if(ctx->buffer) free(ctx->buffer); \
     ctx->buffer = malloc(size + 1); \
     if(ctx->buffer == NULL) { \
-      mtevL(noit_error, "malloc(%lu) failed.\n", (long unsigned int)size + 1); \
+      mtevL(jlog_streamer_err, "malloc(%lu) failed.\n", (long unsigned int)size + 1); \
       goto socket_error; \
     } \
     ctx->buffer[size] = '\0'; \
@@ -286,7 +312,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
       if(sslctx) error = eventer_ssl_get_last_error(sslctx); \
     } \
     if(! error) error = strerror(errno); \
-    mtevL(noit_error, "[%s] [%s] SSL read error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", \
+    mtevL(jlog_streamer_err, "[%s] [%s] SSL read error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", \
           nctx->remote_cn ? nctx->remote_cn : "(null)", \
           error); \
     goto socket_error; \
@@ -294,7 +320,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   ctx->bytes_read = 0; \
   ctx->bytes_expected = 0; \
   if(len != size) { \
-    mtevL(noit_error, "[%s] [%s] SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
+    mtevL(jlog_streamer_err, "[%s] [%s] SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
           nctx->remote_str ? nctx->remote_str : "(null)", \
           nctx->remote_cn ? nctx->remote_cn : "(null)", \
           ctx->state, len, (long unsigned int)size); \
@@ -318,10 +344,10 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
     if(write(eventer_get_fd(e), e, 0) == -1)
-      mtevL(noit_error, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
+      mtevL(jlog_streamer_err, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
             nctx->remote_cn ? nctx->remote_cn : "(null)", strerror(errno));
  socket_error:
-    ctx->state = JLOG_STREAMER_WANT_INITIATE;
+    change_state(ctx, nctx, JLOG_STREAMER_WANT_INITIATE);
     ctx->count = 0;
     ctx->needs_chkpt = 0;
     ctx->bytes_read = 0;
@@ -341,22 +367,22 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                             sizeof(ctx->jlog_feed_cmd), &mask);
         if(len < 0) {
           if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
-          mtevL(noit_error, "[%s] [%s] initiating stream failed -> %d/%s.\n", 
+          mtevL(jlog_streamer_err, "[%s] [%s] initiating stream failed -> %d/%s.\n", 
                 nctx->remote_str ? nctx->remote_str : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)", errno, strerror(errno));
           goto socket_error;
         }
         if(len != sizeof(ctx->jlog_feed_cmd)) {
-          mtevL(noit_error, "[%s] [%s] short write [%d/%d] on initiating stream.\n", 
+          mtevL(jlog_streamer_err, "[%s] [%s] short write [%d/%d] on initiating stream.\n", 
                 nctx->remote_str ? nctx->remote_str : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)",
                 (int)len, (int)sizeof(ctx->jlog_feed_cmd));
           goto socket_error;
         }
-        ctx->state = JLOG_STREAMER_WANT_COUNT;
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
         break;
 
       case JLOG_STREAMER_WANT_ERROR:
         FULLREAD(e, ctx, 0 - ctx->count);
-        mtevL(noit_error, "[%s] [%s] %.*s\n", nctx->remote_str ? nctx->remote_str : "(null)",
+        mtevL(jlog_streamer_err, "[%s] [%s] %.*s\n", nctx->remote_str ? nctx->remote_str : "(null)",
               nctx->remote_cn ? nctx->remote_cn : "(null)", 0 - ctx->count, ctx->buffer);
         free(ctx->buffer); ctx->buffer = NULL;
         goto socket_error;
@@ -372,14 +398,14 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                                    nctx->remote_str, (char *)cn_expected,
                                    ctx->count);
         if(ctx->count < 0)
-          ctx->state = JLOG_STREAMER_WANT_ERROR;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_ERROR);
         else
-          ctx->state = JLOG_STREAMER_WANT_HEADER;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER);
         break;
 
       case JLOG_STREAMER_WANT_HEADER:
         if(ctx->count == 0) {
-          ctx->state = JLOG_STREAMER_WANT_COUNT;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
           break;
         }
         FULLREAD(e, ctx, sizeof(ctx->header));
@@ -395,7 +421,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                                     ctx->header.tv_sec, ctx->header.tv_usec,
                                     ctx->header.message_len);
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = JLOG_STREAMER_WANT_BODY;
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_BODY);
         break;
 
       case JLOG_STREAMER_WANT_BODY:
@@ -422,10 +448,10 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           completion_e = eventer_alloc_copy(e);
           nctx->e = completion_e;
           eventer_set_mask(completion_e, EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION);
-          ctx->state = JLOG_STREAMER_IS_ASYNC;
+          change_state(ctx, nctx, JLOG_STREAMER_IS_ASYNC);
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
                     NULL, completion_e);
-          mtevL(noit_debug, "Pushing %s batch async [%s] [%s]: [%u/%u]\n",
+          mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: Pushing %s batch async [%s] [%s]: [%u/%u]\n",
                 feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
                 nctx->remote_str ? nctx->remote_str : "(null)",
                 nctx->remote_cn ? nctx->remote_cn : "(null)",
@@ -434,15 +460,15 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           return 0;
         }
         else if(ctx->count == 0)
-          ctx->state = JLOG_STREAMER_WANT_CHKPT;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT);
         else
-          ctx->state = JLOG_STREAMER_WANT_HEADER;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER);
         break;
 
       case JLOG_STREAMER_IS_ASYNC:
-        ctx->state = JLOG_STREAMER_WANT_CHKPT; /* falls through */
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT); /* falls through */
       case JLOG_STREAMER_WANT_CHKPT:
-        mtevL(noit_debug, "Pushing %s checkpoint [%s] [%s]: [%u/%u]\n",
+        mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: Pushing %s checkpoint [%s] [%s]: [%u/%u]\n",
               feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
               nctx->remote_str ? nctx->remote_str : "(null)",
               nctx->remote_cn ? nctx->remote_cn : "(null)",
@@ -453,11 +479,16 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         /* screw short writes.  I'd rather die than not write my data! */
         len = eventer_write(e, &n_chkpt, sizeof(jlog_id), &mask);
         if(len < 0) {
-          if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
+          if(errno == EAGAIN) {
+            mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: failed eventer write: got EAGAIN\n");
+            return mask | EVENTER_EXCEPTION;
+          }
+          mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: failed eventer write %d (%s) - goto socket_error\n",
+                errno, strerror(errno));
           goto socket_error;
         }
         if(len != sizeof(jlog_id)) {
-          mtevL(noit_error, "[%s] [%s] short write on checkpointing stream.\n", 
+          mtevL(jlog_streamer_err, "[%s] [%s] short write on checkpointing stream.\n", 
             nctx->remote_str ? nctx->remote_str : "(null)",
             nctx->remote_cn ? nctx->remote_cn : "(null)");
           goto socket_error;
@@ -465,7 +496,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         STRATCON_STREAM_CHECKPOINT(eventer_get_fd(e), (char *)feedtype,
                                         nctx->remote_str, (char *)cn_expected,
                                         ctx->header.chkpt.log, ctx->header.chkpt.marker);
-        ctx->state = JLOG_STREAMER_WANT_COUNT;
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
         break;
     }
   }
@@ -1349,7 +1380,7 @@ rest_set_noit(mtev_http_rest_closure_t *restc,
   else
     mtev_http_response_standard(ctx, 409, "EXISTS", "text/xml");
   if(mtev_conf_write_file(NULL) != 0)
-    mtevL(noit_error, "local config write failed\n");
+    mtevL(jlog_streamer_err, "local config write failed\n");
   mtev_conf_mark_changed();
   mtev_http_response_end(ctx);
   return 0;
@@ -1370,7 +1401,7 @@ rest_delete_noit(mtev_http_rest_closure_t *restc,
   else
     mtev_http_response_not_found(ctx, "text/xml");
   if(mtev_conf_write_file(NULL) != 0)
-    mtevL(noit_error, "local config write failed\n");
+    mtevL(jlog_streamer_err, "local config write failed\n");
   mtev_conf_mark_changed();
   mtev_http_response_end(ctx);
   return 0;
@@ -1461,6 +1492,11 @@ stratcon_jlog_streamer_init(const char *toplevel) {
   struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
   struct in_addr remote;
   char uuid_str[UUID_STR_LEN + 1];
+
+  jlog_streamer_err = mtev_log_stream_find("error/stratcon_jlog_streamer");
+  jlog_streamer_deb = mtev_log_stream_find("debug/stratcon_jlog_streamer");
+  if(!jlog_streamer_err) jlog_streamer_err = mtev_error;
+  if(!jlog_streamer_deb) jlog_streamer_deb = mtev_debug;
 
   mtev_reverse_socket_acl(mtev_reverse_socket_allow_noits);
   pthread_mutex_init(&noits_lock, NULL);
