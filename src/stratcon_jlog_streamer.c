@@ -81,6 +81,28 @@ static const char *feed_type_to_str(int jlog_feed_cmd) {
   return "unknown";
 }
 
+static const char *jlog_state_to_str(int state) {
+  switch(state) {
+    case JLOG_STREAMER_WANT_INITIATE: return "initiate"; break;
+    case JLOG_STREAMER_WANT_COUNT: return "waiting for next batch"; break;
+    case JLOG_STREAMER_WANT_ERROR: return "waiting for error"; break;
+    case JLOG_STREAMER_WANT_HEADER: return "reading header"; break;
+    case JLOG_STREAMER_WANT_BODY: return "reading body"; break;
+    case JLOG_STREAMER_IS_ASYNC: return "asynchronously processing"; break;
+    case JLOG_STREAMER_WANT_CHKPT: return "checkpointing"; break;
+  }
+  return "unknown";
+}
+
+static void change_state(jlog_streamer_ctx_t *ctx, mtev_connection_ctx_t *nctx, int new_state) {
+  mtevL(jlog_streamer_deb, "changing state from %s to %s - [%s] [%s]\n",
+          jlog_state_to_str(ctx->state),
+          jlog_state_to_str(new_state),
+          (nctx && nctx->remote_str) ? nctx->remote_str : "(null)",
+          (nctx && nctx->remote_cn) ? nctx->remote_cn : "(null)");
+  ctx->state = new_state;
+}
+
 #define GET_EXPECTED_CN(nctx, cn) do { \
   void *vcn; \
   cn = NULL; \
@@ -323,7 +345,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       mtevL(jlog_streamer_err, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
             nctx->remote_cn ? nctx->remote_cn : "(null)", strerror(errno));
  socket_error:
-    ctx->state = JLOG_STREAMER_WANT_INITIATE;
+    change_state(ctx, nctx, JLOG_STREAMER_WANT_INITIATE);
     ctx->count = 0;
     ctx->needs_chkpt = 0;
     ctx->bytes_read = 0;
@@ -353,7 +375,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                 (int)len, (int)sizeof(ctx->jlog_feed_cmd));
           goto socket_error;
         }
-        ctx->state = JLOG_STREAMER_WANT_COUNT;
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
         break;
 
       case JLOG_STREAMER_WANT_ERROR:
@@ -374,14 +396,14 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                                    nctx->remote_str, (char *)cn_expected,
                                    ctx->count);
         if(ctx->count < 0)
-          ctx->state = JLOG_STREAMER_WANT_ERROR;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_ERROR);
         else
-          ctx->state = JLOG_STREAMER_WANT_HEADER;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER);
         break;
 
       case JLOG_STREAMER_WANT_HEADER:
         if(ctx->count == 0) {
-          ctx->state = JLOG_STREAMER_WANT_COUNT;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
           break;
         }
         FULLREAD(e, ctx, sizeof(ctx->header));
@@ -397,7 +419,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                                     ctx->header.tv_sec, ctx->header.tv_usec,
                                     ctx->header.message_len);
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = JLOG_STREAMER_WANT_BODY;
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_BODY);
         break;
 
       case JLOG_STREAMER_WANT_BODY:
@@ -424,7 +446,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           completion_e = eventer_alloc_copy(e);
           nctx->e = completion_e;
           eventer_set_mask(completion_e, EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION);
-          ctx->state = JLOG_STREAMER_IS_ASYNC;
+          change_state(ctx, nctx, JLOG_STREAMER_IS_ASYNC);
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
                     NULL, completion_e);
           mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: Pushing %s batch async [%s] [%s]: [%u/%u]\n",
@@ -436,13 +458,13 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           return 0;
         }
         else if(ctx->count == 0)
-          ctx->state = JLOG_STREAMER_WANT_CHKPT;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT);
         else
-          ctx->state = JLOG_STREAMER_WANT_HEADER;
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER);
         break;
 
       case JLOG_STREAMER_IS_ASYNC:
-        ctx->state = JLOG_STREAMER_WANT_CHKPT; /* falls through */
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT); /* falls through */
       case JLOG_STREAMER_WANT_CHKPT:
         mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: Pushing %s checkpoint [%s] [%s]: [%u/%u]\n",
               feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
@@ -472,7 +494,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         STRATCON_STREAM_CHECKPOINT(eventer_get_fd(e), (char *)feedtype,
                                         nctx->remote_str, (char *)cn_expected,
                                         ctx->header.chkpt.log, ctx->header.chkpt.marker);
-        ctx->state = JLOG_STREAMER_WANT_COUNT;
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
         break;
     }
   }
