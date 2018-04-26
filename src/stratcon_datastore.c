@@ -59,6 +59,7 @@
 #include "stratcon_iep.h"
 #include "noit_check.h"
 
+static eventer_jobq_t *push_jobq = NULL;
 static mtev_log_stream_t ds_err = NULL;
 static mtev_log_stream_t ds_deb = NULL;
 static mtev_log_stream_t ds_pool_deb = NULL;
@@ -348,7 +349,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       syncset->ws = stratcon_datastore_journal_remove(remote, remote_cn);
       syncset->completion = completion;
       e = eventer_alloc_asynch(stratcon_datastore_journal_sync, syncset);
-      eventer_add(e);
+      eventer_add_asynch(push_jobq, e);
       break;
     case DS_OP_FIND_COMPLETE:
       rt = operand;
@@ -450,6 +451,12 @@ stratcon_datastore_init() {
   static int initialized = 0;
   if(initialized) return;
   initialized = 1;
+  int concurrency = 32;
+
+  push_jobq = eventer_jobq_create("stratcon_datastore_push_jobq");
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "//pools/stratcon_datastore_push_jobq/@concurrency", &concurrency);
+  eventer_jobq_set_concurrency(push_jobq, concurrency);
+
   stratcon_datastore_core_init();
 
   stratcon_ingest_sweep_journals(basejpath,
