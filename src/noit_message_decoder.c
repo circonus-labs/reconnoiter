@@ -410,10 +410,10 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
 static int
 tag_canonical_size(noit_metric_tag_t *tag) {
   int len;
-  char dbuff[NOIT_TAG_MAX_PAIR_LEN], ebuff[NOIT_TAG_MAX_PAIR_LEN];
+  char dbuff[NOIT_TAG_MAX_PAIR_LEN];
   len = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tag->tag, tag->total_size);
   if(len < 0) return 0;
-  len = noit_metric_tagset_encode_tag(ebuff, sizeof(ebuff), dbuff, len);
+  len = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, len);
   if(len < 0) return 0;
   return len;
 }

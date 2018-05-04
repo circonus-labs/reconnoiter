@@ -2014,15 +2014,6 @@ noit_metric_guess_type(const char *s, void **replacement) {
   return type;
 }
 
-static void
-cleanse_metric_name(char *m) {
-  char *cp;
-  for(cp = m; *cp; cp++)
-    if(!isprint(*cp)) *cp=' ';
-  for(cp--; *cp == ' ' && cp > m; cp--) /* always leave first char */
-    *cp = '\0';
-}
-
 static int
 noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
@@ -2035,7 +2026,6 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
   }
 
   m->metric_name = strdup(name);
-  cleanse_metric_name(m->metric_name);
   if(noit_metric_canonicalize(m->metric_name, strlen(m->metric_name),
                               m->metric_name, strlen(m->metric_name),
                               mtev_true) <= 0) {
@@ -2070,10 +2060,8 @@ noit_stats_get_metric(noit_check_t *check,
   void *v;
   char name_copy[MAX_METRIC_TAGGED_NAME];
   if(strlen(name) > sizeof(name_copy)-1) return NULL;
-  memcpy(name_copy, name, strlen(name)+1);
-  cleanse_metric_name(name_copy);
-  if(noit_metric_canonicalize(name_copy, strlen(name_copy),
-                              name_copy, strlen(name_copy), mtev_true) <= 0)
+  if(noit_metric_canonicalize(name, strlen(name),
+                              name_copy, sizeof(name_copy), mtev_true) <= 0)
     return NULL;
   if(newstate == NULL)
     newstate = stats_inprogress(check);
@@ -2127,10 +2115,8 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
                              struct timeval *timestamp) {
   char name[MAX_METRIC_TAGGED_NAME];
   if(strlen(name_raw) > sizeof(name)-1) return;
-  memcpy(name, name_raw, strlen(name_raw)+1);
-  cleanse_metric_name(name);
-  if(noit_metric_canonicalize(name, strlen(name),
-                              name, strlen(name), mtev_true) <= 0)
+  if(noit_metric_canonicalize(name_raw, strlen(name_raw),
+                              name, sizeof(name), mtev_true) <= 0)
     return;
   char *endptr;
   stats_t *c;

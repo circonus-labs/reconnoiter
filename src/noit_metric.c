@@ -531,9 +531,8 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   int n_stags = 0, n_mtags = 0;
   char buff[MAX_METRIC_TAGGED_NAME];
   if(output_len < input_len) return -1;
-  if(input != output) memcpy(output, input, input_len);
-
   if(input_len > MAX_METRIC_TAGGED_NAME) return -1;
+  if(input != output) memcpy(output, input, input_len);
 
   for(i=0; i<input_len; i++) ntags += (input[i] == ',');
   if(ntags > MAX_TAGS) return -1;
