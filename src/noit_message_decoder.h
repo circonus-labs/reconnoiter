@@ -40,7 +40,7 @@
 API_EXPORT(int)
   noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit);
 
-API_EXPORT(void)
+API_EXPORT(int)
   noit_metric_process_tags(noit_metric_message_t *metric);
 
 API_EXPORT(int)

@@ -37,6 +37,8 @@
 #include <mtev_defines.h>
 #include <mtev_atomic.h>
 
+#define MAX_METRIC_TAGGED_NAME 4096
+
 typedef enum {
   METRIC_ABSENT = 0,
   METRIC_GUESS = '0',
@@ -77,6 +79,7 @@ typedef enum {
 } noit_message_type;
 
 #define NOIT_TAG_MAX_COMPONENT_LEN 127
+#define NOIT_TAG_MAX_PAIR_LEN 256
 
 typedef struct {
   uint16_t total_size;
@@ -94,9 +97,11 @@ typedef struct {
   uuid_t id;
   const char *name;
   int name_len;
+  int name_len_with_tags;
   uint64_t account_id;
   noit_metric_tagset_t stream;
   noit_metric_tagset_t measurement;
+  char *alloc_name;
 } noit_metric_id_t;
 
 typedef struct {
@@ -156,6 +161,9 @@ API_EXPORT(mtev_boolean)
 API_EXPORT(mtev_boolean)
   noit_metric_tagset_is_taggable_value(const char *val, size_t len);
 API_EXPORT(size_t)
+  noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, 
+                                const char *decoded_tag, size_t decoded_len);
+API_EXPORT(size_t)
   noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, 
                                 const char *encoded_tag, size_t encoded_size);
 API_EXPORT(int)
@@ -178,5 +186,9 @@ API_EXPORT(mtev_boolean)
 API_EXPORT(mtev_boolean)
   noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder, noit_metric_tagset_t *out,
                                  char **canonical);
+
+API_EXPORT(ssize_t)
+  noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
+                           mtev_boolean null_term);
 
 #endif
