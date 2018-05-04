@@ -269,18 +269,23 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
   noit_websocket_closure_t *handler_data = restc->call_closure;
 
   /* for now this message is JSON, that might change in the future */
-
   struct mtev_json_tokener *tok = mtev_json_tokener_new();
   struct mtev_json_object *request = mtev_json_tokener_parse_ex(tok, (const char *)msg, msg_len);
   enum mtev_json_tokener_error err = tok->err;
   mtev_json_tokener_free(tok);
-  if (err != mtev_json_tokener_success) {
+  if (err != mtev_json_tokener_success || !request) {
     error = "Unable to parse incoming json";
     goto websocket_handler_error;
   }
 
-  uint64_t period_ms = mtev_json_object_get_uint64(mtev_json_object_object_get(request, "period_ms"));
-  const char *check_uuid = mtev_json_object_get_string(mtev_json_object_object_get(request, "check_uuid"));
+  struct mtev_json_object *jperiod_ms = mtev_json_object_object_get(request, "period_ms"),
+                          *jcheck_uuid = mtev_json_object_object_get(request, "check_uuid");
+  if(!jperiod_ms || !jcheck_uuid) {
+    error = "malformed request object";
+    goto websocket_handler_error;
+  }
+  uint64_t period_ms = mtev_json_object_get_uint64(jperiod_ms);
+  const char *check_uuid = mtev_json_object_get_string(jcheck_uuid);
   struct mtev_json_object *metrics = mtev_json_object_object_get(request, "metrics");
 
   if (handler_data != NULL) {
@@ -316,6 +321,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
     goto websocket_handler_error;
   }
   mtev_json_object_put(request);
+  request = NULL;
 
   /* setup subscription to noit_livestream */
   asprintf(&handler_data->feed, "websocket_livestream/%d", mtev_atomic_inc32(&ls_counter));
@@ -340,6 +346,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
   return 0;
 
  websocket_handler_error:
+  if(request) mtev_json_object_put(request);
   {
     struct mtev_json_object *e = mtev_json_object_new_object();
     mtev_json_object_object_add(e, "success", mtev_json_object_new_int(0));
@@ -353,6 +360,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
     mtev_http_websocket_queue_msg(restc->http_ctx,
                                   WSLAY_TEXT_FRAME | WSLAY_CONNECTION_CLOSE,
                                   (const unsigned char *)json_error, strlen(json_error));
+    mtevL(noit_error, "websocket error: %s\n", error);
     mtev_json_object_put(e);
   }
 #endif
