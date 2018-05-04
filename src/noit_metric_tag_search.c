@@ -79,7 +79,7 @@ build_regex_from_expansion(const char *expansion) {
   return regex;
 }
 static mtev_boolean
-noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
+noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int part) {
   char decoded_tag[512];
   const char *query = *endq;
   const char *error;
@@ -91,8 +91,15 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
   }
   if(*query == '/') {
     *endq = query+1;
-    while(**endq && **endq != '/') (*endq)++;
-    if(**endq != '/') return mtev_false;
+    while(**endq && **endq != ',' && **endq != ')' && (part == 2 || **endq != ':')) (*endq)++;
+    if(**endq != ',' && **endq != ')' && (part == 2 || **endq != ':')) return mtev_false;
+    (*endq)--;
+    if(*endq <= query) return mtev_false;
+    if(**endq != '/') {
+      /* not a regex */
+      *endq = query;
+      goto not_a_regex;
+    }
     if (is_encoded) {
       int len = mtev_b64_decode(query + 1, *endq - query - 1, (unsigned char *)decoded_tag, 
 				sizeof(decoded_tag));
@@ -111,6 +118,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq) {
     (*endq)++;
   }
   else {
+    not_a_regex:
     if (is_encoded) {
       if (*query != '"') return mtev_false;
       *endq = query + 1;
@@ -184,10 +192,10 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
   else if(allow_match) {
     node = calloc(1, sizeof(*node));
     node->operation = OP_MATCH;
-    if(!noit_metric_tag_match_compile(&node->contents.spec.cat, endq)) goto error;
+    if(!noit_metric_tag_match_compile(&node->contents.spec.cat, endq, 1)) goto error;
     if(**endq == ':') {
       (*endq)++;
-      if(!noit_metric_tag_match_compile(&node->contents.spec.name, endq)) goto error;
+      if(!noit_metric_tag_match_compile(&node->contents.spec.name, endq, 2)) goto error;
     }
   }
   return node;

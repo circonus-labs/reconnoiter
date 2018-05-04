@@ -120,14 +120,44 @@ void test_tag_decode()
 void test_ast_decode()
 {
   int erroroffset;
+  noit_metric_tag_search_ast_t *ast;
 
   /* simple test */
-  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
+  ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
   test_assert(ast != NULL);
   test_assert(ast->operation == OP_AND_ARGS);
   test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
   test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
   test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+  noit_metric_tag_search_free(ast);
+  
+  /* half / test */
+  ast = noit_metric_tag_search_parse("and(/endpoint`latency:/bar)", &erroroffset);
+  if(ast) {
+  test_assert(ast->operation == OP_AND_ARGS);
+  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"/endpoint`latency") == 0);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"/bar") == 0);
+  noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "error at %d", erroroffset);
+  
+  /* simple re key test */
+  ast = noit_metric_tag_search_parse("and(/foo/:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  test_assert(ast->operation == OP_AND_ARGS);
+  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+  noit_metric_tag_search_free(ast);
+  
+  /* simple re val test */
+  ast = noit_metric_tag_search_parse("and(foo:/bar/)", &erroroffset);
+  test_assert(ast != NULL);
+  test_assert(ast->operation == OP_AND_ARGS);
+  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+  test_assert(ast->contents.args.node[0]->contents.spec.name.re != NULL);
   noit_metric_tag_search_free(ast);
   
   /* base64 fixed category */
@@ -282,5 +312,6 @@ int main(int argc, const char **argv)
   loop("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");
   loop("testing_this_long_untagged_metric");
+  printf("\n%d tests failed.\n", failures);
   return !(failures == 0);
 }
