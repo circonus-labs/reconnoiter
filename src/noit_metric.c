@@ -40,6 +40,7 @@
 #include <mtev_str.h>
 #include <mtev_log.h>
 #include <circllhist.h>
+#include <ctype.h>
 
 #include <stdio.h>
 
@@ -496,6 +497,32 @@ decode_tags(noit_metric_tag_t *tags, int ntags) {
     tags[i].total_size = noit_metric_tagset_decode_tag((char *)tags[i].tag, tags[i].total_size, tags[i].tag, tags[i].total_size);
   }
 }
+mtev_boolean
+noit_metric_name_is_clean(const char *m, size_t len) {
+  if(len<1) return mtev_true;
+  if(!isprint(m[0]) || isspace(m[0]) ||
+     !isprint(m[len-1]) || isspace(m[len-1])) return mtev_false;
+  for(int i=1; i<len-1; i++) {
+    if(m[i] != ' ' && (!isprint(m[i]) || isspace(m[i]))) {
+      return mtev_false;
+    }
+  }
+  return mtev_true;
+}
+size_t
+noit_metric_clean_name(char *m, size_t len) {
+  char *ip = m;
+  char *op = m;
+  char *end = m + len;
+  /* eat leading junk */
+  while(ip < end && (!isprint(*ip) || isspace(*ip))) ip++;
+  while(ip < end) {
+    *op++ = (!isprint(*ip) || isspace(*ip)) ? ' ' : *ip;
+    ip++;
+  }
+  while(op-1 > m && *(op-1) == ' ') op--;
+  return op - m;
+}
 ssize_t
 noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
                          mtev_boolean null_term) {
@@ -526,6 +553,9 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   /* write to buff then copy to allow for output and input to be the same */
   char *out = buff;
   int len;
+
+  input_len = noit_metric_clean_name(output, input_len);
+  if(input_len < 1) return -1;
   memcpy(out, output, input_len);
   out += input_len;
   if(n_stags) {

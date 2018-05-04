@@ -5,6 +5,57 @@
 #include <assert.h>
 #include <sys/time.h>
 
+const char *tcpairs[][2] = {
+
+  { "/transmissions`latency|ST[b\"bjo6Og==\":b\"YT1i\",customer:noone,node:j.mta2vrest.cc.aws-usw2a.prd.acme,cluster:mta2]",
+    "/transmissions`latency|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.cc.aws-usw2a.prd.acme]" },
+
+  { "woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]",
+    "woop|ST[a:b,c:d,e:f]|MT{foo:bar}" },
+
+  { "simple string with spaces",
+    "simple string with spaces" },
+
+  { "trailing space|ST[foo:bar] ", NULL },
+  { "colonfest|ST[f:o:ba::::r:]", "colonfest|ST[f:o:ba::::r:]" },
+
+  { "  a\n\t stupid\bbad person did this \t\r\n|ST[foo:bar]",
+    "a   stupid bad person did this|ST[foo:bar]" }
+};
+
+const struct {
+  const char *name;
+  const char *input;
+  const char *output;
+  int rval;
+  mtev_boolean allocd;
+} testlines[] = {
+  {
+    "test1",
+    "H1\t1525385460.000\tpush`httptrap`c_933_247631::httptrap`43e5c324-44c2-4877-a625-3b4c8230f2eb\tSuperSimpleMetricName|ST[a:b,c:d]\tAAUK/wACDP8AARH/AAEa/wABVP8AAQ==",
+    "SuperSimpleMetricName|ST[a:b,c:d]",
+    1, mtev_false
+  },
+  {
+    "test2 (unordered and overly encoded)",
+    "H1\t1525385460.000\tpush`httptrap`c_933_247631::httptrap`43e5c324-44c2-4877-a625-3b4c8230f2eb\t/transmissions`latency|ST[b\"bjo6Og==\":b\"YT1i\",customer:noone,node:j.mta2vrest.cc.aws-usw2a.prd.acme,cluster:mta2]\tAAUK/wACDP8AARH/AAEa/wABVP8AAQ==",
+    "/transmissions`latency|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.cc.aws-usw2a.prd.acme]",
+    1, mtev_true
+  },
+  {
+    "test3 (invalid tag)",
+    "H1\t1525385460.000\tpush`httptrap`c_933_247631::httptrap`43e5c324-44c2-4877-a625-3b4c8230f2eb\t/transmissions`latency|ST[b\"bjo6Og==\":b\"YT1i\",c{ustomer:noone,node:j.mta2vrest.cc.aws-usw2a.prd.acme,cluster:mta2]\tAAUK/wACDP8AARH/AAEa/wABVP8AAQ==",
+    NULL,
+    -7, mtev_false
+  },
+  {
+    "test4 (spacefest)",
+    "H1\t1525385460.000\tpush`httptrap`c_933_247631::httptrap`43e5c324-44c2-4877-a625-3b4c8230f2eb\t \bSuperSpacey\r\n|ST[a:b,c:d]\tAAUK/wACDP8AARH/AAEa/wABVP8AAQ==",
+    "SuperSpacey|ST[a:b,c:d]",
+    1, mtev_true
+  },
+};
+
 int ntest = 0;
 int failures = 0;
 #define test_assert(a) do { \
@@ -15,6 +66,15 @@ int failures = 0;
     printf("not ok - %d (%s)\n", ntest, #a); \
     failures++; \
   } \
+} while(0)
+
+#define test_assert_namef(valid, fmt, args...) do { \
+  int __valid = valid; \
+  ntest++; \
+  if(!__valid) failures++; \
+  printf("%s - %d (", __valid ? "ok" : "not ok", ntest); \
+  printf(fmt, args); \
+  printf(")\n"); \
 } while(0)
 
 void test_tag_decode()
@@ -135,6 +195,38 @@ void test_tag_match()
   noit_metric_tag_search_free(ast);
 }
 
+void test_canon(const char *in, const char *expect) {
+  int len;
+  char buff[MAX_METRIC_TAGGED_NAME];
+  len = noit_metric_canonicalize(in, strlen(in), buff, sizeof(buff), mtev_true);
+  if(len < 0) test_assert_namef(expect == NULL, "canon(%s) -> NULL", in);
+  else test_assert_namef(expect && !strcmp(expect, buff), "canon(%s) -> %s", expect, buff);
+}
+
+void test_line(const char *name, const char *in, const char *expect, int rval_expect, mtev_boolean allocd) {
+  noit_metric_message_t message;
+  memset(&message, 0, sizeof(message));
+  message.original_message = (char *)in;
+  int rval = noit_message_decoder_parse_line(&message, 0);
+  test_assert_namef(allocd != (message.id.alloc_name == NULL), "test_line(%s) allocd", name);
+  test_assert_namef(rval == rval_expect, "test_line(%s) rval [%d should be %d]", name, rval, rval_expect);
+  if(expect != NULL) {
+     int v = strlen(expect) == message.id.name_len_with_tags &&
+             !memcmp(message.id.name, expect, message.id.name_len_with_tags);
+     test_assert_namef(v,
+                       "test_line(%s) metric match", name);
+     if(v == 0) {
+       printf("\nFAILURE:\nRESULT: '%.*s'\nEXPECT: '%s'\n\n",
+              (int)message.id.name_len_with_tags, message.id.name, expect);
+     }
+  }
+  else {
+    test_assert_namef(message.id.name_len_with_tags == 0 || rval < 0,
+                      "test_line(%s) metric null", name);
+  }
+  noit_metric_message_clear(&message);
+}
+
 void metric_parsing(void) {
   int len;
   char buff[NOIT_TAG_MAX_PAIR_LEN], dbuff[NOIT_TAG_MAX_PAIR_LEN], ebuff[NOIT_TAG_MAX_PAIR_LEN];
@@ -153,47 +245,15 @@ void metric_parsing(void) {
   test_assert(len > 0);
   test_assert(strcmp("foo:http://12.3.3.4:80/this?is=it", ebuff) == 0);
 
-  char *hbuff;
-  noit_metric_message_t message;
-  int rval;
+  int i;
 
-  hbuff = "H1\t1525385460.000\tpush`httptrap`c_933_247631::httptrap`43e5c324-44c2-4877-a625-3b4c8230f2eb\tSuperSimpleMetricName|ST[a:b,c:d]\tAAUK/wACDP8AARH/AAEa/wABVP8AAQ==";
-  memset(&message, 0, sizeof(message));
-  message.original_message = hbuff;
-  rval = noit_message_decoder_parse_line(&message, 0);
-  test_assert(message.id.alloc_name == NULL);
-  test_assert(rval == 1);
-  noit_metric_message_clear(&message);
+  for(i=0; i<sizeof(testlines)/sizeof(*testlines); i++) {
+    test_line(testlines[i].name, testlines[i].input, testlines[i].output, testlines[i].rval, testlines[i].allocd);
+  }
 
-  hbuff = "H1\t1525385460.000\tpush`httptrap`c_933_247631::httptrap`43e5c324-44c2-4877-a625-3b4c8230f2eb\t/transmissions`latency|ST[b\"bjo6Og==\":b\"YT1i\",customer:noone,node:j.mta2vrest.cc.aws-usw2a.prd.acme,cluster:mta2]\tAAUK/wACDP8AARH/AAEa/wABVP8AAQ==";
-  memset(&message, 0, sizeof(message));
-  message.original_message = hbuff;
-  rval = noit_message_decoder_parse_line(&message, 0);
-  test_assert(message.id.alloc_name);
-  test_assert(rval == 1);
-  noit_metric_message_clear(&message);
-
-  /* This one has a stray { in one of the tag keys. */  
-  hbuff = "H1\t1525385460.000\tpush`httptrap`c_933_247631::httptrap`43e5c324-44c2-4877-a625-3b4c8230f2eb\t/transmissions`latency|ST[b\"bjo6Og==\":b\"YT1i\",c{ustomer:noone,node:j.mta2vrest.cc.aws-usw2a.prd.acme,cluster:mta2]\tAAUK/wACDP8AARH/AAEa/wABVP8AAQ==";
-  memset(&message, 0, sizeof(message));
-  message.original_message = hbuff;
-  rval = noit_message_decoder_parse_line(&message, 0);
-  test_assert(message.id.alloc_name == NULL);
-  test_assert(rval < 0);
-  noit_metric_message_clear(&message);
-
-  hbuff = strdup("/transmissions`latency|ST[b\"bjo6Og==\":b\"YT1i\",customer:noone,node:j.mta2vrest.cc.aws-usw2a.prd.acme,cluster:mta2]");
-  len = noit_metric_canonicalize(hbuff, strlen(hbuff), hbuff, strlen(hbuff), mtev_true);
-  test_assert(len > 0);
-  test_assert(!strcmp(hbuff, "/transmissions`latency|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.cc.aws-usw2a.prd.acme]"));
-  free(hbuff);
-
-  hbuff = strdup("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
-  len = noit_metric_canonicalize(hbuff, strlen(hbuff), hbuff, strlen(hbuff), mtev_true);
-  test_assert(len > 0);
-  test_assert(!strcmp(hbuff, "woop|ST[a:b,c:d,e:f]|MT{foo:bar}"));
-  free(hbuff);
-
+  for(int i=0; i<sizeof(tcpairs)/sizeof(*tcpairs); i++) {
+    test_canon(tcpairs[i][0], tcpairs[i][1]);
+  }
 }
 
 void loop(char *str) {
@@ -218,6 +278,7 @@ int main(int argc, const char **argv)
   test_tag_decode();
   test_ast_decode();
   metric_parsing();
+  printf("\nPerformance:\n====================\n");
   loop("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");
   loop("testing_this_long_untagged_metric");

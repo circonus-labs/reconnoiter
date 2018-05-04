@@ -187,6 +187,12 @@ API_EXPORT(mtev_boolean)
   noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder, noit_metric_tagset_t *out,
                                  char **canonical);
 
+API_EXPORT(mtev_boolean)
+  noit_metric_name_is_clean(const char *m, size_t len);
+
+API_EXPORT(size_t)
+  noit_metric_clean_name(char *m, size_t len);
+
 API_EXPORT(ssize_t)
   noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
                            mtev_boolean null_term);
