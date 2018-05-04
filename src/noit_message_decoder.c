@@ -39,6 +39,7 @@
 #include <mtev_str.h>
 
 #include "noit_metric.h"
+#include "noit_metric_private.h"
 
 #define MOVE_TO_NEXT_TAB(cp, lvalue) do { \
   lvalue = memchr(cp, '\t', strlen(cp)); \
@@ -79,19 +80,86 @@ noit_metric_extract_tags(const char *in, int *inlen,
   *inlen = tag_start - in;
   return mtev_true;
 }
-void
-noit_metric_process_tags(noit_metric_message_t *metric) {
+static int
+noit_metric_process_tags_phase(noit_metric_message_t *metric, int phase) {
   noit_metric_tagset_builder_t stream_builder, measurement_builder;
   noit_metric_tagset_builder_start(&stream_builder);
   noit_metric_tagset_builder_start(&measurement_builder);
+  int starting_name_len = metric->id.name_len;
+  char buff[MAX_METRIC_TAGGED_NAME];
+  metric->id.name_len_with_tags = metric->id.name_len;
+  if(starting_name_len > sizeof(buff)) return -1;
   while(
     noit_metric_extract_tags(metric->id.name, &metric->id.name_len,
                              "|ST[", ']', &stream_builder) ||
     noit_metric_extract_tags(metric->id.name, &metric->id.name_len,
                              "|MT{", '}', &measurement_builder)
   );
-  noit_metric_tagset_builder_end(&stream_builder, &metric->id.stream, NULL);
-  noit_metric_tagset_builder_end(&measurement_builder, &metric->id.measurement, NULL);
+  if(phase == 1) {
+    char *stagnm = NULL, *mtagnm = NULL;
+    noit_metric_tagset_builder_end(&stream_builder, &metric->id.stream, &stagnm);
+    noit_metric_tagset_builder_end(&measurement_builder, &metric->id.measurement, &mtagnm);
+    int stagnmlen = stagnm ? strlen(stagnm) : 0;
+    int mtagnmlen = mtagnm ? strlen(mtagnm) : 0;
+    if((stagnm ? stagnmlen + 5 : 0) +
+       (mtagnm ? mtagnmlen + 5 : 0) +
+       metric->id.name_len > starting_name_len) return -1;
+    char *out = buff;
+    memcpy(out, metric->id.name, metric->id.name_len);
+    out += metric->id.name_len;
+    if(stagnm) {
+      memcpy(out, "|ST[", 4);
+      out += 4;
+      memcpy(out, stagnm, stagnmlen);
+      out += stagnmlen;
+      *out++ = ']';
+    }
+    if(mtagnm) {
+      memcpy(out, "|MT{", 4);
+      out += 4;
+      memcpy(out, mtagnm, mtagnmlen);
+      out += mtagnmlen;
+      *out++ = '}';
+    }
+    *out = '\0';
+    free(stagnm);
+    free(mtagnm);
+    if(!noit_metric_name_is_clean(metric->id.name, metric->id.name_len) ||
+       out-buff != metric->id.name_len_with_tags ||
+       memcmp(buff, metric->id.name, metric->id.name_len_with_tags)) {
+      metric->id.alloc_name = strdup(buff);
+      size_t initial_just_name_len = metric->id.name_len;
+      metric->id.name_len = noit_metric_clean_name(metric->id.alloc_name, metric->id.name_len);
+      if(metric->id.name_len > initial_just_name_len) return -1;
+      if(initial_just_name_len != metric->id.name_len) {
+        memmove(metric->id.alloc_name + metric->id.name_len,
+                metric->id.alloc_name + initial_just_name_len,
+                (out-buff) - initial_just_name_len);
+        out -= (initial_just_name_len - metric->id.name_len);
+      }
+      metric->id.name_len = out-buff;
+      metric->id.name = metric->id.alloc_name;
+      metric->id.name_len_with_tags = metric->id.name_len;
+      free(metric->id.stream.tags);
+      metric->id.stream.tags = NULL;
+      metric->id.stream.tag_count = 0;
+      free(metric->id.measurement.tags);
+      metric->id.measurement.tags = NULL;
+      metric->id.measurement.tag_count = 0;
+      return noit_metric_process_tags_phase(metric, 2);
+    }
+  }
+  else {
+    noit_metric_tagset_builder_end(&stream_builder, &metric->id.stream, NULL);
+    noit_metric_tagset_builder_end(&measurement_builder, &metric->id.measurement, NULL);
+  }
+  return metric->id.name_len == 0 ||
+         strnstrn("|ST[", 4, metric->id.name, metric->id.name_len) ||
+         strnstrn("|MT{", 4, metric->id.name, metric->id.name_len);
+}
+int
+noit_metric_process_tags(noit_metric_message_t *metric) {
+  return noit_metric_process_tags_phase(metric, 1);
 }
 int noit_is_timestamp(const char *line, int len) {
   int is_ts = 0;
@@ -184,7 +252,12 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
       return -5;
 
     message->id.name_len = metric_type_str - message->id.name - 1;
-    noit_metric_process_tags(message);
+    if(message->id.name_len > MAX_METRIC_TAGGED_NAME) {
+      return -6;
+    }
+    if(noit_metric_process_tags(message) != 0) {
+      return -7;
+    }
 
     message->value.type = *metric_type_str;
 
@@ -234,7 +307,9 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
       return -4;
 
     message->id.name_len = value_str - message->id.name - 1;
-    noit_metric_process_tags(message);
+    if(noit_metric_process_tags(message) != 0) {
+      return -7;
+    }
 
     int vstrlen = strlen(value_str);
 
@@ -269,6 +344,7 @@ void noit_metric_message_clear(noit_metric_message_t* message) {
     if(message->original_allocated) free(message->original_message);
     message->original_message = NULL;
   }
+  free(message->id.alloc_name);
   free(message->id.stream.tags);
   message->id.stream.tag_count = 0;
   free(message->id.measurement.tags);
@@ -299,7 +375,7 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
   size_t cur_size = 0;
   while(cur_size < tagnmlen) {
     char test_char = tagnm[cur_size];
-    if(test_char == ':') {
+    if(test_char == ':' && !colon_pos) {
       if(!cur_size) {
         /* need at least one byte for category name. */
         return 0;
@@ -309,14 +385,12 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
         return 0;
       }
       colon_pos = cur_size;
+      if(!noit_metric_tagset_is_taggable_key(tagnm, cur_size)) return 0;
     }
     else if(test_char == ',') {
       /* tag-separation char, terminates this loop. */
+      if(!noit_metric_tagset_is_taggable_value(&tagnm[colon_pos+1], cur_size-colon_pos-1)) return 0;
       break;
-    }
-    else {
-      /* expect a valid tag character */
-      if(!noit_metric_tagset_is_taggable_key(&test_char, 1)) return 0;
     }
     cur_size++;
   }
@@ -334,17 +408,15 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
 }
 
 static int
-noit_metric_tags_compare(const void *v_l, const void *v_r) {
-  const noit_metric_tag_t *l = (noit_metric_tag_t *) v_l;
-  const noit_metric_tag_t *r = (noit_metric_tag_t *) v_r;
-  size_t memcmp_len = l->total_size < r->total_size ? l->total_size : r->total_size;
-  int cmp_rslt = memcmp(l->tag, r->tag, memcmp_len);
-  if(cmp_rslt != 0) return cmp_rslt;
-  if(l->total_size < r->total_size) return -1;
-  if(l->total_size > r->total_size) return 1;
-  return 0;
+tag_canonical_size(noit_metric_tag_t *tag) {
+  int len;
+  char dbuff[NOIT_TAG_MAX_PAIR_LEN];
+  len = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tag->tag, tag->total_size);
+  if(len < 0) return 0;
+  len = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, len);
+  if(len < 0) return 0;
+  return len;
 }
-
 size_t
 noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
                          size_t *canonical_size_out) {
@@ -354,7 +426,7 @@ noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
     return tag_count;
   }
   else if(tag_count == 1) {
-    *canonical_size_out = tags[0].total_size;
+    *canonical_size_out = tag_canonical_size(&tags[0]);
     return tag_count;
   }
   /* output should be in lexically-sorted form */
@@ -365,7 +437,7 @@ noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
   size_t squash_index_right = 1;
   size_t sum_tags_len = 0;
   while(squash_index_right < tag_count) {
-    sum_tags_len += tags[squash_index_left].total_size;
+    sum_tags_len += tag_canonical_size(&tags[squash_index_left]);
 
     while(noit_metric_tags_compare(&tags[squash_index_left], &tags[squash_index_right]) == 0) {
       squash_index_right++;
@@ -380,7 +452,7 @@ noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
     else
       squash_index_right++;
   }
-  *canonical_size_out = sum_tags_len + tags[squash_index_left].total_size + squash_index_left;
+  *canonical_size_out = sum_tags_len + tag_canonical_size(&tags[squash_index_left]) + squash_index_left;
   return squash_index_left + 1;
 }
 
@@ -411,15 +483,27 @@ noit_metric_tags_parse(const char *tagnm, size_t tagnmlen,
 
 ssize_t
 noit_metric_tags_canonical(const noit_metric_tag_t *tags,
-                           size_t tag_count, char *tagnm, size_t tagnmlen) {
+                           size_t tag_count, char *tagnm, size_t tagnmlen,
+                           mtev_boolean already_decoded) {
+  char dbuff[NOIT_TAG_MAX_PAIR_LEN];
   if(!tag_count) return 0;
   size_t rval = 0;
   while(tag_count > 0) {
-    if(tagnmlen < tags[0].total_size) return -1;
-    memcpy(tagnm, tags[0].tag, tags[0].total_size);
-    tagnm += tags[0].total_size;
-    tagnmlen -= tags[0].total_size;
-    rval += tags[0].total_size;
+    int dlen;
+    if(already_decoded) {
+      dlen = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), tags->tag, tags->total_size);
+      if(dlen < 0) return -1;
+    } else {
+      dlen = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tags->tag, tags->total_size);
+      if(dlen < 0) return -1;
+      dlen = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, dlen);
+      if(dlen < 0) return -1;
+    }
+    if(tagnmlen < dlen) return -1;
+    memcpy(tagnm, dbuff, dlen);
+    tagnm += dlen;
+    tagnmlen -= dlen;
+    rval += dlen;
     tags++;
     tag_count--;
     if(tag_count > 0) {
@@ -441,7 +525,7 @@ noit_metric_tagset_from_tags(noit_metric_tagset_t *lookup,
    * anyway... helps our display logic. */
   char *canonical = malloc(canonical_size + 1);
   if(!canonical) return NULL;
-  if(noit_metric_tags_canonical(tags, tag_count, canonical, canonical_size) != canonical_size) {
+  if(noit_metric_tags_canonical(tags, tag_count, canonical, canonical_size, mtev_false) != canonical_size) {
     free((void *) canonical);
     return NULL;
   }

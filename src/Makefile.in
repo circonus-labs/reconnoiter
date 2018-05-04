@@ -1,4 +1,4 @@
-.SUFFIXES: .lo .re .c
+.SUFFIXES: .hlo .lo .re .c
 
 Q=
 ifeq ($(V),)
@@ -30,6 +30,7 @@ CC=@CC@
 SHLD=@SHLD@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@ -DHIDE_EVENTER_ABI
+COPT=-O5
 SHCFLAGS=@SHCFLAGS@
 CLINKFLAGS=@CLINKFLAGS@
 LUACFLAGS=@LUACFLAGS@
@@ -125,7 +126,7 @@ LUALIBS=@LUALIBS@
 
 LIBNOIT_OBJS=noit_check_log_helpers.lo noit_fb.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
-	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo \
+	noit_metric_director.lo noit_message_decoder.hlo noit_metric.hlo \
 	noit_metric_tag_search.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o noit_metric.o
@@ -167,6 +168,15 @@ libnoit-objs/%.lo:	%.lo
 	$(Q)mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	$(Q)cp $(@:libnoit-objs/%.lo=%.lo) $@
+	$(Q)if test -x "$(CTFCONVERT)" ; then \
+		echo "- making CTF ($@)" ; \
+		$(CTFCONVERT) $(CTFNOSTRIP) -i -l @VERSION@ $@ ; \
+	fi
+
+libnoit-objs/%.hlo:	%.hlo
+	$(Q)mkdir -p "`dirname $@`"
+	@echo "- making private $@"
+	$(Q)cp $(@:libnoit-objs/%.hlo=%.hlo) $@
 	$(Q)if test -x "$(CTFCONVERT)" ; then \
 		echo "- making CTF ($@)" ; \
 		$(CTFCONVERT) $(CTFNOSTRIP) -i -l @VERSION@ $@ ; \
@@ -297,6 +307,14 @@ stratcon_datastore.o:	stratcon_datastore.c
 	  $(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@ ; \
 	fi
 
+.c.hlo:
+	$(Q)if [ "`dirname $@`" != "." ] ; then \
+		(cd "`dirname $@`" && $(MAKE) "`basename $@`") ; \
+	else \
+		echo "- compiling $<" ; \
+	  $(CC) $(CPPFLAGS) $(COPT) $(SHCFLAGS) -c $< -o $@ ; \
+	fi
+
 .c.o:
 	$(Q)if [ "`dirname $@`" != "." ] ; then \
 		(cd "`dirname $@`" && $(MAKE) "`basename $@`") ; \
@@ -420,7 +438,7 @@ install-docs:
 install:	install-dirs install-docs install-headers install-noitd install-stratcond install-noitd-headers install-stratcond-headers
 
 clean:
-	rm -f *.lo *.o $(TARGETS)
+	rm -f *.hlo *.lo *.o $(TARGETS)
 	rm -f $(LIBNOIT)
 	rm -f module-online.h noit.env
 	rm -rf noit-objs stratcon-objs libnoit-objs

@@ -2014,16 +2014,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
   return type;
 }
 
-static void
-cleanse_metric_name(char *m) {
-  char *cp;
-  for(cp = m; *cp; cp++)
-    if(!isprint(*cp)) *cp=' ';
-  for(cp--; *cp == ' ' && cp > m; cp--) /* always leave first char */
-    *cp = '\0';
-}
-
-int
+static int
 noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
   void *replacement = NULL;
@@ -2035,7 +2026,12 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
   }
 
   m->metric_name = strdup(name);
-  cleanse_metric_name(m->metric_name);
+  if(noit_metric_canonicalize(m->metric_name, strlen(m->metric_name),
+                              m->metric_name, strlen(m->metric_name),
+                              mtev_true) <= 0) {
+    free(m->metric_name);
+    return -1;
+  }
 
   if(type == METRIC_GUESS)
     type = noit_metric_guess_type((char *)value, &replacement);
@@ -2062,9 +2058,14 @@ metric_t *
 noit_stats_get_metric(noit_check_t *check,
                       stats_t *newstate, const char *name) {
   void *v;
+  char name_copy[MAX_METRIC_TAGGED_NAME];
+  if(strlen(name) > sizeof(name_copy)-1) return NULL;
+  if(noit_metric_canonicalize(name, strlen(name),
+                              name_copy, sizeof(name_copy), mtev_true) <= 0)
+    return NULL;
   if(newstate == NULL)
     newstate = stats_inprogress(check);
-  if(mtev_hash_retrieve(&newstate->metrics, name, strlen(name), &v))
+  if(mtev_hash_retrieve(&newstate->metrics, name_copy, strlen(name_copy), &v))
     return (metric_t *)v;
   return NULL;
 }
@@ -2109,9 +2110,14 @@ noit_stats_set_metric(noit_check_t *check,
 
 void
 noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
-                             const char *name, metric_type_t t,
+                             const char *name_raw, metric_type_t t,
                              const char *v,
                              struct timeval *timestamp) {
+  char name[MAX_METRIC_TAGGED_NAME];
+  if(strlen(name_raw) > sizeof(name)-1) return;
+  if(noit_metric_canonicalize(name_raw, strlen(name_raw),
+                              name, sizeof(name), mtev_true) <= 0)
+    return;
   char *endptr;
   stats_t *c;
   c = noit_check_get_stats_inprogress(check);

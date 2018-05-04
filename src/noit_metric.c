@@ -33,13 +33,18 @@
  */
 
 #include "noit_metric.h"
+#include "noit_metric_private.h"
 
 #include <mtev_b64.h>
 #include <mtev_json_object.h>
 #include <mtev_str.h>
+#include <mtev_log.h>
 #include <circllhist.h>
+#include <ctype.h>
 
 #include <stdio.h>
+
+#define MAX_TAGS 256
 
 mtev_boolean
 noit_metric_as_double(metric_t *metric, double *out) {
@@ -217,17 +222,28 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 
 /*
  * map for ascii tags
- 
-  perl -e '$valid = qr/[A-Za-z0-9\._-]/;
+  perl -e '$valid = qr/[+A-Za-z0-9!@#\$%^&"'\/\?\._-]/;
   foreach $i (0..7) {
   foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
   print "\n";
   }'
 */
-static uint8_t vtagmap[256] = {
+static uint8_t vtagmap_key[256] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
-  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,
+  0,1,1,1,1,1,1,1,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+
+/* Same as above, but allow for ':' and '=' */
+static uint8_t vtagmap_value[256] = {
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,1,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,0,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -257,9 +273,15 @@ static uint8_t base64_vtagmap[256] = {
 
 
 static inline mtev_boolean
-noit_metric_tagset_is_taggable_char(char c) {
+noit_metric_tagset_is_taggable_key_char(char c) {
   uint8_t cu = c;
-  return vtagmap[cu] == 1;
+  return vtagmap_key[cu] == 1;
+}
+
+static inline mtev_boolean
+noit_metric_tagset_is_taggable_value_char(char c) {
+  uint8_t cu = c;
+  return vtagmap_value[cu] == 1;
 }
 
 mtev_boolean
@@ -269,7 +291,7 @@ noit_metric_tagset_is_taggable_b64_char(char c) {
 }
 
 mtev_boolean
-noit_metric_tagset_is_taggable_key(const char *key, size_t len)
+noit_metric_tagset_is_taggable_part(const char *key, size_t len, mtev_boolean (*tf)(char))
 {
   /* there are 2 tag formats supported, plain old tags that obey the vtagmap
      charset, and base64 encoded tags that obey the:
@@ -281,7 +303,7 @@ noit_metric_tagset_is_taggable_key(const char *key, size_t len)
     if (memcmp(key, "b\"", 2) == 0) {
       /* and end with " */
       if (key[len - 1] == '"') {
-        size_t sum_good = 0;
+        size_t sum_good = 3;
         for (size_t i = 2; i < len - 1; i++) {
           sum_good += (size_t)noit_metric_tagset_is_taggable_b64_char(key[i]);
         }
@@ -292,17 +314,78 @@ noit_metric_tagset_is_taggable_key(const char *key, size_t len)
   }
   size_t sum_good = 0;
   for (size_t i = 0; i < len; i++) {
-    sum_good += (size_t)noit_metric_tagset_is_taggable_char(key[i]);
+    sum_good += (size_t)tf(key[i]);
   }
   return len == sum_good;
 }
 
 mtev_boolean
-noit_metric_tagset_is_taggable_value(const char *val, size_t len)
+noit_metric_tagset_is_taggable_key(const char *val, size_t len)
 {
-  return noit_metric_tagset_is_taggable_key(val, len);
+  return noit_metric_tagset_is_taggable_part(val, len, noit_metric_tagset_is_taggable_key_char);
 }
 
+mtev_boolean
+noit_metric_tagset_is_taggable_value(const char *val, size_t len)
+{
+  return noit_metric_tagset_is_taggable_part(val, len, noit_metric_tagset_is_taggable_value_char);
+}
+
+size_t
+noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len)
+{
+  char scratch[NOIT_TAG_MAX_PAIR_LEN];
+  if(max_len > sizeof(scratch)) return -1;
+  int i = 0, sepcnt = 0;
+  for(i=0; i<decoded_len; i++)
+    if(decoded_tag[i] == 0x1f) {
+      sepcnt = i;
+      break;
+    }
+  if(sepcnt == 0) return -1;
+  int first_part_needs_b64 = 0;
+  for(i=0;i<sepcnt;i++)
+    first_part_needs_b64 += !noit_metric_tagset_is_taggable_key_char(decoded_tag[i]);
+  int first_part_len = sepcnt;
+  if(first_part_needs_b64) first_part_len = mtev_b64_encode_len(first_part_len) + 3;
+ 
+  int second_part_needs_b64 = 0; 
+  for(i=sepcnt+1;i<decoded_len;i++)
+	second_part_needs_b64 += !noit_metric_tagset_is_taggable_value_char(decoded_tag[i]);
+  int second_part_len = decoded_len - sepcnt - 1;
+  if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
+
+  if(first_part_len + second_part_len + 2 > max_len) return -1;
+  char *cp = scratch;
+  if(first_part_needs_b64) {
+    *cp++ = 'b';
+    *cp++ = '"';
+    int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt,
+                              cp, sizeof(scratch) - (cp - scratch));
+    if(len <= 0) return -1;
+    cp += len;
+    *cp++ = '"';
+  } else {
+    memcpy(cp, decoded_tag, sepcnt);
+    cp += sepcnt;
+  }
+  *cp++ = ':';
+  if(second_part_needs_b64) {
+    *cp++ = 'b';
+    *cp++ = '"';
+    int len = mtev_b64_encode((unsigned char *)decoded_tag + sepcnt + 1,
+                              decoded_len - sepcnt - 1, cp, sizeof(scratch) - (cp - scratch));
+    if(len <= 0) return -1;
+    cp += len;
+    *cp++ = '"';
+  } else {
+    memcpy(cp, decoded_tag + sepcnt + 1, decoded_len - sepcnt - 1);
+    cp += decoded_len - sepcnt - 1;
+  }
+  *cp = '\0';
+  memcpy(encoded_tag, scratch, cp - scratch + 1);
+  return cp - scratch;
+}
 size_t
 noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *encoded_tag, size_t encoded_size)
 {
@@ -314,10 +397,11 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
   char *decoded = decoded_tag;
   if (memcmp(encoded, "b\"", 2) == 0) {
     encoded += 2;
-    const char *eend = (const char *)memchr(encoded, '"', colon - encoded);
-    if (!eend) return 0;
+    const char *eend = colon - 1;
+    if (*eend != '"') return 0;
     size_t elen = eend - encoded;
     int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, max_len);
+    if (len < 0) return 0;
     decoded += len;
     encoded += elen + 1; // skip enclosing quote
   }
@@ -331,10 +415,11 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
   decoded++;
   if (memcmp(encoded, "b\"", 2) == 0) {
     encoded += 2;
-    const char *eend = memchr(encoded, '"', encoded_end - encoded);
-    if (!eend || eend != encoded_end - 1) return 0;
+    const char *eend = encoded_end - 1;
+    if (*eend != '"') return 0;
     size_t elen = eend - encoded;
     int len = mtev_b64_decode(encoded, elen, (unsigned char *)decoded, max_len - (decoded - decoded_tag));
+    if (len < 0) return 0;
     decoded += len;
     encoded += elen + 1; // skip enclosing quote
   }
@@ -344,4 +429,149 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
   }
   *decoded = '\0';
   return decoded - decoded_tag;
+}
+
+/* This is a reimplementation of the stuff in noit_message_decoder b/c allocations are
+ * rampant there and it's basically impossible to change the API.
+ */
+static mtev_boolean
+build_tags(const char *input, size_t len, noit_metric_tag_t *tags, int max_tags, int *ntags) {
+  
+  while(len > 0 && *ntags < max_tags) {
+    const char *next = noit_metric_tags_parse_one(input, len, &tags[*ntags]);
+    if(!next) return mtev_false;
+    
+    len -= (next - input);
+    input = next;
+    (*ntags)++;
+    if(len > 0) {
+      /* there's string left, we require it to be ",<next_tag>". */
+      if(*input != ',' || len == 1) return mtev_false;
+      input++;
+      len--;
+    }
+  }
+  return mtev_true;
+}
+static mtev_boolean
+eat_up_tags(const char *input, size_t *input_len, noit_metric_tag_t *tags, int max_tags,
+            int *ntags, const char *prefix, const char *suffix) {
+  int slen = strlen(suffix);
+  int plen = strlen(prefix);
+  const char *end = input + *input_len;
+  if(*input_len < slen + plen) return mtev_false;
+  if(memcmp(input+*input_len-slen, suffix, slen)) return mtev_false;
+  const char *next_start = memchr(input, prefix[0], *input_len);
+  const char *block_start = NULL;
+  while(next_start) {
+    if(end - next_start > plen+slen &&
+       memcmp(next_start, prefix, plen) == 0) {
+      block_start = next_start;
+    }
+    next_start = memchr(next_start+1, prefix[0], (end - next_start - 1));
+  }
+  if(!block_start) return mtev_false;
+  if(build_tags(block_start + plen, *input_len - (block_start + plen - input) - slen,
+                  tags, max_tags, ntags)) {
+    *input_len = (block_start - input);
+    return mtev_true;
+  }
+  return mtev_false;
+}
+static int
+tags_sort_dedup(noit_metric_tag_t *tags, int n_tags) {
+  int i;
+  qsort((void *) tags, n_tags, sizeof(noit_metric_tag_t), noit_metric_tags_decoded_compare);
+  for(i=0; i<n_tags - 1; i++) {
+    if(noit_metric_tags_decoded_compare(&tags[i], &tags[i+1]) == 0) {
+      memmove(&tags[i], &tags[i+1], sizeof(*tags) * (n_tags-i+1));
+      i--;
+      n_tags--;
+    }
+  }
+  return n_tags;
+}
+static void
+decode_tags(noit_metric_tag_t *tags, int ntags) {
+  for(int i=0; i<ntags; i++) {
+    tags[i].total_size = noit_metric_tagset_decode_tag((char *)tags[i].tag, tags[i].total_size, tags[i].tag, tags[i].total_size);
+  }
+}
+mtev_boolean
+noit_metric_name_is_clean(const char *m, size_t len) {
+  if(len<1) return mtev_true;
+  if(!isprint(m[0]) || isspace(m[0]) ||
+     !isprint(m[len-1]) || isspace(m[len-1])) return mtev_false;
+  for(int i=1; i<len-1; i++) {
+    if(m[i] != ' ' && (!isprint(m[i]) || isspace(m[i]))) {
+      return mtev_false;
+    }
+  }
+  return mtev_true;
+}
+size_t
+noit_metric_clean_name(char *m, size_t len) {
+  char *ip = m;
+  char *op = m;
+  char *end = m + len;
+  /* eat leading junk */
+  while(ip < end && (!isprint(*ip) || isspace(*ip))) ip++;
+  while(ip < end) {
+    *op++ = (!isprint(*ip) || isspace(*ip)) ? ' ' : *ip;
+    ip++;
+  }
+  while(op-1 > m && *(op-1) == ' ') op--;
+  return op - m;
+}
+ssize_t
+noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
+                         mtev_boolean null_term) {
+  int i = 0, ntags = 0;
+  noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
+  int n_stags = 0, n_mtags = 0;
+  char buff[MAX_METRIC_TAGGED_NAME];
+  if(output_len < input_len) return -1;
+  if(input_len > MAX_METRIC_TAGGED_NAME) return -1;
+  if(input != output) memcpy(output, input, input_len);
+
+  for(i=0; i<input_len; i++) ntags += (input[i] == ',');
+  if(ntags > MAX_TAGS) return -1;
+
+  while(eat_up_tags(output, &input_len, stags, MAX_TAGS, &n_stags, "|ST[", "]") ||
+        eat_up_tags(output, &input_len, mtags, MAX_TAGS, &n_mtags, "|MT{", "}"));
+
+  if(strnstrn("|ST[", 4, output, input_len) || strnstrn("|MT{", 4, output, input_len))
+    return -1;
+
+  decode_tags(stags, n_stags);
+  decode_tags(mtags, n_mtags);
+  n_stags = tags_sort_dedup(stags, n_stags);
+  n_mtags = tags_sort_dedup(mtags, n_mtags);
+  if(output_len > MAX_METRIC_TAGGED_NAME) output_len = MAX_METRIC_TAGGED_NAME;
+
+  /* write to buff then copy to allow for output and input to be the same */
+  char *out = buff;
+  int len;
+
+  input_len = noit_metric_clean_name(output, input_len);
+  if(input_len < 1) return -1;
+  memcpy(out, output, input_len);
+  out += input_len;
+  if(n_stags) {
+    memcpy(out, "|ST[", 4); out += 4;
+    len = noit_metric_tags_canonical(stags, n_stags, out, (output_len - (out-buff)), mtev_true);
+    if(len < 0) return -1;
+    out += len;
+    *out++ = ']';
+  }
+  if(n_mtags) {
+    memcpy(out, "|MT{", 4); out += 4;
+    len = noit_metric_tags_canonical(mtags, n_mtags, out, (output_len - (out-buff)), mtev_true);
+    if(len < 0) return -1;
+    out += len;
+    *out++ = '}';
+  }
+  memcpy(output, buff, (out-buff));
+  if(null_term) output[out-buff] = '\0';
+  return (out - buff);
 }
