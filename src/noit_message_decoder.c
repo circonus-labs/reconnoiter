@@ -121,9 +121,10 @@ noit_metric_process_tags_phase(noit_metric_message_t *metric, int phase) {
       out += mtagnmlen;
       *out++ = '}';
     }
-    *out = '\0';
     free(stagnm);
     free(mtagnm);
+    if(out - buff >= MAX_METRIC_TAGGED_NAME) return -1;
+    *out = '\0';
     if(!noit_metric_name_is_clean(metric->id.name, metric->id.name_len) ||
        out-buff != metric->id.name_len_with_tags ||
        memcmp(buff, metric->id.name, metric->id.name_len_with_tags)) {
@@ -380,16 +381,13 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
         /* need at least one byte for category name. */
         return 0;
       }
-      if(colon_pos != 0) {
-        /* cannot have more than one colon. */
-        return 0;
-      }
       colon_pos = cur_size;
       if(!noit_metric_tagset_is_taggable_key(tagnm, cur_size)) return 0;
     }
     else if(test_char == ',') {
       /* tag-separation char, terminates this loop. */
-      if(!noit_metric_tagset_is_taggable_value(&tagnm[colon_pos+1], cur_size-colon_pos-1)) return 0;
+      if(!(cur_size>colon_pos) ||
+         !noit_metric_tagset_is_taggable_value(&tagnm[colon_pos+1], cur_size-colon_pos-1)) return 0;
       break;
     }
     cur_size++;
