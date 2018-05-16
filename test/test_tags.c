@@ -54,6 +54,12 @@ const struct {
     "SuperSpacey|ST[a:b,c:d]",
     1, mtev_true
   },
+  {
+    "test5",
+    "M\t127.0.0.1\t1526493506.214\tunknown`fault`c_1_77`4766c496-2173-4f60-9607-6449d29cac56\tfoo|ST[color:orange]\ti\t100\n",
+    "foo|ST[color:orange]",
+    1, mtev_false
+   },
 };
 
 int ntest = 0;
@@ -237,7 +243,8 @@ void test_line(const char *name, const char *in, const char *expect, int rval_ex
   noit_metric_message_t message;
   memset(&message, 0, sizeof(message));
   message.original_message = (char *)in;
-  int rval = noit_message_decoder_parse_line(&message, 0);
+  message.original_message_len = strlen(in);
+  int rval = noit_message_decoder_parse_line(&message, -1);
   test_assert_namef(allocd != (message.id.alloc_name == NULL), "test_line(%s) allocd", name);
   test_assert_namef(rval == rval_expect, "test_line(%s) rval [%d should be %d]", name, rval, rval_expect);
   if(expect != NULL) {

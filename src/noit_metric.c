@@ -406,7 +406,7 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
     encoded += elen + 1; // skip enclosing quote
   }
   else {
-    memcpy(decoded, encoded, colon - encoded);
+    if(decoded != encoded) memmove(decoded, encoded, colon - encoded);
     decoded += (colon - encoded);
     encoded += (colon - encoded);
   }
