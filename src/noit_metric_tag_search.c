@@ -104,9 +104,9 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       int len = mtev_b64_decode(query + 1, *endq - query - 1, (unsigned char *)decoded_tag, 
 				sizeof(decoded_tag));
       if (len == 0) return mtev_false;
-      m->str = mtev__strndup(decoded_tag, len);
+      m->str = mtev_strndup(decoded_tag, len);
     } else {
-      m->str = mtev__strndup(query + 1, *endq - query - 1);
+      m->str = mtev_strndup(query + 1, *endq - query - 1);
     }
     m->re = pcre_compile(m->str,
                          0, &error, &erroffset, NULL);
@@ -137,10 +137,10 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       int len = mtev_b64_decode(query, *endq - query, (unsigned char *)decoded_tag, 
 				sizeof(decoded_tag));
       if (len == 0) return mtev_false;
-      m->str = mtev__strndup(decoded_tag, len);
+      m->str = mtev_strndup(decoded_tag, len);
       (*endq)++; // skip the trailing quotation mark
     } else {
-      m->str = mtev__strndup(query, *endq - query);
+      m->str = mtev_strndup(query, *endq - query);
     }
     if(strchr(m->str, '*') || strchr(m->str, '?')) {
       char *previous = m->str;

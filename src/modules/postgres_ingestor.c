@@ -374,7 +374,7 @@ typedef enum {
 } execute_outcome_t;
 
 #define DECLARE_PARAM_STR(str, len) do { \
-  d->paramValues[d->nparams] = mtev__strndup(str, len); \
+  d->paramValues[d->nparams] = mtev_strndup(str, len); \
   d->paramLengths[d->nparams] = len; \
   d->paramFormats[d->nparams] = 0; \
   d->paramAllocd[d->nparams] = 1; \

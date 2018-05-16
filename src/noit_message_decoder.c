@@ -313,7 +313,7 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
       case METRIC_STRING:
         /* It's possible for M records that the \n is included, it should not be. */
         if(vlen > 0 && value_str[vlen-1] == '\n') vlen--;
-        message->value.value.v_string = mtev__strndup(value_str, vlen);
+        message->value.value.v_string = mtev_strndup(value_str, vlen);
         break;
       default:
         return -9;
@@ -340,7 +340,7 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
     if(vstrlen == 0)
       message->value.value.v_string = NULL;
     else {
-      message->value.value.v_string = mtev__strndup(value_str, vstrlen);
+      message->value.value.v_string = mtev_strndup(value_str, vstrlen);
     }
     return 1;
   }

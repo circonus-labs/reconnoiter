@@ -204,27 +204,15 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
   return 0; \
 } while(0)
 
-static char *
-__noit__strndup(const char *src, int len) {
-  int slen;
-  char *dst;
-  for(slen = 0; slen < len; slen++)
-    if(src[slen] == '\0') break;
-  dst = malloc(slen + 1);
-  memcpy(dst, src, slen);
-  dst[slen] = '\0';
-  return dst;
-}
-
 void mysql_parse_dsn(const char *dsn, mtev_hash_table *h) {
   const char *a=dsn, *b=NULL, *c=NULL;
   while (a && (NULL != (b = strchr(a, '=')))) {
     char *key, *val=NULL;
-    key = __noit__strndup(a, b-a);
+    key = mtev_strndup(a, b-a);
     b++;
     if (b) {
       if (NULL != (c = strchr(b, ' '))) {
-        val = __noit__strndup(b, c-b);
+        val = mtev_strndup(b, c-b);
       } else {
         val = strdup(b);
       }
