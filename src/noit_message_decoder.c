@@ -167,8 +167,14 @@ noit_metric_process_tags_phase(noit_metric_message_t *metric, int phase) {
     }
 
     /* name was canonical, so fix up out tags to point back into that */
-    if(stag_start) relative_tags_adjust(&metric->id.stream, stagnm, metric->id.name + (stag_start - buff));
-    if(mtag_start) relative_tags_adjust(&metric->id.measurement, mtagnm, metric->id.name + (mtag_start - buff));
+    if(stag_start) {
+      /* coverity[USE_AFTER_FREE] */
+      relative_tags_adjust(&metric->id.stream, stagnm, metric->id.name + (stag_start - buff));
+    }
+    if(mtag_start) {
+      /* coverity[USE_AFTER_FREE] */
+      relative_tags_adjust(&metric->id.measurement, mtagnm, metric->id.name + (mtag_start - buff));
+    }
   }
   else {
     noit_metric_tagset_builder_end(&stream_builder, &metric->id.stream, NULL);
