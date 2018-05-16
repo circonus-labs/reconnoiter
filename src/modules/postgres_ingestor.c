@@ -1087,7 +1087,7 @@ build_insert_batch(pg_interim_journal_t *ij) {
     }
     lcp = buff;
     while(lcp < (buff + len) &&
-          NULL != (cp = strnstrn("\n", 1, lcp, len - (lcp-buff)))) {
+          NULL != (cp = mtev_memmem(lcp, len - (lcp-buff), "\n", 1))) {
       if(lcp[0] == 'B' && lcp[1] != '\0' && lcp[2] == '\t') {
       /* Bundle records are special and need to be expanded into
        * traditional records here

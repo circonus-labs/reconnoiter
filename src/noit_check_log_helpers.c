@@ -220,7 +220,7 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
 
 #define SET_FIELD_FROM_BUNDLE(tgt) do { \
   if(*cp1 == '\0') { error_str = "short line @ " #tgt; goto bad_line; } \
-  cp2 = strnstrn("\t", 1, cp1, len - (cp1 - line)); \
+  cp2 = mtev_memmem(cp1, len - (cp1 - line), "\t", 1); \
   if(cp2 == NULL) { error_str = "no tab after " #tgt; goto bad_line; } \
   tgt = (char *)alloca(cp2 - cp1 + 1); \
   if(!tgt) { error_str = "alloca failed for " #tgt; goto bad_line; } \
@@ -363,7 +363,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   cp1 = line;
 #define SET_FIELD_FROM_BUNDLE(tgt) do { \
   if(*cp1 == '\0') { error_str = "short line @ " #tgt; goto bad_line; } \
-  cp2 = strnstrn("\t", 1, cp1, len - (cp1 - line)); \
+  cp2 = mtev_memmem(cp1, len - (cp1 - line), "\t", 1); \
   if(cp2 == NULL) { error_str = "no tab after " #tgt; goto bad_line; } \
   tgt = (char *)alloca(cp2 - cp1 + 1); \
   if(!tgt) { error_str = "alloca failed for " #tgt; goto bad_line; } \
