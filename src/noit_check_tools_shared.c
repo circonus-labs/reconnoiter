@@ -99,7 +99,7 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
               /* keys can be of the form: :operator:key */
               oper = key;
               if(*oper == ':' &&
-                 (nkey = strnstrn(":", 1, oper + 1, fmte - key - 1)) != NULL) {
+                 (nkey = mtev_memmem(oper + 1, fmte - key - 1, ":", 1)) != NULL) {
                 void *voper;
                 oper++;
                 /* find oper, nkey-oper */

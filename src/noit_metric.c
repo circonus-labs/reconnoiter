@@ -541,7 +541,7 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   while(eat_up_tags(output, &input_len, stags, MAX_TAGS, &n_stags, "|ST[", "]") ||
         eat_up_tags(output, &input_len, mtags, MAX_TAGS, &n_mtags, "|MT{", "}"));
 
-  if(strnstrn("|ST[", 4, output, input_len) || strnstrn("|MT{", 4, output, input_len))
+  if(mtev_memmem(output, input_len, "|ST[", 4) || mtev_memmem(output, input_len, "|MT{", 4))
     return -1;
 
   decode_tags(stags, n_stags);

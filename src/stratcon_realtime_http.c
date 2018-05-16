@@ -218,7 +218,7 @@ stratcon_line_to_javascript(mtev_http_session_ctx *ctx, char *in_buff,
       mtev_hash_store(&json, "script_id", 9, strdup(s_inc_id));
       mtev_hash_store(&json, "type", 4, strdup(type));
       PROCESS_NEXT_FIELD(token,len);
-      mtev_hash_store(&json, "time", 4, mtev__strndup(token, len));
+      mtev_hash_store(&json, "time", 4, mtev_strndup(token, len));
       /* UUID */
       PROCESS_NEXT_FIELD(token,len);
       noit_check_extended_id_split(token, len, target, sizeof(target),
@@ -226,40 +226,40 @@ stratcon_line_to_javascript(mtev_http_session_ctx *ctx, char *in_buff,
                                    uuid_str, sizeof(uuid_str));
       if(*uuid_str)
         mtev_hash_store(&json, "id", 2,
-                        mtev__strndup(uuid_str, strlen(uuid_str)));
+                        mtev_strndup(uuid_str, strlen(uuid_str)));
       if(*target)
         mtev_hash_store(&json, "check_target", 12,
-                        mtev__strndup(target, strlen(target)));
+                        mtev_strndup(target, strlen(target)));
       if(*module)
         mtev_hash_store(&json, "check_module", 12,
-                        mtev__strndup(module, strlen(module)));
+                        mtev_strndup(module, strlen(module)));
       if(*name)
         mtev_hash_store(&json, "check_name", 10,
-                        mtev__strndup(name, strlen(name)));
+                        mtev_strndup(name, strlen(name)));
       if(buff[0] == 'M') {
         /* name */
         PROCESS_NEXT_FIELD(token,len);
-        mtev_hash_store(&json, "metric_name", 11, mtev__strndup(token, len));
+        mtev_hash_store(&json, "metric_name", 11, mtev_strndup(token, len));
         /* type */
         PROCESS_NEXT_FIELD(token,len);
-        mtev_hash_store(&json, "metric_type", 11, mtev__strndup(token, len));
+        mtev_hash_store(&json, "metric_type", 11, mtev_strndup(token, len));
         /* value */
         PROCESS_LAST_FIELD(token,len); /* value */
-        mtev_hash_store(&json, "value", 5, mtev__strndup(token, len));
+        mtev_hash_store(&json, "value", 5, mtev_strndup(token, len));
       }
       else if(buff[0] == 'S') {
         /* state */
         PROCESS_NEXT_FIELD(token,len);
-        mtev_hash_store(&json, "check_state", 11, mtev__strndup(token, len));
+        mtev_hash_store(&json, "check_state", 11, mtev_strndup(token, len));
         /* availability */
         PROCESS_NEXT_FIELD(token,len);
-        mtev_hash_store(&json, "check_availability", 18, mtev__strndup(token, len));
+        mtev_hash_store(&json, "check_availability", 18, mtev_strndup(token, len));
         /* duration */
         PROCESS_NEXT_FIELD(token,len);
-        mtev_hash_store(&json, "check_duration_ms", 17, mtev__strndup(token, len));
+        mtev_hash_store(&json, "check_duration_ms", 17, mtev_strndup(token, len));
         /* status */
         PROCESS_LAST_FIELD(token,len);
-        mtev_hash_store(&json, "status_message", 14, mtev__strndup(token, len));
+        mtev_hash_store(&json, "status_message", 14, mtev_strndup(token, len));
       }
 
       memset(&iter, 0, sizeof(iter));

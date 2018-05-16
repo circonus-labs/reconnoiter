@@ -374,7 +374,7 @@ typedef enum {
 } execute_outcome_t;
 
 #define DECLARE_PARAM_STR(str, len) do { \
-  d->paramValues[d->nparams] = mtev__strndup(str, len); \
+  d->paramValues[d->nparams] = mtev_strndup(str, len); \
   d->paramLengths[d->nparams] = len; \
   d->paramFormats[d->nparams] = 0; \
   d->paramAllocd[d->nparams] = 1; \
@@ -1087,7 +1087,7 @@ build_insert_batch(pg_interim_journal_t *ij) {
     }
     lcp = buff;
     while(lcp < (buff + len) &&
-          NULL != (cp = strnstrn("\n", 1, lcp, len - (lcp-buff)))) {
+          NULL != (cp = mtev_memmem(lcp, len - (lcp-buff), "\n", 1))) {
       if(lcp[0] == 'B' && lcp[1] != '\0' && lcp[2] == '\t') {
       /* Bundle records are special and need to be expanded into
        * traditional records here

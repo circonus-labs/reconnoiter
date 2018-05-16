@@ -60,12 +60,12 @@ noit_metric_extract_tags(const char *in, int *inlen,
    */
   int st_off = strlen(start_marker);
   const char *end = in + *inlen - 1;
-  const char *match = strnstrn(start_marker, st_off, in, *inlen);
+  const char *match = mtev_memmem(in, *inlen, start_marker, st_off);
   /* we wannt to find the last one */
   const char *tag_start = match;
   while(match) {
-    match = strnstrn(start_marker, st_off,
-                     tag_start+1, (*inlen) - (tag_start + 1 - in));
+    match = mtev_memmem(tag_start+1, (*inlen) - (tag_start + 1 - in),
+                        start_marker, st_off);
     if(match) tag_start = match;
   }
   if(!tag_start || *end != end_marker) return mtev_false;
@@ -181,8 +181,8 @@ noit_metric_process_tags_phase(noit_metric_message_t *metric, int phase) {
     noit_metric_tagset_builder_end(&measurement_builder, &metric->id.measurement, NULL);
   }
   return metric->id.name_len == 0 ||
-         strnstrn("|ST[", 4, metric->id.name, metric->id.name_len) ||
-         strnstrn("|MT{", 4, metric->id.name, metric->id.name_len);
+         mtev_memmem(metric->id.name, metric->id.name_len, "|ST[", 4) ||
+         mtev_memmem(metric->id.name, metric->id.name_len, "|MT{", 4);
 }
 int
 noit_metric_process_tags(noit_metric_message_t *metric) {
@@ -319,7 +319,7 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
       case METRIC_STRING:
         /* It's possible for M records that the \n is included, it should not be. */
         if(vlen > 0 && value_str[vlen-1] == '\n') vlen--;
-        message->value.value.v_string = mtev__strndup(value_str, vlen);
+        message->value.value.v_string = mtev_strndup(value_str, vlen);
         break;
       default:
         return -9;
@@ -346,7 +346,7 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
     if(vstrlen == 0)
       message->value.value.v_string = NULL;
     else {
-      message->value.value.v_string = mtev__strndup(value_str, vstrlen);
+      message->value.value.v_string = mtev_strndup(value_str, vstrlen);
     }
     return 1;
   }

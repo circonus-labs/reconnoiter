@@ -581,7 +581,7 @@ AS_IF([test "x$with_module_stomp" != "xno"],
 	[STOMP_DRIVER_MODULE=no])
 
 AC_FUNC_STRFTIME
-AC_CHECK_FUNCS(ssetugid strlcpy strnstrn openpty inet_pton inet_ntop getopt \
+AC_CHECK_FUNCS(ssetugid strlcpy openpty inet_pton inet_ntop getopt \
 	poll vasprintf strlcat)
 
 BUILD_MODULES="$BUILD_MODULES $LUA_MODULE"
