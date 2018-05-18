@@ -33,6 +33,7 @@
 
 #include <mtev_defines.h>
 #include <mtev_uuid.h>
+#include <mtev_rand.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -400,6 +401,8 @@ static int ping_icmp_init(noit_module_t *self) {
   if(data->ipv4_fd >= 0) {
     eventer_t newe;
     newe = eventer_alloc_fd(ping_icmp4_handler, self, data->ipv4_fd, EVENTER_READ);
+    eventer_pool_t *dp = eventer_pool("noit_module_ping_icmp");
+    if(dp) eventer_set_owner(newe, eventer_choose_owner_pool(dp, mtev_rand()));
     eventer_add(newe);
   }
 
@@ -421,6 +424,8 @@ static int ping_icmp_init(noit_module_t *self) {
     if(data->ipv6_fd >= 0) {
       eventer_t newe;
       newe = eventer_alloc_fd(ping_icmp6_handler, self, data->ipv6_fd, EVENTER_READ);
+      eventer_pool_t *dp = eventer_pool("noit_module_ping_icmp");
+      if(dp) eventer_set_owner(newe, eventer_choose_owner_pool(dp, mtev_rand()));
       eventer_add(newe);
     }
   }

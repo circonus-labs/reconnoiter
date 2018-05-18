@@ -389,3 +389,18 @@ noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs) {
   CA_STORE("name", check->name);
   CA_STORE("module", check->module);
 }
+
+pthread_t noit_check_choose_eventer_thread(noit_check_t *check) {
+  char buff[128];
+  eventer_pool_t *dedicated_pool = NULL;
+  strlcpy(buff, "noit_check_", sizeof(buff));
+  uuid_unparse_lower(check->checkid, buff + strlen("noit_check_"));
+  dedicated_pool = eventer_pool(buff);
+  if(!dedicated_pool) {
+    snprintf(buff, sizeof(buff), "noit_module_%s", check->module);
+    dedicated_pool = eventer_pool(buff);
+  }
+  int rnd = noit_check_uuid_to_integer(check->checkid) / sizeof(*(check)) * 2654435761;
+  if(dedicated_pool) return eventer_choose_owner_pool(dedicated_pool, rnd);
+  return eventer_choose_owner(rnd);
+}
