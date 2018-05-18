@@ -76,10 +76,10 @@ noit_check_uuid_to_integer(uuid_t uuid)
   return *y;
 }
 
-#define CHOOSE_EVENTER_THREAD_FOR_CHECK(check)  \
-  eventer_choose_owner(noit_check_uuid_to_integer(check->checkid) / \
-                       sizeof(*(check)) *                           \
-                       2654435761)
+API_EXPORT(pthread_t)
+  noit_check_choose_eventer_thread(noit_check_t *check);
+
+#define CHOOSE_EVENTER_THREAD_FOR_CHECK(check) noit_check_choose_eventer_thread(check)
 
 /*#* DOCBOOK
  * <section><title>Check Hooks</title>
