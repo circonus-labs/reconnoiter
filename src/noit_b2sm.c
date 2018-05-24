@@ -36,15 +36,19 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <string.h>
+#include <mtev_defines.h>
 #include "noit_check_log_helpers.h"
 
 static void usage(const char *prog) {
-  fprintf(stderr, "%s\n", prog);
+  fprintf(stderr, "%s [-p]\n", prog);
   fprintf(stderr, "This tool takes B{1,2} records from stdin and emits S/M records to stdout\n");
+  fprintf(stderr, "\n	-p	pass thru records that are not parseable\n");
 }
+static mtev_boolean passthru = mtev_false;
 char buff[1024*1024*16];
 int main(int argc, char **argv) {
-  if(argc > 1) {
+  if(argc == 2 && !strcmp(argv[1], "-p")) passthru = mtev_true;
+  else if(argc > 1) {
     usage(argv[0]);
     return 2;
   }
@@ -69,6 +73,7 @@ int main(int argc, char **argv) {
       printf("%s\n", lines[i]);
       free(lines[i]);
     }
+    if(passthru && nm == 0) printf("%s", buff);
     free(lines);
   }
 }
