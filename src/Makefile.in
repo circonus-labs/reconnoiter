@@ -435,6 +435,10 @@ install-stratcond-nolibs:	install-dirs reversion stratcond stratcon.conf java-bi
 install-docs:
 	(cd man && $(MAKE) install DESTDIR=$(DESTDIR))
 
+install-noit-tools: noit_b2sm
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 noit_b2sm $(DESTDIR)$(bindir)/noit_b2sm
+
 install:	install-dirs install-docs install-headers install-noitd install-stratcond install-noitd-headers install-stratcond-headers
 
 clean:
