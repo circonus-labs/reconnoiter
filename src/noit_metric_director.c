@@ -240,7 +240,7 @@ distribute_metric(noit_metric_message_t *message) {
   if(mtev_hash_retrieve(&id_level, (const char *) &message->id.id, UUID_SIZE,
       &vhash)) {
     if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,
-        message->id.name_len, &vinterests)) {
+        message->id.name_len_with_tags, &vinterests)) {
       interests = vinterests;
       distribute_message_with_interests(interests, message);
     }
