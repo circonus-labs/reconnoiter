@@ -101,8 +101,12 @@ static int noit_metric_id_index_func(lua_State *L) {
       return 1;
     case 'n':
       if(!strcmp(k, "name")) {
-        lua_pushlstring(L, metric_id->name, metric_id->name_len);
+        lua_pushlstring(L, metric_id->name, metric_id->name_len_with_tags);
       } else if(!strcmp(k, "name_len")) {
+        lua_pushinteger(L, metric_id->name_len_with_tags);
+      } else if(!strcmp(k, "name_without_tags")) {
+        lua_pushlstring(L, metric_id->name, metric_id->name_len);
+      } else if(!strcmp(k, "name_len_without_tags")) {
         lua_pushinteger(L, metric_id->name_len);
       } else {
         break;
