@@ -49,6 +49,7 @@
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
 #include "noit_check.h"
+#include "noit_conf_checks.h"
 #include "noit_check_resolver.h"
 #include "noit_check_tools.h"
 
@@ -858,10 +859,19 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
     FAIL("internal error uuid");
 
   /* delete this here */
-  if(check) noit_poller_deschedule(check->checkid, mtev_true);
-  CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
-  xmlUnlinkNode(node);
-  xmlFreeNode(node);
+  mtev_boolean just_mark = mtev_false;
+  if(check)
+    if(!noit_poller_deschedule(check->checkid, mtev_true))
+      just_mark = mtev_true;
+  if(just_mark) {
+    xmlSetProp(node, (xmlChar *)"deleted", (xmlChar *)"deleted");
+    noit_conf_check_bump_seq(node);
+    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
+  } else {
+    CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
+    xmlUnlinkNode(node);
+    xmlFreeNode(node);
+  }
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(noit_error, "local config write failed\n");

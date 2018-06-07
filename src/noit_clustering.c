@@ -574,6 +574,26 @@ possibly_start_job(noit_peer_t *peer) {
   }
 }
 
+mtev_boolean
+noit_cluster_checkid_replication_pending(uuid_t checkid) {
+  if(!my_cluster) return mtev_false;
+
+  pthread_mutex_lock(&noit_peer_lock);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  while(mtev_hash_adv(&peers, &iter)) {
+    struct check_changes *n;
+    noit_peer_t *peer = iter.value.ptr;
+    for(n = peer->checks.head; n; n = n->next) {
+      if(uuid_compare(n->checkid, checkid)) {
+        pthread_mutex_unlock(&noit_peer_lock);
+        return mtev_true;
+      }
+    }
+  }
+  pthread_mutex_unlock(&noit_peer_lock);
+  return mtev_false;
+}
+
 static void
 update_peer(mtev_cluster_node_t *node) {
   void *vp;
@@ -743,11 +763,50 @@ noit_should_run_check(noit_check_t *check, mtev_cluster_node_t **node) {
   return i_own;
 }
 
+static int
+noit_clustering_show(mtev_console_closure_t ncct,
+                     int argc, char **argv,
+                     mtev_console_state_t *state, void *closure) {
+  if(!my_cluster) {
+    nc_printf(ncct, "clustering not configured.\n");
+    return 0;
+  }
+
+  pthread_mutex_lock(&noit_peer_lock);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  while(mtev_hash_adv(&peers, &iter)) {
+    struct check_changes *n;
+    noit_peer_t *peer = iter.value.ptr;
+    char idstr[UUID_STR_LEN+1];
+    mtev_uuid_unparse_lower(peer->id, idstr);
+    nc_printf(ncct, "-- %s (%s) --\n", idstr, peer->cn);
+    nc_printf(ncct, "  checks_produced: %" PRId64 "\n", ntohll(checks_produced_netseq));
+    nc_printf(ncct, "  queued checks:\n");
+    for(n = peer->checks.head; n; n = n->next) {
+      mtev_uuid_unparse_lower(n->checkid, idstr);
+      nc_printf(ncct, "    %s : %" PRId64 "\n", idstr, n->seq);
+    }
+  }
+  pthread_mutex_unlock(&noit_peer_lock);
+
+  return 0;
+}
+
 void noit_mtev_cluster_init() {
+  mtev_console_state_t *tl;
+  cmd_info_t *showcmd;
   pthread_key_create(&curl_tls, curl_tls_free);
   cldeb = mtev_log_stream_find("debug/cluster");
   clerr = mtev_log_stream_find("error/cluster");
   mtev_hash_init(&peers);
+
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
+  mtevAssert(showcmd && showcmd->dstate);
+
+  mtev_console_state_add_cmd(showcmd->dstate,
+  NCSCMD("noit-cluster", noit_clustering_show, NULL, NULL, NULL));
+
 
   repl_jobq = eventer_jobq_create_ms("noit_cluster", EVENTER_JOBQ_MS_GC);
   mtevAssert(repl_jobq);

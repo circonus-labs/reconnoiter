@@ -108,7 +108,7 @@ void noit_console_conf_checks_init() {
   register_console_config_check_commands();
 }
 
-static void
+void
 noit_conf_check_bump_seq(xmlNodePtr node) {
   int64_t seq;
   xmlChar *seq_str;
@@ -576,6 +576,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
       if(NOIT_CHECK_KILLED(check)) nc_printf(ncct, "%skilled", idx++?",":"");
       if(!NOIT_CHECK_CONFIGURED(check)) nc_printf(ncct, "%sunconfig", idx++?",":"");
       if(NOIT_CHECK_DISABLED(check)) nc_printf(ncct, "%sdisabled", idx++?",":"");
+      if(NOIT_CHECK_DELETED(check)) nc_printf(ncct, "%sdeleted", idx++?",":"");
       if(!idx) nc_printf(ncct, "idle");
       nc_write(ncct, "\n", 1);
       if(mtev_cluster_enabled()) {
@@ -585,6 +586,9 @@ noit_console_show_check(mtev_console_closure_t ncct,
                   where ? mtev_cluster_node_get_cn(where) : "...",
                   mine ? " (locally)" : "");
       }
+
+      if(NOIT_CHECK_DELETED(check)) goto out;
+
       if (check->fire_event != NULL) {
         struct timeval then, now, diff;
         mtev_gettimeofday(&now, NULL);
@@ -693,9 +697,15 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
         CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
       } else {
         nc_printf(ncct, "descheduling %s\n", uuid_conf);
-        noit_poller_deschedule(checkid, mtev_true);
-        CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
-        xmlUnlinkNode(node);
+        if(noit_poller_deschedule(checkid, mtev_true)) {
+          CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
+          xmlUnlinkNode(node);
+        }
+        else {
+          xmlSetProp(node, (xmlChar *)"deleted", (xmlChar *)"deleted");
+          noit_conf_check_bump_seq(node);
+          CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
+        }
       }
       mtev_conf_mark_changed();
     }
