@@ -680,6 +680,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
     goto bad;
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  mtev_boolean removed = mtev_false;
   for(i=0; i<cnt; i++) {
     xmlNodePtr node;
     char *uuid_conf;
@@ -701,6 +702,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
         if(noit_poller_deschedule(checkid, mtev_true)) {
           CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
           xmlUnlinkNode(node);
+          removed = mtev_true;
         }
         else {
           xmlSetProp(node, (xmlChar *)"deleted", (xmlChar *)"deleted");
@@ -712,7 +714,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
     }
     xmlFree(uuid_conf);
   }
-  if(argc > 1) {
+  if(!removed) {
     noit_poller_process_checks(xpath);
     noit_poller_reload(xpath);
   }

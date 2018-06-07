@@ -866,7 +866,10 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   if(just_mark) {
     int64_t newseq = noit_conf_check_bump_seq(node);
     xmlSetProp(node, (xmlChar *)"deleted", (xmlChar *)"deleted");
-    if(check) check->config_seq = newseq;
+    if(check) {
+      check->config_seq = newseq;
+      noit_cluster_mark_check_changed(check, NULL);
+    }
     CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
   } else {
     CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));

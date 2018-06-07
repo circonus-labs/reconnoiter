@@ -187,8 +187,9 @@ noit_check_schedule_next(noit_module_t *self,
   rcl->dispatch = dispatch;
   newe = eventer_alloc_timer(noit_check_recur_handler, rcl, &tgt);
 
-  /* knuth's golden ratio approach */
-  if(!self->thread_unsafe) {
+  if(self->thread_unsafe) {
+    eventer_set_owner(newe, eventer_choose_owner(0));
+  } else {
     eventer_set_owner(newe, CHOOSE_EVENTER_THREAD_FOR_CHECK(check));
   }
   check->fire_event = newe;

@@ -584,7 +584,7 @@ noit_cluster_checkid_replication_pending(uuid_t checkid) {
     struct check_changes *n;
     noit_peer_t *peer = iter.value.ptr;
     for(n = peer->checks.head; n; n = n->next) {
-      if(uuid_compare(n->checkid, checkid)) {
+      if(uuid_compare(n->checkid, checkid) == 0) {
         pthread_mutex_unlock(&noit_peer_lock);
         return mtev_true;
       }
@@ -607,16 +607,20 @@ update_peer(mtev_cluster_node_t *node) {
   (void)mtev_cluster_node_get_addr(node, &addr, &addrlen);
   boot = mtev_cluster_node_get_boot_time(node);
 
+  if(mtev_cluster_is_that_me(node)) return;
+
   /* must have lock here */
   mtev_cluster_node_get_id(node, nodeid);
+  char nodeidstr[UUID_STR_LEN+1];
+  mtev_uuid_unparse_lower(nodeid, nodeidstr);
   if(mtev_hash_retrieve(&peers, (const char *)nodeid, UUID_SIZE, &vp)) {
     peer = vp;
-    mtevL(cldeb, "updating peer %s\n", cn);
+    mtevL(cldeb, "updating peer %s/%s\n", cn, nodeidstr);
   } else {
     peer = calloc(1, sizeof(*peer));
     mtev_uuid_copy(peer->id, nodeid);
     mtev_hash_store(&peers, (const char *)peer->id, UUID_SIZE, peer);
-    mtevL(cldeb, "adding peer %s\n", cn);
+    mtevL(cldeb, "adding peer %s/%s\n", cn, nodeidstr);
   }
 
   peer->generation = generation;
@@ -780,7 +784,7 @@ noit_clustering_show(mtev_console_closure_t ncct,
     char idstr[UUID_STR_LEN+1];
     mtev_uuid_unparse_lower(peer->id, idstr);
     nc_printf(ncct, "-- %s (%s) --\n", idstr, peer->cn);
-    nc_printf(ncct, "  checks_produced: %" PRId64 "\n", ntohll(checks_produced_netseq));
+    nc_printf(ncct, "  checks_produced: %" PRId64 "\n", checks_produced);
     nc_printf(ncct, "  queued checks:\n");
     for(n = peer->checks.head; n; n = n->next) {
       mtev_uuid_unparse_lower(n->checkid, idstr);

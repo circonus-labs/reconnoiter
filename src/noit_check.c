@@ -1368,9 +1368,9 @@ noit_poller_schedule(const char *target,
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
                     period, timeout, oncheck, seq, flags);
-  mtevAssert(mtev_hash_store(&polls,
-                         (char *)new_check->checkid, UUID_SIZE,
-                         new_check));
+  mtev_hash_replace(&polls,
+                    (char *)new_check->checkid, UUID_SIZE,
+                    new_check, NULL, (NoitHashFreeFunc)noit_poller_free_check);
   mtev_uuid_copy(out, new_check->checkid);
   noit_check_log_check(new_check);
 
@@ -1564,7 +1564,8 @@ noit_poller_deschedule(uuid_t in, mtev_boolean log) {
   if(log) noit_check_log_delete(checker);
 
   if(checker->config_seq == 0) {
-    mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
+    int removed = mtev_skiplist_remove(polls_by_name, checker, NULL);
+    mtevAssert(NOIT_CHECK_DELETED(checker) || removed);
     mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
   }
 
@@ -2872,7 +2873,10 @@ noit_check_process_repl(xmlDocPtr doc) {
     noit_check_t *check = noit_poller_lookup(checkid);
 
     /* too old, don't bother */
-    if(check && check->config_seq >= seq) continue;
+    if(check && check->config_seq >= seq) {
+      i++;
+      continue;
+    }
 
     if(check) {
       char xpath[1024];
