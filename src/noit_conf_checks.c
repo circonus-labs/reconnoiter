@@ -108,12 +108,12 @@ void noit_console_conf_checks_init() {
   register_console_config_check_commands();
 }
 
-void
+int64_t
 noit_conf_check_bump_seq(xmlNodePtr node) {
-  int64_t seq;
+  int64_t seq = 0;
   xmlChar *seq_str;
   seq_str = xmlGetProp(node, (xmlChar *)"seq");
-  if(!seq_str) return;
+  if(!seq_str) return seq;
   seq = strtoll((const char *)seq_str, NULL, 10);
   if(seq != 0) {
     char new_seq_str[64];
@@ -124,6 +124,7 @@ noit_conf_check_bump_seq(xmlNodePtr node) {
     xmlSetProp(node, (xmlChar *)"seq", (xmlChar *)new_seq_str);
   }
   xmlFree(seq_str);
+  return seq;
 }
 static int
 noit_console_mkcheck_xpath(char *xpath, int len,

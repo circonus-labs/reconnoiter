@@ -50,7 +50,7 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_conf_checks_init_globals(void);
 
-API_EXPORT(void)
+API_EXPORT(int64_t)
   noit_conf_check_bump_seq(xmlNodePtr node);
 
 #endif
