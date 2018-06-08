@@ -69,8 +69,8 @@
 #include "noit_check_resolver.h"
 #include "modules/histogram.h"
 
-#define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
-#define RECYCLE_INTERVAL 60
+#define DEFAULT_TEXT_METRIC_SIZE_LIMIT  4096
+static int check_recycle_period = 60000;
 
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
@@ -326,12 +326,10 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
-    if(!NOIT_CHECK_DELETED(new_check)) {
-      if(!mtev_skiplist_insert(polls_by_name, new_check)) {
-        mtevL(noit_error, "Check %s`%s disabled due to naming conflict\n",
-              new_check->target, new_check->name);
-        new_check->flags |= NP_DISABLED;
-      }
+    if(!mtev_skiplist_insert(polls_by_name, new_check)) {
+      mtevL(noit_error, "Check %s`%s disabled due to naming conflict\n",
+            new_check->target, new_check->name);
+      new_check->flags |= NP_DISABLED;
     }
     if(oldname) free(oldname);
   }
@@ -643,7 +641,10 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
     no_oncheck = 1;
 
-  if(!deleted) {
+  if(deleted) {
+    memcpy(target, "none", 5);
+    mtev_uuid_unparse_lower(uuid, name);
+  } else {
     if(no_period && no_oncheck) {
       mtevL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
             uuid_str);
@@ -924,7 +925,8 @@ noit_poller_init() {
   register_console_check_commands();
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
-  eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "noit/@check_recycle_period", &check_recycle_period);
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
   mtev_conf_get_int32(MTEV_CONF_ROOT, "noit/@text_size_limit", &text_size_limit);
   if (text_size_limit <= 0) {
     text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
@@ -1469,6 +1471,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
 }
 void
 noit_poller_free_check(noit_check_t *checker) {
+  checker->flags |= NP_KILLED;
   noit_poller_free_check_internal(checker, mtev_false);
 }
 static void
@@ -1545,7 +1548,7 @@ static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
   check_recycle_bin_processor_internal();
-  eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
   return 0;
 }
 
@@ -1564,8 +1567,7 @@ noit_poller_deschedule(uuid_t in, mtev_boolean log) {
   if(log) noit_check_log_delete(checker);
 
   if(checker->config_seq == 0) {
-    int removed = mtev_skiplist_remove(polls_by_name, checker, NULL);
-    mtevAssert(NOIT_CHECK_DELETED(checker) || removed);
+    mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
     mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
   }
 
@@ -1934,20 +1936,15 @@ __mark_metric_logged(stats_t *newstate, metric_t *m) {
 
 static size_t
 noit_metric_sizes(metric_type_t type, const void *value) {
-  union {
-    int32_t i;
-    int64_t l;
-    double n;
-  } sizer;
   switch(type) {
     case METRIC_INT32:
     case METRIC_UINT32:
-      return sizeof(sizer);
+      return sizeof(int32_t);
     case METRIC_INT64:
     case METRIC_UINT64:
-      return sizeof(sizer);
+      return sizeof(int64_t);
     case METRIC_DOUBLE:
-      return sizeof(sizer);
+      return sizeof(double);
     case METRIC_STRING: {
       const char *lf = strchr(value, '\n');
       int len = lf ? lf - (const char *)value + 1 : strlen((char*)value) + 1;
@@ -2883,14 +2880,14 @@ noit_check_process_repl(xmlDocPtr doc) {
 
       snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
                uuid_str);
-      section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
-      if(!mtev_conf_section_is_empty(section)) {
-        CONF_REMOVE(section);
-        node = mtev_conf_section_to_xmlnodeptr(section);
+      mtev_conf_section_t oldsection = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+      if(!mtev_conf_section_is_empty(oldsection)) {
+        CONF_REMOVE(oldsection);
+        node = mtev_conf_section_to_xmlnodeptr(oldsection);
         xmlUnlinkNode(node);
         xmlFreeNode(node);
       }
-      mtev_conf_release_section(section);
+      mtev_conf_release_section(oldsection);
     }
 
     xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);

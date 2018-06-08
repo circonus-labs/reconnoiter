@@ -451,13 +451,13 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   k.addr_of_check = payload->addr_of_check;
   mtev_uuid_copy(k.checkid, payload->checkid);
 
-  if(pcl->check->target_ip[0] == '\0') goto cleanup;
-
   if(!mtev_hash_retrieve(data->in_flight, (const char *)&k, sizeof(k),
                          &vcheck)) {
     mtevLT(nldeb, now, "ping check no longer active, bailing\n");
     goto cleanup;
   }
+
+  if(pcl->check->target_ip[0] == '\0') goto cleanup;
 
   mtevLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target_ip);
   mtev_gettimeofday(&whence, NULL); /* now isn't accurate enough */

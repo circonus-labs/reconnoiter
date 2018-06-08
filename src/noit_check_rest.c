@@ -225,19 +225,22 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   uint64_t ms = 0;
   struct json_object *doc;
   uuid_unparse_lower(check->checkid, id_str);
+  snprintf(seq_str, sizeof(seq_str), "%lld", (long long)check->config_seq);
 
   doc = json_object_new_object();
   json_object_object_add(doc, "id", json_object_new_string(id_str));
+  json_object_object_add(doc, "seq", json_object_new_string(seq_str));
+  json_object_object_add(doc, "flags", json_object_new_int(check->flags));
+  if(NOIT_CHECK_DELETED(check)) return doc;
+
   json_object_object_add(doc, "name", json_object_new_string(check->name));
   json_object_object_add(doc, "module", json_object_new_string(check->module));
   json_object_object_add(doc, "target", json_object_new_string(check->target));
   json_object_object_add(doc, "target_ip", json_object_new_string(check->target_ip));
   json_object_object_add(doc, "filterset", json_object_new_string(check->filterset));
-  snprintf(seq_str, sizeof(seq_str), "%lld", (long long)check->config_seq);
-  json_object_object_add(doc, "seq", json_object_new_string(seq_str));
   json_object_object_add(doc, "period", json_object_new_int(check->period));
   json_object_object_add(doc, "timeout", json_object_new_int(check->timeout));
-  json_object_object_add(doc, "flags", json_object_new_int(check->flags));
+  json_object_object_add(doc, "active_on_cluster_node", json_object_new_boolean(noit_should_run_check(check, NULL)));
 
   c = noit_check_get_stats_current(check);
   t = noit_check_stats_whence(c, NULL);
