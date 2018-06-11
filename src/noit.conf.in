@@ -227,4 +227,10 @@
       <rule type="deny">66.225.209.0/24</rule>
     </acl>
   </acls>
+  <clusters my_id="f7cea020-f19d-11dd-85a6-cb6d3a2207dc">
+    <cluster name="noit" port="43191" period="1000" timeout="5000" maturity="10000" key="shame_on_me" seq="1">
+      <node id="183bf75c-507a-48db-8fb4-5fdcf77e1089" cn="test-noit2" address="127.0.0.1" port="43192"/>
+      <node id="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" cn="test-noit" address="127.0.0.1" port="43191"/>
+    </cluster>
+  </clusters>
 </noit>

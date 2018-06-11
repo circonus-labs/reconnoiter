@@ -44,7 +44,13 @@
 #include <arpa/inet.h>
 #include <time.h>
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
+
 #include <eventer/eventer.h>
+#include <mtev_conf.h>
+#include <mtev_conf_private.h>
 #include <mtev_memory.h>
 #include <mtev_log.h>
 #include <mtev_hash.h>
@@ -63,8 +69,8 @@
 #include "noit_check_resolver.h"
 #include "modules/histogram.h"
 
-#define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
-#define RECYCLE_INTERVAL 60
+#define DEFAULT_TEXT_METRIC_SIZE_LIMIT  4096
+static int check_recycle_period = 60000;
 
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
@@ -551,11 +557,12 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   char filterset[256] = "";
   char oncheck[1024] = "";
   char resolve_rtype[16] = "";
+  char delstr[8] = "";
   int ridx, flags, found;
   int no_period = 0;
   int no_oncheck = 0;
   int period = 0, timeout = 0;
-  mtev_boolean disabled = mtev_false, busted = mtev_false;
+  mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   uuid_t uuid, out_uuid;
   int64_t config_seq = 0;
   mtev_hash_table *options;
@@ -594,16 +601,23 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
     return;
   }
 
+  flags = 0;
+  if(MYATTR(stringbuf, deleted, delstr, sizeof(delstr) && !strcmp(delstr, "deleted"))) {
+    deleted = mtev_true;
+    disabled = mtev_true;
+    flags |= NP_DELETED;
+  }
+
   if(!INHERIT(stringbuf, target, target, sizeof(target))) {
-    mtevL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
+    if(!deleted) mtevL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
     busted = mtev_true;
   }
   if(!noit_check_validate_target(target)) {
-    mtevL(noit_stderr, "check uuid: '%s' has malformed target\n", uuid_str);
+    if(!deleted) mtevL(noit_stderr, "check uuid: '%s' has malformed target\n", uuid_str);
     busted = mtev_true;
   }
   if(!INHERIT(stringbuf, module, module, sizeof(module))) {
-    mtevL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
+    if(!deleted) mtevL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
     busted = mtev_true;
   }
 
@@ -617,7 +631,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
     strlcpy(name, module, sizeof(name));
 
   if(!noit_check_validate_name(name)) {
-    mtevL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
+    if(!deleted) mtevL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
     busted = mtev_true;
   }
 
@@ -627,32 +641,37 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
     no_oncheck = 1;
 
-  if(no_period && no_oncheck) {
-    mtevL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
-          uuid_str);
-    busted = mtev_true;
+  if(deleted) {
+    memcpy(target, "none", 5);
+    mtev_uuid_unparse_lower(uuid, name);
+  } else {
+    if(no_period && no_oncheck) {
+      mtevL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
+            uuid_str);
+      busted = mtev_true;
+    }
+    if(!(no_period || no_oncheck)) {
+      mtevL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
+            uuid_str);
+      busted = mtev_true;
+    }
+    if(!INHERIT(int32, timeout, &timeout)) {
+      mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
+      busted = mtev_true;
+    }
+    if(!no_period && timeout >= period) {
+      mtevL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
+      timeout = period/2;
+    }
+    INHERIT(boolean, disable, &disabled);
   }
-  if(!(no_period || no_oncheck)) {
-    mtevL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
-          uuid_str);
-    busted = mtev_true;
-  }
-  if(!INHERIT(int32, timeout, &timeout)) {
-    mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
-    busted = mtev_true;
-  }
-  if(!no_period && timeout >= period) {
-    mtevL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
-    timeout = period/2;
-  }
+
   options = mtev_conf_get_hash(section, "config");
   for(ridx=0; ridx<reg_module_id; ridx++) {
     moptions[ridx] = mtev_conf_get_namespaced_hash(section, "config",
                                                    reg_module_names[ridx]);
   }
 
-  INHERIT(boolean, disable, &disabled);
-  flags = 0;
   if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
   else if(disabled) flags |= NP_DISABLED;
 
@@ -718,7 +737,7 @@ noit_check_activate(noit_check_t *check) {
             check->target, check->name);
   }
   else {
-    if(!mod) {
+    if(!mod && !NOIT_CHECK_DISABLED(check)) {
       mtevL(noit_stderr, "Cannot find module '%s'\n", check->module);
       check->flags |= NP_DISABLED;
     }
@@ -906,7 +925,8 @@ noit_poller_init() {
   register_console_check_commands();
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
-  eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "noit/@check_recycle_period", &check_recycle_period);
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
   mtev_conf_get_int32(MTEV_CONF_ROOT, "noit/@text_size_limit", &text_size_limit);
   if (text_size_limit <= 0) {
     text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
@@ -1350,9 +1370,9 @@ noit_poller_schedule(const char *target,
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
                     period, timeout, oncheck, seq, flags);
-  mtevAssert(mtev_hash_store(&polls,
-                         (char *)new_check->checkid, UUID_SIZE,
-                         new_check));
+  mtev_hash_replace(&polls,
+                    (char *)new_check->checkid, UUID_SIZE,
+                    new_check, NULL, (NoitHashFreeFunc)noit_poller_free_check);
   mtev_uuid_copy(out, new_check->checkid);
   noit_check_log_check(new_check);
 
@@ -1451,12 +1471,45 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
 }
 void
 noit_poller_free_check(noit_check_t *checker) {
+  checker->flags |= NP_KILLED;
   noit_poller_free_check_internal(checker, mtev_false);
 }
-static int
-check_recycle_bin_processor(eventer_t e, int mask, void *closure,
-                            struct timeval *now) {
+static void
+check_recycle_bin_processor_internal() {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   struct _checker_rcb *prev = NULL, *curr = NULL;
+  mtevL(noit_debug, "Scanning checks for cluster sync\n");
+  pthread_mutex_lock(&polls_lock);
+  while(mtev_hash_adv(&polls, &iter)) {
+    noit_check_t *check = (noit_check_t *)iter.value.ptr;
+    if(NOIT_CHECK_DELETED(check) && !noit_cluster_checkid_replication_pending(check->checkid)) {
+      char xpath[1024], idstr[UUID_STR_LEN+1];
+      mtev_uuid_unparse_lower(check->checkid, idstr);
+
+      mtevL(noit_debug, "cluster delete of %s complete.\n", idstr);
+      /* Set the config_seq to zero so it can be truly descheduled */
+      check->config_seq = 0;
+      noit_poller_deschedule(check->checkid, mtev_true);
+
+      if(noit_check_xpath(xpath, sizeof(xpath), "/", idstr) > 0) {
+        xmlXPathContextPtr xpath_ctxt = NULL;
+        xmlXPathObjectPtr pobj = NULL;
+        mtev_conf_xml_xpath(NULL, &xpath_ctxt);
+        pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+        if(pobj && pobj->type == XPATH_NODESET && !xmlXPathNodeSetIsEmpty(pobj->nodesetval) &&
+           xmlXPathNodeSetGetLength(pobj->nodesetval) > 1) {
+          xmlNodePtr node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+          CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
+          xmlUnlinkNode(node);
+          mtev_conf_mark_changed();
+          (void)mtev_conf_write_file(NULL);
+        }
+        if(pobj) xmlXPathFreeObject(pobj);
+      }
+    }
+  }
+  pthread_mutex_unlock(&polls_lock);
+
   mtevL(noit_debug, "Scanning check recycle bin\n");
   pthread_mutex_lock(&recycling_lock);
   curr = checker_rcb;
@@ -1489,7 +1542,13 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
     }
   }
   pthread_mutex_unlock(&recycling_lock);
-  eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
+}
+
+static int
+check_recycle_bin_processor(eventer_t e, int mask, void *closure,
+                            struct timeval *now) {
+  check_recycle_bin_processor_internal();
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
   return 0;
 }
 
@@ -1503,16 +1562,22 @@ noit_poller_deschedule(uuid_t in, mtev_boolean log) {
     return -1;
   }
   checker = (noit_check_t *)vcheck;
-  checker->flags |= (NP_DISABLED|NP_KILLED);
+  checker->flags |= (NP_DISABLED|NP_KILLED|NP_DELETED);
 
   if(log) noit_check_log_delete(checker);
 
-  mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
-  mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
+  if(checker->config_seq == 0) {
+    mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
+    mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
+  }
 
   check_deleted_hook_invoke(checker);
 
-  noit_poller_free_check(checker);
+  if(checker->config_seq == 0) {
+    noit_poller_free_check(checker);
+    return 1;
+  }
+
   return 0;
 }
 
@@ -1871,20 +1936,15 @@ __mark_metric_logged(stats_t *newstate, metric_t *m) {
 
 static size_t
 noit_metric_sizes(metric_type_t type, const void *value) {
-  union {
-    int32_t i;
-    int64_t l;
-    double n;
-  } sizer;
   switch(type) {
     case METRIC_INT32:
     case METRIC_UINT32:
-      return sizeof(sizer);
+      return sizeof(int32_t);
     case METRIC_INT64:
     case METRIC_UINT64:
-      return sizeof(sizer);
+      return sizeof(int64_t);
     case METRIC_DOUBLE:
-      return sizeof(sizer);
+      return sizeof(double);
     case METRIC_STRING: {
       const char *lf = strchr(value, '\n');
       int len = lf ? lf - (const char *)value + 1 : strlen((char*)value) + 1;
@@ -2421,8 +2481,11 @@ nc_printf_check_brief(mtev_console_closure_t ncct,
   stats_t *current;
   char out[512];
   char uuid_str[37];
-  snprintf(out, sizeof(out), "%s`%s (%s [%x])", check->target, check->name,
-           check->target_ip, check->flags);
+  if(NOIT_CHECK_DELETED(check))
+    snprintf(out, sizeof(out), "-- deleted pending cluster synchronization --");
+  else
+    snprintf(out, sizeof(out), "%s`%s (%s [%x])", check->target, check->name,
+             check->target_ip, check->flags);
   uuid_unparse_lower(check->checkid, uuid_str);
   nc_printf(ncct, "%s %s\n", uuid_str, out);
   current = stats_current(check);
@@ -2726,6 +2789,11 @@ noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
   /* Normal attributes */
   uuid_unparse_lower(check->checkid, uuid_str);
   xmlSetProp(node, (xmlChar *)"uuid", (xmlChar *)uuid_str);
+  XMLSETPROP(node, "seq", check->config_seq, "%"PRId64);
+  if(NOIT_CHECK_DELETED(check)) {
+    xmlSetProp(node, (xmlChar *)"deleted", (xmlChar *)"deleted");
+    return node;
+  }
   XMLSETPROP(node, "target", check->target, "%s");
   XMLSETPROP(node, "module", check->module, "%s");
   XMLSETPROP(node, "name", check->name, "%s");
@@ -2735,7 +2803,6 @@ noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
   if(check->oncheck) {
     XMLSETPROP(node, "oncheck", check->oncheck, "%s");
   }
-  XMLSETPROP(node, "seq", check->config_seq, "%"PRId64);
 
   /* Config stuff */
   confnode = xmlNewNode(NULL, (xmlChar *)"config");
@@ -2803,21 +2870,24 @@ noit_check_process_repl(xmlDocPtr doc) {
     noit_check_t *check = noit_poller_lookup(checkid);
 
     /* too old, don't bother */
-    if(check && check->config_seq >= seq) continue;
+    if(check && check->config_seq >= seq) {
+      i++;
+      continue;
+    }
 
     if(check) {
       char xpath[1024];
 
       snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
                uuid_str);
-      section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
-      if(!mtev_conf_section_is_empty(section)) {
-        CONF_REMOVE(section);
-        node = mtev_conf_section_to_xmlnodeptr(section);
+      mtev_conf_section_t oldsection = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+      if(!mtev_conf_section_is_empty(oldsection)) {
+        CONF_REMOVE(oldsection);
+        node = mtev_conf_section_to_xmlnodeptr(oldsection);
         xmlUnlinkNode(node);
         xmlFreeNode(node);
       }
-      mtev_conf_release_section(section);
+      mtev_conf_release_section(oldsection);
     }
 
     xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);

@@ -82,6 +82,8 @@
 #define NP_RESOLVE               0x00000020
 /* Name service resolution has been compelted for the check */
 #define NP_RESOLVED              0x00000040
+/* The check has been deleted, but is kept as a tombstone */
+#define NP_DELETED               0x00000080
 /* This check should have 'S' lines suppressed from logging */
 #define NP_SUPPRESS_STATUS       0x00001000
 /* This check should have 'M' lines suppressed from logging */
@@ -155,6 +157,7 @@ API_EXPORT(void) noit_check_end(noit_check_t *);
 #define NOIT_CHECK_CONFIGURED(a) (((a)->flags & NP_UNCONFIG) == 0)
 #define NOIT_CHECK_RUNNING(a) ((a)->flags & NP_RUNNING)
 #define NOIT_CHECK_KILLED(a) ((a)->flags & NP_KILLED)
+#define NOIT_CHECK_DELETED(a) ((a)->flags & NP_DELETED)
 #define NOIT_CHECK_SHOULD_RESOLVE(a) ((a)->flags & NP_RESOLVE)
 /* It is resolved if it is resolved or never needed to be resolved */
 #define NOIT_CHECK_RESOLVED(a) (((a)->flags & NP_RESOLVED) || (((a)->flags & NP_RESOLVE) == 0))

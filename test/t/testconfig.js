@@ -89,6 +89,8 @@ testconfig.prototype.make_eventer_config = function(fd, opts) {
   "  <config>\n" +
   "    <default_queue_threads>" + opts['eventer_config']['default_queue_threads'] + "</default_queue_threads>\n" +
   "    <default_ca_chain>" + opts['eventer_config']['default_ca_chain'] + "</default_ca_chain>\n" +
+  "    <ssl_dhparam1024_file/>\n" +
+  "    <ssl_dhparam2048_file/>\n" +
   "  </config>\n" +
   "</eventer>\n";
   fs.writeSync(fd, out);
@@ -127,7 +129,7 @@ testconfig.prototype.make_log_section = function(fd, type, dis) {
 testconfig.prototype.make_logs_config = function(fd, opts) {
   var cwd = opts['cwd'];
   var logtypes = ["collectd", "dns", "eventer", "external", "lua", "mysql", "ping_icmp", "postgres", 
-                  "selfcheck", "snmp", "ssh2", "listener", "datastore" ];
+                  "selfcheck", "snmp", "ssh2", "listener", "datastore", "memory", "http" ];
   // These are disabled attrs, so they look backwards
   if(!opts.hasOwnProperty('logs_error'))
     opts['logs_error'] = { '': false };
@@ -277,6 +279,9 @@ testconfig.prototype.make_checks_config = function(fd, opts) {
   this.do_check_print(fd, opts['checks']);
   fs.writeSync(fd,"  </checks>\n");
 }
+testconfig.prototype.make_clusters_config = function(fd, opts) {
+  fs.writeSync(fd, "<clusters/>\n");
+}
 testconfig.prototype.make_filtersets_config = function(fd, opts) {
   fs.writeSync(fd,"<filtersets>\n");
   for (var name in opts['filtersets']) {
@@ -313,7 +318,8 @@ testconfig.prototype.make_noit_config = function(name, opts) {
   var file = logroot + name + "_noit.conf";
   var fd = fs.openSync(file, "w", { mode: '0644' });
   fs.writeSync(fd, "<?xml version=\"1.0\" encoding=\"utf8\" standalone=\"yes\"?>\n");
-  fs.writeSync(fd, "<noit>\n");
+  // Speed up recycling for shorter tests.
+  fs.writeSync(fd, "<noit check_recycle_period=\"1000\">\n");
   this.make_eventer_config(fd, opts);
   this.make_rest_acls(fd, opts);
   this.make_logs_config(fd, opts);
@@ -321,6 +327,7 @@ testconfig.prototype.make_noit_config = function(name, opts) {
   this.make_noit_listeners_config(fd, opts);
   this.make_checks_config(fd, opts);
   this.make_filtersets_config(fd, opts);
+  this.make_clusters_config(fd, opts);
   fs.writeSync(fd,"</noit>\n");
   fs.closeSync(fd);
   return file;
@@ -606,6 +613,12 @@ testconfig.prototype.logsize = function() {
   var stat = fs.statSync(this.log);
   return stat.size;
 }
+testconfig.prototype.pause = function() {
+  this.child.kill('SIGSTOP')
+}
+testconfig.prototype.continue = function() {
+  this.child.kill('SIGCONT')
+}
 testconfig.prototype.start = function(cb, ntests) {
   var self = this;
   process.setMaxListeners(0);
@@ -634,7 +647,7 @@ testconfig.prototype.start = function(cb, ntests) {
   var prog = '../../src/' + _program;
   var args = [ '-D', '-c', conf ];
   if(process.env['TRACE']) {
-    args.splice(0,1, '-o', "logs/" + self.name + "_" + _program + ".trace", prog);
+    args.splice(0,1, "--log-file=logs/" + self.name + "_" + _program + ".trace", prog);
     prog = process.env['TRACE'];
   }
 

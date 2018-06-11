@@ -49,6 +49,7 @@
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
 #include "noit_check.h"
+#include "noit_conf_checks.h"
 #include "noit_check_resolver.h"
 #include "noit_check_tools.h"
 
@@ -224,19 +225,22 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   uint64_t ms = 0;
   struct json_object *doc;
   uuid_unparse_lower(check->checkid, id_str);
+  snprintf(seq_str, sizeof(seq_str), "%lld", (long long)check->config_seq);
 
   doc = json_object_new_object();
   json_object_object_add(doc, "id", json_object_new_string(id_str));
+  json_object_object_add(doc, "seq", json_object_new_string(seq_str));
+  json_object_object_add(doc, "flags", json_object_new_int(check->flags));
+  if(NOIT_CHECK_DELETED(check)) return doc;
+
   json_object_object_add(doc, "name", json_object_new_string(check->name));
   json_object_object_add(doc, "module", json_object_new_string(check->module));
   json_object_object_add(doc, "target", json_object_new_string(check->target));
   json_object_object_add(doc, "target_ip", json_object_new_string(check->target_ip));
   json_object_object_add(doc, "filterset", json_object_new_string(check->filterset));
-  snprintf(seq_str, sizeof(seq_str), "%lld", (long long)check->config_seq);
-  json_object_object_add(doc, "seq", json_object_new_string(seq_str));
   json_object_object_add(doc, "period", json_object_new_int(check->period));
   json_object_object_add(doc, "timeout", json_object_new_int(check->timeout));
-  json_object_object_add(doc, "flags", json_object_new_int(check->flags));
+  json_object_object_add(doc, "active_on_cluster_node", json_object_new_boolean(noit_should_run_check(check, NULL)));
 
   c = noit_check_get_stats_current(check);
   t = noit_check_stats_whence(c, NULL);
@@ -858,10 +862,23 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
     FAIL("internal error uuid");
 
   /* delete this here */
-  if(check) noit_poller_deschedule(check->checkid, mtev_true);
-  CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
-  xmlUnlinkNode(node);
-  xmlFreeNode(node);
+  mtev_boolean just_mark = mtev_false;
+  if(check)
+    if(!noit_poller_deschedule(check->checkid, mtev_true))
+      just_mark = mtev_true;
+  if(just_mark) {
+    int64_t newseq = noit_conf_check_bump_seq(node);
+    xmlSetProp(node, (xmlChar *)"deleted", (xmlChar *)"deleted");
+    if(check) {
+      check->config_seq = newseq;
+      noit_cluster_mark_check_changed(check, NULL);
+    }
+    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
+  } else {
+    CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
+    xmlUnlinkNode(node);
+    xmlFreeNode(node);
+  }
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(noit_error, "local config write failed\n");
