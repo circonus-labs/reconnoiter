@@ -38,7 +38,7 @@
 static int
 lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
   uuid_t id;
-  if(uuid_parse(lua_tostring(L,1), id)) {
+  if(mtev_uuid_parse(lua_tostring(L,1), id)) {
     luaL_error(L, "(un)subscribe expects a uuid as the first parameter");
   }
   noit_adjust_metric_interest(id, lua_tostring(L,2), bump);
@@ -91,7 +91,7 @@ static int noit_metric_id_index_func(lua_State *L) {
     case 'i':
       if(!strcmp(k, "id")) {
         char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
-        uuid_unparse_lower(metric_id->id, uuid_str);
+        mtev_uuid_unparse_lower(metric_id->id, uuid_str);
         lua_pushstring(L, uuid_str);
       } else if(!strcmp(k, "id_ud")) {
         lua_pushlightuserdata(L, (void*)&metric_id->id);

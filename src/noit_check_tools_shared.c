@@ -208,8 +208,8 @@ interpolate_oper_random(char *buff, int len, const char *key,
   else if(!strcmp(key, "uuid")) {
     uuid_t val;
     char val_str[UUID_STR_LEN+1];
-    uuid_generate(val);
-    uuid_unparse_lower(val, val_str);
+    mtev_uuid_generate(val);
+    mtev_uuid_unparse_lower(val, val_str);
     return snprintf(buff, len, "%s", val_str);
   }
   return snprintf(buff, len, "random_what");

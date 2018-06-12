@@ -76,8 +76,8 @@ reverse_check_allow(const char *id, mtev_acceptor_closure_t *ac) {
   if(strncmp(id, "check/", 6)) return MTEV_ACL_ABSTAIN;
 
   strlcpy(uuid_str, id + 6, sizeof(uuid_str));
-  if(uuid_parse(uuid_str, uuid) != 0) return MTEV_ACL_DENY;
-  uuid_unparse_lower(uuid, uuid_str);
+  if(mtev_uuid_parse(uuid_str, uuid) != 0) return MTEV_ACL_DENY;
+  mtev_uuid_unparse_lower(uuid, uuid_str);
 
   check = noit_poller_lookup(uuid);
   if(!check) return MTEV_ACL_DENY;

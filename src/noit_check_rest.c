@@ -224,7 +224,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   struct timeval *t, check_whence;
   uint64_t ms = 0;
   struct json_object *doc;
-  uuid_unparse_lower(check->checkid, id_str);
+  mtev_uuid_unparse_lower(check->checkid, id_str);
   snprintf(seq_str, sizeof(seq_str), "%lld", (long long)check->config_seq);
 
   doc = json_object_new_object();
@@ -347,7 +347,7 @@ static int
 json_check_accum(noit_check_t *check, void *closure) {
   struct json_object *cobj, *doc = closure;
   char id_str[UUID_STR_LEN+1];
-  uuid_unparse_lower(check->checkid, id_str);
+  mtev_uuid_unparse_lower(check->checkid, id_str);
   cobj = noit_check_state_as_json(check, 0);
   json_object_object_del(cobj, "id");
   json_object_object_add(doc, id_str, cobj);
@@ -440,7 +440,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
   section = mtev_conf_section_from_xmlnodeptr(node);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
-  if(!uuid_conf || uuid_parse(uuid_conf, checkid)) goto error;
+  if(!uuid_conf || mtev_uuid_parse(uuid_conf, checkid)) goto error;
 
   if(npats == 3 && !strcmp(pats[2], ".json")) {
     if(uuid_conf) xmlFree(uuid_conf);
@@ -837,7 +837,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
 
   if(npats != 2) goto error;
 
-  if(uuid_parse(pats[1], checkid)) goto error;
+  if(mtev_uuid_parse(pats[1], checkid)) goto error;
   check = noit_poller_lookup(checkid);
   if(check)
     exists = mtev_true;
@@ -927,7 +927,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(indoc == NULL) FAIL("xml parse error");
   if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) goto error;
 
-  if(uuid_parse(pats[1], checkid)) goto error;
+  if(mtev_uuid_parse(pats[1], checkid)) goto error;
   check = noit_poller_lookup(checkid);
   if(check)
     exists = mtev_true;

@@ -33,7 +33,7 @@
 
 #include <mtev_defines.h>
 #include <stdint.h>
-#include <uuid/uuid.h>
+#include <mtev_uuid.h>
 
 #include "noit_metric.h"
 

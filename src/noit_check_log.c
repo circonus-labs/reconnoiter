@@ -33,7 +33,7 @@
 
 #include <mtev_defines.h>
 
-#include <uuid/uuid.h>
+#include <mtev_uuid.h>
 #include <netinet/in.h>
 
 #include "noit_dtrace_probes.h"
@@ -110,7 +110,7 @@ static int
     strlcat(uuid_str, check->name, len-37); \
     strlcat(uuid_str, "`", len-37); \
   } \
-  uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str)); \
+  mtev_uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str)); \
 } while(0)
 
 static void
@@ -280,7 +280,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
   }
 
   uuid_str[0] = '\0';
-  uuid_unparse_lower(check->checkid, uuid_str);
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
 
   size_t size = 0;
   /* TODO: this is a circonus specific line based on how we name checks
@@ -563,7 +563,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   }
 
   uuid_str[0] = '\0';
-  uuid_unparse_lower(check->checkid, uuid_str);
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
 
   metrics = noit_check_stats_metrics(c);
 

@@ -231,8 +231,8 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
   node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
   if((newnode = xmlNewChild(node, NULL, (xmlChar *)"check", NULL)) != NULL) {
     char outstr[37];
-    uuid_generate(out);
-    uuid_unparse_lower(out, outstr);
+    mtev_uuid_generate(out);
+    mtev_uuid_unparse_lower(out, outstr);
     xmlSetProp(newnode, (xmlChar *)"uuid", (xmlChar *)outstr);
     xmlSetProp(newnode, (xmlChar *)"disable", (xmlChar *)"true");
 
@@ -298,7 +298,7 @@ noit_console_check(mtev_console_closure_t ncct,
       return -1;
     }
     newuuid_str[0] = '\0';
-    uuid_unparse_lower(out, newuuid_str);
+    mtev_uuid_unparse_lower(out, newuuid_str);
     wanted = newuuid_str;
   }
   /* We many not be in conf-t mode -- that's fine */
@@ -322,7 +322,7 @@ noit_console_check(mtev_console_closure_t ncct,
   }
   node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
-  if(!node || !uuid_conf || uuid_parse(uuid_conf, checkid)) {
+  if(!node || !uuid_conf || mtev_uuid_parse(uuid_conf, checkid)) {
     nc_printf(ncct, "%s has invalid or missing UUID!\n",
               (char *)xmlGetNodePath(node) + strlen("/noit"));
     goto out;
@@ -393,7 +393,7 @@ noit_console_watch_check(mtev_console_closure_t ncct,
 
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
-    if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
+    if(!uuid_conf || mtev_uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
                 (char *)xmlGetNodePath(node) + strlen("/noit"));
       continue;
@@ -518,7 +518,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     section = mtev_conf_section_from_xmlnodeptr(node);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
-    if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
+    if(!uuid_conf || mtev_uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
                 (char *)xmlGetNodePath(node) + strlen("/noit"));
       continue;
@@ -686,7 +686,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
     char *uuid_conf;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
-    if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
+    if(!uuid_conf || mtev_uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
                 (char *)xmlGetNodePath(node) + strlen("/noit"));
     }
@@ -897,7 +897,7 @@ noit_console_config_show(mtev_console_closure_t ncct,
         }
       }
       nc_printf(ncct, "check[@uuid=\"%s\"] ", uuid_str ? uuid_str : "undefined");
-      if(uuid_str && uuid_parse(uuid_str, checkid) == 0) {
+      if(uuid_str && mtev_uuid_parse(uuid_str, checkid) == 0) {
         noit_check_t *check;
         check = noit_poller_lookup(checkid);
         if(check) {
@@ -940,7 +940,7 @@ conf_t_check_prompt(EditLine *el) {
              pfmt, check->target, "`", check->name);
   else {
     char uuid_str[37];
-    uuid_unparse_lower(info->current_check, uuid_str);
+    mtev_uuid_unparse_lower(info->current_check, uuid_str);
     snprintf(info->prompt, sizeof(info->prompt), pfmt, "[", uuid_str, "]");
   }
   return info->prompt;

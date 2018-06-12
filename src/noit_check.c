@@ -596,7 +596,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   MYATTR(int64, seq, &config_seq);
 
-  if(uuid_parse(uuid_str, uuid)) {
+  if(mtev_uuid_parse(uuid_str, uuid)) {
     mtevL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
     return;
   }
@@ -826,7 +826,7 @@ noit_poller_make_causal_map() {
       system_needs_causality = mtev_true;
       mtevL(noit_debug, "Searching for upstream trigger on %s\n", name);
       parent = NULL;
-      if(uuid_parse(check->oncheck, id) == 0) {
+      if(mtev_uuid_parse(check->oncheck, id) == 0) {
         target = "";
         parent = noit_poller_lookup__nolock(id);
       }
@@ -1003,7 +1003,7 @@ noit_check_watch(uuid_t in, int period) {
   char xpath[1024];
   noit_check_t n, *f;
 
-  uuid_unparse_lower(in, uuid_str);
+  mtev_uuid_unparse_lower(in, uuid_str);
 
   mtevL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
   if(period == 0) {
@@ -1092,7 +1092,7 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
   }
   if(mtev_skiplist_size(check->feeds) == 0) {
     char uuid_str[UUID_STR_LEN + 1];
-    uuid_unparse_lower(check->checkid, uuid_str);
+    mtev_uuid_unparse_lower(check->checkid, uuid_str);
     mtevL(noit_debug, "Unwatching %s@%d\n", uuid_str, check->period);
     mtev_skiplist_remove(watchlist, check, NULL);
     mtev_skiplist_destroy(check->feeds, free);
@@ -1217,7 +1217,7 @@ noit_check_update(noit_check_t *new_check,
   int mask = NP_DISABLED | NP_UNCONFIG;
 
   mtevAssert(name);
-  uuid_unparse_lower(new_check->checkid, uuid_str);
+  mtev_uuid_unparse_lower(new_check->checkid, uuid_str);
   if(!new_check->statistics) new_check->statistics = noit_check_stats_set_calloc();
   if(seq < 0) new_check->config_seq = seq = 0;
   if(new_check->config_seq > seq) {
@@ -1229,7 +1229,7 @@ noit_check_update(noit_check_t *new_check,
   if(mtev_cluster_enabled() && !strcmp(new_check->module, "selfcheck")) {
     uuid_t cluster_id;
     mtev_cluster_get_self(cluster_id);
-    if(uuid_compare(cluster_id, new_check->checkid)) {
+    if(mtev_uuid_compare(cluster_id, new_check->checkid)) {
       mtevL(mtev_notice, "Setting global cluster identity to '%s'\n", uuid_str);
       mtev_cluster_set_self(new_check->checkid);
     }
@@ -1362,8 +1362,8 @@ noit_poller_schedule(const char *target,
 
   /* The module and the UUID can never be changed */
   new_check->module = strdup(module);
-  if(uuid_is_null(in))
-    uuid_generate(new_check->checkid);
+  if(mtev_uuid_is_null(in))
+    mtev_uuid_generate(new_check->checkid);
   else
     mtev_uuid_copy(new_check->checkid, in);
 
@@ -1761,7 +1761,7 @@ int
 noit_check_xpath_check(char *xpath, int len,
                   noit_check_t *check) {
   char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
-  uuid_unparse_lower(check->checkid, uuid_str);
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
   return noit_check_xpath(xpath, len, "/", uuid_str);
 }
 
@@ -1777,7 +1777,7 @@ noit_check_xpath(char *xpath, int len,
   argcopy[0] = '\0';
   if(arg) strlcpy(argcopy, arg, sizeof(argcopy));
 
-  if(uuid_parse(argcopy, checkid) == 0) {
+  if(mtev_uuid_parse(argcopy, checkid) == 0) {
     /* If they kill by uuid, we'll seek and destroy -- find it anywhere */
     snprintf(xpath, len, "/noit/checks%s%s/check[@uuid=\"%s\"]",
              base, base_trailing_slash ? "" : "/", argcopy);
@@ -1795,7 +1795,7 @@ noit_check_xpath(char *xpath, int len,
     if(!check) {
       return -1;
     }
-    uuid_unparse_lower(check->checkid, uuid_str);
+    mtev_uuid_unparse_lower(check->checkid, uuid_str);
     snprintf(xpath, len, "/noit/checks%s%s/check[@uuid=\"%s\"]",
              base, base_trailing_slash ? "" : "/", uuid_str);
   }
@@ -1890,7 +1890,7 @@ void noit_check_begin(noit_check_t *check) {
     }
     mtev_zipkin_span_annotate(check->span, NULL, "check_begin", false);
     char id_str[UUID_STR_LEN+1];
-    uuid_unparse_lower(check->checkid, id_str);
+    mtev_uuid_unparse_lower(check->checkid, id_str);
     mtev_zipkin_span_bannotate_str(check->span, "check.uuid", false, id_str, true);
     mtev_zipkin_span_bannotate_str(check->span, "check.module", false, check->module, true);
     mtev_zipkin_span_bannotate_str(check->span, "check.target", false, check->target, true);
@@ -2318,7 +2318,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
   mtev_skiplist_find_neighbors(watchlist, &n, NULL, NULL, &next);
   while(next && mtev_skiplist_data(next) && nwatches < 8192) {
     noit_check_t *wcheck = mtev_skiplist_data(next);
-    if(uuid_compare(n.checkid, wcheck->checkid)) break;
+    if(mtev_uuid_compare(n.checkid, wcheck->checkid)) break;
     watches[nwatches++] = wcheck;
     mtev_skiplist_next(watchlist, &next);
   }
@@ -2408,7 +2408,7 @@ noit_check_set_stats(noit_check_t *check) {
 
   if(NOIT_CHECK_STATUS_ENABLED()) {
     char id[UUID_STR_LEN+1];
-    uuid_unparse_lower(check->checkid, id);
+    mtev_uuid_unparse_lower(check->checkid, id);
     NOIT_CHECK_STATUS(id, check->module, check->name, check->target,
                       current ? current->available : NP_UNKNOWN,
                       current ? current->state : NP_UNKNOWN,
@@ -2461,7 +2461,7 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
     noit_check_t *check = watches[i];
     char uuid_str[UUID_STR_LEN + 1];
 
-    uuid_unparse_lower(check->checkid, uuid_str);
+    mtev_uuid_unparse_lower(check->checkid, uuid_str);
     nc_printf(ncct, "%s:\n\t[%s`%s`%s]\n\tPeriod: %dms\n\tFeeds[%d]:\n",
               uuid_str, check->target, check->module, check->name,
               check->period, check->feeds ? mtev_skiplist_size(check->feeds) : 0);
@@ -2486,7 +2486,7 @@ nc_printf_check_brief(mtev_console_closure_t ncct,
   else
     snprintf(out, sizeof(out), "%s`%s (%s [%x])", check->target, check->name,
              check->target_ip, check->flags);
-  uuid_unparse_lower(check->checkid, uuid_str);
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
   nc_printf(ncct, "%s %s\n", uuid_str, out);
   current = stats_current(check);
   if(current)
@@ -2515,7 +2515,7 @@ noit_console_conf_check_opts(mtev_console_closure_t ncct,
       char out[512];
       char uuid_str[37];
       snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
-      uuid_unparse_lower(check->checkid, uuid_str);
+      mtev_uuid_unparse_lower(check->checkid, uuid_str);
       if(!strncmp(out, argv[0], strlen(argv[0]))) {
         if(idx == i) {
           pthread_mutex_unlock(&polls_lock);
@@ -2561,7 +2561,7 @@ noit_console_check_opts(mtev_console_closure_t ncct,
       char uuid_str[37];
       noit_check_t *check = (noit_check_t *)vcheck;
       snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
-      uuid_unparse_lower(check->checkid, uuid_str);
+      mtev_uuid_unparse_lower(check->checkid, uuid_str);
       if(!strncmp(out, argv[0], strlen(argv[0]))) {
         if(idx == i) {
           pthread_mutex_unlock(&polls_lock);
@@ -2787,7 +2787,7 @@ noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
   node = xmlNewNode(NULL, (xmlChar *)"check");
 
   /* Normal attributes */
-  uuid_unparse_lower(check->checkid, uuid_str);
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
   xmlSetProp(node, (xmlChar *)"uuid", (xmlChar *)uuid_str);
   XMLSETPROP(node, "seq", check->config_seq, "%"PRId64);
   if(NOIT_CHECK_DELETED(check)) {

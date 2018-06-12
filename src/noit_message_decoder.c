@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <uuid/uuid.h>
+#include <mtev_uuid.h>
 #include <ctype.h>
 #include <mtev_log.h>
 #include <mtev_str.h>
@@ -262,8 +262,8 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
   memcpy(id_str_copy, message->id.name - UUID_STR_LEN - 1, UUID_STR_LEN);
   id_str_copy[UUID_STR_LEN] = '\0';
 
-  if(uuid_parse(id_str_copy, message->id.id) != 0) {
-    mtevL(mtev_error, "uuid_parse(%s) failed\n", id_str_copy);
+  if(mtev_uuid_parse(id_str_copy, message->id.id) != 0) {
+    mtevL(mtev_error, "mtev_uuid_parse(%s) failed\n", id_str_copy);
     return -7;
   }
 

@@ -623,7 +623,7 @@ noit_check_index_func(lua_State *L) {
       if(!strcmp(k, "config")) mtev_lua_hash_to_table(L, check->config);
       else if(!strcmp(k, "checkid")) {
         char uuid_str[UUID_STR_LEN + 1];
-        uuid_unparse_lower(check->checkid, uuid_str);
+        mtev_uuid_unparse_lower(check->checkid, uuid_str);
         lua_pushstring(L, uuid_str);
       }
       else break;
@@ -747,7 +747,7 @@ noit_check_index_func(lua_State *L) {
       }
       else if(!strcmp(k, "uuid")) {
         char uuid_str[UUID_STR_LEN+1];
-        uuid_unparse_lower(check->checkid, uuid_str);
+        mtev_uuid_unparse_lower(check->checkid, uuid_str);
         lua_pushstring(L, uuid_str);
         return 1;
       }
@@ -1255,7 +1255,7 @@ describe_lua_check_context(mtev_console_closure_t ncct,
   nc_printf(ncct, "lua_check(ri: %p, state:%p, parent:%p)\n",
             ri, ri->coro_state, mtev_lua_lmc_L(ri->lmc));
   if(ci) {
-    uuid_unparse_lower(ci->check->checkid, uuid_str);
+    mtev_uuid_unparse_lower(ci->check->checkid, uuid_str);
     nc_printf(ncct, "\tcheck: %s\n", uuid_str);
     nc_printf(ncct, "\tname: %s\n", ci->check->name);
     nc_printf(ncct, "\tmodule: %s\n", ci->check->module);

@@ -89,7 +89,7 @@ stratcon_ingestor_submit_lookup(struct realtime_tracker *rt,
     char remote_ip[32];
     int storagenode_id;
 
-    uuid_unparse_lower(node->checkid, uuid_str);
+    mtev_uuid_unparse_lower(node->checkid, uuid_str);
     if(storage_node_quick_lookup(uuid_str, NULL, &node->sid,
                                  &storagenode_id, &remote_cn, &fqdn, &dsn))
       continue;
@@ -117,7 +117,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
   void *vstr;
   const char *actual_remote_cn = NULL;
   if(remote_cn) actual_remote_cn = remote_cn;
-  if(uuid_parse((char *)uuid_str, id) == 0) {
+  if(mtev_uuid_parse((char *)uuid_str, id) == 0) {
     if(mtev_hash_retrieve(&uuid_map, (const char *)id, UUID_SIZE, &vstr)) {
       char *str = (char *)vstr;
       if(remote_cn && strcmp(str, remote_cn)) {

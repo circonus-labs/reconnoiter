@@ -148,7 +148,7 @@ noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
     strlcat(uuid_str, check->name, sizeof(uuid_str)-37);
     strlcat(uuid_str, "`", sizeof(uuid_str)-37);
   }
-  uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str));
+  mtev_uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str));
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))

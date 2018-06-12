@@ -68,7 +68,7 @@ noit_check_recur_name_details(char *buf, int buflen,
     snprintf(buf, buflen, "noit_check_recur_handler");
     return;
   }
-  uuid_unparse_lower(rcl->check->checkid, id_str);
+  mtev_uuid_unparse_lower(rcl->check->checkid, id_str);
   snprintf(buf, buflen, "fire(%s)", id_str);
   return;
 }
@@ -90,7 +90,7 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
        check_preflight_hook_invoke(rcl->self, rcl->check, rcl->cause)) {
       if(NOIT_CHECK_DISPATCH_ENABLED()) {
         char id[UUID_STR_LEN+1];
-        uuid_unparse_lower(rcl->check->checkid, id);
+        mtev_uuid_unparse_lower(rcl->check->checkid, id);
         NOIT_CHECK_DISPATCH(id, rcl->check->module, rcl->check->name,
                             rcl->check->target);
       }
@@ -395,7 +395,7 @@ pthread_t noit_check_choose_eventer_thread(noit_check_t *check) {
   char buff[128];
   eventer_pool_t *dedicated_pool = NULL;
   strlcpy(buff, "noit_check_", sizeof(buff));
-  uuid_unparse_lower(check->checkid, buff + strlen("noit_check_"));
+  mtev_uuid_unparse_lower(check->checkid, buff + strlen("noit_check_"));
   dedicated_pool = eventer_pool(buff);
   if(!dedicated_pool) {
     snprintf(buff, sizeof(buff), "noit_module_%s", check->module);

@@ -57,7 +57,7 @@ nl_check(lua_State *L) {
   uuid_t id;
   const char *id_str = lua_tostring(L,1);
 
-  if(id_str && uuid_parse((char *)id_str, id) == 0) {
+  if(id_str && mtev_uuid_parse((char *)id_str, id) == 0) {
     check = noit_poller_lookup(id);
     if(check) {
       noit_lua_setup_check(L, check);

@@ -278,7 +278,7 @@ socket_error:
       jcl->uuid_read += len;
     }
     jcl->uuid_str[36] = '\0';
-    if(uuid_parse(jcl->uuid_str, jcl->uuid)) {
+    if(mtev_uuid_parse(jcl->uuid_str, jcl->uuid)) {
       mtevL(noit_error, "bad uuid received in livestream handler '%s'\n", jcl->uuid_str);
       goto socket_error;
     }

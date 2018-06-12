@@ -36,7 +36,7 @@
 
 #include <mtev_defines.h>
 
-#include <uuid/uuid.h>
+#include <mtev_uuid.h>
 #include <netinet/in.h>
 
 #include <eventer/eventer.h>

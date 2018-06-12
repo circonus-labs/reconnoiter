@@ -329,7 +329,7 @@ stratcon_realtime_uri_parse(realtime_context *rc, const char *uri) {
       interval = "5000";
     else
       *interval++ = '\0';
-    if(uuid_parse((char *)interest, in_uuid)) continue;
+    if(mtev_uuid_parse((char *)interest, in_uuid)) continue;
     node = calloc(1, sizeof(*node));
     node->rc = rc;
     mtev_uuid_copy(node->checkid, in_uuid);
@@ -471,7 +471,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
         ctx->state = REALTIME_HTTP_WANT_SEND_UUID;
         /* FALLTHROUGH */
       case REALTIME_HTTP_WANT_SEND_UUID:
-        uuid_unparse_lower(ctx->rt->checkid, uuid_str);
+        mtev_uuid_unparse_lower(ctx->rt->checkid, uuid_str);
         full_nb_write(uuid_str, 36);
         ctx->state = REALTIME_HTTP_WANT_HEADER;
         /* FALLTHROUGH */
@@ -572,7 +572,7 @@ stratcon_request_dispatcher(mtev_http_session_ctx *ctx) {
     for(node = rc->checklist; node; node = node->next) {
       char uuid_str[UUID_STR_LEN+1];
       mtev_http_session_ref_inc(ctx);
-      uuid_unparse_lower(node->checkid, uuid_str);
+      mtev_uuid_unparse_lower(node->checkid, uuid_str);
       mtevL(noit_error, "Resolving uuid: %s\n", uuid_str);
     }
     completion = eventer_in_s_us(stratcon_realtime_http_postresolve, ctx, 0, 0);

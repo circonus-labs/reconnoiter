@@ -723,7 +723,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
             sizeof(ip_str));
 
   uuid_str[0] = '\0';
-  uuid_unparse_lower(self_stratcon_id, tmp_uuid_str);
+  mtev_uuid_unparse_lower(self_stratcon_id, tmp_uuid_str);
   if(stratcon_selfcheck_extended_id) {
     strlcat(uuid_str, ip_str, sizeof(uuid_str)-37);
     strlcat(uuid_str, "`selfcheck`selfcheck`", sizeof(uuid_str)-37);
@@ -1528,11 +1528,11 @@ stratcon_jlog_streamer_init(const char *toplevel) {
              mtev_http_rest_client_cert_auth
   ) == 0);
 
-  uuid_clear(self_stratcon_id);
+  mtev_uuid_clear(self_stratcon_id);
 
   if(mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/stratcon/@id",
                              uuid_str, sizeof(uuid_str)) &&
-     uuid_parse(uuid_str, self_stratcon_id) == 0) {
+     mtev_uuid_parse(uuid_str, self_stratcon_id) == 0) {
     int32_t period;
     mtev_conf_get_boolean(MTEV_CONF_ROOT, "/stratcon/@extended_id",
                           &stratcon_selfcheck_extended_id);

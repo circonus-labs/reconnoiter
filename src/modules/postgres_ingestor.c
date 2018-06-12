@@ -570,7 +570,7 @@ stratcon_ingest_find(ds_rt_detail *d) {
     char remote_ip[32];
     int storagenode_id;
 
-    uuid_unparse_lower(node->checkid, uuid_str);
+    mtev_uuid_unparse_lower(node->checkid, uuid_str);
     if(storage_node_quick_lookup(uuid_str, NULL, &node->sid,
                                  &storagenode_id, &remote_cn, &fqdn, &dsn))
       continue;

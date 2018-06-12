@@ -300,7 +300,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     /* make sure this check is from this generation! */
     if(!check) {
       char uuid_str[37];
-      uuid_unparse_lower(payload->checkid, uuid_str);
+      mtev_uuid_unparse_lower(payload->checkid, uuid_str);
       mtevLT(nldeb, now,
              "ping_icmp response for unknown check '%s'\n", uuid_str);
       continue;

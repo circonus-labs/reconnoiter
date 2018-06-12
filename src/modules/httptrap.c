@@ -733,7 +733,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     error = "bad uri";
     goto error;
   }
-  if(uuid_parse(pats[0], check_id)) {
+  if(mtev_uuid_parse(pats[0], check_id)) {
     error = "uuid parse error";
     goto error;
   }

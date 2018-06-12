@@ -315,7 +315,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
 
   strncpy(handler_data->uuid_str, check_uuid, UUID_STR_LEN);
   handler_data->uuid_str[36] = '\0';
-  if(uuid_parse(handler_data->uuid_str, handler_data->uuid)) {
+  if(mtev_uuid_parse(handler_data->uuid_str, handler_data->uuid)) {
     mtevL(noit_error, "bad uuid received in livestream websocket_handler '%s'\n", handler_data->uuid_str);
     error = "bad uuid received in livestream subscription request";
     goto websocket_handler_error;

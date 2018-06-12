@@ -33,6 +33,7 @@
 #define NOIT_FB_H
 
 #include <mtev_defines.h>
+#include <mtev_uuid.h>
 #include <circllhist.h>
 
 #include "noit_metric.h"

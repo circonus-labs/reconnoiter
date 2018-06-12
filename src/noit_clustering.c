@@ -446,7 +446,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
     pthread_mutex_unlock(&noit_peer_lock);
 
     mtev_cluster_get_self(my_id);
-    uuid_unparse_lower(my_id, my_id_str);
+    mtev_uuid_unparse_lower(my_id, my_id_str);
     CURL *curl = get_curl_handle();
     if(curl == NULL) {
       mtevL(clerr, "Can't get curl handle: waiting %fs\n", (double)REPL_FAIL_WAIT_US/1000000);
@@ -584,7 +584,7 @@ noit_cluster_checkid_replication_pending(uuid_t checkid) {
     struct check_changes *n;
     noit_peer_t *peer = iter.value.ptr;
     for(n = peer->checks.head; n; n = n->next) {
-      if(uuid_compare(n->checkid, checkid) == 0) {
+      if(mtev_uuid_compare(n->checkid, checkid) == 0) {
         pthread_mutex_unlock(&noit_peer_lock);
         return mtev_true;
       }

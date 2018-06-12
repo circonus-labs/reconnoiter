@@ -84,7 +84,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
   mtev_json_object_object_add(o, "timestamp_ms", whence);
 
   char uuid_str[UUID_PRINTABLE_STRING_LENGTH] = {0};
-  uuid_unparse_lower(metric->id.id, uuid_str);
+  mtev_uuid_unparse_lower(metric->id.id, uuid_str);
 
   if(metric->noit.name) {
     char name[metric->noit.name_len + 1];

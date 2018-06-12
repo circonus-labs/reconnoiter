@@ -236,7 +236,7 @@ distribute_metric(noit_metric_message_t *message) {
   void *vhash, *vinterests;
   caql_cnt_t *interests = NULL;
   char uuid_str[UUID_STR_LEN + 1];
-  uuid_unparse_lower(message->id.id, uuid_str);
+  mtev_uuid_unparse_lower(message->id.id, uuid_str);
   if(mtev_hash_retrieve(&id_level, (const char *) &message->id.id, UUID_SIZE,
       &vhash)) {
     if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,

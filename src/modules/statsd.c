@@ -360,7 +360,7 @@ static int noit_statsd_init(noit_module_t *self) {
 
   if(mtev_hash_retr_str(conf->options, "check", strlen("check"),
                         (const char **)&config_val)) {
-    if(uuid_parse((char *)config_val, conf->primary) != 0)
+    if(mtev_uuid_parse((char *)config_val, conf->primary) != 0)
       mtevL(noit_error, "statsd check isn't a UUID\n");
     conf->primary_active = 1;
     conf->check = NULL;

@@ -33,7 +33,7 @@
 
 #include <mtev_defines.h>
 #include <mtev_hooks.h>
-#include <uuid/uuid.h>
+#include <mtev_uuid.h>
 #include "noit_message_decoder.h"
 
 /**

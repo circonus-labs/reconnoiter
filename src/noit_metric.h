@@ -35,6 +35,7 @@
 #define _NOIT_METRIC_H
 
 #include <mtev_defines.h>
+#include <mtev_uuid.h>
 #include <mtev_atomic.h>
 
 #define MAX_METRIC_TAGGED_NAME 4096

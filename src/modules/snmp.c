@@ -606,7 +606,7 @@ static int noit_snmp_oid_to_checkid(oid *o, int l, uuid_t checkid, char *out) {
     /* hyphens after index 1,2,3,4 */
     if(i > 0 && i < 5) *cp++ = '-';
   }
-  if(uuid_parse(uuid_str, checkid) != 0) {
+  if(mtev_uuid_parse(uuid_str, checkid) != 0) {
     mtevL(nlerr, "unexpected error decoding trap uuid '%s'\n", uuid_str);
     return -1;
   }

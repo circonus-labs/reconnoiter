@@ -295,7 +295,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
      WCOREDUMP(ci->exit_code) ||
      (ci->error && *ci->error)) {
     char uuid_str[37];
-    uuid_unparse_lower(check->checkid, uuid_str);
+    mtev_uuid_unparse_lower(check->checkid, uuid_str);
     mtevL(data->nlerr, "external/%s: (sig:%d%s) [%s]\n", uuid_str,
           WTERMSIG(ci->exit_code), WCOREDUMP(ci->exit_code)?", cored":"",
           ci->error ? ci->error : "");

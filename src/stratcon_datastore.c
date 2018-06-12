@@ -284,7 +284,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
          (cp2 = strchr(cp1+1, '\t')) != NULL &&
          (cp2-cp1 >= UUID_STR_LEN)) {
         strlcpy(uuid_str, cp2 - UUID_STR_LEN, sizeof(uuid_str));
-        if(!uuid_parse(uuid_str, checkid)) {
+        if(!mtev_uuid_parse(uuid_str, checkid)) {
           ingestor->storage_node_lookup(uuid_str, remote_cn, NULL,
                                         &storagenode_id, NULL,
                                         &fqdn, &dsn);
