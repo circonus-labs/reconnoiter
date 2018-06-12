@@ -57,7 +57,7 @@ static int32_t DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES = 500;
 
 static mtev_hash_table feed_stats;
 
-static mtev_atomic32_t tmpfeedcounter = 0;
+static uint32_t tmpfeedcounter = 0;
 
 static int rest_show_feed(mtev_http_rest_closure_t *restc,
                           int npats, char **pats);
@@ -314,7 +314,7 @@ noit_jlog_thread_main(void *e_vptr) {
  alldone:
   eventer_close(e, &mask);
   eventer_free(e);
-  mtev_atomic_dec32(&jcl->feed_stats->connections);
+  ck_pr_dec_32(&jcl->feed_stats->connections);
   noit_jlog_closure_free(jcl);
   mtev_acceptor_closure_free(ac);
   mtev_memory_maintenance();
@@ -391,8 +391,8 @@ socket_error:
     }
     else {
       jcl->feed_stats = noit_jlog_feed_stats("~");
-      snprintf(subscriber, sizeof(subscriber),
-               "~%07d", mtev_atomic_inc32(&tmpfeedcounter));
+      uint32_t next = ck_pr_faa_32(&tmpfeedcounter,1) + 1;
+      snprintf(subscriber, sizeof(subscriber), "~%07u", next);
     }
     jcl->subscriber = strdup(subscriber);
 
@@ -443,7 +443,7 @@ socket_error:
   pthread_attr_init(&tattr);
   pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
   mtev_gettimeofday(&jcl->feed_stats->last_connection, NULL);
-  mtev_atomic_inc32(&jcl->feed_stats->connections);
+  ck_pr_inc_32(&jcl->feed_stats->connections);
   if(pthread_create(&tid, &tattr, noit_jlog_thread_main, newe) == 0) {
     return 0;
   }

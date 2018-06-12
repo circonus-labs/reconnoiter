@@ -36,7 +36,6 @@
 
 #include <mtev_defines.h>
 #include <eventer/eventer.h>
-#include <mtev_atomic.h>
 #include <mtev_hash.h>
 
 typedef enum {
@@ -66,7 +65,7 @@ typedef struct {
   char* path;
   char* nagios_regex;
   eventer_jobq_t *jobq;
-  mtev_atomic64_t check_no_seq;
+  uint64_t check_no_seq;
   mtev_hash_table external_checks;
   mtev_hash_table *options;
   uint32_t max_out_len;

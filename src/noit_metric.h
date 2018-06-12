@@ -36,7 +36,6 @@
 
 #include <mtev_defines.h>
 #include <mtev_uuid.h>
-#include <mtev_atomic.h>
 
 #define MAX_METRIC_TAGGED_NAME 4096
 
@@ -132,7 +131,7 @@ typedef struct {
   mtev_boolean original_allocated;
   char* original_message;
   size_t original_message_len;
-  mtev_atomic32_t refcnt;
+  uint32_t refcnt;
   noit_noit_t noit;
 } noit_metric_message_t;
 

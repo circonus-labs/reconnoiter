@@ -74,15 +74,15 @@ struct amqp_driver {
 };
 
 static struct {
-  mtev_atomic64_t basic_returns;
-  mtev_atomic64_t connects;
-  mtev_atomic64_t inbound_methods;
-  mtev_atomic64_t inbound_heartbeats;
-  mtev_atomic64_t publications;
-  mtev_atomic64_t concurrency;
+  uint64_t basic_returns;
+  uint64_t connects;
+  uint64_t inbound_methods;
+  uint64_t inbound_heartbeats;
+  uint64_t publications;
+  uint64_t concurrency;
   struct amqp_driver thread_states[MAX_CONCURRENCY];
 } stats;
-#define BUMPSTAT(a) mtev_atomic_inc64(&stats.a)
+#define BUMPSTAT(a) ck_pr_inc_64(&stats.a)
 
 static iep_thread_driver_t *noit_rabbimq_allocate(mtev_conf_section_t conf) {
   char *hostname = NULL, *cp, *brk;
@@ -122,7 +122,7 @@ static iep_thread_driver_t *noit_rabbimq_allocate(mtev_conf_section_t conf) {
 
   if(!mtev_conf_get_int32(conf, "port", &dr->port))
     dr->port = 5672;
-  mtev_atomic_inc64(&stats.concurrency);
+  ck_pr_inc_64(&stats.concurrency);
   return (iep_thread_driver_t *)dr;
 }
 static int noit_rabbimq_disconnect(iep_thread_driver_t *d) {
@@ -142,7 +142,7 @@ static void noit_rabbimq_deallocate(iep_thread_driver_t *d) {
   pthread_mutex_lock(&driver_lock);
   memset(dr, 0, sizeof(*dr));
   pthread_mutex_unlock(&driver_lock);
-  mtev_atomic_dec64(&stats.concurrency);
+  ck_pr_dec_64(&stats.concurrency);
   free(dr);
 }
 static void noit_rabbitmq_set_filters(mq_command_t *command, int count) {
@@ -425,12 +425,12 @@ noit_console_show_rabbitmq(mtev_console_closure_t ncct,
                            void *closure) {
   int i;
   nc_printf(ncct, " == RabbitMQ ==\n");
-  nc_printf(ncct, " Concurrency:           %llu\n", stats.concurrency);
-  nc_printf(ncct, " Connects:              %llu\n", stats.connects);
-  nc_printf(ncct, " AMQP basic returns:    %llu\n", stats.basic_returns);
-  nc_printf(ncct, " AMQP methods (in):     %llu\n", stats.inbound_methods);
-  nc_printf(ncct, " AMQP heartbeats (in):  %llu\n", stats.inbound_heartbeats);
-  nc_printf(ncct, " AMQP basic publish:    %llu\n", stats.publications);
+  nc_printf(ncct, " Concurrency:           %llu\n", ck_pr_load_64(&stats.concurrency));
+  nc_printf(ncct, " Connects:              %llu\n", ck_pr_load_64(&stats.connects));
+  nc_printf(ncct, " AMQP basic returns:    %llu\n", ck_pr_load_64(&stats.basic_returns));
+  nc_printf(ncct, " AMQP methods (in):     %llu\n", ck_pr_load_64(&stats.inbound_methods));
+  nc_printf(ncct, " AMQP heartbeats (in):  %llu\n", ck_pr_load_64(&stats.inbound_heartbeats));
+  nc_printf(ncct, " AMQP basic publish:    %llu\n", ck_pr_load_64(&stats.publications));
   pthread_mutex_lock(&driver_lock);
   for(i=0;i<MAX_HOSTS;i++) {
     struct amqp_driver *dr;

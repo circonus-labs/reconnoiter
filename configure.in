@@ -137,28 +137,6 @@ case $host in
 	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
 	MDB_MODS=
 	if test "x$GCC" != "xyes" ; then
-	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
-	if test -n "`echo $CFLAGS | grep m64`" ; then
-		DTRACEFLAGS=-64
-		MAPFLAGS="-Wl,-M -Wl,map64bit"
-		if test -n "`isalist | grep sparc`"; then
-			AC_MSG_RESULT([sparc 64])
-			ATOMIC_OBJS="noit_atomic_sol_sparcv9.lo"
-		else
-			AC_MSG_RESULT([intel 64])
-			ATOMIC_OBJS="noit_atomic_sol_x86_64.lo"
-		fi
-	else
-		if test -n "`isalist | grep sparc`"; then
-			AC_MSG_RESULT([sparc 32])
-			ATOMIC_OBJS="noit_atomic_sol_sparcv8plus.lo"
-		else
-			AC_MSG_RESULT([intel 32])
-			ATOMIC_OBJS="noit_atomic_sol_x86_32.lo"
-		fi
-	fi
-	fi
-	if test "x$GCC" != "xyes" ; then
 		CFLAGS="$CFLAGS -mt"
 		PICFLAGS="-Kpic"
 		MODULELD="$CC -G"
@@ -245,7 +223,6 @@ AC_SUBST(MODULELD)
 AC_SUBST(MODULEEXT)
 AC_SUBST(WHOLE_ARCHIVE)
 AC_SUBST(NOWHOLE_ARCHIVE)
-AC_SUBST(ATOMIC_OBJS)
 AC_SUBST(MAPFLAGS)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
 AC_MSG_CHECKING([enable build/install of the Java IEP and Jezebel bits])

@@ -75,8 +75,8 @@ static __thread struct {
   ck_fifo_spsc_t *fifo;
 } my_lane;
 
-static mtev_atomic64_t number_of_messages_received = 0;
-static mtev_atomic64_t number_of_messages_distributed = 0;
+static uint64_t number_of_messages_received = 0;
+static uint64_t number_of_messages_distributed = 0;
 
 static int nthreads;
 static volatile void **thread_queues;
@@ -89,13 +89,15 @@ static mtev_boolean dedupe = mtev_true;
 void
 noit_metric_director_message_ref(void *m) {
   noit_metric_message_t *message = (noit_metric_message_t *)m;
-  mtev_atomic_inc32(&message->refcnt);
+  ck_pr_inc_32(&message->refcnt);
 }
 
 void
 noit_metric_director_message_deref(void *m) {
   noit_metric_message_t *message = (noit_metric_message_t *)m;
-  if (mtev_atomic_dec32(&message->refcnt) == 0) {
+  bool zero;
+  ck_pr_dec_32_zero(&message->refcnt, &zero);
+  if (zero) {
     noit_metric_message_free(message);
   }
 }
@@ -107,7 +109,7 @@ get_my_lane() {
     my_lane.fifo = calloc(1, sizeof(ck_fifo_spsc_t));
     ck_fifo_spsc_init(my_lane.fifo, malloc(sizeof(ck_fifo_spsc_entry_t)));
     for(new_thread=0;new_thread<nthreads;new_thread++) {
-      if(mtev_atomic_casptr(&thread_queues[new_thread], my_lane.fifo, NULL) == NULL) break;
+      if(ck_pr_cas_ptr(&thread_queues[new_thread], NULL, my_lane.fifo)) break;
     }
     mtevAssert(new_thread<nthreads);
     my_lane.id = new_thread;
@@ -182,7 +184,7 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
 
 static void
 distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *message) {
-  mtev_atomic_inc64(&number_of_messages_received);
+  ck_pr_inc_64(&number_of_messages_received);
 
   int i;
   for(i = 0; i < nthreads; i++) {
@@ -196,7 +198,7 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       ck_fifo_spsc_enqueue(fifo, fifo_entry, message);
       ck_fifo_spsc_enqueue_unlock(fifo);
 
-      mtev_atomic_inc64(&number_of_messages_distributed);
+      ck_pr_inc_64(&number_of_messages_distributed);
     }
   }
 }
@@ -562,11 +564,11 @@ void noit_metric_director_init_globals(void) {
 
 int64_t
 noit_metric_director_get_messages_received() {
-  return number_of_messages_received;
+  return ck_pr_load_64(&number_of_messages_received);
 }
 
 int64_t
 noit_metric_director_get_messages_distributed() {
- return number_of_messages_distributed;
+ return ck_pr_load_64(&number_of_messages_distributed);
 }
 
