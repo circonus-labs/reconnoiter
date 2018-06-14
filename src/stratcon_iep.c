@@ -49,6 +49,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <ck_spinlock.h>
 
 #include <eventer/eventer.h>
 #include <mtev_log.h>
