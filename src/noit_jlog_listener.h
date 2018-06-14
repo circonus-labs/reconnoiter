@@ -42,7 +42,7 @@
 
 typedef struct {
   char *feed_name;
-  mtev_atomic32_t connections;
+  uint32_t connections;
   struct timeval last_connection;
   struct timeval last_checkpoint;
 } jlog_feed_stats_t;

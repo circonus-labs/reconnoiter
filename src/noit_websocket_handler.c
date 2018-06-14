@@ -61,7 +61,7 @@ static const char *heartbeat_str = "{\"type\":\"heartbeat\"}";
 static const int heartbeat_str_len = 20;
 #endif
 
-static mtev_atomic32_t ls_counter = 0;
+static uint32_t ls_counter = 0;
 
 typedef struct {
   char **filters;
@@ -324,7 +324,8 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
   request = NULL;
 
   /* setup subscription to noit_livestream */
-  asprintf(&handler_data->feed, "websocket_livestream/%d", mtev_atomic_inc32(&ls_counter));
+  uint32_t next = ck_pr_faa_32(&ls_counter, 1) + 1;
+  asprintf(&handler_data->feed, "websocket_livestream/%u", next);
   handler_data->log_stream = mtev_log_stream_new(handler_data->feed, "noit_websocket_livestream", handler_data->feed,
                                                  handler_data, NULL);
 

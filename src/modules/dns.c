@@ -42,7 +42,6 @@
 #include <udns.h>
 
 #include <mtev_log.h>
-#include <mtev_atomic.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_module.h"
@@ -73,7 +72,7 @@ typedef struct dns_ctx_handle {
   char *ns; /* name server */
   char *hkey; /* hash key - ns plus the port number */
   struct dns_ctx *ctx;  
-  mtev_atomic32_t refcnt;
+  uint32_t refcnt;
   eventer_t e; /* evetner handling UDP traffic */
   eventer_t timeout; /* the timeout managed by libudns */
 } dns_ctx_handle_t;
@@ -110,7 +109,7 @@ static void dns_module_dns_ctx_handle_free_and_remove_eventer(void *vh) {
   }
 }
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
-  mtev_atomic_inc32(&h->refcnt);
+  ck_pr_inc_32(&h->refcnt);
 }
 static void
 dns_debug_wrap(int code, const struct sockaddr *sa, unsigned salen,
@@ -199,12 +198,13 @@ static int dns_module_dns_ctx_release(dns_ctx_handle_t *h, mtev_boolean within_e
   int rv = 0, last;
   if(h->ns == NULL) {
     /* Special case for the default */
-    mtev_atomic_dec32(&h->refcnt);
+    ck_pr_dec_32(&h->refcnt);
     return rv;
   }
   pthread_mutex_lock(&dns_ctx_store_lock);
-  last = mtev_atomic_dec32(&h->refcnt);
-  if(last == 0) {
+  bool zero;
+  ck_pr_dec_32_zero(&h->refcnt, &zero);
+  if(zero) {
     /* I was the last one */
     mtevAssert(mtev_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
                             NULL,
@@ -359,7 +359,7 @@ static void
 nc_printf_dns_handle_brief(mtev_console_closure_t ncct,
                            dns_ctx_handle_t *h) {
   nc_printf(ncct, "== %s ==\n", h->hkey);
-  nc_printf(ncct, " ns: %s\n refcnt: %d\n", h->ns, h->refcnt);
+  nc_printf(ncct, " ns: %s\n refcnt: %u\n", h->ns, ck_pr_load_32(&h->refcnt));
   nc_printf(ncct, " e: %d\n", h->e ? eventer_get_fd(h->e) : -1);
   if(h->timeout) {
     struct timeval now, diff;

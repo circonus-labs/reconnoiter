@@ -363,13 +363,11 @@ stratcon_datastore_register_onlooker(void (*f)(stratcon_datastore_op_t,
                                                struct sockaddr *,
                                                const char *, void *)) {
   struct datastore_onlooker_list *nnode;
-  volatile void **vonlookers = (void *)&onlookers;
   nnode = calloc(1, sizeof(*nnode));
   nnode->dispatch = f;
-  nnode->next = onlookers;
-  while(mtev_atomic_casptr(vonlookers,
-                           nnode, nnode->next) != (void *)nnode->next)
-    nnode->next = onlookers;
+  do {
+    nnode->next = ck_pr_load_ptr(&onlookers);
+  } while(!ck_pr_cas_ptr(&onlookers, nnode->next, nnode));
 }
 
 static int

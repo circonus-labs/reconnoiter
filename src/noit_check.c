@@ -341,9 +341,7 @@ uint64_t noit_check_metric_count() {
   return check_metrics_seen;
 }
 void noit_check_metric_count_add(int add) {
-  mtev_atomic64_t *n = (mtev_atomic64_t *)&check_metrics_seen;
-  mtev_atomic64_t v = (mtev_atomic64_t)add;
-  mtev_atomic_add64(n, v);
+  ck_pr_add_64(&check_metrics_seen, add);
 }
 
 uint64_t noit_check_completion_count() {

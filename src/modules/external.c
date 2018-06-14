@@ -706,7 +706,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   memcpy(&check->last_fire_time, &now, sizeof(now));
 
   /* Setup all our check bits */
-  ci->check_no = mtev_atomic_inc64(&data->check_no_seq);
+  ci->check_no = ck_pr_faa_64(&data->check_no_seq, 1) + 1;
   ci->check = check;
 
   /* Pull the command value */

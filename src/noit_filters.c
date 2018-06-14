@@ -39,7 +39,6 @@
 
 #include <mtev_log.h>
 #include <mtev_hash.h>
-#include <mtev_atomic.h>
 #include <mtev_watchdog.h>
 #include <mtev_capabilities_listener.h>
 #include <mtev_conf.h>
@@ -90,7 +89,7 @@ typedef struct _filterrule {
 } filterrule_t;
 
 typedef struct {
-  mtev_atomic32_t ref_cnt;
+  uint32_t ref_cnt;
   char *name;
   int64_t seq;
   filterrule_t *rules;
@@ -120,7 +119,9 @@ static void
 filterset_free(void *vp) {
   filterset_t *fs = vp;
   filterrule_t *r;
-  if(mtev_atomic_dec32(&fs->ref_cnt) != 0) return;
+  bool zero;
+  ck_pr_dec_32_zero(&fs->ref_cnt, &zero);
+  if(!zero) return;
   mtevL(noit_debug, "Freeing filterset [%d]: %s\n", fs->ref_cnt, fs->name);
   while(fs->rules) {
     r = fs->rules->next;
@@ -420,7 +421,7 @@ noit_apply_filterset(const char *filterset,
     filterrule_t *r, *skipto_rule = NULL;
     mtev_boolean ret = mtev_false;
     int idx = 0;
-    mtev_atomic_inc32(&fs->ref_cnt);
+    ck_pr_inc_32(&fs->ref_cnt);
     UNLOCKFS();
 #define MATCHES(rname, value) noit_apply_filterrule(r->rname##_ht, r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {

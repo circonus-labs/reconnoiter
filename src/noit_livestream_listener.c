@@ -44,7 +44,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-static mtev_atomic32_t ls_counter = 0;
+static uint32_t ls_counter = 0;
 
 struct log_entry {
   int len;
@@ -286,7 +286,8 @@ socket_error:
           eventer_get_fd(e), jcl->uuid_str);
 
     jcl->feed = malloc(32);
-    snprintf(jcl->feed, 32, "livestream/%d", mtev_atomic_inc32(&ls_counter));
+    uint32_t next = ck_pr_faa_32(&ls_counter, 1) + 1;
+    snprintf(jcl->feed, 32, "livestream/%u", next);
     jcl->log_stream = mtev_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
                                           jcl, NULL);
 

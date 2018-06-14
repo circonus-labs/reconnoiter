@@ -35,7 +35,6 @@
 #define _STRATCON_LOG_STREAMER_H
 
 #include <mtev_conf.h>
-#include <mtev_atomic.h>
 #include <mtev_reverse_socket.h>
 
 #include <jlog.h>

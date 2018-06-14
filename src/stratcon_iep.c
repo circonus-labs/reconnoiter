@@ -66,7 +66,7 @@
 eventer_jobq_t *iep_jobq;
 static mtev_log_stream_t noit_iep = NULL;
 static mtev_log_stream_t noit_iep_debug = NULL;
-static mtev_spinlock_t iep_conn_cnt = 0;
+static ck_spinlock_t iep_conn_cnt = CK_SPINLOCK_INITIALIZER;
 static mtev_boolean inject_remote_cn = mtev_false;
 
 static mtev_hash_table mq_drivers;
@@ -383,14 +383,14 @@ connect_iep_driver(struct driver_list *d) {
 static int
 setup_iep_connection_callback(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
-  mtev_spinlock_unlock(&iep_conn_cnt);
+  ck_spinlock_unlock(&iep_conn_cnt);
   stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, NULL, NULL);
   return 0;
 }
 
 static void
 setup_iep_connection_later(int seconds) {
-  if(!mtev_spinlock_trylock(&iep_conn_cnt)) return;
+  if(!ck_spinlock_trylock(&iep_conn_cnt)) return;
   eventer_add_in_s_us(setup_iep_connection_callback, NULL, seconds, 0);
 }
 

@@ -49,15 +49,15 @@ static mtev_hash_table filtered_checks_hash;
 static bool filtered_metrics_exist = false;
 
 typedef struct {
-  mtev_atomic64_t publications;
-  mtev_atomic64_t client_tx_drop;
-  mtev_atomic64_t error_messages;
-  mtev_atomic64_t no_exchange;
-  mtev_atomic64_t no_route;
-  mtev_atomic64_t routed;
-  mtev_atomic64_t dropped;
-  mtev_atomic64_t msgs_in;
-  mtev_atomic64_t msgs_out;
+  uint64_t publications;
+  uint64_t client_tx_drop;
+  uint64_t error_messages;
+  uint64_t no_exchange;
+  uint64_t no_route;
+  uint64_t routed;
+  uint64_t dropped;
+  uint64_t msgs_in;
+  uint64_t msgs_out;
 } fq_stats_t;
 
 #define MAX_HOSTS 10
@@ -85,7 +85,7 @@ struct fq_driver {
 
 static struct fq_driver global_fq_ctx;
 
-#define BUMPSTAT(i,a) mtev_atomic_inc64(&global_fq_ctx.stats[i].a)
+#define BUMPSTAT(i,a) ck_pr_inc_64(&global_fq_ctx.stats[i].a)
 
 /* This is very specific to an internal implementation somewhere...
  * and thus unlikely to be useful unless people name their checks:
