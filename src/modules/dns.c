@@ -359,7 +359,7 @@ static void
 nc_printf_dns_handle_brief(mtev_console_closure_t ncct,
                            dns_ctx_handle_t *h) {
   nc_printf(ncct, "== %s ==\n", h->hkey);
-  nc_printf(ncct, " ns: %s\n refcnt: %d\n", h->ns, ck_pr_load_32(&h->refcnt));
+  nc_printf(ncct, " ns: %s\n refcnt: %u\n", h->ns, ck_pr_load_32(&h->refcnt));
   nc_printf(ncct, " e: %d\n", h->e ? eventer_get_fd(h->e) : -1);
   if(h->timeout) {
     struct timeval now, diff;
