@@ -48,9 +48,12 @@ overflow: hidden;
 }
 .check-details-main dt {
   width:20%;
+  display: inline-block;
+  clear: both;
 }
 .check-details-main dd {
   width:80%;
+  display: inline-block;
 }
 
 #check-table tr.check td,
