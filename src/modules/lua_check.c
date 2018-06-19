@@ -404,7 +404,13 @@ noit_lua_set_metric_json(lua_State *L) {
   lua_pushinteger(L, rv);
   return 1;
 }
-
+static int
+noit_lua_should_run_check(lua_State *L) {
+  if(lua_gettop(L) != 0) luaL_error(L, "wrong number of arguments");
+  noit_check_t *check = lua_touserdata(L, lua_upvalueindex(1));
+  lua_pushboolean(L, noit_should_run_check(check, NULL));
+  return 1;
+}
 static int
 noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
                       void(*set)(noit_check_t *,
@@ -647,6 +653,10 @@ noit_check_index_func(lua_State *L) {
       if(!strcmp(k, "interpolate")) {
         lua_pushlightuserdata(L, check);
         lua_pushcclosure(L, noit_lua_interpolate, 1);
+      }
+      else if(!strcmp(k, "should_run_check")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_should_run_check, 1);
       }
       else if(!strcmp(k, "is_thread_local")) {
         if(check->fire_event &&
