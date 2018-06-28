@@ -1,0 +1,6 @@
+[circonus-pilot]
+name=Circonus - Pilot
+baseurl=http://pilot.dev.circonus.net/circonus-inside/centos/7/x86_64/
+enabled = 1
+gpgcheck = 0
+metadata_expire = 1m

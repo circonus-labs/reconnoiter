@@ -49,6 +49,19 @@
 #include "flatbuffers/metric_batch_reader.h"
 #include "noit_message_decoder.h"
 
+static void *__c_allocator_alloc(void *d, size_t size) {
+  return malloc(size);
+}
+static void __c_allocator_free(void *d, void *p) {
+  free(p);
+}
+static ProtobufCAllocator __c_allocator = {
+  .alloc = __c_allocator_alloc,
+  .free = __c_allocator_free,
+  .allocator_data = NULL
+};
+#define protobuf_c_system_allocator __c_allocator
+
 #undef ns
 #define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
 #undef nsc

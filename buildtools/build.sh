@@ -1,0 +1,2 @@
+echo ${MAKE} $@
+${MAKE} $@

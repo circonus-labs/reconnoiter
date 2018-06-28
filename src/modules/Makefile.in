@@ -42,7 +42,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
-	reverse_check.@MODULEEXT@ \
+	reverse_check.@MODULEEXT@ prometheus.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so noit_lua/libnoit_binding.so
@@ -196,6 +196,12 @@ httptrap.@MODULEEXT@:	httptrap.lo
 
 httptrap.lo:	httptrap.xmlh
 
+prometheus.@MODULEEXT@:	prometheus.lo
+	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ prometheus.lo
+
+prometheus.lo:	prometheus.xmlh
+
 statsd.@MODULEEXT@:	statsd.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ statsd.lo
@@ -259,7 +265,7 @@ install-libnoit-modules:	$(LIBNOIT_LUA_MODULES)
 	for mod in $(LIBNOIT_LUA_MODULES); do \
 		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(MTEV_LIBDIR)/mtev_lua/`echo $$mod | sed -e 's/^noit_lua\///;'` ; \
 	done
-	
+
 install-modules:	$(MODULES) $(LUA_MODULES)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)
 	for mod in $(MODULES); do \

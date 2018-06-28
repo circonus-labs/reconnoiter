@@ -99,3 +99,12 @@ test/test-stratcon.key
 test/t/logs
 pkg/debian/changelog
 *~
+src/bundle.pb-c.c
+src/bundle.pb-c.h
+src/java/com/
+src/prometheus.pb-c.c
+src/prometheus.pb-c.h
+src/test
+src/types.pb-c.c
+src/types.pb-c.h
+test/test_tags

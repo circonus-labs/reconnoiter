@@ -195,7 +195,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const cha
   return h;
 }
 static int dns_module_dns_ctx_release(dns_ctx_handle_t *h, mtev_boolean within_event_callback) {
-  int rv = 0, last;
+  int rv = 0;
   if(h->ns == NULL) {
     /* Special case for the default */
     ck_pr_dec_32(&h->refcnt);
