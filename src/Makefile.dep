@@ -1,5 +1,6 @@
 
-bundle.pb-c.o bundle.pb-c.lo: bundle.pb-c.c bundle.pb-c.h \
+bundle.pb-c.o bundle.pb-c.lo: bundle.pb-c.c bundle.pb-c.h
+bundle.pb-c.c bundle.pb-c.h: proto/bundle.proto
 
 noit_b2sm.o noit_b2sm.lo: noit_b2sm.c noit_check_log_helpers.h
 

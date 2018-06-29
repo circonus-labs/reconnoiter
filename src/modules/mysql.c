@@ -39,6 +39,7 @@
 #include <math.h>
 
 #include <mtev_hash.h>
+#include <mtev_str.h>
 
 #include "noit_config.h"
 #include "noit_module.h"

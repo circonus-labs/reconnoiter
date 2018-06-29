@@ -1,0 +1,38 @@
+<module>
+  <name>prometheus</name>
+  <description>
+    <para>The prometheus module provides a simple way to push data into reconnoiter via the prometheus write support.  Simply configure prometheus to write to the provided URL in its /write endpoint.</para>
+    <para>See: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write</para>
+  </description>
+  <loader>C</loader>
+  <image>prometheus.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="secret"
+               required="optional"
+               default=""
+               allowed=".+">Specify the secret with which metrics may be submitted.  Those lacking the secret in the URL will be ignored.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Posting prometheus data</title>
+      <para><code>curl -X POST --data-binary @prometheus_payload https://noit:43191/module/prometheus/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y</code></para>
+      <para>POST payload is a snappy encoded Protobuf defined here: https://github.com/prometheus/prometheus/blob/master/prompb/remote.proto#L21</para>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="prometheus" name="prometheus"/>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="prometheus"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><secret>s3cr3tk3y</secret></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>

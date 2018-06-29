@@ -1,4 +1,9 @@
 
+prometheus.pb-c.o: prometheus.pb-c.c prometheus.pb-c.h
+prometheus.pb-c.c prometheus.pb-c.h: prometheus.proto
+types.pb-c.o: types.pb-c.c types.pb-c.h
+types.pb-c.c types.pb-c.c: types.proto
+
 check_test.lo: check_test.c  \
   ../noit_mtev_bridge.h \
   ../noit_module.h  \

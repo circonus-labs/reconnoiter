@@ -42,6 +42,7 @@
         <log name="error/snmp"/>
         <log name="error/ssh2"/>
         <log name="error/statsd"/>
+        <log name="error/prometheus"/>
       </error>
       <debug>
         <outlet name="debug"/>
@@ -58,6 +59,7 @@
         <log name="debug/snmp" disabled="true"/>
         <log name="debug/ssh2" disabled="true"/>
         <log name="debug/statsd" disabled="true"/>
+        <log name="debug/prometheus" disabled="true"/>
       </debug>
     </components>
     <feeds>
@@ -82,6 +84,7 @@
     <module image="ping_icmp" name="ping_icmp"/>
     <module image="dns" name="dns"/>
     <module image="httptrap" name="httptrap"/>
+    <module image="prometheus" name="prometheus"/>
     <module image="statsd" name="statsd"/>
     <module image="collectd" name="collectd"/>
     <module image="ganglia" name="ganglia"/>
@@ -160,6 +163,11 @@
       <config>
         <secret>foo</secret>
         <histogram:value name="testing|ST[a:b,c:d]">add</histogram:value>
+      </config>
+    </check>
+    <check uuid="8ed348cd-4db5-4f3f-92d8-57c448eb7eb3" module="prometheus" target="127.0.0.1" period="60000" timeout="4000">
+      <config>
+        <secret>foo</secret>
       </config>
     </check>
     <check uuid="a7cea020-a19d-14dd-25a6-cf6d3a2207dc" module="json" target="172.16.244.200" period="5000" timeout="4000">
