@@ -58,7 +58,7 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
-  mtev_conf_section_t section;
+  mtev_conf_section_t section = MTEV_CONF_EMPTY;
   xmlNodePtr root;
   char xpath[1024];
   int error_code = 500;
@@ -181,7 +181,7 @@ static int
 rest_delete_filter(mtev_http_rest_closure_t *restc,
                    int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
-  mtev_conf_section_t section;
+  mtev_conf_section_t section = MTEV_CONF_EMPTY;
   char xpath[1024];
   int error_code = 500;
 
@@ -239,7 +239,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
                 int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL, indoc = NULL;
-  mtev_conf_section_t section;
+  mtev_conf_section_t section = MTEV_CONF_EMPTY;
   xmlNodePtr parent, root, newfilter;
   char xpath[1024];
   int error_code = 500, complete = 0, mask = 0;
