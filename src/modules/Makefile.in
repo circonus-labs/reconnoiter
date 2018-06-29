@@ -202,11 +202,13 @@ prometheus.pb-c.c prometheus.pb-c.h: prometheus.proto
 types.pb-c.c types.pb-c.h: types.proto
 	(protoc-c types.proto --c_out=.)
 
-prometheus.@MODULEEXT@:	prometheus.lo
-	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ prometheus.lo
+prometheus.c: prometheus.pb-c.h types.pb-c.h
 
-prometheus.lo:	prometheus.xmlh prometheus.pb-c.o types.pb-c.o
+prometheus.@MODULEEXT@:	prometheus.lo prometheus.pb-c.lo types.pb-c.lo
+	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ prometheus.lo prometheus.pb-c.lo types.pb-c.lo
+
+prometheus.lo:	prometheus.xmlh 
 
 statsd.@MODULEEXT@:	statsd.lo
 	@echo "- linking $@"

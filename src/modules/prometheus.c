@@ -110,11 +110,6 @@ rest_get_upload(mtev_http_rest_closure_t *restc, int *mask, int *complete)
 
   content_length = mtev_http_request_content_length(req);
   rxc = (prometheus_upload_t *)restc->call_closure;
-  rxc->check = noit_poller_lookup(rxc->check_id);
-  if (!rxc->check) {
-    *complete = 1;
-    return NULL;
-  }
 
   while(!rxc->complete) {
     int len;
@@ -214,38 +209,40 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
 static char *
 metric_name_from_labels(Prometheus__Label **labels, size_t label_count)
 {
-  char final_name[4096];
+  char final_name[4096] = {0};
   char *name = final_name;
-  char buffer[4096];
-  char encode_buffer[512];
+  char buffer[4096] = {0};
+  char encode_buffer[512] = {0};
   char *b = buffer;
   size_t tag_count = 0;
   for (size_t i = 0; i < label_count; i++) {
     Prometheus__Label *l = labels[i];
     if (strcmp("__name__", l->name) == 0) {
-      name += strlcpy(name, l->value, sizeof(final_name));
+      strncpy(name, l->value, sizeof(final_name));
     } else {
       if (tag_count > 0) {
-        b += strlcpy(b, ",", sizeof(buffer));
+        strlcat(b, ",", sizeof(buffer));
       }
       /* make base64 encoded tags out of the incoming prometheus tags for safety */
       /* TODO base64 encode these */
       size_t tl = strlen(l->name);
       mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer));
 
-      b += strlcpy(b, encode_buffer, sizeof(buffer));
-      b += strlcpy(b, ":", sizeof(buffer));
+      strlcat(b, "b\"", sizeof(buffer));
+      strlcat(b, encode_buffer, sizeof(buffer));
+      strlcat(b, "\":b\"", sizeof(buffer));
 
       tl = strlen(l->value);
       mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer));
 
-      b += strlcpy(b, encode_buffer, sizeof(buffer));
+      strlcat(b, encode_buffer, sizeof(buffer));
+      strlcat(b, "\"", sizeof(buffer));
       tag_count++;
     }
   }
-  name += strlcpy(name, "|ST[", sizeof(final_name));
-  name += strlcpy(name, buffer, sizeof(final_name));
-  name += strlcpy(name, "]", sizeof(final_name));
+  strlcat(name, "|ST[", sizeof(final_name));
+  strlcat(name, buffer, sizeof(final_name));
+  strlcat(name, "]", sizeof(final_name));
 
   /* we don't have to canonicalize here as reconnoiter will do that for us */
   return strdup(final_name);
@@ -299,6 +296,8 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     }
 
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    rxc->check = check;
+    memcpy(rxc->check_id, check_id, UUID_SIZE);
     restc->call_closure_free = free_prometheus_upload;
     mtev_dyn_buffer_init(&rxc->data);
   }
@@ -320,7 +319,10 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   rxc = rest_get_upload(restc, &mask, &complete);
   if(rxc == NULL && !complete) return mask;
 
-  if(!rxc) goto error;
+  if(!rxc) {
+    error = "No data?";
+    goto error;
+  }
 
   /* prometheus arrives as snappy encoded.  we must uncompress */
   mtev_dyn_buffer_t uncompressed;
@@ -342,6 +344,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     mtevL(noit_error, "%s, error code: %d\n", error, x);
     goto error;
   }
+  mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
 
   /* decode prometheus protobuf */
   /* decode the protobuf */
