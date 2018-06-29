@@ -218,7 +218,7 @@ metric_name_from_labels(Prometheus__Label **labels, size_t label_count)
   for (size_t i = 0; i < label_count; i++) {
     Prometheus__Label *l = labels[i];
     if (strcmp("__name__", l->name) == 0) {
-      strncpy(name, l->value, sizeof(final_name));
+      strncpy(name, l->value, sizeof(final_name) - 1);
     } else {
       if (tag_count > 0) {
         strlcat(b, ",", sizeof(buffer));
@@ -407,7 +407,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     metrics_obj = json_object_new_object();
 
     /*Retrieve check information.*/
-    check = noit_poller_lookup(check_id);
+    check = rxc->check;
     c = noit_check_get_stats_inprogress(check);
     metrics = noit_check_stats_metrics(c);
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;

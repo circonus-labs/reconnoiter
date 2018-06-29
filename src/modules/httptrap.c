@@ -838,7 +838,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       metrics_obj = json_object_new_object();
         
       /*Retrieve check information.*/        
-      check = noit_poller_lookup(check_id);
+      check = rxc->check;
       c = noit_check_get_stats_inprogress(check);
       metrics = noit_check_stats_metrics(c);
       mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
@@ -856,10 +856,10 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
         metric_type_t metric_type=tmp->metric_type;
         noit_stats_snprint_metric_value(buff, sizeof(buff), tmp);
         json_object *value_obj = json_object_new_object();
-	   snprintf(type_str, sizeof(type_str), "%c", metric_type);
-	   json_object_object_add(value_obj, "_type", json_object_new_string(type_str));
-	   json_object_object_add(value_obj, "_value", json_object_new_string(buff));
-	   json_object_object_add(metrics_obj, metric_name, value_obj);
+        snprintf(type_str, sizeof(type_str), "%c", metric_type);
+        json_object_object_add(value_obj, "_type", json_object_new_string(type_str));
+        json_object_object_add(value_obj, "_value", json_object_new_string(buff));
+        json_object_object_add(metrics_obj, metric_name, value_obj);
       }
         
       /*Output stats and metrics.*/
