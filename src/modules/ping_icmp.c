@@ -109,6 +109,7 @@ typedef struct  {
   int ipv4_fd;
   int ipv6_fd;
   mtev_hash_table *in_flight;
+  ck_spinlock_t in_flight_lock;
 } ping_icmp_data_t;
 
 static int ping_icmp_config(noit_module_t *self, mtev_hash_table *options) {
@@ -199,9 +200,12 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   ping_data = noit_module_get_userdata(pcl->self);
   k.addr_of_check = (uintptr_t)pcl->check ^ random_num;
   mtev_uuid_copy(k.checkid, pcl->check->checkid);
-  mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
-                   free, NULL);
-  free(pcl);
+  ck_spinlock_lock(&ping_data->in_flight_lock);
+  mtev_boolean should_free = 
+    mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
+                     free, NULL);
+  ck_spinlock_unlock(&ping_data->in_flight_lock);
+  if(should_free) free(pcl);
   return 0;
 }
 
@@ -292,10 +296,12 @@ static int ping_icmp_handler(eventer_t e, int mask,
     check = NULL;
     k.addr_of_check = payload->addr_of_check;
     mtev_uuid_copy(k.checkid, payload->checkid);
+    ck_spinlock_lock(&ping_data->in_flight_lock);
     if(mtev_hash_retrieve(ping_data->in_flight,
                           (const char *)&k, sizeof(k),
                           &vcheck))
       check = vcheck;
+    ck_spinlock_unlock(&ping_data->in_flight_lock);
 
     /* make sure this check is from this generation! */
     if(!check) {
@@ -327,18 +333,24 @@ static int ping_icmp_handler(eventer_t e, int mask,
     data->turnaround[payload->check_pack_no] =
       (float)tt.tv_sec + (float)tt.tv_usec / 1000000.0;
     if(ping_icmp_is_complete(self, check)) {
-      ping_icmp_log_results(self, check);
-      eventer_t olde = eventer_remove(data->timeout_event);
-      if(olde) {
-        free(eventer_get_closure(olde));
-        eventer_free(olde);
-      }
-      data->timeout_event = NULL;
-      noit_check_end(check);
       k.addr_of_check = (uintptr_t)check ^ random_num;
       mtev_uuid_copy(k.checkid, check->checkid);
-      mtev_hash_delete(ping_data->in_flight, (const char *)&k,
-                       sizeof(k), free, NULL);
+      ck_spinlock_lock(&ping_data->in_flight_lock);
+      mtev_boolean first_finisher =
+        mtev_hash_delete(ping_data->in_flight, (const char *)&k,
+                         sizeof(k), free, NULL);
+      ck_spinlock_unlock(&ping_data->in_flight_lock);
+      if(first_finisher) {
+        noit_check_end(check);
+        ping_icmp_log_results(self, check);
+        eventer_t olde = eventer_remove(data->timeout_event);
+        if(olde) {
+          eventer_remove(olde);
+          free(eventer_get_closure(olde));
+          eventer_free(olde);
+          data->timeout_event = NULL;
+        }
+      }
     }
   }
   return EVENTER_READ;
@@ -362,6 +374,7 @@ static int ping_icmp_init(noit_module_t *self) {
   data = malloc(sizeof(*data));
   data->in_flight = calloc(1, sizeof(*data->in_flight));
   mtev_hash_init(data->in_flight);
+  ck_spinlock_init(&data->in_flight_lock);
   data->ipv4_fd = data->ipv6_fd = -1;
 
   if ((proto = getprotobyname("icmp")) == NULL) {
@@ -453,11 +466,14 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   k.addr_of_check = payload->addr_of_check;
   mtev_uuid_copy(k.checkid, payload->checkid);
 
+  ck_spinlock_lock(&data->in_flight_lock);
   if(!mtev_hash_retrieve(data->in_flight, (const char *)&k, sizeof(k),
                          &vcheck)) {
+    ck_spinlock_unlock(&data->in_flight_lock);
     mtevLT(nldeb, now, "ping check no longer active, bailing\n");
     goto cleanup;
   }
+  ck_spinlock_unlock(&data->in_flight_lock);
 
   if(pcl->check->target_ip[0] == '\0') goto cleanup;
 
