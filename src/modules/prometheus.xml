@@ -16,15 +16,9 @@
   </checkconfig>
   <examples>
     <example>
-      <title>Posting a string and a number.</title>
-      <para><code>curl -X PUT https://noit:43191/module/prometheus/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y</code></para>
-      <para>PUT payload:</para>
-      <programlisting><![CDATA[
-      { "version": "1.alpha",
-        "requests": 123853,
-        "bignumber": { "_type": "L", "_value": "18426744073707551616" }
-      }
-      ]]></programlisting>
+      <title>Posting prometheus data</title>
+      <para><code>curl -X POST --data-binary @prometheus_payload https://noit:43191/module/prometheus/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y</code></para>
+      <para>POST payload is a snappy encoded Protobuf defined here: https://github.com/prometheus/prometheus/blob/master/prompb/remote.proto#L21</para>
 
       <programlisting><![CDATA[
       <noit>
