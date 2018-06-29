@@ -41,6 +41,7 @@
 #include <mtev_hash.h>
 #include <mtev_json.h>
 #include <mtev_uuid.h>
+#include <mtev_b64.h>
 #include <mtev_dyn_buffer.h>
 
 #include <snappy/snappy.h>
@@ -216,6 +217,7 @@ metric_name_from_labels(Prometheus__Label **labels, size_t label_count)
   char final_name[4096];
   char *name = final_name;
   char buffer[4096];
+  char encode_buffer[512];
   char *b = buffer;
   size_t tag_count = 0;
   for (size_t i = 0; i < label_count; i++) {
@@ -228,9 +230,16 @@ metric_name_from_labels(Prometheus__Label **labels, size_t label_count)
       }
       /* make base64 encoded tags out of the incoming prometheus tags for safety */
       /* TODO base64 encode these */
-      b += strlcpy(b, l->name, sizeof(buffer));
+      size_t tl = strlen(l->name);
+      mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer));
+
+      b += strlcpy(b, encode_buffer, sizeof(buffer));
       b += strlcpy(b, ":", sizeof(buffer));
-      b += strlcpy(b, l->value, sizeof(buffer));
+
+      tl = strlen(l->value);
+      mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer));
+
+      b += strlcpy(b, encode_buffer, sizeof(buffer));
       tag_count++;
     }
   }
@@ -350,26 +359,25 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   for (size_t i = 0; i < write->n_timeseries; i++) {
     Prometheus__TimeSeries *ts = write->timeseries[i];
     /* each timeseries has a list of labels (Tags) and a list of samples */
-    char *canonical_name = metric_name_from_labels(ts->labels, ts->n_labels);
-    
+    char *metric_name = metric_name_from_labels(ts->labels, ts->n_labels);
+
     for (size_t j = 0; j < ts->n_samples; j++) {
       Prometheus__Sample *sample = ts->samples[j];
       struct timeval tv;
       tv.tv_sec = (time_t)(sample->timestamp / 1000L);
       tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
       noit_stats_log_immediate_metric_timed(rxc->check,
-                                            canonical_name,
+                                            metric_name,
                                             METRIC_DOUBLE,
                                             &sample->value,
                                             &tv);
     }
-    free(canonical_name);
+    free(metric_name);
   }
   prometheus__write_request__free_unpacked(write, &protobuf_c_system_allocator);
   mtev_dyn_buffer_destroy(&uncompressed);
 
   mtev_http_response_status_set(ctx, 200, "OK");
-  mtev_http_response_header_set(ctx, "Content-Type", "application/json");
   mtev_http_response_option_set(ctx, MTEV_HTTP_CLOSE);
 
   /*Examine headers for x-circonus-prometheus-debug flag*/
@@ -387,6 +395,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   /*Otherwise, if set to one, output current metrics in addition to number of current metrics.*/
   if (debugflag == 1)
   {
+    mtev_http_response_header_set(ctx, "Content-Type", "application/json");
     json_object *obj =  NULL;
     obj = json_object_new_object();
     stats_t *c;

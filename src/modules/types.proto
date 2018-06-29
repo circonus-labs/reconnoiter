@@ -11,11 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+syntax = "proto3";
 package prometheus;
 
+option go_package = "prompb";
+
+//import "gogoproto/gogo.proto";
+
 message Sample {
-  required double value    = 1;
-  required int64 timestamp = 2;
+  double value    = 1;
+  int64 timestamp = 2;
 }
 
 message TimeSeries {
@@ -24,8 +29,8 @@ message TimeSeries {
 }
 
 message Label {
-  required string name  = 1;
-  required string value = 2;
+  string name  = 1;
+  string value = 2;
 }
 
 message Labels {
@@ -40,7 +45,12 @@ message LabelMatcher {
     RE  = 2;
     NRE = 3;
   }
-  required Type type    = 1;
-  required string name  = 2;
-  required string value = 3;
+  Type type    = 1;
+  string name  = 2;
+  string value = 3;
+}
+
+message ReadHints {
+  int64 step_ms = 1; // Query step size in milliseconds.
+  string func = 2;   // String representation of surrounding function or aggregation.
 }

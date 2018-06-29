@@ -137,7 +137,6 @@ NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_module.o noit_conf_checks.o noit_clustering.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_check_rest.o noit_filters_rest.o noit_websocket_handler.o \
-	prometheus.pb-c.o types.pb-c.o \
 	$(LIBNOIT_OBJS:%.lo=%.o)
 
 STRATCON_OBJS=stratcond.o noit_mtev_bridge.o \
@@ -232,7 +231,7 @@ dtrace_probes.h:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@ libnoit_@DTRACEHDR@
 $(LIBNOIT):	$(LIBNOIT_V)
 	$(Q)ln -sf $(LIBNOIT_V) $(LIBNOIT)
 
-$(LIBNOIT_V):	bundle $(FLATBUFFERS_HEADERS) $(FINAL_LIBNOIT_OBJS)
+$(LIBNOIT_V):	$(FLATBUFFERS_HEADERS) $(FINAL_LIBNOIT_OBJS)
 	@echo "- linking $@"
 	$(Q)$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. -lmtev -llz4 -lflatccrt
 
@@ -262,13 +261,13 @@ stratcon_@DTRACEHDR@:    stratcon_dtrace_probes.d
 		@DTRACE@ -h -s stratcon_dtrace_probes.d ; \
 	fi
 
-noit_b2sm:	bundle $(B2SM_OBJS)
+noit_b2sm: $(B2SM_OBJS)
 	@echo "- linking $@"
 	$(Q)$(CC) $(CLINKFLAGS) -o $@ $(B2SM_OBJS) \
 		$(LDFLAGS) \
 		$(LIBS) -L. -lmtev $(LUALIBS) -ljlog
 
-noitd:	bundle prometheus $(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
+noitd: $(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@echo "- linking $@"
 	$(Q)$(CC) $(CLINKFLAGS) -o $@ $(FINAL_NOIT_OBJS) \
 		$(NOITD_DTRACEOBJ) \
@@ -279,7 +278,7 @@ noitd:	bundle prometheus $(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 		$(CTFMERGE) $(CTFNOSTRIP) -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
 	fi
 
-stratcond:	bundle $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
+stratcond: $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 	@echo "- linking $@"
 	$(Q)$(CC) $(CLINKFLAGS) -o $@ $(FINAL_STRATCON_OBJS) \
 		$(STRATCOND_DTRACEOBJ) \
@@ -444,6 +443,7 @@ install:	install-dirs install-docs install-headers install-noitd install-stratco
 
 clean:
 	rm -f *.hlo *.lo *.o $(TARGETS)
+	rm -f bundle.pb-c.*
 	rm -f $(LIBNOIT)
 	rm -f module-online.h noit.env
 	rm -rf noit-objs stratcon-objs libnoit-objs
@@ -463,6 +463,12 @@ Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
+js/bundle.desc:	proto/bundle.proto
+	protoc -ojs/bundle.desc proto/bundle.proto
+
+bundle.pb-c.c bundle.pb-c.h: proto/bundle.proto
+	(cd proto && protoc bundle.proto --java_out=`pwd`/../java && protoc-c bundle.proto --c_out=`pwd`/../ && cd ..)
+
 include Makefile.dep
 include Makefile.noit.dep
 include Makefile.stratcon.dep
@@ -475,11 +481,3 @@ distclean-subdirs:
 distclean:	clean distclean-subdirs
 	rm -f Makefile noit_config.h scripts/noit-config
 
-js/bundle.desc:	bundle.proto
-	protoc -ojs/bundle.desc proto/bundle.proto
-
-bundle:
-	(cd proto && protoc bundle.proto --java_out=`pwd`/../java && protoc-c bundle.proto --c_out=`pwd`/../ && cd ..)
-
-prometheus:
-	(cd proto && protoc-c prometheus.proto --c_out=`pwd`/../ && protoc-c types.proto --c_out=`pwd`/../ && cd ..)

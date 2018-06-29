@@ -28,9 +28,11 @@ DEPS_BUILD="
     circonus-platform-library-hwloc
     circonus-platform-library-jlog
     circonus-platform-library-libcircllhist
+    circonus-platform-library-libsnappy-c
     circonus-platform-library-libmtev
     circonus-platform-library-libssh2
     circonus-platform-library-net-snmp-c
+    circonus-platform-library-protobuf
     circonus-platform-library-protobuf-c
     circonus-platform-library-udns
     circonus-platform-library-uuid

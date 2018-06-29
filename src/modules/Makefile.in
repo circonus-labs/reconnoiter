@@ -196,11 +196,17 @@ httptrap.@MODULEEXT@:	httptrap.lo
 
 httptrap.lo:	httptrap.xmlh
 
+prometheus.pb-c.c prometheus.pb-c.h: prometheus.proto
+	(protoc-c prometheus.proto --c_out=.)
+
+types.pb-c.c types.pb-c.h: types.proto
+	(protoc-c types.proto --c_out=.)
+
 prometheus.@MODULEEXT@:	prometheus.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ prometheus.lo
 
-prometheus.lo:	prometheus.xmlh
+prometheus.lo:	prometheus.xmlh prometheus.pb-c.o types.pb-c.o
 
 statsd.@MODULEEXT@:	statsd.lo
 	@echo "- linking $@"
@@ -284,6 +290,7 @@ install-smodules:	$(SMODULES)
 
 clean:
 	rm -f *.lo *.@MODULEEXT@ *.xmlh $(RABBITMQ_DRIVER_OBJS)
+	rm -f prometheus.pb-c.* types.pb-c.*
 
 distclean:	clean
 	rm -f Makefile

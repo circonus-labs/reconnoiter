@@ -30,6 +30,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+syntax = "proto2";
+
 option java_outer_classname = "CheckStatus";
 option java_package = "com.omniti.reconnoiter";
 
