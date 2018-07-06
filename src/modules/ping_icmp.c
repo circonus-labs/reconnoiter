@@ -328,9 +328,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
       (float)tt.tv_sec + (float)tt.tv_usec / 1000000.0;
     if(ping_icmp_is_complete(self, check)) {
       ping_icmp_log_results(self, check);
-      eventer_remove(data->timeout_event);
-      free(eventer_get_closure(data->timeout_event));
-      eventer_free(data->timeout_event);
+      eventer_t olde = eventer_remove(data->timeout_event);
+      if(olde) {
+        free(eventer_get_closure(olde));
+        eventer_free(olde);
+      }
       data->timeout_event = NULL;
       noit_check_end(check);
       k.addr_of_check = (uintptr_t)check ^ random_num;
@@ -508,13 +510,16 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
   struct check_info *ci = (struct check_info *)check->closure;
   if(ci) {
     if(ci->timeout_event) {
-      eventer_remove(ci->timeout_event);
-      free(eventer_get_closure(ci->timeout_event));
-      eventer_free(ci->timeout_event);
-      ci->timeout_event = NULL;
+      eventer_t e = eventer_remove(ci->timeout_event);
+      if(e) {
+        free(eventer_get_closure(e));
+        eventer_free(e);
+      }
     }
     if(ci->turnaround) free(ci->turnaround);
+    free(ci);
   }
+  check->closure = NULL;
 }
 static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
                           noit_check_t *cause) {
@@ -557,9 +562,11 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
    * has set a lower timeout than the period.
    */
   if(ci->timeout_event) {
-    eventer_remove(ci->timeout_event);
-    free(eventer_get_closure(ci->timeout_event));
-    eventer_free(ci->timeout_event);
+    eventer_t olde = eventer_remove(ci->timeout_event);
+    if(olde) {
+      free(eventer_get_closure(olde));
+      eventer_free(olde);
+    }
     ci->timeout_event = NULL;
   }
 
@@ -626,8 +633,8 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   pcl->self = self;
   pcl->check = check;
   newe = eventer_in(ping_icmp_timeout, pcl, p_int);
-  eventer_add(newe);
   ci->timeout_event = newe;
+  eventer_add(newe);
 
   return 0;
 }
