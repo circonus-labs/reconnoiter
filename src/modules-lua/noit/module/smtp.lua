@@ -82,7 +82,7 @@ function onload(image)
     <parameter name="proxy_protocol"
                required="optional"
                default="false"
-               allowed="(?:true|false)">Test MTA responses to a PROXY protocol header by setting this to true</parameter>
+               allowed="(?:true|false)">Test MTA responses to a PROXY protocol header by setting this to true    </parameter>
     <parameter name="proxy_family"
                required="optional"
                default="TCP4"
@@ -336,7 +336,7 @@ function initiate(module, check)
     -- see: http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
     -- using VERSION 1 of the protocol
     local my_ip, my_port = e:sock_name()
-    local proxy_header = string.format("PROXY %s %s %s %s %d", config.proxy_family,
+    local proxy_header = string.format("PROXY %s %s %s %s %d", config.proxy_family or "TCP4",
                                        config.proxy_source_address or my_ip,
                                        config.proxy_dest_address or check.target_ip,
                                        config.proxy_source_port or my_port,
