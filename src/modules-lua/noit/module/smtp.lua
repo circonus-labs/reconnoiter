@@ -79,6 +79,30 @@ function onload(image)
                required="optional"
                default=""
                allowed=".+">The SASL Authorization Identity</parameter>
+    <parameter name="proxy_protocol"
+               required="optional"
+               default="false"
+               allowed="(?:true|false)">Test MTA responses to a PROXY protocol header by setting this to true</parameter>
+    <parameter name="proxy_family"
+               required="optional"
+               default="TCP4"
+               allowed="(?:TCP4|TCP6)">The protocol family to send in the PROXY header</parameter>
+    <parameter name="proxy_source_address"
+               required="optional"
+               default=""
+               allowed=".+">The IP (or string) to use as the source address portion of the PROXY protocol.  More on the proxy protocol here: http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt</parameter>
+    <parameter name="proxy_dest_address"
+               required="optional"
+               default=""
+               allowed=".+">The IP (or string) to use as the destination address portion of the PROXY protocol.  More on the proxy protocol here: http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt</parameter>
+    <parameter name="proxy_source_port"
+               required="optional"
+               default=""
+               allowed="\d+">The port to use as the source port portion of the PROXY protocol.  Defaults to the actual source port of the connection to the target_ip</parameter>
+    <parameter name="proxy_dest_port"
+               required="optional"
+               default=""
+               allowed="\d+">The port to use as the dest port portion of the PROXY protocol.  Defaults to the port setting or 25</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -305,6 +329,19 @@ function initiate(module, check)
     check.bad()
     check.status(err or message or "no connection")
     return
+  end
+
+  if config.proxy_protocol == "true" then
+    -- write a PROXY protocol header as very first thing
+    -- see: http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+    -- using VERSION 1 of the protocol
+    local my_ip, my_port = e:sock_name()
+    local proxy_header = string.format("PROXY %s %s %s %s %d", config.proxy_family,
+                                       config.proxy_source_address or my_ip,
+                                       config.proxy_dest_address or check.target_ip,
+                                       config.proxy_source_port or my_port,
+                                       config.proxy_dest_port or config.port or 25)
+    write_cmd(e, proxy_header)
   end
 
   local try_starttls = config.starttls == "true" or config.starttls == "on"
