@@ -32,6 +32,7 @@
 #include <mtev_b64.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
+#include <mtev_dyn_buffer.h>
 #include "noit_metric_tag_search.h"
 
 void
