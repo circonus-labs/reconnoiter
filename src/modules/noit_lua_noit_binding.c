@@ -34,6 +34,7 @@
 #include "noit_lua_libnoit_binding.c"
 
 #include "noit_check.h"
+#include "noit_check_resolver.h"
 #include "noit_filters.h"
 #include "lua_check.h"
 
@@ -133,11 +134,26 @@ lua_noit_check_do(lua_State *L) {
   return 0;
 }
 
+static int
+nl_hosts_cache_lookup(lua_State *L) {
+  char buff[INET6_ADDRSTRLEN];
+  const char *target = luaL_checkstring(L,1);
+  int8_t family = AF_INET;
+  if(lua_gettop(L) == 2 && lua_isstring(L,2) && !strcasecmp(lua_tostring(L,2), "aaaa"))
+    family = AF_INET6;
+  if(noit_check_resolver_fetch(target, buff, sizeof(buff), family) == 1)
+    lua_pushstring(L, buff);
+  else
+    lua_pushnil(L);
+  return 1;
+}
+
 static const luaL_Reg noit_binding[] = {
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
   { "check", nl_check },
   { "check_ud", nl_check_ud },
+  { "hosts_cache_lookup", nl_hosts_cache_lookup },
   { "filtersets_cull", lua_general_filtersets_cull },
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
   { "metric_director_unsubscribe_checks", lua_noit_checks_unsubscribe },
