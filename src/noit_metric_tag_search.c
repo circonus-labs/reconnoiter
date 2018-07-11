@@ -282,3 +282,48 @@ noit_metric_tag_search_evaluate_against_tags(noit_metric_tag_search_ast_t *searc
   }
   return mtev_false;
 }
+
+static void
+noit_metric_tag_search_unparse_part(noit_metric_tag_search_ast_t *search, mtev_dyn_buffer_t *buf) {
+  switch(search->operation) {
+    case OP_MATCH: {
+      noit_metric_tag_match_t *spec = &search->contents.spec;
+      mtev_dyn_buffer_add_printf(buf, "%s", spec->cat.str);
+      if (spec->name.str) mtev_dyn_buffer_add_printf(buf, ":%s", spec->name.str);
+      break;
+    }
+    case OP_NOT_ARGS:
+      mtevAssert(search->contents.args.cnt == 1);
+      mtev_dyn_buffer_add_printf(buf, "not(");
+      noit_metric_tag_search_unparse_part(search->contents.args.node[0], buf);
+      mtev_dyn_buffer_add_printf(buf, ")");
+      break;
+    case OP_AND_ARGS:
+      mtev_dyn_buffer_add_printf(buf, "and(");
+      for(int i=0; i<search->contents.args.cnt; i++) {
+        noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf);
+        if (i != search->contents.args.cnt - 1) mtev_dyn_buffer_add_printf(buf, ",");
+      }
+      mtev_dyn_buffer_add_printf(buf, ")");
+      break;
+    case OP_OR_ARGS:
+      mtev_dyn_buffer_add_printf(buf, "or(");
+      for(int i=0; i<search->contents.args.cnt; i++) {
+        noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf);
+        if (i != search->contents.args.cnt - 1) mtev_dyn_buffer_add_printf(buf, ",");
+      }
+      mtev_dyn_buffer_add_printf(buf, ")");
+      break;
+  }
+}
+
+char *
+noit_metric_tag_search_unparse(noit_metric_tag_search_ast_t *search) {
+  char *res;
+  mtev_dyn_buffer_t buf;
+  mtev_dyn_buffer_init(&buf);
+  noit_metric_tag_search_unparse_part(search, &buf);
+  res = strdup((const char *)mtev_dyn_buffer_data(&buf));
+  mtev_dyn_buffer_destroy(&buf);
+  return res;
+}
