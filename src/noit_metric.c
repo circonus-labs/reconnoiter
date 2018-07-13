@@ -44,8 +44,6 @@
 
 #include <stdio.h>
 
-#define MAX_TAGS 256
-
 mtev_boolean
 noit_metric_as_double(metric_t *metric, double *out) {
   if(metric == NULL || metric->metric_value.vp == NULL) return mtev_false;
@@ -523,6 +521,22 @@ noit_metric_clean_name(char *m, size_t len) {
   }
   while(op-1 > m && *(op-1) == ' ') op--;
   return op - m;
+}
+ssize_t
+noit_metric_parse_tags(const char *input, size_t input_len,
+                       noit_metric_tagset_t *stset, noit_metric_tagset_t *mtset) {
+  /* We assume we're canonicalized already -- as that's expensive */
+  if(input_len > MAX_METRIC_TAGGED_NAME) return -1;
+
+  int stag_cnt = stset->tag_count;
+  int mtag_cnt = mtset->tag_count;
+  stset->tag_count = mtset->tag_count = 0;
+  while(eat_up_tags(input, &input_len, stset->tags, stag_cnt, &stset->tag_count, "|ST[", "]") ||
+        eat_up_tags(input, &input_len, mtset->tags, mtag_cnt, &mtset->tag_count, "|MT{", "}"));
+  
+  if(mtev_memmem(input, input_len, "|ST[", 4) || mtev_memmem(input, input_len, "|MT{", 4))
+    return -1;
+  return input_len;
 }
 ssize_t
 noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
