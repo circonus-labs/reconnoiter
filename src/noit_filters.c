@@ -48,6 +48,8 @@
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
 #include "noit_clustering.h"
+#include "noit_metric.h"
+#include "noit_metric_tag_search.h"
 
 #include <pcre.h>
 #include <libxml/tree.h>
@@ -85,6 +87,10 @@ typedef struct _filterrule {
   pcre_extra *metric_e;
   mtev_hash_table *metric_ht;
   int metric_auto_hash_max;
+  char *stream_tags;
+  noit_metric_tag_search_ast_t *stsearch;
+  char *measurement_tags;
+  noit_metric_tag_search_ast_t *mtsearch;
   struct _filterrule *next;
 } filterrule_t;
 
@@ -111,6 +117,10 @@ filterrule_free(void *vp) {
   FRF(r,module);
   FRF(r,name);
   FRF(r,metric);
+  free(r->stream_tags);
+  noit_metric_tag_search_free(r->stsearch);
+  free(r->measurement_tags);
+  noit_metric_tag_search_free(r->mtsearch);
   free(r->ruleid);
   free(r->skipto);
   free(r);
@@ -225,6 +235,20 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     free(longre); \
   } \
 } while(0)
+#define TAGS_COMPILE(rname, search) do { \
+  char *expr = NULL; \
+  if(mtev_conf_get_string(rules[j], "@" #rname, &expr)) { \
+    int erroffset; \
+    rule->rname = strdup(expr); \
+    rule->search = noit_metric_tag_search_parse(rule->rname, &erroffset); \
+    if(!rule->search) { \
+      mtevL(noit_error, "set '%s' rule '%s: %s' compile failed at offset %d\n", \
+            set->name, #rname, expr, erroffset); \
+      rule->metric_override = fallback_no_match; \
+    } \
+    free(expr); \
+  } \
+} while(0)
 
     if(rule->target_ht == NULL)
       RULE_COMPILE(target);
@@ -232,8 +256,11 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       RULE_COMPILE(module);
     if(rule->name_ht == NULL)
       RULE_COMPILE(name);
-    if(rule->metric_ht == NULL)
+    if(rule->metric_ht == NULL) {
       RULE_COMPILE(metric);
+      TAGS_COMPILE(stream_tags, stsearch);
+      TAGS_COMPILE(measurement_tags, mtsearch);
+    }
     rule->next = set->rules;
     set->rules = rule;
   }
@@ -383,6 +410,31 @@ noit_apply_filterrule(mtev_hash_table *m,
   if(rc >= 0) return mtev_true;
   return mtev_false;
 }
+static mtev_boolean
+noit_apply_filterrule_metric(filterrule_t *r,
+                             const char *subj, int subj_len,
+                             noit_metric_tagset_t *stset, noit_metric_tagset_t *mtset) {
+  int rc, ovector[30];
+  if(r->metric_ht) {
+    void *vptr;
+    return mtev_hash_retrieve(r->metric_ht, subj, subj_len, &vptr);
+  }
+  if(!r->metric && !r->metric_override) return mtev_true;
+  rc = pcre_exec(r->metric ? r->metric : r->metric_override, r->metric ? r->metric_e : NULL,
+                 subj, subj_len, 0, 0, ovector, 30);
+  if(rc < 0) return mtev_false;
+  if(r->stsearch) {
+    if(!noit_metric_tag_search_evaluate_against_tags(r->stsearch, stset)) {
+      return mtev_false;
+    }
+  }
+  if(r->mtsearch) {
+    if(!noit_metric_tag_search_evaluate_against_tags(r->mtsearch, mtset)) {
+      return mtev_false;
+    }
+  }
+  return mtev_true;
+}
 static int
 noit_filter_update_conf_rule(const char *fname, int idx, const char *rname, const char *value) {
   char xpath[1024];
@@ -415,6 +467,14 @@ noit_apply_filterset(const char *filterset,
   if(!filterset) return mtev_true;   /* No filter */
   if(!filtersets) return mtev_false; /* Couldn't possibly match */
 
+  noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+  int mlen = noit_metric_parse_tags(metric->metric_name, strlen(metric->metric_name), &stset, &mtset);
+  if(mlen < 0) {
+    stset.tag_count = mtset.tag_count = 0;
+    mlen = strlen(metric->metric_name);
+  }
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
@@ -434,7 +494,8 @@ noit_apply_filterset(const char *filterset,
       need_target = !MATCHES(target, check->target);
       need_module = !MATCHES(module, check->module);
       need_name = !MATCHES(name, check->name);
-      need_metric = !MATCHES(metric, metric->metric_name);
+      need_metric = !noit_apply_filterrule_metric(r, metric->metric_name, mlen, &stset, &mtset);
+
       if(!need_target && !need_module && !need_name && !need_metric) {
         if(r->type == NOIT_FILTER_SKIPTO) {
           skipto_rule = r->skipto_rule;
@@ -538,6 +599,8 @@ noit_console_filter_show(mtev_console_closure_t ncct,
     DUMP_ATTR(module);
     DUMP_ATTR(name);
     DUMP_ATTR(metric);
+    DUMP_ATTR(stream_tags);
+    DUMP_ATTR(measurement_tags);
     DUMP_ATTR(id);
     DUMP_ATTR(skipto);
   }
@@ -617,6 +680,7 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
       if(!strcmp(argv[i], "type")) needs_type = 0;
       else if(strcmp(argv[i], "target") && strcmp(argv[i], "module") &&
               strcmp(argv[i], "name") && strcmp(argv[i], "metric") &&
+              strcmp(argv[i], "stream_tags") && strcmp(argv[i], "measurement_tags") &&
               strcmp(argv[i], "id")) {
         nc_printf(ncct, "unknown attribute '%s'\n", argv[i]);
         goto bail;

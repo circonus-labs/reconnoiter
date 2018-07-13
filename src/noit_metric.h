@@ -38,6 +38,7 @@
 #include <mtev_uuid.h>
 
 #define MAX_METRIC_TAGGED_NAME 4096
+#define MAX_TAGS 256
 
 typedef enum {
   METRIC_ABSENT = 0,
@@ -201,5 +202,10 @@ API_EXPORT(size_t)
 API_EXPORT(ssize_t)
   noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
                            mtev_boolean null_term);
+
+API_EXPORT(ssize_t)
+  noit_metric_parse_tags(const char *input, size_t input_len,
+                         noit_metric_tagset_t *stset, noit_metric_tagset_t *mtset);
+
 
 #endif
