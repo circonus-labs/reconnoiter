@@ -79,7 +79,6 @@ typedef enum {
   MESSAGE_TYPE_M = 'M'
 } noit_message_type;
 
-#define NOIT_TAG_MAX_COMPONENT_LEN 127
 #define NOIT_TAG_MAX_PAIR_LEN 256
 
 typedef struct {
