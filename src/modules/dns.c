@@ -721,6 +721,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   }
   if (!r && !nrr) {
     ci->error = strdup("no data");
+    goto cleanup;
   }
 
   dns_rewind(&p, NULL);
