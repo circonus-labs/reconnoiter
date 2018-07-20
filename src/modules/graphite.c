@@ -56,32 +56,49 @@ static mtev_log_stream_t nldeb = NULL;
 
 typedef struct _mod_config {
   mtev_hash_table *options;
+} graphite_mod_config_t;
+
+typedef struct graphite_closure_s {
+  noit_module_t *self;
+  noit_check_t *check;
   uuid_t check_uuid;
   int port;
   int rows_per_cycle;
   int ipv4_fd;
   int ipv6_fd;
   mtev_dyn_buffer_t buffer;
-} graphite_mod_config_t;
-
-typedef struct graphite_closure_s {
-  noit_module_t *self;
 } graphite_closure_t;
 
-struct value_list {
-  char *v;
-  struct value_list *next;
-};
-
-typedef struct graphite_upload
-{
-  mtev_dyn_buffer_t data;
-  mtev_boolean complete;
-  noit_check_t *check;
-  uuid_t check_id;
-} graphite_upload_t;
-
 #define READ_CHUNK 32768
+
+static inline size_t count_integral_digits(const char *str, size_t len, mtev_boolean can_be_signed)
+{
+  size_t rval = 0;
+  if (can_be_signed && len > 0 && *str == '-') {
+    rval++;
+    str++;
+  }
+  while (rval < len) {
+    if (*str < '0' || *str > '9') return rval;
+    str++;
+    rval++;
+  }
+  return rval;
+}
+
+/* Count endlines to determine how many full records we
+ * have */
+static inline int
+count_records(char *buffer) {
+  char *iter = buffer;
+  int count = 0;
+  while ((iter = strchr(iter, '\n')) != 0) {
+    count++;
+    iter++;
+  }
+  return count;
+}
+
 
 static int graphite_submit(noit_module_t *self, noit_check_t *check,
                            noit_check_t *cause)
@@ -134,35 +151,10 @@ static int graphite_submit(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static mtev_boolean
-cross_module_reverse_allowed(noit_check_t *check) {
-  mtev_hash_table *config;
-  static int reverse_check_module_id = -1;
-  if(reverse_check_module_id < 0) {
-    reverse_check_module_id = noit_check_registered_module_by_name("reverse");
-    if(reverse_check_module_id < 0) return mtev_false;
-  }
-  config = noit_check_get_module_config(check, reverse_check_module_id);
-  if(!config) return mtev_false;
-  return mtev_true;
-}
-
-static int
-count_records(char *buffer) {
-  char *iter = buffer;
-  int count = 0;
-  while ((iter = strchr(iter, '\n')) != 0) {
-    count++;
-    iter++;
-  }
-  return count;
-}
-
 static void
-graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
+graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
 {
   char record[4096];
-  metric_t value;
   char *part;
   char *s = NULL, *e = NULL;
   const size_t c_length = len;
@@ -236,7 +228,11 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
 
     size_t metric_name_len = strlen(graphite_metric_name);
 
-    uint64_t whence_ms = noit_record_parse_m_timestamp(graphite_timestamp, strlen(graphite_timestamp));
+    char *dp;
+    uint64_t whence_ms = strtoull(graphite_timestamp, &dp, 10);
+    whence_ms *= 1000; /* s -> ms */
+    if(dp && *dp == '.')
+      whence_ms += (int) (1000.0 * atof(dp));
 
     size_t graphite_value_len = strlen(graphite_value);
     if (count_integral_digits(graphite_value, graphite_value_len, mtev_true) == 0) {
@@ -244,21 +240,20 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
       continue;
     }
 
-    value.metric_type = METRIC_DOUBLE;
     double metric_value = 0.0;
     const char *dot = strchr(graphite_value, '.');
     if (dot == NULL) {
       /* attempt fast integer parse, if we fail, jump to strtod parse */
       if (*graphite_value == '-') {
         errno = 0;
-        int64_t v = strtoll(graphite_value, 10, NULL);
+        int64_t v = strtoll(graphite_value, NULL, 10);
         if (errno == ERANGE) {
           goto strtod_parse;
         }
         metric_value = (double)v;
       } else {
         errno = 0;
-        uint64_t v = strtoull(graphite_value, 10, NULL);
+        uint64_t v = strtoull(graphite_value, NULL, 10);
         if (errno == ERANGE) {
           goto strtod_parse;
         }
@@ -283,8 +278,8 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
      * Re-format incoming name string into our tag format for parsing */
     char *semicolon = strchr(graphite_metric_name, ';');
     if (semicolon) {
-      mtev_dyn_buffer_add(&tagged_name, graphite_metric_name, semicolon - graphite_metric_name);
-      mtev_dyn_buffer_add(&tagged_name, "|ST[", 4);
+      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)graphite_metric_name, semicolon - graphite_metric_name);
+      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"|ST[", 4);
 
       /* look for K=V pairs */
       char *pair, *lasts;
@@ -295,28 +290,28 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
           size_t pair_len = strlen(pair);
           if (!noit_metric_tagset_is_taggable_key(pair, equal - pair) ||
               !noit_metric_tagset_is_taggable_value(equal + 1, pair_len - ((equal + 1) - pair))) {
-            mtevL(mtev_error, "Unacceptable tag key or value: '%s' skipping\n", pair);
+            mtevL(nldeb, "Unacceptable tag key or value: '%s' skipping\n", pair);
             continue;
           }
 
-          if (comma) mtev_dyn_buffer_add(&tagged_name, ",", 1);
-          mtev_dyn_buffer_add(&tagged_name, pair, equal - pair);
-          mtev_dyn_buffer_add(&tagged_name, ":", 1);
+          if (comma) mtev_dyn_buffer_add(&tagged_name, (uint8_t *)",", 1);
+          mtev_dyn_buffer_add(&tagged_name, (uint8_t *)pair, equal - pair);
+          mtev_dyn_buffer_add(&tagged_name, (uint8_t *)":", 1);
           mtev_dyn_buffer_add_printf(&tagged_name, "%s", equal + 1);
           comma = true;
         }
       }
-      mtev_dyn_buffer_add(&tagged_name, "]", 1);
+      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"]", 1);
     } else {
-      mtev_dyn_buffer_add(&tagged_name, graphite_metric_name, metric_name_len);
+      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)graphite_metric_name, metric_name_len);
     }
 
-    mtevL(graphite_debug_ls, "Reformatted graphite name: %s\n", mtev_dyn_buffer_data(&tagged_name));
+    mtevL(nldeb, "Reformatted graphite name: %s\n", mtev_dyn_buffer_data(&tagged_name));
     struct timeval tv;
-    tv.tv_sec = (time_t)(value->whence_ms / 1000L);
-    tv.tv_usec = (suseconds_t)((value->whence_ms % 1000L) * 1000);
+    tv.tv_sec = (time_t)(whence_ms / 1000L);
+    tv.tv_usec = (suseconds_t)((whence_ms % 1000L) * 1000);
     noit_stats_log_immediate_metric_timed(check,
-                                          mtev_dyn_buffer_data(&tagged_name),
+                                          (const char *)mtev_dyn_buffer_data(&tagged_name),
                                           METRIC_DOUBLE,
                                           &metric_value,
                                           &tv);
@@ -328,14 +323,11 @@ static int
 graphite_handler(eventer_t e, int mask, void *closure, struct timeval *now) 
 {
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
-  noit_module_t *self = (noit_module_t *)closure;
+  graphite_closure_t *self = (graphite_closure_t *)closure;
   int rows_per_cycle = 0, records_this_loop = 0;
-  graphite_mod_config_t *conf;
-  noit_check_t *check = NULL;
+  noit_check_t *check = self->check;
 
-  conf = noit_module_get_userdata(self);
-  check = noit_poller_lookup(conf->check_uuid);
-  rows_per_cycle = conf->rows_per_cycle;
+  rows_per_cycle = self->rows_per_cycle;
 
   if(mask & EVENTER_EXCEPTION || check == NULL) {
 socket_close:
@@ -350,9 +342,9 @@ socket_close:
     int toRead = READ_CHUNK;
     int num_records = 0;
 
-    mtev_dyn_buffer_ensure(&conf->buffer, toRead);
+    mtev_dyn_buffer_ensure(&self->buffer, toRead);
     errno = 0;
-    len = eventer_read(e, mtev_dyn_buffer_write_pointer(&conf->buffer), toRead, &newmask);
+    len = eventer_read(e, mtev_dyn_buffer_write_pointer(&self->buffer), toRead, &newmask);
 
     if (len == 0) {
       goto socket_close;
@@ -366,24 +358,24 @@ socket_close:
       goto socket_close;
     }
 
-    mtev_dyn_buffer_advance(&conf->buffer, len);
-    *mtev_dyn_buffer_write_pointer(&conf->buffer) = '\0';
+    mtev_dyn_buffer_advance(&self->buffer, len);
+    *mtev_dyn_buffer_write_pointer(&self->buffer) = '\0';
 
-    num_records = count_records(mtev_dyn_buffer_data(&conf->buffer));
+    num_records = count_records((char *)mtev_dyn_buffer_data(&self->buffer));
     if (num_records > 0) {
       records_this_loop += num_records;
-      char *end_ptr = strrchr(mtev_dyn_buffer_data(&conf->buffer), '\n');
+      char *end_ptr = strrchr((char *)mtev_dyn_buffer_data(&self->buffer), '\n');
       *end_ptr = '\0';
-      size_t total_size = mtev_dyn_buffer_used(&conf->buffer);
-      size_t used_size = end_ptr - mtev_dyn_buffer_data(&conf->buffer);
+      size_t total_size = mtev_dyn_buffer_used(&self->buffer);
+      size_t used_size = end_ptr - (char *)mtev_dyn_buffer_data(&self->buffer);
 
-      graphite_handle_payload(check, mtev_dyn_buffer_data(&conf->buffer), used_size);
+      graphite_handle_payload(check, (char *)mtev_dyn_buffer_data(&self->buffer), used_size);
       if (total_size > used_size) {
         end_ptr++;
         char *leftovers = (char*)total_size - used_size - 1;
         memcpy(leftovers, end_ptr, total_size - used_size - 1);
-        mtev_dyn_buffer_reset(&conf->buffer);
-        mtev_dyn_buffer_add(&conf->buffer, leftovers, total_size - used_size - 1)
+        mtev_dyn_buffer_reset(&self->buffer);
+        mtev_dyn_buffer_add(&self->buffer, (uint8_t *)leftovers, total_size - used_size - 1);
       }
       if (records_this_loop >= rows_per_cycle) {
         return newmask | EVENTER_EXCEPTION;
@@ -392,7 +384,39 @@ socket_close:
   }
   /* unreachable */
   return newmask | EVENTER_EXCEPTION;
+}
 
+static int
+graphite_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now)
+{
+  graphite_closure_t *self = (graphite_closure_t *)closure;
+
+  struct sockaddr cli_addr;
+  socklen_t clilen = sizeof(cli_addr);
+  if (mask & EVENTER_READ) {
+    /* accept on the ipv4 socket */
+    int fd = accept(self->ipv4_fd, &cli_addr, &clilen);
+    if (fd < 0) {
+      mtevL(nlerr, "graphite error accept: %s\n", strerror(errno));
+      return 0;
+    }
+
+    /* otherwise, make a new event to track the accepted fd after we set the fd to non-blocking */
+    if(eventer_set_fd_nonblocking(fd)) {
+      close(fd);
+      mtevL(nlerr,
+            "graphite: could not set accept fd (IPv4) non-blocking: %s\n",
+            strerror(errno));
+      return 0;
+    }
+    eventer_t newe;
+    newe = eventer_alloc_fd(graphite_handler, self, fd,
+                            EVENTER_READ | EVENTER_EXCEPTION);
+    eventer_add(newe);
+    /* continue to accept */
+    return EVENTER_READ | EVENTER_EXCEPTION;
+  }
+  return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
 
@@ -404,6 +428,113 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     graphite_closure_t *ccl;
     ccl = check->closure = (void *)calloc(1, sizeof(graphite_closure_t));
     ccl->self = self;
+    ccl->check = check;
+
+    unsigned short port = 2003;
+    int rows_per_cycle = 100;
+    struct sockaddr_in skaddr;
+    int sockaddr_len;
+    const char *config_val;
+
+    mtev_dyn_buffer_init(&ccl->buffer);
+
+    if(mtev_hash_retr_str(check->config, "listen_port", strlen("listen_port"),
+                          (const char **)&config_val)) {
+      port = atoi(config_val);
+    }
+    ccl->port = port;
+
+    if(mtev_hash_retr_str(check->config, "rows_per_cycle",
+                          strlen("rows_per_cycle"),
+                          (const char **)&config_val)) {
+      rows_per_cycle = atoi(config_val);
+    }
+    ccl->rows_per_cycle = rows_per_cycle;
+
+    ccl->ipv4_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(ccl->ipv4_fd < 0) {
+      mtevL(noit_error, "graphite: socket failed: %s\n", strerror(errno));
+      return -1;
+    }
+    else {
+      if(eventer_set_fd_nonblocking(ccl->ipv4_fd)) {
+        close(ccl->ipv4_fd);
+        ccl->ipv4_fd = -1;
+        mtevL(noit_error,
+              "graphite: could not set socket (IPv4) non-blocking: %s\n",
+              strerror(errno));
+        return -1;
+      }
+    }
+    memset(&skaddr, 0, sizeof(skaddr));
+    skaddr.sin_family = AF_INET;
+    skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    skaddr.sin_port = htons(ccl->port);
+    sockaddr_len = sizeof(skaddr);
+    if(bind(ccl->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
+      mtevL(noit_error, "graphite bind(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+      close(ccl->ipv4_fd);
+      return -1;
+    }
+    if (listen(ccl->ipv4_fd, 10) != 0) {
+      mtevL(noit_error, "graphite listen(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+      close(ccl->ipv4_fd);
+      return -1;
+    }
+
+    if(ccl->ipv4_fd >= 0) {
+      eventer_t newe;
+      newe = eventer_alloc_fd(graphite_listen_handler, ccl, ccl->ipv4_fd,
+                              EVENTER_READ | EVENTER_EXCEPTION);
+      eventer_add(newe);
+    }
+
+    ccl->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(ccl->ipv6_fd < 0) {
+      mtevL(noit_error, "graphite: IPv6 socket failed: %s\n",
+            strerror(errno));
+    }
+    else {
+      if(eventer_set_fd_nonblocking(ccl->ipv6_fd)) {
+        close(ccl->ipv6_fd);
+        ccl->ipv6_fd = -1;
+        mtevL(noit_error,
+              "graphite: could not set socket (IPv6) non-blocking: %s\n",
+              strerror(errno));
+      }
+      else {
+        struct sockaddr_in6 skaddr6;
+        struct in6_addr in6addr_any;
+        sockaddr_len = sizeof(skaddr6);
+        memset(&skaddr6, 0, sizeof(skaddr6));
+        skaddr6.sin6_family = AF_INET6;
+        memset(&in6addr_any, 0, sizeof(in6addr_any));
+        skaddr6.sin6_addr = in6addr_any;
+        skaddr6.sin6_port = htons(ccl->port);
+
+        if(bind(ccl->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
+          mtevL(noit_error, "graphite bind(IPv6) failed[%d]: %s\n",
+                ccl->port, strerror(errno));
+          close(ccl->ipv6_fd);
+          ccl->ipv6_fd = -1;
+        }
+
+        else if (listen(ccl->ipv6_fd, 10) != 0) {
+          mtevL(noit_error, "graphite listen(IPv6) failed[%d]: %s\n", ccl->port, strerror(errno));
+          close(ccl->ipv6_fd);
+          return -1;
+        }
+
+      }
+    }
+
+    if(ccl->ipv6_fd >= 0) {
+      eventer_t newe;
+      newe = eventer_alloc_fd(graphite_listen_handler, ccl, ccl->ipv6_fd,
+                              EVENTER_READ | EVENTER_EXCEPTION);
+      eventer_add(newe);
+    }
+
   }
   INITIATE_CHECK(graphite_submit, self, check, cause);
   return 0;
@@ -435,111 +566,9 @@ static int noit_graphite_onload(mtev_image_t *self) {
 }
 
 static int noit_graphite_init(noit_module_t *self) {
-  unsigned short port = 2003;
-  int rows_per_cycle = 100;
-  int payload_len = 256*1024;
-  struct sockaddr_in skaddr;
-  int sockaddr_len;
-  const char *config_val;
-  graphite_mod_config_t *conf;
 
-  conf = noit_module_get_userdata(self);
-  mtev_dyn_buffer_init(&conf->buffer);
   eventer_name_callback("graphite/graphite_handler", graphite_handler);
-
-  if(mtev_hash_retr_str(conf->options, "check", strlen("check"),
-                        (const char **)&config_val)) {
-    if(mtev_uuid_parse((char *)config_val, conf->check_uuid) != 0) {
-      mtevL(noit_error, "graphite check isn't a UUID\n");
-    }
-  }
-
-  if(mtev_hash_retr_str(conf->options, "listen_port", strlen("listen_port"),
-                        (const char **)&config_val)) {
-    port = atoi(config_val);
-  }
-  conf->port = port;
-
-  if(mtev_hash_retr_str(conf->options, "rows_per_cycle",
-                        strlen("rows_per_cycle"),
-                        (const char **)&config_val)) {
-    rows_per_cycle = atoi(config_val);
-  }
-  conf->rows_per_cycle = rows_per_cycle;
-
-  conf->ipv4_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
-  if(conf->ipv4_fd < 0) {
-    mtevL(noit_error, "statsd: socket failed: %s\n", strerror(errno));
-    return -1;
-  }
-  else {
-    if(eventer_set_fd_nonblocking(conf->ipv4_fd)) {
-      close(conf->ipv4_fd);
-      conf->ipv4_fd = -1;
-      mtevL(noit_error,
-            "collectd: could not set socket non-blocking: %s\n",
-            strerror(errno));
-      return -1;
-    }
-  }
-  memset(&skaddr, 0, sizeof(skaddr));
-  skaddr.sin_family = AF_INET;
-  skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  skaddr.sin_port = htons(conf->port);
-  sockaddr_len = sizeof(skaddr);
-  if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
-    mtevL(noit_error, "bind failed[%d]: %s\n", conf->port, strerror(errno));
-    close(conf->ipv4_fd);
-    return -1;
-  }
-
-  if(conf->ipv4_fd >= 0) {
-    eventer_t newe;
-    newe = eventer_alloc_fd(graphite_handler, self, conf->ipv4_fd,
-                            EVENTER_READ | EVENTER_EXCEPTION);
-    eventer_add(newe);
-  }
-
-  conf->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
-  if(conf->ipv6_fd < 0) {
-    mtevL(noit_error, "statsd: IPv6 socket failed: %s\n",
-          strerror(errno));
-  }
-  else {
-    if(eventer_set_fd_nonblocking(conf->ipv6_fd)) {
-      close(conf->ipv6_fd);
-      conf->ipv6_fd = -1;
-      mtevL(noit_error,
-            "statsd: could not set socket non-blocking: %s\n",
-            strerror(errno));
-    }
-    else {
-      struct sockaddr_in6 skaddr6;
-      struct in6_addr in6addr_any;
-      sockaddr_len = sizeof(skaddr6);
-      memset(&skaddr6, 0, sizeof(skaddr6));
-      skaddr6.sin6_family = AF_INET6;
-      memset(&in6addr_any, 0, sizeof(in6addr_any));
-      skaddr6.sin6_addr = in6addr_any;
-      skaddr6.sin6_port = htons(conf->port);
-
-      if(bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
-        mtevL(noit_error, "bind(IPv6) failed[%d]: %s\n",
-              conf->port, strerror(errno));
-        close(conf->ipv6_fd);
-        conf->ipv6_fd = -1;
-      }
-    }
-  }
-
-  if(conf->ipv6_fd >= 0) {
-    eventer_t newe;
-    newe = eventer_alloc_fd(graphite_handler, self, conf->ipv6_fd,
-                            EVENTER_READ | EVENTER_EXCEPTION);
-    eventer_add(newe);
-  }
-
-  noit_module_set_userdata(self, conf);
+  eventer_name_callback("graphite/graphite_listen_handler", graphite_listen_handler);
   return 0;
 }
 
