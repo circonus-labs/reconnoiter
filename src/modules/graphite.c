@@ -162,7 +162,7 @@ static void
 graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
 {
   char record[4096];
-  noit_record_m_t value;
+  metric_t value;
   char *part;
   char *s = NULL, *e = NULL;
   const size_t c_length = len;
@@ -236,7 +236,7 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
 
     size_t metric_name_len = strlen(graphite_metric_name);
 
-    value.whence_ms = noit_record_parse_m_timestamp(graphite_timestamp, strlen(graphite_timestamp));
+    uint64_t whence_ms = noit_record_parse_m_timestamp(graphite_timestamp, strlen(graphite_timestamp));
 
     size_t graphite_value_len = strlen(graphite_value);
     if (count_integral_digits(graphite_value, graphite_value_len, mtev_true) == 0) {
@@ -244,8 +244,8 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
       continue;
     }
 
-    value.value.type = METRIC_DOUBLE;
-
+    value.metric_type = METRIC_DOUBLE;
+    double metric_value = 0.0;
     const char *dot = strchr(graphite_value, '.');
     if (dot == NULL) {
       /* attempt fast integer parse, if we fail, jump to strtod parse */
@@ -255,35 +255,37 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
         if (errno == ERANGE) {
           goto strtod_parse;
         }
-        value.value.storage.v_int64 = v;
-        value.value.type = METRIC_INT64;
+        metric_value = (double)v;
       } else {
         errno = 0;
         uint64_t v = strtoull(graphite_value, 10, NULL);
         if (errno == ERANGE) {
           goto strtod_parse;
         }
-        value.value.storage.v_uint64 = v;
-        value.value.type = METRIC_UINT64;
+        metric_value = (double)v;
       }
     } else {
     strtod_parse:
       errno = 0;
-      value.value.storage.v_double = strtod(graphite_value, NULL);
+      metric_value = strtod(graphite_value, NULL);
       if (errno == ERANGE) {
         mtevL(nldeb, "Invalid graphite record, strtod cannot parse value: %s\n", record);
         continue;
       }
     }
-    value.value.is_null = mtev_false;
+
+    /* allow for any length name + tags in the broker */
+    mtev_dyn_buffer_t tagged_name;
+    mtev_dyn_buffer_init(&tagged_name);
 
     /* http://graphite.readthedocs.io/en/latest/tags.html
      * 
      * Re-format incoming name string into our tag format for parsing */
     char *semicolon = strchr(graphite_metric_name, ';');
     if (semicolon) {
-      tagged_metric_name.append_bytes(graphite_metric_name, semicolon - graphite_metric_name);
-      tagged_metric_name.append_bytes("|ST[", 4);
+      mtev_dyn_buffer_add(&tagged_name, graphite_metric_name, semicolon - graphite_metric_name);
+      mtev_dyn_buffer_add(&tagged_name, "|ST[", 4);
+
       /* look for K=V pairs */
       char *pair, *lasts;
       bool comma = false;
@@ -297,82 +299,29 @@ graphite_handle_payload(noit_check_t *check, const char *buffer, size_t len)
             continue;
           }
 
-          if (comma) tagged_metric_name.append_bytes(",", 1);
-          tagged_metric_name.append_bytes(pair, equal - pair);
-          tagged_metric_name.append_bytes(":", 1);
-          tagged_metric_name.append_string(equal + 1);
+          if (comma) mtev_dyn_buffer_add(&tagged_name, ",", 1);
+          mtev_dyn_buffer_add(&tagged_name, pair, equal - pair);
+          mtev_dyn_buffer_add(&tagged_name, ":", 1);
+          mtev_dyn_buffer_add_printf(&tagged_name, "%s", equal + 1);
           comma = true;
         }
       }
-      tagged_metric_name.append_bytes("]", 1);
+      mtev_dyn_buffer_add(&tagged_name, "]", 1);
     } else {
-      tagged_metric_name.append_bytes(graphite_metric_name, metric_name_len);
+      mtev_dyn_buffer_add(&tagged_name, graphite_metric_name, metric_name_len);
     }
 
-    mtevL(graphite_debug_ls, "Reformatted graphite name: %s\n", tagged_metric_name.get_mem());
-
-    mem_reader_t metric_name_buf;
-    mem_reader_t tagged_metric_name_buf;
-    mem_reader_init_mem(&tagged_metric_name_buf, tagged_metric_name.get_mem(), tagged_metric_name.get_mem_used());
-    mem_reader_init_mem(&value.metric_name_buf, tagged_metric_name.get_mem(), 
-                        tagged_metric_name.get_mem_used());
-    snowth_metric_locator_t *metric_locator =
-      snowth_metric_locator_create_full(identifier,
-                                        METRIC_TYPE_NUMERIC,
-                                        METRIC_SOURCE_GRAPHITE,
-                                        mem_reader_get_buffer(&value.check_name_buf),
-                                        value.check_uuid, &value.metric_name_buf);
-    if (metric_locator == NULL) {
-      mtevL(mtev_notice, "Invalid graphite record: cannot parse metric name \"%.*s\"\n",
-            (int) mem_reader_get_buffer_size(&value.metric_name_buf),
-            mem_reader_get_buffer(&value.metric_name_buf));
-      continue;
-    }
-
-  
+    mtevL(graphite_debug_ls, "Reformatted graphite name: %s\n", mtev_dyn_buffer_data(&tagged_name));
+    struct timeval tv;
+    tv.tv_sec = (time_t)(value->whence_ms / 1000L);
+    tv.tv_usec = (suseconds_t)((value->whence_ms % 1000L) * 1000);
+    noit_stats_log_immediate_metric_timed(check,
+                                          mtev_dyn_buffer_data(&tagged_name),
+                                          METRIC_DOUBLE,
+                                          &metric_value,
+                                          &tv);
+    mtev_dyn_buffer_destroy(&tagged_name);
   }
-}
-
-static char *
-metric_name_from_graphite()
-{
-  char final_name[4096] = {0};
-  char *name = final_name;
-  char buffer[4096] = {0};
-  char encode_buffer[512] = {0};
-  char *b = buffer;
-  size_t tag_count = 0;
-  for (size_t i = 0; i < label_count; i++) {
-    Prometheus__Label *l = labels[i];
-    if (strcmp("__name__", l->name) == 0) {
-      strncpy(name, l->value, sizeof(final_name) - 1);
-    } else {
-      if (tag_count > 0) {
-        strlcat(b, ",", sizeof(buffer));
-      }
-      /* make base64 encoded tags out of the incoming prometheus tags for safety */
-      /* TODO base64 encode these */
-      size_t tl = strlen(l->name);
-      mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer));
-
-      strlcat(b, "b\"", sizeof(buffer));
-      strlcat(b, encode_buffer, sizeof(buffer));
-      strlcat(b, "\":b\"", sizeof(buffer));
-
-      tl = strlen(l->value);
-      mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer));
-
-      strlcat(b, encode_buffer, sizeof(buffer));
-      strlcat(b, "\"", sizeof(buffer));
-      tag_count++;
-    }
-  }
-  strlcat(name, "|ST[", sizeof(final_name));
-  strlcat(name, buffer, sizeof(final_name));
-  strlcat(name, "]", sizeof(final_name));
-
-  /* we don't have to canonicalize here as reconnoiter will do that for us */
-  return strdup(final_name);
 }
 
 static int
