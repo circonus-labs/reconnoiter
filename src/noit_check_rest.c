@@ -593,8 +593,8 @@ static int
 missing_namespaces(xmlNodePtr ctx, xmlNodePtr q) {
   xmlNodePtr n;
   if(q->ns && !xmlSearchNs(ctx->doc, ctx, q->ns->prefix)) return 1;
-  for(n=q->next; n; n=n->next) return missing_namespaces(ctx, n);
-  for(n=q->children; n; n=n->next) return missing_namespaces(ctx, n);
+  for(n=q->next; n; n=n->next) if(missing_namespaces(ctx, n)) return 1;
+  for(n=q->children; n; n=n->next) if(missing_namespaces(ctx, n)) return 1;
   return 0;
 }
 int
@@ -1000,6 +1000,8 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     char *target = NULL, *name = NULL, *module = NULL;
     xmlNodePtr a;
     noit_check_t *ocheck;
+    if(!check)
+      FAIL("internal check error");
 
     cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
     if(cnt != 1) FAIL("internal error, |checkid| > 1");

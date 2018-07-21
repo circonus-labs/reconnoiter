@@ -766,12 +766,14 @@ noit_console_config_show(mtev_console_closure_t ncct,
   if(!strcmp(basepath, "/")) basepath = "";
   if(!strcmp(path, "/")) path = "";
 
+
+  NCLOCK;
+  mtev_conf_xml_xpath(&master_config, &xpath_ctxt);
   if(!master_config) {
+    NCUNLOCK;
     nc_printf(ncct, "no config\n");
     return -1;
   }
-
-  NCLOCK;
 
   /* { / } is the only path that will end with a /
    * in XPath { / / * } means something _entirely different than { / * }
@@ -789,7 +791,6 @@ noit_console_config_show(mtev_console_closure_t ncct,
   else
     snprintf(xpath, sizeof(xpath), "/noit%s/%s/@*", basepath, path);
 
-  mtev_conf_xml_xpath(&master_config, &xpath_ctxt);
   current_ctxt = xpath_ctxt;
   pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET) {

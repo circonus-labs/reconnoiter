@@ -2860,7 +2860,7 @@ noit_check_process_repl(xmlDocPtr doc) {
     section = mtev_conf_section_from_xmlnodeptr(child);
     mtevAssert(mtev_conf_get_stringbuf(section, "@uuid",
                                        uuid_str, sizeof(uuid_str)));
-    mtev_uuid_parse(uuid_str, checkid);
+    mtevAssert(mtev_uuid_parse(uuid_str, checkid) == 0);
     mtevAssert(mtev_conf_get_stringbuf(section, "@seq",
                                        seq_str, sizeof(seq_str)));
     seq = strtoll(seq_str, NULL, 10);

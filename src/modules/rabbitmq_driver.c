@@ -100,13 +100,16 @@ static iep_thread_driver_t *noit_rabbimq_allocate(mtev_conf_section_t conf) {
   pthread_mutex_unlock(&driver_lock);
   if(!dr) return NULL;
   dr->nconnects = rand();
-#define GETCONFSTR(w) mtev_conf_get_stringbuf(conf, #w, dr->w, sizeof(dr->w))
+#define GETCONFSTR(w) do { \
+  if(!mtev_conf_get_stringbuf(conf, #w, dr->w, sizeof(dr->w))) \
+    dr->w[0] = '\0'; \
+} while(0)
   GETCONFSTR(exchange);
-  if(!GETCONFSTR(routingkey))
-    dr->routingkey[0] = '\0';
+  GETCONFSTR(routingkey);
   GETCONFSTR(username);
   GETCONFSTR(password);
-  if(!GETCONFSTR(vhost)) { dr->vhost[0] = '/'; dr->vhost[1] = '\0'; }
+  GETCONFSTR(vhost);
+  if(!dr->vhost[0]) { dr->vhost[0] = '/'; dr->vhost[1] = '\0'; }
   if(!mtev_conf_get_int32(conf, "heartbeat", &dr->heartbeat))
     dr->heartbeat = 5000;
   dr->heartbeat = (dr->heartbeat + 999) / 1000;

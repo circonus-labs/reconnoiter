@@ -85,7 +85,8 @@ ip_acl_onload(mtev_image_t *self) {
           } a;
 
           if(mtev_conf_env_off(rule_c[j], NULL)) continue;
-          mtev_conf_get_stringbuf(rule_c[j], "self::node()", target, sizeof(target));
+          if(!mtev_conf_get_stringbuf(rule_c[j], "self::node()", target, sizeof(target)))
+            target[0] = '\0';
           if(NULL != (cp = strchr(target, '/'))) {
             *cp++ = '\0';
             mask = atoi(cp);

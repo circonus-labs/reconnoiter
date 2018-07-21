@@ -363,7 +363,7 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
 
   config = noit_check_get_module_config(check, histogram_module_id);
   if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
-  mtev_hash_retr_str(config, m->metric_name, strlen(m->metric_name), &track);
+  (void)mtev_hash_retr_str(config, m->metric_name, strlen(m->metric_name), &track);
   if(!track || strcmp(track, "add"))
     return MTEV_HOOK_CONTINUE;
 
@@ -417,7 +417,7 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
 
   config = noit_check_get_module_config(check, histogram_module_id);
   if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
-  mtev_hash_retr_str(config, metric_name, strlen(metric_name), &track);
+  (void)mtev_hash_retr_str(config, metric_name, strlen(metric_name), &track);
   if(!track || strcmp(track, "add"))
     return MTEV_HOOK_CONTINUE;
 
@@ -526,7 +526,7 @@ _histogram_logger_impl(void *closure, noit_check_t *check, mtev_boolean passive)
   config = noit_check_get_module_config(check, histogram_module_id);
   if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
 
-  mtev_hash_retr_str(config, "metrics", strlen("metrics"), &track);
+  (void)mtev_hash_retr_str(config, "metrics", strlen("metrics"), &track);
   if(!track || strcmp(track, "replace"))
     return MTEV_HOOK_CONTINUE;
   /* If we're replacing other metrics, then we prevent logging */

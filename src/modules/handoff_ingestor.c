@@ -226,7 +226,7 @@ handoff_request_dispatcher(mtev_http_session_ctx *ctx) {
   pthread_mutex_lock(&http_ctx_lock);
   the_one_and_only = ctx;
   mtev_http_response_status_set(ctx, 200, "OK");
-  mtev_http_response_option_set(ctx, MTEV_HTTP_CHUNKED);
+  (void)mtev_http_response_option_set(ctx, MTEV_HTTP_CHUNKED);
   mtev_http_response_header_set(ctx, "Content-Type", "text/plain");
   mtev_http_response_append(ctx, hello, strlen(hello));
   mtev_http_response_flush(ctx, mtev_false);

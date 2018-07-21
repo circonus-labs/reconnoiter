@@ -199,7 +199,10 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
   char *hostname = NULL, *cp = NULL, *brk = NULL, *round_robin = NULL;
   int i;
 
-#define GETCONFSTR(w) mtev_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
+#define GETCONFSTR(w) do { \
+  if(!mtev_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))) \
+     global_fq_ctx.w[0] = '\0'; \
+} while(0)
   memset(&global_fq_ctx.down_host, 0, sizeof(global_fq_ctx.down_host));
   memset(&global_fq_ctx.last_error, 0, sizeof(global_fq_ctx.last_error));
   memset(&global_fq_ctx.filtered_exchange, 0, sizeof(global_fq_ctx.filtered_exchange));
@@ -207,7 +210,8 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
            "noit.firehose");
   GETCONFSTR(exchange);
   GETCONFSTR(filtered_exchange);
-  if(!GETCONFSTR(routingkey))
+  GETCONFSTR(routingkey);
+  if(!global_fq_ctx.routingkey[0])
     snprintf(global_fq_ctx.routingkey, sizeof(global_fq_ctx.routingkey), "%s", "check");
   snprintf(global_fq_ctx.username, sizeof(global_fq_ctx.username), "%s", "guest");
   GETCONFSTR(username);
