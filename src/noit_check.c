@@ -2110,12 +2110,6 @@ noit_stats_populate_metric_with_tagset(metric_t *m, const char *name, metric_typ
   }
 
   m->metric_name = strdup(name);
-  if(noit_metric_canonicalize(m->metric_name, strlen(m->metric_name),
-                              m->metric_name, strlen(m->metric_name),
-                              mtev_true) <= 0) {
-    free(m->metric_name);
-    return -1;
-  }
 
   if(type == METRIC_GUESS)
     type = noit_metric_guess_type((char *)value, &replacement);
