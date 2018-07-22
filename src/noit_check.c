@@ -989,8 +989,8 @@ noit_check_clone(uuid_t in) {
   mtev_hash_init_locks(new_check->config, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   mtev_hash_merge_as_dict(new_check->config, checker->config);
   if(new_check->tagset) {
-    const char *val;
-    mtev_hash_retr_str(new_check->config, "tagset", 6, &val);
+    const char *val = NULL;
+    (void)mtev_hash_retr_str(new_check->config, "tagset", 6, &val);
     new_check->tagset = val;
   }
   new_check->module_configs = NULL;
