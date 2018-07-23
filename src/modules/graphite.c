@@ -305,6 +305,7 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     } else {
       mtev_dyn_buffer_add(&tagged_name, (uint8_t *)graphite_metric_name, metric_name_len);
     }
+    mtev_dyn_buffer_add(&tagged_name, (uint8_t*)"\0", 1);
 
     mtevL(nldeb, "Reformatted graphite name: %s\n", mtev_dyn_buffer_data(&tagged_name));
     struct timeval tv;
@@ -372,13 +373,14 @@ socket_close:
       graphite_handle_payload(check, (char *)mtev_dyn_buffer_data(&self->buffer), used_size);
       if (total_size > used_size) {
         end_ptr++;
-        char *leftovers = (char*)total_size - used_size - 1;
+        char *leftovers = (char*)malloc(total_size - used_size - 1);
         memcpy(leftovers, end_ptr, total_size - used_size - 1);
         mtev_dyn_buffer_reset(&self->buffer);
         mtev_dyn_buffer_add(&self->buffer, (uint8_t *)leftovers, total_size - used_size - 1);
+        free(leftovers);
       }
       if (records_this_loop >= rows_per_cycle) {
-        return newmask | EVENTER_EXCEPTION;
+        return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }
   }
@@ -419,12 +421,23 @@ graphite_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
+static void 
+describe_callback(char *buffer, int size, eventer_t e, void *closure)
+{
+  graphite_closure_t *gc = (graphite_closure_t *)eventer_get_closure(e);
+  if (gc) {
+    char check_uuid[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(gc->check->checkid, check_uuid);
+    snprintf(buffer, size, "graphite callback for check: %s\n", check_uuid);
+  }
+}
 
 static int noit_graphite_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
   if (check->closure == NULL) {
+
     graphite_closure_t *ccl;
     ccl = check->closure = (void *)calloc(1, sizeof(graphite_closure_t));
     ccl->self = self;
@@ -565,10 +578,11 @@ static int noit_graphite_onload(mtev_image_t *self) {
   return 0;
 }
 
-static int noit_graphite_init(noit_module_t *self) {
+static int noit_graphite_init(noit_module_t *self) 
+{
+  eventer_name_callback_ext("graphite/graphite_handler", graphite_handler, describe_callback, self);
+  eventer_name_callback_ext("graphite/graphite_listen_handler", graphite_listen_handler, describe_callback, self);
 
-  eventer_name_callback("graphite/graphite_handler", graphite_handler);
-  eventer_name_callback("graphite/graphite_listen_handler", graphite_listen_handler);
   return 0;
 }
 

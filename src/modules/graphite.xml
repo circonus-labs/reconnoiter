@@ -8,10 +8,14 @@
   <moduleconfig>
   </moduleconfig>
   <checkconfig>
-    <parameter name="secret"
+    <parameter name="listen_port"
                required="optional"
-               default=""
-               allowed=".+">Specify the secret with which metrics may be submitted.  Those lacking the secret in the URL will be ignored.</parameter>
+               default="2003"
+               allowed="[0-9]+">Specify the port which this check listens on.  Carbon relay or carbon-c-relay should be configured to send plain text metrics to this port.</parameter>
+    <parameter name="rows_per_cycle"
+               required="optional"
+               default="100"
+               allowed="[0-9]+">The max number of rows to process in one event loop.  Defaults to 100.  Turn this up higher if you have very high volume metric collection.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -23,7 +27,7 @@
            servers = broker:2003
         </code>
       </para>
-      <para>This will direct any metrics starting "mydata.foo" at the broker:2003 for ingestion</para>
+      <para>The carbon relay config example above will direct any metrics starting "mydata.foo" at the broker:2003 for ingestion</para>
 
       <programlisting><![CDATA[
       <noit>
