@@ -500,7 +500,6 @@ static int rest_show_feed(mtev_http_rest_closure_t *restc,
   return 0;
 
  error:
-  if(doc) xmlFreeDoc(doc);
   if(subs) jlog_ctx_list_subscribers_dispose(jctx, subs);
   mtev_http_response_server_error(ctx, "text/plain");
   mtev_http_response_append(ctx, err, strlen(err));
@@ -558,7 +557,6 @@ static int rest_delete_feed(mtev_http_rest_closure_t *restc,
 static int rest_add_feed(mtev_http_rest_closure_t *restc,
                          int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
-  xmlXPathObjectPtr pobj = NULL;
   xmlDocPtr doc = NULL, indoc = NULL;
   xmlNodePtr node, root;
   mtev_acceptor_closure_t *ac = restc->ac;
@@ -640,7 +638,6 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
   if (jctx) {
     jlog_ctx_close(jctx);
   }
-  if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
 }

@@ -493,7 +493,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
 static int
 httptrap_yajl_cb_start_array(void *ctx) {
   struct rest_json_payload *json = ctx;
-  set_array_key(json);
+  if(set_array_key(json)) return 1;
   json->depth++;
   json->array_depth[json->depth]++;
   return 1;

@@ -80,11 +80,11 @@
 #define APPNAME "noit"
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
 
-static char *config_file = ETC_DIR "/" APPNAME ".conf";
+static char *config_file = NULL;
 static char *xpath = NULL;
-static const char *droptouser = NULL;
-static const char *droptogroup = NULL;
-static const char *chrootpath = NULL;
+static char *droptouser = NULL;
+static char *droptogroup = NULL;
+static char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
 static int strict_module_load = 0;
@@ -108,11 +108,13 @@ void parse_clargs(int argc, char **argv) {
   while((c = getopt(argc, argv, "x:Mhc:dDu:g:n:t:l:L:G:")) != EOF) {
     switch(c) {
       case 'x':
+        free(xpath);
         xpath = strdup(optarg);
         mtev_main_disable_log("notice");
         foreground = 1;
         break;
       case 'G':
+        free(glider);
         glider = strdup(optarg);
         break;
       case 'M':
@@ -140,15 +142,19 @@ void parse_clargs(int argc, char **argv) {
         }
         break;
       case 'u':
+        free(droptouser);
         droptouser = strdup(optarg);
         break;
       case 'g':
+        free(droptogroup);
         droptogroup = strdup(optarg);
         break;
       case 't':
+        free(chrootpath);
         chrootpath = strdup(optarg);
         break;
       case 'c':
+        free(config_file);
         config_file = strdup(optarg);
         break;
       case 'D':
@@ -313,6 +319,7 @@ int main(int argc, char **argv) {
   int lock = MTEV_LOCK_OP_LOCK;
   mtev_memory_init();
   parse_clargs(argc, argv);
+  if(!config_file) config_file = strdup(ETC_DIR "/" APPNAME ".conf");
   if (xpath) lock = MTEV_LOCK_OP_NONE;
   noitd_init_globals();
   return mtev_main(APPNAME, config_file, debug, foreground,

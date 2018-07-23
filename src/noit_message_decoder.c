@@ -137,7 +137,7 @@ noit_metric_process_tags_phase(noit_metric_message_t *metric, int phase) {
     }
     free(stagnm);
     free(mtagnm);
-    if(out - buff >= MAX_METRIC_TAGGED_NAME) return -1;
+    if(out - buff >= MAX_METRIC_TAGGED_NAME - 1) return -1;
     *out = '\0';
 
     if(!noit_metric_name_is_clean(metric->id.name, metric->id.name_len) ||

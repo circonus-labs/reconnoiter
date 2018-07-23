@@ -68,7 +68,8 @@ resolver_cache_onload(mtev_image_t *self) {
 static int
 resolver_cache_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   const char *write_interval_str;
-  mtev_hash_retr_str(o, "cachefile", strlen("cachefile"), &resolver_cache_file);
+  if(!mtev_hash_retr_str(o, "cachefile", strlen("cachefile"), &resolver_cache_file))
+    resolver_cache_file = NULL;
   if(mtev_hash_retr_str(o, "interval", strlen("interval"), &write_interval_str))
     write_interval = atoi(write_interval_str);
   return 0;

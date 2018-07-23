@@ -404,7 +404,7 @@ static int noit_ganglia_init(noit_module_t *self) {
   /* join ipv4 multicast */
   memset(&mreq, 0, sizeof(mreq));
 
-  inet_pton(AF_INET, multiaddr, &mreq.imr_multiaddr.s_addr);
+  (void)inet_pton(AF_INET, multiaddr, &mreq.imr_multiaddr.s_addr);
 
   mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 

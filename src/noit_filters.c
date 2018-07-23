@@ -578,8 +578,8 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   rules = mtev_conf_get_sections(fsnode, "rule", &rulecnt);
   for(i=0; i<rulecnt; i++) {
     char val[256];
-    val[0] = '\0';
-    mtev_conf_get_stringbuf(rules[i], "@type", val, sizeof(val));
+    if(!mtev_conf_get_stringbuf(rules[i], "@type", val, sizeof(val)))
+      val[0] = '\0';
     nc_printf(ncct, "Rule %d [%s]:\n", i+1, val);
 #define DUMP_ATTR(a) do { \
   char *vstr; \
@@ -665,7 +665,6 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
         nc_printf(ncct, "%s rule not found\n", xpath);
         goto bail;
       }
-      add_arg_node = mtev_conf_section_to_xmlnodeptr(add_arg);
       if(*argv[0] == 'b') add_func = xmlAddPrevSibling;
       else add_func = xmlAddNextSibling;
       argc -= 2;
@@ -828,7 +827,8 @@ noit_filtersets_cull_unused() {
         /* We've just hit a duplicate.... check to see if there's an existing
          * entry and if there is, load the latest one and delete the old
          * one. */
-        mtev_hash_retrieve(&active, buffer, strlen(buffer), &vnode);
+        if(!mtev_hash_retrieve(&active, buffer, strlen(buffer), &vnode))
+          vnode = NULL;
         if (vnode) {
           mtev_conf_section_t *sptr = vnode;
           xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);

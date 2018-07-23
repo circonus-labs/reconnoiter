@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <time.h>
 #include <ctype.h>
 #include <netinet/in.h>
@@ -647,12 +648,12 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
   static struct stat last_stat;
   struct stat sb;
   struct hostent *ent;
-  int reload = 0;
+  int reload = 0, rv = 0;
 
   memset(&sb, 0, sizeof(sb));
-  stat("/etc/hosts", &sb);
+  while(-1 == (rv = stat("/etc/hosts", &sb)) && errno == EINTR);
 #define CSTAT(f) (sb.f == last_stat.f)
-  reload = ! (CSTAT(st_dev) && CSTAT(st_ino) && CSTAT(st_mode) && CSTAT(st_uid) &&
+  reload = (rv == 0) && ! (CSTAT(st_dev) && CSTAT(st_ino) && CSTAT(st_mode) && CSTAT(st_uid) &&
               CSTAT(st_gid) && CSTAT(st_size) && CSTAT(st_mtime));
   memcpy(&last_stat, &sb, sizeof(sb));
 
@@ -782,8 +783,10 @@ void noit_check_resolver_init() {
          * the last_updated time to make it expire some random time within
          * the next 60 seconds.
          */
-        if(n->last_needed > now.tv_sec || n->last_updated > now.tv_sec)
+        if(n->last_needed > now.tv_sec || n->last_updated > now.tv_sec) {
+          dns_cache_node_free(n);
           break; /* impossible */
+        }
 
         n->last_needed = now.tv_sec;
         if(n->last_updated + n->ttl < now.tv_sec + 60) {
