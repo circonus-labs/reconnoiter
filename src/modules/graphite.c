@@ -61,11 +61,14 @@ typedef struct _mod_config {
 typedef struct graphite_closure_s {
   noit_module_t *self;
   noit_check_t *check;
-  uuid_t check_uuid;
+  mtev_boolean shutdown;
+  ck_spinlock_t use_lock;
   int port;
   int rows_per_cycle;
-  int ipv4_fd;
-  int ipv6_fd;
+  int ipv4_listen_fd;
+  int ipv6_listen_fd;
+  int ipv4_read_fd;
+  int ipv6_read_fd;
   mtev_dyn_buffer_t buffer;
 } graphite_closure_t;
 
@@ -327,14 +330,21 @@ graphite_handler(eventer_t e, int mask, void *closure, struct timeval *now)
   graphite_closure_t *self = (graphite_closure_t *)closure;
   int rows_per_cycle = 0, records_this_loop = 0;
   noit_check_t *check = self->check;
-
   rows_per_cycle = self->rows_per_cycle;
+
+  ck_spinlock_lock(&self->use_lock);
+
+  if (self->shutdown) {
+    ck_spinlock_unlock(&self->use_lock);
+    return 0;
+  }
 
   if(mask & EVENTER_EXCEPTION || check == NULL) {
 socket_close:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fde(e);
     eventer_close(e, &newmask);
+    ck_spinlock_unlock(&self->use_lock);
     return 0;
   }
 
@@ -352,6 +362,7 @@ socket_close:
     }
     else if (len < 0) {
       if (errno == EAGAIN) {
+        ck_spinlock_unlock(&self->use_lock);
         return newmask | EVENTER_EXCEPTION;
       }
 
@@ -380,11 +391,13 @@ socket_close:
         free(leftovers);
       }
       if (records_this_loop >= rows_per_cycle) {
+        ck_spinlock_unlock(&self->use_lock);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }
   }
   /* unreachable */
+  ck_spinlock_unlock(&self->use_lock);
   return newmask | EVENTER_EXCEPTION;
 }
 
@@ -392,14 +405,20 @@ static int
 graphite_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 {
   graphite_closure_t *self = (graphite_closure_t *)closure;
+  ck_spinlock_lock(&self->use_lock);
+  if (self->shutdown) {
+    ck_spinlock_unlock(&self->use_lock);
+    return 0;
+  }
 
   struct sockaddr cli_addr;
   socklen_t clilen = sizeof(cli_addr);
   if (mask & EVENTER_READ) {
     /* accept on the ipv4 socket */
-    int fd = accept(self->ipv4_fd, &cli_addr, &clilen);
+    int fd = accept(self->ipv4_listen_fd, &cli_addr, &clilen);
     if (fd < 0) {
       mtevL(nlerr, "graphite error accept: %s\n", strerror(errno));
+      ck_spinlock_unlock(&self->use_lock);
       return 0;
     }
 
@@ -409,15 +428,19 @@ graphite_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
       mtevL(nlerr,
             "graphite: could not set accept fd (IPv4) non-blocking: %s\n",
             strerror(errno));
+      ck_spinlock_unlock(&self->use_lock);
       return 0;
     }
+
     eventer_t newe;
     newe = eventer_alloc_fd(graphite_handler, self, fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
     /* continue to accept */
+    ck_spinlock_unlock(&self->use_lock);
     return EVENTER_READ | EVENTER_EXCEPTION;
   }
+  ck_spinlock_unlock(&self->use_lock);
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
@@ -442,6 +465,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     ccl = check->closure = (void *)calloc(1, sizeof(graphite_closure_t));
     ccl->self = self;
     ccl->check = check;
+    ck_spinlock_init(&ccl->use_lock);
 
     unsigned short port = 2003;
     int rows_per_cycle = 100;
@@ -464,15 +488,15 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     }
     ccl->rows_per_cycle = rows_per_cycle;
 
-    ccl->ipv4_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
-    if(ccl->ipv4_fd < 0) {
+    ccl->ipv4_listen_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(ccl->ipv4_listen_fd < 0) {
       mtevL(noit_error, "graphite: socket failed: %s\n", strerror(errno));
       return -1;
     }
     else {
-      if(eventer_set_fd_nonblocking(ccl->ipv4_fd)) {
-        close(ccl->ipv4_fd);
-        ccl->ipv4_fd = -1;
+      if(eventer_set_fd_nonblocking(ccl->ipv4_listen_fd)) {
+        close(ccl->ipv4_listen_fd);
+        ccl->ipv4_listen_fd = -1;
         mtevL(noit_error,
               "graphite: could not set socket (IPv4) non-blocking: %s\n",
               strerror(errno));
@@ -484,33 +508,32 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     skaddr.sin_port = htons(ccl->port);
     sockaddr_len = sizeof(skaddr);
-    if(bind(ccl->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
+    if(bind(ccl->ipv4_listen_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
       mtevL(noit_error, "graphite bind(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
-      close(ccl->ipv4_fd);
+      close(ccl->ipv4_listen_fd);
       return -1;
     }
-    if (listen(ccl->ipv4_fd, 10) != 0) {
+    if (listen(ccl->ipv4_listen_fd, 5) != 0) {
       mtevL(noit_error, "graphite listen(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
-      close(ccl->ipv4_fd);
+      close(ccl->ipv4_listen_fd);
       return -1;
     }
 
-    if(ccl->ipv4_fd >= 0) {
-      eventer_t newe;
-      newe = eventer_alloc_fd(graphite_listen_handler, ccl, ccl->ipv4_fd,
-                              EVENTER_READ | EVENTER_EXCEPTION);
+    if(ccl->ipv4_listen_fd >= 0) {
+      eventer_t newe = eventer_alloc_fd(graphite_listen_handler, ccl, ccl->ipv4_listen_fd,
+                                        EVENTER_READ | EVENTER_EXCEPTION);
       eventer_add(newe);
     }
 
-    ccl->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
-    if(ccl->ipv6_fd < 0) {
+    ccl->ipv6_listen_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(ccl->ipv6_listen_fd < 0) {
       mtevL(noit_error, "graphite: IPv6 socket failed: %s\n",
             strerror(errno));
     }
     else {
-      if(eventer_set_fd_nonblocking(ccl->ipv6_fd)) {
-        close(ccl->ipv6_fd);
-        ccl->ipv6_fd = -1;
+      if(eventer_set_fd_nonblocking(ccl->ipv6_listen_fd)) {
+        close(ccl->ipv6_listen_fd);
+        ccl->ipv6_listen_fd = -1;
         mtevL(noit_error,
               "graphite: could not set socket (IPv6) non-blocking: %s\n",
               strerror(errno));
@@ -525,32 +548,64 @@ static int noit_graphite_initiate_check(noit_module_t *self,
         skaddr6.sin6_addr = in6addr_any;
         skaddr6.sin6_port = htons(ccl->port);
 
-        if(bind(ccl->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
+        if(bind(ccl->ipv6_listen_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
           mtevL(noit_error, "graphite bind(IPv6) failed[%d]: %s\n",
                 ccl->port, strerror(errno));
-          close(ccl->ipv6_fd);
-          ccl->ipv6_fd = -1;
+          close(ccl->ipv6_listen_fd);
+          ccl->ipv6_listen_fd = -1;
         }
 
-        else if (listen(ccl->ipv6_fd, 10) != 0) {
+        else if (listen(ccl->ipv6_listen_fd, 5) != 0) {
           mtevL(noit_error, "graphite listen(IPv6) failed[%d]: %s\n", ccl->port, strerror(errno));
-          close(ccl->ipv6_fd);
-          return -1;
+          close(ccl->ipv6_listen_fd);
+          if (ccl->ipv4_listen_fd <= 0) return -1;
         }
 
       }
     }
 
-    if(ccl->ipv6_fd >= 0) {
-      eventer_t newe;
-      newe = eventer_alloc_fd(graphite_listen_handler, ccl, ccl->ipv6_fd,
-                              EVENTER_READ | EVENTER_EXCEPTION);
+    if(ccl->ipv6_listen_fd >= 0) {
+      eventer_t newe = eventer_alloc_fd(graphite_listen_handler, ccl, ccl->ipv6_listen_fd,
+                                        EVENTER_READ | EVENTER_EXCEPTION);
       eventer_add(newe);
     }
-
   }
   INITIATE_CHECK(graphite_submit, self, check, cause);
   return 0;
+}
+
+static void noit_graphite_cleanup(noit_module_t *self, noit_check_t *check)
+{
+  graphite_closure_t *gc = (graphite_closure_t *)check->closure;
+  ck_spinlock_lock(&gc->use_lock);
+  gc->shutdown = mtev_true;
+  ck_spinlock_unlock(&gc->use_lock);
+
+  int mask = 0;
+  eventer_t listen_eventer = eventer_find_fd(gc->ipv4_listen_fd);
+  eventer_t read_eventer = eventer_find_fd(gc->ipv4_read_fd);
+  if (listen_eventer) {
+    eventer_remove_fde(listen_eventer);
+    eventer_close(listen_eventer, &mask);
+  }
+  if (read_eventer) {
+    eventer_remove_fde(read_eventer);
+    eventer_close(read_eventer, &mask);
+  }
+  listen_eventer = eventer_find_fd(gc->ipv6_listen_fd);
+  read_eventer = eventer_find_fd(gc->ipv6_read_fd);
+
+  if (listen_eventer) {
+    eventer_remove_fde(listen_eventer);
+    eventer_close(listen_eventer, &mask);
+  }
+  if (read_eventer) {
+    eventer_remove_fde(read_eventer);
+    eventer_close(read_eventer, &mask);
+  }
+  mtev_dyn_buffer_destroy(&gc->buffer);
+  /* no need to free `gc` here as the noit cleanup code will 
+   * free the check's closure for us */
 }
 
 static int noit_graphite_config(noit_module_t *self, mtev_hash_table *options) {
@@ -599,5 +654,5 @@ noit_module_t graphite = {
   noit_graphite_config,
   noit_graphite_init,
   noit_graphite_initiate_check,
-  NULL
+  noit_graphite_cleanup
 };
