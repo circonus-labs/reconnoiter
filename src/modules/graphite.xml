@@ -1,0 +1,47 @@
+<module>
+  <name>graphite</name>
+  <description>
+    <para>The graphite module provides a simple way to push data into reconnoiter via the carbon-relay or carbon-c-relay.  Simply configure the relay to write to the provided port.</para>
+  </description>
+  <loader>C</loader>
+  <image>graphite.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="listen_port"
+               required="optional"
+               default="2003"
+               allowed="[0-9]+">Specify the port which this check listens on.  Carbon relay or carbon-c-relay should be configured to send plain text metrics to this port.</parameter>
+    <parameter name="rows_per_cycle"
+               required="optional"
+               default="100"
+               allowed="[0-9]+">The max number of rows to process in one event loop.  Defaults to 100.  Turn this up higher if you have very high volume metric collection.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Ingesting graphite data</title>
+      <para>
+        <code>
+          [example]
+           pattern = ^mydata\.foo\..+
+           servers = broker:2003
+        </code>
+      </para>
+      <para>The carbon relay config example above will direct any metrics starting "mydata.foo" at the broker:2003 for ingestion</para>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="graphite" name="graphite"/>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="graphite"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><listen_port>2003</listen_port></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>

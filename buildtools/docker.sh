@@ -92,11 +92,11 @@ do
             exit 0
             ;;
         --exec)
-            $DOCKER_RUN -p 8112:8112 reconnoiter-el7 $@
+            $DOCKER_RUN -p 43191:43191 reconnoiter-el7 $@
             exit 0
             ;;
         --shell)
-            $DOCKER_RUN -it -p 8112:8112 reconnoiter-el7 bash
+            $DOCKER_RUN -it -p 43191:43191 reconnoiter-el7 bash
             exit 0
             ;;
         #
@@ -119,7 +119,7 @@ do
             ;;
         --mnt-shell)
             echo "Running reconnoiter-el7-base container image"
-            $DOCKER_RUN -it --privileged -p 43191:43191 -v $(pwd):/reconnoiter reconnoiter-el7-base $@
+            $DOCKER_RUN -it --privileged -p 43191:43191 -p 2003:2003 -v $(pwd):/reconnoiter reconnoiter-el7-base $@
             exit 0
             ;;
         *)

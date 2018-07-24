@@ -43,6 +43,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
 	reverse_check.@MODULEEXT@ prometheus.@MODULEEXT@ \
+	graphite.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so noit_lua/libnoit_binding.so
@@ -208,7 +209,13 @@ prometheus.@MODULEEXT@:	prometheus.lo prometheus.pb-c.lo types.pb-c.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ prometheus.lo prometheus.pb-c.lo types.pb-c.lo
 
-prometheus.lo:	prometheus.xmlh 
+prometheus.lo:	prometheus.xmlh
+
+graphite.@MODULEEXT@:	graphite.lo
+	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ graphite.lo
+
+graphite.lo:	graphite.xmlh graphite.c
 
 statsd.@MODULEEXT@:	statsd.lo
 	@echo "- linking $@"
