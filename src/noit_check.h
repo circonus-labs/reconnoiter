@@ -127,7 +127,8 @@ typedef struct noit_check {
   char *name;
   char *filterset;
   mtev_hash_table *config;
-  char *oncheck;               /* target`name of the check that fires us */
+  const char *tagset;         /* This is in config, but hoisted for performance */
+  char *oncheck;              /* target`name of the check that fires us */
   uint32_t period;            /* period of checks in milliseconds */
   uint32_t timeout;           /* timeout of check in milliseconds */
   uint32_t flags;             /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */

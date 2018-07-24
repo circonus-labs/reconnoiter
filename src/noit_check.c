@@ -130,6 +130,22 @@ MTEV_HOOK_IMPL(check_deleted,
 #define STATS_CURRENT 1
 #define STATS_PREVIOUS 2
 
+static mtev_boolean
+build_tag_extended_name(char *tgt, size_t tgtlen, const char *name, const noit_check_t *check) {
+  char tgt_tmp[MAX_METRIC_TAGGED_NAME];
+  if(check->tagset) {
+    strlcpy(tgt_tmp, name, sizeof(tgt_tmp));
+    strlcat(tgt_tmp, check->tagset, sizeof(tgt_tmp));
+    name = tgt_tmp;
+  } else {
+    strlcpy(tgt, name, tgtlen);
+  }
+  if(noit_metric_canonicalize(name, strlen(name), tgt, tgtlen, mtev_true) <= 0) {
+    return mtev_false;
+  }
+  return mtev_true;
+}
+
 void
 free_metric(metric_t *m) {
   if(m->metric_name) free(m->metric_name);
@@ -972,6 +988,11 @@ noit_check_clone(uuid_t in) {
   new_check->config = calloc(1, sizeof(*new_check->config));
   mtev_hash_init_locks(new_check->config, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   mtev_hash_merge_as_dict(new_check->config, checker->config);
+  if(new_check->tagset) {
+    const char *val;
+    mtev_hash_retr_str(new_check->config, "tagset", 6, &val);
+    new_check->tagset = val;
+  }
   new_check->module_configs = NULL;
   new_check->module_metadata = NULL;
 
@@ -1289,6 +1310,7 @@ noit_check_update(noit_check_t *new_check,
   if(new_check->filterset) free(new_check->filterset);
   new_check->filterset = filterset ? strdup(filterset): NULL;
 
+  new_check->tagset = NULL;
   if(config != NULL) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *k;
@@ -1300,7 +1322,11 @@ noit_check_update(noit_check_t *new_check,
       mtev_hash_init_locks(new_check->config, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
     }
     while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
-      mtev_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
+      char *value = strdup((char *)data);
+      mtev_hash_store(new_check->config, strdup(k), klen, value);
+      if(!strcmp(k, "tagset")) {
+        new_check->tagset = value;
+      }
     }
   }
   if(mconfigs != NULL) {
@@ -2073,7 +2099,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
 }
 
 static int
-noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
+noit_stats_populate_metric_with_tagset(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
   void *replacement = NULL;
 
@@ -2149,7 +2175,13 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
   memset(m, 0, sizeof(*m));
-  if(noit_stats_populate_metric(m, name, type, value)) {
+
+  char tagged_name[MAX_METRIC_TAGGED_NAME];
+  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
+    return;
+  }
+
+  if(noit_stats_populate_metric_with_tagset(m, tagged_name, type, value)) {
     mtev_memory_safe_free(m);
     return;
   }
@@ -2173,28 +2205,30 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
                              struct timeval *timestamp) {
   char name[MAX_METRIC_TAGGED_NAME];
   if(strlen(name_raw) > sizeof(name)-1) return;
-  if(noit_metric_canonicalize(name_raw, strlen(name_raw),
-                              name, sizeof(name), mtev_true) <= 0)
+
+  char tagged_name[MAX_METRIC_TAGGED_NAME];
+  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0)
     return;
+
   char *endptr;
   stats_t *c;
   c = noit_check_get_stats_inprogress(check);
   if(v == NULL) {
    bogus:
-    check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_false);
-    noit_stats_set_metric_with_timestamp(check, name, t, NULL, timestamp);
+    check_stats_set_metric_coerce_hook_invoke(check, c, tagged_name, t, v, mtev_false);
+    noit_stats_set_metric_with_timestamp(check, tagged_name, t, NULL, timestamp);
     return;
   }
   switch(t) {
     case METRIC_STRING:
-      noit_stats_set_metric_with_timestamp(check, name, t, v, timestamp);
+      noit_stats_set_metric_with_timestamp(check, tagged_name, t, v, timestamp);
       break;
     case METRIC_INT32:
     {
       int32_t val;
       val = strtol(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
+      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT32:
@@ -2202,7 +2236,7 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       uint32_t val;
       val = strtoul(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
+      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_INT64:
@@ -2210,7 +2244,7 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       int64_t val;
       val = strtoll(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
+      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT64:
@@ -2218,7 +2252,7 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       uint64_t val;
       val = strtoull(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
+      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_DOUBLE:
@@ -2226,16 +2260,16 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       double val;
       val = strtod(v, &endptr);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, name, t, &val, timestamp);
+      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_GUESS:
-      noit_stats_set_metric_with_timestamp(check, name, t, v, timestamp);
+      noit_stats_set_metric_with_timestamp(check, tagged_name, t, v, timestamp);
       break;
     case METRIC_ABSENT:
       mtevAssert(0 && "ABSENT metrics may not be passed to noit_stats_set_metric_coerce");
   }
-  check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_true);
+  check_stats_set_metric_coerce_hook_invoke(check, c, tagged_name, t, v, mtev_true);
 }
 
 void
@@ -2245,14 +2279,15 @@ noit_stats_set_metric_coerce(noit_check_t *check,
   noit_stats_set_metric_coerce_with_timestamp(check, name, t, v, NULL);
 }
 static void
-record_immediate_metric(noit_check_t *check,
+record_immediate_metric_with_tagset(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 const void *value, mtev_boolean do_log, const struct timeval *time) {
   struct timeval now;
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
   memset(m, 0, sizeof(*m));
-  if(noit_stats_populate_metric(m, name, type, value)) {
+
+  if(noit_stats_populate_metric_with_tagset(m, name, type, value)) {
     mtev_memory_safe_free(m);
     return;
   }
@@ -2269,18 +2304,23 @@ record_immediate_metric(noit_check_t *check,
   }
 }
 void
-noit_stats_log_immediate_metric(noit_check_t *check,
-                                const char *name, metric_type_t type,
-                                const void *value) {
-  record_immediate_metric(check, name, type, value, mtev_true, NULL);
-}
-
-void
 noit_stats_log_immediate_metric_timed(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 const void *value, const struct timeval *whence) {
-  record_immediate_metric(check, name, type, value, mtev_true, whence);
+  char tagged_name[MAX_METRIC_TAGGED_NAME];
+  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
+    return;
+  }
+
+  record_immediate_metric_with_tagset(check, tagged_name, type, value, mtev_true, whence);
 }
+void
+noit_stats_log_immediate_metric(noit_check_t *check,
+                                const char *name, metric_type_t type,
+                                const void *value) {
+  noit_stats_log_immediate_metric_timed(check, name, type, value, NULL);
+}
+
 
 mtev_boolean
 noit_stats_log_immediate_histo(noit_check_t *check,
@@ -2290,13 +2330,18 @@ noit_stats_log_immediate_histo(noit_check_t *check,
   whence.tv_sec = whence_s;
   whence.tv_usec = 0;
 
+  char tagged_name[MAX_METRIC_TAGGED_NAME];
+  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
+    return mtev_false;
+  }
+
   if (noit_log_histo_encoded_available()) {
-    noit_log_histo_encoded(check, &whence, name, hist_encoded, hist_encoded_len, mtev_false);
+    noit_log_histo_encoded(check, &whence, tagged_name, hist_encoded, hist_encoded_len, mtev_false);
   } else {
     return mtev_false;
   }
 
-  record_immediate_metric(check, name, METRIC_INT32, NULL, mtev_false, &whence);
+  record_immediate_metric_with_tagset(check, name, METRIC_INT32, NULL, mtev_false, &whence);
   return mtev_true;
 }
 
