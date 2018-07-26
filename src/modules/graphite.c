@@ -190,7 +190,7 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     }
     part = s;
     /* save the row for later logging */
-    strncpy(record, part, sizeof(record));
+    strncpy(record, part, sizeof(record) - 1);
 
     size_t record_len = strlen(part);
     /*
