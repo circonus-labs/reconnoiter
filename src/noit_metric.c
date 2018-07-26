@@ -326,7 +326,10 @@ noit_metric_tagset_is_taggable_key(const char *val, size_t len)
 mtev_boolean
 noit_metric_tagset_is_taggable_value(const char *val, size_t len)
 {
-  return noit_metric_tagset_is_taggable_part(val, len, noit_metric_tagset_is_taggable_value_char);
+  /* accept blank string, blank base64 encoded string, and acceptable taggable_value_chars as values */
+  return len == 0 ||
+    memcmp("b\"\"", val, MIN(len,3)) == 0 ||
+    noit_metric_tagset_is_taggable_part(val, len, noit_metric_tagset_is_taggable_value_char);
 }
 
 size_t
