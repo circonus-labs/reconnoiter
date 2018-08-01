@@ -681,9 +681,11 @@ attach_to_cluster(mtev_cluster_t *nc) {
   }
   mtev_cluster_node_t *nodeset[MAX_CLUSTER_NODES];
   n = mtev_cluster_get_nodes(my_cluster, nodeset, MAX_CLUSTER_NODES, mtev_false);
+  pthread_mutex_unlock(&noit_peer_lock);
   for(i=0; i<n; i++) {
     update_peer(nodeset[i]);
   }
+  pthread_mutex_lock(&noit_peer_lock);
   clear_old_peers();
   pthread_mutex_unlock(&noit_peer_lock);
   eventer_jobq_set_min_max(repl_jobq, 0, i);
