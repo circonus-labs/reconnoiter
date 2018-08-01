@@ -126,6 +126,8 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       query = *endq;
     }
 
+    
+
     while(**endq &&
           (is_encoded ?
            noit_metric_tagset_is_taggable_b64_char(**endq) :
@@ -133,7 +135,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       (*endq)++;
     }
 
-    if(*endq == query) return mtev_false;
+    if(*endq == query && part == 1) return mtev_false;
     if (is_encoded) {
       int len = mtev_b64_decode(query, *endq - query, (unsigned char *)decoded_tag, 
 				sizeof(decoded_tag));
