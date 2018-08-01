@@ -2197,11 +2197,10 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
                              const char *name_raw, metric_type_t t,
                              const char *v,
                              struct timeval *timestamp) {
-  char name[MAX_METRIC_TAGGED_NAME];
-  if(strlen(name_raw) > sizeof(name)-1) return;
+  if(strlen(name_raw) > MAX_METRIC_TAGGED_NAME-1) return;
 
   char tagged_name[MAX_METRIC_TAGGED_NAME];
-  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0)
+  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
     return;
 
   char *endptr;
