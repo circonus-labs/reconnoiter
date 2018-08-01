@@ -20,7 +20,11 @@ const char *tcpairs[][2] = {
   { "colonfest|ST[f:o:ba::::r:]", "colonfest|ST[f:o:ba::::r:]" },
 
   { "  a\n\t stupid\bbad person did this \t\r\n|ST[foo:bar]",
-    "a   stupid bad person did this|ST[foo:bar]" }
+    "a   stupid bad person did this|ST[foo:bar]" },
+
+  { "blank_values|ST[a:b,c:]|MT{foo:bar}|ST[e:f,a:b]",
+    "blank_values|ST[a:b,c:,e:f]|MT{foo:bar}" },
+
 };
 
 const struct {
@@ -293,6 +297,52 @@ void metric_parsing(void) {
   }
 }
 
+void query_parsing(void) {
+  int erroroffset = 0;
+  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse("and(*:*)", &erroroffset);
+  test_assert(ast != NULL);
+  char *unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+  
+  ast = noit_metric_tag_search_parse("and(or(foo:bar,c:d),e:f)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(a:,foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(a:,foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(b\"ZmFydHM=\":b\"\",foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+  
+}
+
 void loop(char *str) {
   int len;
   const int nloop = 1000000;
@@ -315,6 +365,7 @@ int main(int argc, const char **argv)
   test_tag_decode();
   test_ast_decode();
   metric_parsing();
+  query_parsing();
   printf("\nPerformance:\n====================\n");
   loop("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");

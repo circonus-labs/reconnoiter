@@ -139,7 +139,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     if (is_encoded) {
       int len = mtev_b64_decode(query, *endq - query, (unsigned char *)decoded_tag, 
 				sizeof(decoded_tag));
-      if (len == 0) return mtev_false;
+      if (len == 0 && part == 1) return mtev_false;
       m->str = mtev_strndup(decoded_tag, len);
       (*endq)++; // skip the trailing quotation mark
     } else {
