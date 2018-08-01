@@ -419,7 +419,7 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
     cur_size++;
   }
   /* make sure we covered everything */
-  if(colon_pos == 0 || colon_pos >= cur_size - 1) return 0;
+  if(colon_pos == 0) return 0;
   /* tag category and name must combined be <= NOIT_TAG_MAX_PAIR_LEN */
   if(cur_size > NOIT_TAG_MAX_PAIR_LEN) return 0;
   output->total_size = cur_size;
