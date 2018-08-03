@@ -494,7 +494,7 @@ noit_apply_filterset(const char *filterset,
       need_target = !MATCHES(target, check->target);
       need_module = !MATCHES(module, check->module);
       need_name = !MATCHES(name, check->name);
-      need_metric = !noit_apply_filterrule_metric(r, metric->metric_name, mlen, &stset, &mtset);
+      need_metric = !noit_apply_filterrule_metric(r, metric->metric_name, strlen(metric->metric_name), &stset, &mtset);
 
       if(!need_target && !need_module && !need_name && !need_metric) {
         if(r->type == NOIT_FILTER_SKIPTO) {
