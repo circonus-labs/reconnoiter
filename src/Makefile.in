@@ -423,14 +423,14 @@ install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits noit.env
 	(cd noit-web && tar cf - .) | (cd $(DESTDIR)$(datadir)/noit-web && tar xf -)
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
 
-install-stratcond:	install-libs install-stratcond-nolibs
+install-stratcond:	java-bits install-libs install-stratcond-nolibs
+	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-iep DESTDIR=$(DESTDIR))
 
-install-stratcond-nolibs:	install-dirs reversion stratcond stratcon.conf java-bits noit.env
+install-stratcond-nolibs:	install-dirs reversion stratcond stratcon.conf noit.env
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/stratcon.env
 	(cd modules && $(MAKE) install-smodules DESTDIR=$(DESTDIR))
-	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-iep DESTDIR=$(DESTDIR))
 
 install-docs:
 	(cd man && $(MAKE) install DESTDIR=$(DESTDIR))
