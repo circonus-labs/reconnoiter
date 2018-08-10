@@ -85,6 +85,7 @@ static void test_abort_cleanup(noit_module_t *self, noit_check_t *check) {
   if(ci) {
     memset(ci, 0, sizeof(*ci));
   }
+  free(ci);
 }
 
 static int test_abort_drive_session(eventer_t e, int mask, void *closure,

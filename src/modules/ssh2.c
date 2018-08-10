@@ -86,7 +86,7 @@ typedef struct {
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
-static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
+static void ssh2_cleanse(noit_module_t *self, noit_check_t *check) {
   ssh2_check_info_t *ci = check->closure;
   if(ci) {
     if(ci->timeout_event) {
@@ -108,6 +108,11 @@ static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
     if(ci->error) free(ci->error);
     memset(ci, 0, sizeof(*ci));
   }
+}
+static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
+  ssh2_check_info_t *ci = check->closure;
+  ssh2_cleanse(self, check);
+  free(ci);
 }
 
 #ifdef HAVE_GCRYPT_H
@@ -163,7 +168,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
   if(ci->state == WANT_CLOSE) {
     noit_check_t *check = ci->check;
     ssh2_log_results(ci->self, ci->check);
-    ssh2_cleanup(ci->self, ci->check);
+    ssh2_cleanse(ci->self, ci->check);
     eventer_remove_fde(e);
     eventer_close(e, &mask);
     noit_check_end(check);
@@ -240,7 +245,7 @@ static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void 
     ci->timed_out = 0;
     ci->error = strdup("ssh connection failed");
     ssh2_log_results(ci->self, ci->check);
-    ssh2_cleanup(ci->self, ci->check);
+    ssh2_cleanse(ci->self, ci->check);
     eventer_remove_fde(e);
     eventer_close(e, &mask);
     noit_check_end(check);
@@ -275,7 +280,7 @@ static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
     ci->timed_out = 0;
     ci->error = strdup("ssh connection failed");
     ssh2_log_results(ci->self, ci->check);
-    ssh2_cleanup(ci->self, ci->check);
+    ssh2_cleanse(ci->self, ci->check);
     eventer_remove_fde(e);
     eventer_close(e, &mask);
     noit_check_end(check);
@@ -302,7 +307,7 @@ static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
      ci->synch_fd_event = NULL;
   }
   ssh2_log_results(ci->self, ci->check);
-  ssh2_cleanup(ci->self, ci->check);
+  ssh2_cleanse(ci->self, ci->check);
   noit_check_end(check);
   return 0;
 }
@@ -400,7 +405,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
  fail:
   if(fd >= 0) close(fd);
   ssh2_log_results(ci->self, ci->check);
-  ssh2_cleanup(ci->self, ci->check);
+  ssh2_cleanse(ci->self, ci->check);
   noit_check_end(check);
   return -1;
 }

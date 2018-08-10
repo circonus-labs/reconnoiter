@@ -79,7 +79,7 @@ static int selfcheck_os_version(char *buff, int len) {
     return snprintf(buff, len, "%s %s %s", unameData.sysname,unameData.release,unameData.version);
   }
 }
-static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
+static void selfcheck_cleanse(noit_module_t *self, noit_check_t *check) {
   selfcheck_info_t *ci = check->closure;
   if(ci) {
     if(ci->attrs) {
@@ -88,6 +88,11 @@ static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
     }
     memset(ci, 0, sizeof(*ci));
   }
+}
+static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
+  selfcheck_info_t *ci = check->closure;
+  selfcheck_cleanse(self, check);
+  free(ci);
 }
 static void jobq_thread_helper(eventer_jobq_t *jobq, void *closure) {
   int s32;
@@ -193,7 +198,7 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
      * such on the synchronous completion of the event.
      */
     selfcheck_log_results(ci->self, ci->check);
-    selfcheck_cleanup(ci->self, ci->check);
+    selfcheck_cleanse(ci->self, ci->check);
     noit_check_end(check);
     return 0;
   }
