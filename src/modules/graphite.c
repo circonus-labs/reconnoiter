@@ -67,8 +67,6 @@ typedef struct graphite_closure_s {
   int rows_per_cycle;
   int ipv4_listen_fd;
   int ipv6_listen_fd;
-  int ipv4_read_fd;
-  int ipv6_read_fd;
   mtev_dyn_buffer_t buffer;
 } graphite_closure_t;
 
@@ -402,6 +400,92 @@ socket_close:
 }
 
 static int
+graphite_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now)
+{
+  uuid_t checkid;
+  char uuid_str[UUID_STR_LEN+1];
+  char secret[64];
+  mtev_acceptor_closure_t *ac = closure;
+  if(!ac) return 0;
+
+  graphite_closure_t *gc = mtev_acceptor_closure_ctx(ac);
+  if(gc) {
+    return graphite_handler(e, mask, gc, now);
+  }
+
+#define ERR_TO_CLIENT(a...) do { \
+  char _b[128]; \
+  int _len = snprintf(_b, sizeof(_b), a); \
+  eventer_write(e, _b, _len, &mask); \
+  mtevL(nlerr, "%s", _b); \
+} while(0)
+
+  eventer_ssl_ctx_t *ctx = eventer_get_eventer_ssl_ctx(e);
+  if(!ctx) {
+    ERR_TO_CLIENT("Cannot support graphite mtev listener without TLS (needs SNI).\n");
+    goto bail;
+  }
+  const char *sni_name = eventer_ssl_get_sni_name(ctx);
+  if(!sni_name) {
+    mtevL(nlerr, "Cannot support graphite mtev accept without SNI from secure client.\n");
+    goto bail;
+  }
+
+  const char *endptr = strchr(sni_name, '.');
+  if(!endptr) endptr = sni_name + strlen(sni_name);
+  int rv = -666;
+  if(endptr - sni_name < UUID_STR_LEN + 1 ||
+     endptr - sni_name >= UUID_STR_LEN + sizeof(secret) ||
+     sni_name[UUID_STR_LEN] != '-') {
+    ERR_TO_CLIENT("bad name format\n");
+    goto bail;
+  }
+
+  int secret_len = (endptr - sni_name) - (UUID_STR_LEN+1);
+  memcpy(secret, sni_name + UUID_STR_LEN+1, secret_len);
+  secret[secret_len] = '\0';
+
+  memcpy(uuid_str, sni_name, UUID_STR_LEN);
+  uuid_str[UUID_STR_LEN] = '\0'; 
+  if(mtev_uuid_parse(uuid_str, checkid)) {
+    ERR_TO_CLIENT("invalid uuid: format\n");
+    goto bail;
+  }
+  noit_check_t *check = noit_poller_lookup(checkid); 
+  if(!check) {
+    ERR_TO_CLIENT("invalid uuid: not found\n");
+    goto bail;
+  }
+  if(strcmp(check->module, "graphite")) {
+    ERR_TO_CLIENT("invalid uuid: bad type\n");
+    goto bail;
+  }
+  if(!check->closure) {
+    ERR_TO_CLIENT("invalid uuid: not configured\n");
+    goto bail;
+  }
+  const char *expect_secret = NULL;
+  if(check->config)
+    mtev_hash_retr_str(check->config, "secret", strlen("secret"), &expect_secret);
+  if(!expect_secret) expect_secret = "";
+
+  if(strlen(expect_secret) != secret_len ||
+     memcmp(secret, expect_secret, secret_len)) {
+    ERR_TO_CLIENT("access denied to %s\n", uuid_str);
+    goto bail;
+  }
+
+  mtev_acceptor_closure_set_ctx(ac, check->closure, NULL);
+  return graphite_handler(e, mask, check->closure, now);
+
+  bail:
+  eventer_remove_fde(e);
+  eventer_close(e, &mask);
+  mtev_acceptor_closure_free(ac);
+  
+}
+
+static int
 graphite_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 {
   graphite_closure_t *self = (graphite_closure_t *)closure;
@@ -455,6 +539,18 @@ describe_callback(char *buffer, int size, eventer_t e, void *closure)
   }
 }
 
+static void 
+describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure)
+{
+  mtev_acceptor_closure_t *ac = (mtev_acceptor_closure_t *)eventer_get_closure(e);
+  graphite_closure_t *gc = (graphite_closure_t *)mtev_acceptor_closure_ctx(ac);
+  if (gc) {
+    char check_uuid[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(gc->check->checkid, check_uuid);
+    snprintf(buffer, size, "graphite callback for check: %s\n", check_uuid);
+  }
+}
+
 static int noit_graphite_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
@@ -465,6 +561,8 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     ccl = check->closure = (void *)calloc(1, sizeof(graphite_closure_t));
     ccl->self = self;
     ccl->check = check;
+    ccl->ipv4_listen_fd = -1;
+    ccl->ipv6_listen_fd = -1;
     ck_spinlock_init(&ccl->use_lock);
 
     unsigned short port = 2003;
@@ -488,10 +586,12 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     }
     ccl->rows_per_cycle = rows_per_cycle;
 
-    ccl->ipv4_listen_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(port > 0) ccl->ipv4_listen_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
     if(ccl->ipv4_listen_fd < 0) {
-      mtevL(noit_error, "graphite: socket failed: %s\n", strerror(errno));
-      return -1;
+      if(port > 0) {
+        mtevL(noit_error, "graphite: socket failed: %s\n", strerror(errno));
+        return -1;
+      }
     }
     else {
       if(eventer_set_fd_nonblocking(ccl->ipv4_listen_fd)) {
@@ -525,10 +625,12 @@ static int noit_graphite_initiate_check(noit_module_t *self,
       eventer_add(newe);
     }
 
-    ccl->ipv6_listen_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(port > 0) ccl->ipv6_listen_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
     if(ccl->ipv6_listen_fd < 0) {
-      mtevL(noit_error, "graphite: IPv6 socket failed: %s\n",
-            strerror(errno));
+      if(port > 0) {
+        mtevL(noit_error, "graphite: IPv6 socket failed: %s\n",
+              strerror(errno));
+      }
     }
     else {
       if(eventer_set_fd_nonblocking(ccl->ipv6_listen_fd)) {
@@ -583,25 +685,15 @@ static void noit_graphite_cleanup(noit_module_t *self, noit_check_t *check)
 
   int mask = 0;
   eventer_t listen_eventer = eventer_find_fd(gc->ipv4_listen_fd);
-  eventer_t read_eventer = eventer_find_fd(gc->ipv4_read_fd);
   if (listen_eventer) {
     eventer_remove_fde(listen_eventer);
     eventer_close(listen_eventer, &mask);
   }
-  if (read_eventer) {
-    eventer_remove_fde(read_eventer);
-    eventer_close(read_eventer, &mask);
-  }
   listen_eventer = eventer_find_fd(gc->ipv6_listen_fd);
-  read_eventer = eventer_find_fd(gc->ipv6_read_fd);
 
   if (listen_eventer) {
     eventer_remove_fde(listen_eventer);
     eventer_close(listen_eventer, &mask);
-  }
-  if (read_eventer) {
-    eventer_remove_fde(read_eventer);
-    eventer_close(read_eventer, &mask);
   }
   mtev_dyn_buffer_destroy(&gc->buffer);
   /* no need to free `gc` here as the noit cleanup code will 
@@ -635,6 +727,7 @@ static int noit_graphite_onload(mtev_image_t *self) {
 
 static int noit_graphite_init(noit_module_t *self) 
 {
+  eventer_name_callback_ext("graphite/graphite_listener", graphite_mtev_listener, describe_mtev_callback, self);
   eventer_name_callback_ext("graphite/graphite_handler", graphite_handler, describe_callback, self);
   eventer_name_callback_ext("graphite/graphite_listen_handler", graphite_listen_handler, describe_callback, self);
 
