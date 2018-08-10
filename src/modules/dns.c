@@ -455,9 +455,6 @@ static int dns_module_init(noit_module_t *self) {
   return 0;
 }
 
-static void dns_check_cleanup(noit_module_t *self, noit_check_t *check) {
-}
-
 static int dns_module_eventer_callback(eventer_t e, int mask, void *closure,
                                        struct timeval *now) {
   dns_ctx_handle_t *h = closure;
@@ -969,6 +966,6 @@ noit_module_t dns = {
   dns_config,
   dns_module_init,
   dns_initiate_check,
-  dns_check_cleanup
+  NULL
 };
 

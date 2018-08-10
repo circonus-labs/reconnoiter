@@ -605,6 +605,7 @@ static void external_cleanup(noit_module_t *self, noit_check_t *check) {
       eventer_free(ci->timeout_event);
       ci->timeout_event = NULL;
     }
+    free(ci);
   }
 }
 #define assert_write(fd, s, l) do { \

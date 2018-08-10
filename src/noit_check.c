@@ -1446,13 +1446,13 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
 
   mod = noit_module_lookup(checker->module);
   if(mod && mod->cleanup) mod->cleanup(mod, checker);
+  else if(checker->closure) free(checker->closure);
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
      free(eventer_get_closure(checker->fire_event));
      eventer_free(checker->fire_event);
      checker->fire_event = NULL;
   }
-  if(checker->closure) free(checker->closure);
   if(checker->target) free(checker->target);
   if(checker->module) free(checker->module);
   if(checker->name) free(checker->name);

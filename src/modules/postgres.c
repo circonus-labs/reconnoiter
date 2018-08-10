@@ -87,7 +87,7 @@ typedef struct {
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
-static void postgres_cleanup(noit_module_t *self, noit_check_t *check) {
+static void postgres_cleanse(noit_module_t *self, noit_check_t *check) {
   postgres_check_info_t *ci = check->closure;
   if(ci) {
     if(ci->result) PQclear(ci->result);
@@ -96,6 +96,11 @@ static void postgres_cleanup(noit_module_t *self, noit_check_t *check) {
     if(ci->error) free(ci->error);
     memset(ci, 0, sizeof(*ci));
   }
+}
+static void postgres_cleanup(noit_module_t *self, noit_check_t *check) {
+  postgres_check_info_t *ci = check->closure;
+  postgres_cleanse(self, check);
+  free(ci);
 }
 static void postgres_ingest_stats(postgres_check_info_t *ci) {
   if(ci->rv == PGRES_TUPLES_OK) {
@@ -222,7 +227,7 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
      * such on the synchronous completion of the event.
      */
     postgres_log_results(ci->self, ci->check);
-    postgres_cleanup(ci->self, ci->check);
+    postgres_cleanse(ci->self, ci->check);
     noit_check_end(check);
     return 0;
   }

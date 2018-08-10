@@ -75,7 +75,7 @@ typedef struct {
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
-static void mysql_cleanup(noit_module_t *self, noit_check_t *check) {
+static void mysql_cleanse(noit_module_t *self, noit_check_t *check) {
   mysql_check_info_t *ci = check->closure;
   if(ci) {
     if(ci->result) mysql_free_result(ci->result);
@@ -84,6 +84,11 @@ static void mysql_cleanup(noit_module_t *self, noit_check_t *check) {
     if(ci->error) free(ci->error);
     memset(ci, 0, sizeof(*ci));
   }
+}
+static void mysql_cleanup(noit_module_t *self, noit_check_t *check) {
+  mysql_check_info_t *ci = check->closure;
+  mysql_cleanse(self, check);
+  free(ci);
 }
 static void mysql_ingest_stats(mysql_check_info_t *ci) {
   if(ci->rv > 0) {
@@ -251,7 +256,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
      * such on the synchronous completion of the event.
      */
     mysql_log_results(ci->self, ci->check);
-    mysql_cleanup(ci->self, ci->check);
+    mysql_cleanse(ci->self, ci->check);
     noit_check_end(check);
     return 0;
   }

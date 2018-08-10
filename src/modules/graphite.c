@@ -43,6 +43,7 @@
 #include <mtev_uuid.h>
 #include <mtev_b64.h>
 #include <mtev_dyn_buffer.h>
+#include <ck_pr.h>
 
 #include "noit_metric.h"
 #include "noit_module.h"
@@ -68,8 +69,22 @@ typedef struct graphite_closure_s {
   int ipv4_listen_fd;
   int ipv6_listen_fd;
   mtev_dyn_buffer_t buffer;
+  int32_t refcnt;
 } graphite_closure_t;
 
+static void graphite_closure_ref(graphite_closure_t *gc) {
+  ck_pr_inc_int(&gc->refcnt);
+}
+static void graphite_closure_deref(graphite_closure_t *gc) {
+  bool zero;
+  ck_pr_dec_int_zero(&gc->refcnt, &zero);
+  if(!zero) return;
+
+  mtev_dyn_buffer_destroy(&gc->buffer);
+  /* no need to free `gc` here as the noit cleanup code will 
+   * free the check's closure for us */
+  free(gc);
+}
 #define READ_CHUNK 32768
 
 static inline size_t count_integral_digits(const char *str, size_t len, mtev_boolean can_be_signed)
@@ -332,17 +347,13 @@ graphite_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 
   ck_spinlock_lock(&self->use_lock);
 
-  if (self->shutdown) {
-    ck_spinlock_unlock(&self->use_lock);
-    return 0;
-  }
-
-  if(mask & EVENTER_EXCEPTION || check == NULL) {
+  if(self->shutdown || (mask & EVENTER_EXCEPTION) || check == NULL) {
 socket_close:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fde(e);
     eventer_close(e, &newmask);
     ck_spinlock_unlock(&self->use_lock);
+    graphite_closure_deref(self);
     return 0;
   }
 
@@ -482,7 +493,7 @@ graphite_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   eventer_remove_fde(e);
   eventer_close(e, &mask);
   mtev_acceptor_closure_free(ac);
-  
+  return 0;
 }
 
 static int
@@ -517,6 +528,7 @@ graphite_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
     }
 
     eventer_t newe;
+    graphite_closure_ref(self);
     newe = eventer_alloc_fd(graphite_handler, self, fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
@@ -559,6 +571,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
 
     graphite_closure_t *ccl;
     ccl = check->closure = (void *)calloc(1, sizeof(graphite_closure_t));
+    graphite_closure_ref(ccl);
     ccl->self = self;
     ccl->check = check;
     ccl->ipv4_listen_fd = -1;
@@ -679,10 +692,11 @@ static int noit_graphite_initiate_check(noit_module_t *self,
 static void noit_graphite_cleanup(noit_module_t *self, noit_check_t *check)
 {
   graphite_closure_t *gc = (graphite_closure_t *)check->closure;
+
+  /* This is administrative shutdown of services. */
   ck_spinlock_lock(&gc->use_lock);
   gc->shutdown = mtev_true;
   ck_spinlock_unlock(&gc->use_lock);
-
   int mask = 0;
   eventer_t listen_eventer = eventer_find_fd(gc->ipv4_listen_fd);
   if (listen_eventer) {
@@ -690,14 +704,13 @@ static void noit_graphite_cleanup(noit_module_t *self, noit_check_t *check)
     eventer_close(listen_eventer, &mask);
   }
   listen_eventer = eventer_find_fd(gc->ipv6_listen_fd);
-
   if (listen_eventer) {
     eventer_remove_fde(listen_eventer);
     eventer_close(listen_eventer, &mask);
   }
-  mtev_dyn_buffer_destroy(&gc->buffer);
-  /* no need to free `gc` here as the noit cleanup code will 
-   * free the check's closure for us */
+
+  /* This is potential memory cleanup */
+  graphite_closure_deref(gc);
 }
 
 static int noit_graphite_config(noit_module_t *self, mtev_hash_table *options) {
