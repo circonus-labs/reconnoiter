@@ -615,29 +615,26 @@ static int noit_graphite_initiate_check(noit_module_t *self,
               strerror(errno));
         return -1;
       }
-    }
-    memset(&skaddr, 0, sizeof(skaddr));
-    skaddr.sin_family = AF_INET;
-    skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    skaddr.sin_port = htons(ccl->port);
-    sockaddr_len = sizeof(skaddr);
-    if(bind(ccl->ipv4_listen_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
-      mtevL(noit_error, "graphite bind(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
-      close(ccl->ipv4_listen_fd);
-      return -1;
-    }
-    if (listen(ccl->ipv4_listen_fd, 5) != 0) {
-      mtevL(noit_error, "graphite listen(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
-      close(ccl->ipv4_listen_fd);
-      return -1;
-    }
-
-    if(ccl->ipv4_listen_fd >= 0) {
+      memset(&skaddr, 0, sizeof(skaddr));
+      skaddr.sin_family = AF_INET;
+      skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+      skaddr.sin_port = htons(ccl->port);
+      sockaddr_len = sizeof(skaddr);
+      if(bind(ccl->ipv4_listen_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
+        mtevL(noit_error, "graphite bind(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+        close(ccl->ipv4_listen_fd);
+        return -1;
+      }
+      if (listen(ccl->ipv4_listen_fd, 5) != 0) {
+        mtevL(noit_error, "graphite listen(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+        close(ccl->ipv4_listen_fd);
+        return -1;
+      }
+  
       eventer_t newe = eventer_alloc_fd(graphite_listen_handler, ccl, ccl->ipv4_listen_fd,
                                         EVENTER_READ | EVENTER_EXCEPTION);
       eventer_add(newe);
     }
-
     if(port > 0) ccl->ipv6_listen_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
     if(ccl->ipv6_listen_fd < 0) {
       if(port > 0) {
