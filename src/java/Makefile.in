@@ -114,7 +114,7 @@ $(IEPJAR):	lib/reconnoiter.jar
 	@echo "- building a maven-like repo layout in lib"
 	@(cd lib && ./stub-as-maven.sh)
 	@echo "- building reconnoiter-riemann"
-	@(cd reconnoiter-riemann && $(MAVEN) compile assembly:single)
+	@(cd reconnoiter-riemann && $(MAVEN) -q compile assembly:single)
 	@test -f $(IEPJAR)
 
 install-dirs:	all
