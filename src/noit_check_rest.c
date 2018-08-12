@@ -593,8 +593,8 @@ static int
 missing_namespaces(xmlNodePtr ctx, xmlNodePtr q) {
   xmlNodePtr n;
   if(q->ns && !xmlSearchNs(ctx->doc, ctx, q->ns->prefix)) return 1;
-  for(n=q->next; n; n=n->next) if(missing_namespaces(ctx, n)) return 1;
-  for(n=q->children; n; n=n->next) if(missing_namespaces(ctx, n)) return 1;
+  for(n=q->next; n; n=n->next) return missing_namespaces(ctx, n);
+  for(n=q->children; n; n=n->next) return missing_namespaces(ctx, n);
   return 0;
 }
 int
