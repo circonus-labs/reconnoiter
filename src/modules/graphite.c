@@ -487,6 +487,7 @@ graphite_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   }
 
   mtev_acceptor_closure_set_ctx(ac, check->closure, NULL);
+  graphite_closure_ref((graphite_closure_t *)check->closure);
   return graphite_handler(e, mask, check->closure, now);
 
   bail:
@@ -547,7 +548,10 @@ describe_callback(char *buffer, int size, eventer_t e, void *closure)
   if (gc) {
     char check_uuid[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(gc->check->checkid, check_uuid);
-    snprintf(buffer, size, "graphite callback for check: %s\n", check_uuid);
+    snprintf(buffer, size, "graphite(%s)", check_uuid);
+  }
+  else {
+    snprintf(buffer, size, "graphite(...)");
   }
 }
 
@@ -559,7 +563,10 @@ describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure)
   if (gc) {
     char check_uuid[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(gc->check->checkid, check_uuid);
-    snprintf(buffer, size, "graphite callback for check: %s\n", check_uuid);
+    snprintf(buffer, size, "graphite(%s)", check_uuid);
+  }
+  else {
+    snprintf(buffer, size, "graphite(...)");
   }
 }
 
