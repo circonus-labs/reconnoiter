@@ -62,7 +62,9 @@ function put_check(uuid, cb) {
     '  <filterset>allowall</filterset>' +
     '  <module>selfcheck</module>' +
     '</attributes>' +
-    '<config/>' +
+    '<config xmlns:histogram="noit://module/histogram">' +
+    '  <histogram:value name="feed_byte">add</histogram:value>' +
+    '</config>' +
     '</check>',
     cb);
 }

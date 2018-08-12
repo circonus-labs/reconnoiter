@@ -24,6 +24,7 @@ var all_noit_loaders = {
          }
 };
 var all_noit_generics = {
+  'histogram': { 'image': 'histogram' },
   'lua_web': { 'image': 'lua_mtev' }
 };
 var all_noit_modules = {
