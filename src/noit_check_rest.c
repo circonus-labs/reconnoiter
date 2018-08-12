@@ -589,14 +589,41 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+static void
+collect_namespaces(xmlNodePtr node, xmlNsPtr *capture_ns, int cnt, int *idx) {
+  int i;
+  for(xmlNsPtr ns = node->ns; ns; ns = ns->next) {
+    if(*idx < 0 || *idx >= cnt)  {
+      *idx = -1;
+      return;
+    }
+    /* This bruteforce is fast as cnt should be very small */
+    for(i=0; i<*idx; i++) {
+      if(capture_ns[i] == ns) break;
+    }
+    /* if i == *idx, we didn't find a match, record it */
+    if(i == *idx) capture_ns[(*idx)++] = ns;
+  }
+  if(node->next) collect_namespaces(node->next, capture_ns, cnt, idx);
+  if(node->children) collect_namespaces(node->children, capture_ns, cnt, idx);
+}
+
 static int
-missing_namespaces(xmlNodePtr ctx, xmlNodePtr q) {
-  xmlNodePtr n;
-  if(q->ns && !xmlSearchNs(ctx->doc, ctx, q->ns->prefix)) return 1;
-  for(n=q->next; n; n=n->next) return missing_namespaces(ctx, n);
-  for(n=q->children; n; n=n->next) return missing_namespaces(ctx, n);
+missing_namespaces(xmlNodePtr ctx, xmlNodePtr root) {
+  xmlNsPtr namespaces[10];
+  int i, nns = 0;
+  /* Walk the incoming heirarchy for namespaces */
+  collect_namespaces(root, namespaces, 10, &nns);
+  /* If there were too many to fit (>10), fail. */
+  if(nns < 0) return 1;
+  /* If any is missing, say so. */
+  for(i=0; i<nns; i++) {
+    if(!xmlSearchNs(ctx->doc, ctx, namespaces[i]->prefix)) return 1;
+  }
+  /* All namespaces in root are in ctx */
   return 0;
 }
+
 int
 noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
                               const char **error) {
