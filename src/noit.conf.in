@@ -85,6 +85,7 @@
     <module image="dns" name="dns"/>
     <module image="httptrap" name="httptrap"/>
     <module image="prometheus" name="prometheus"/>
+    <module image="graphite" name="graphite"/>
     <module image="statsd" name="statsd"/>
     <module image="collectd" name="collectd"/>
     <module image="ganglia" name="ganglia"/>
@@ -146,6 +147,8 @@
         <document_root>%datarootdir%/noit-web</document_root>
       </config>
     </listener>
+    <listener type="graphite/graphite_listener" port="2443" ssl="on">
+    </listener>
   </listeners>
   <rest>
     <acl>
@@ -159,6 +162,12 @@
       <ip_acl:global/>
     </config>
     <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="127.0.0.1" period="5000" timeout="4000"/>
+    <check uuid="4dd07e4a-1fe8-42cf-97c4-62e31fab8141" module="graphite" target="none" period="60000" timeout="55000">
+      <config>
+        <secret>dddd</secret>
+        <listen_port>0</listen_port>
+      </config>
+    </check>
     <check uuid="d71484e7-73d3-4dad-a5f7-88879ef43225" module="httptrap" target="127.0.0.1" period="60000" timeout="4000">
       <config>
         <secret>foo</secret>
