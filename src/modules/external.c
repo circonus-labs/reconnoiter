@@ -250,6 +250,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
       }
 
     }
+    int metric_count = 0;
     while((rc = pcre_exec(ci->matcher, NULL, output, len, startoffset, 0,
                           ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
       char metric[128];
@@ -274,16 +275,23 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
             snprintf(metric_name, 255, "%s", metric);
           }
           noit_stats_set_metric(check, metric_name, METRIC_GUESS, value);
+          metric_count++;
         }
         else {
           noit_stats_set_metric(check, metric, METRIC_GUESS, value);
+          metric_count++;
         }
       }
       mtevL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     }
     mtevL(data->nldeb, "match failed.... %d\n", rc);
-    if (ci->output)
+    if (ci->output && ci->type == EXTERNAL_NAGIOS_TYPE) {
       noit_stats_set_status(check, ci->output);
+    } else {
+      char buff[64];
+      snprintf(buff, sizeof(buff), "%d stats", metric_count);
+      noit_stats_set_status(check, buff);
+    }
   }
 
   noit_check_set_stats(check);
