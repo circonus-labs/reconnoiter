@@ -649,6 +649,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
     if(!strcmp((char *)tl->name, "attributes")) {
       *a = tl;
       for(an = tl->children; an; an = an->next) {
+        if(an->type != XML_ELEMENT_NODE) continue;
 #define CHECK_N_SET(a) if(!strcmp((char *)an->name, #a))
         CHECK_N_SET(name) {
           xmlChar *tmp;
