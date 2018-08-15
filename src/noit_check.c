@@ -71,6 +71,7 @@
 
 #define DEFAULT_TEXT_METRIC_SIZE_LIMIT  4096
 static int check_recycle_period = 60000;
+static mtev_boolean perpetual_metrics = mtev_false;
 
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
@@ -916,16 +917,16 @@ noit_check_dns_ignore_list_init() {
   }
   mtev_conf_release_sections(dns, cnt);
 }
-static void
-noit_check_poller_scheduling_init() {
-  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
-}
 void
 noit_poller_init() {
   srand48((getpid() << 16) ^ time(NULL));
-  noit_check_poller_scheduling_init();
+
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
+
   noit_check_resolver_init();
   noit_check_tools_init();
+
   polls_by_name = mtev_skiplist_alloc();
   mtev_skiplist_set_compare(polls_by_name, __check_name_compare,
                             __check_name_compare);
@@ -2402,18 +2403,24 @@ noit_check_set_stats(noit_check_t *check) {
   int report_change = 0;
   char *cp;
   dep_list_t *dep;
-  stats_t *all, *prev, *current;
+  stats_t *prev = NULL, *current = NULL;
 
   if(check_set_stats_hook_invoke(check) == MTEV_HOOK_ABORT) return;
 
-  if(!stats_previous(check)) {
-    stats_previous(check) = noit_check_stats_alloc();
+  if(perpetual_metrics) {
+    if(!stats_previous(check)) {
+      stats_previous(check) = noit_check_stats_alloc();
+    }
+    stats_t *all = stats_previous(check);
+    prev = stats_current(check);
+    if(prev) {
+      stats_merge(all,prev);
+      mtev_memory_safe_free(prev);
+    }
   }
-  all = stats_previous(check);
-  prev = stats_current(check);
-  if(prev) {
-    stats_merge(all,prev);
-    mtev_memory_safe_free(prev);
+  else {
+    mtev_memory_safe_free(stats_previous(check));
+    stats_previous(check) = stats_current(check);
   }
   current = stats_current(check) = stats_inprogress(check);
   stats_inprogress(check) = noit_check_stats_alloc();
