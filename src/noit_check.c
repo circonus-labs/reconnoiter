@@ -34,6 +34,7 @@
 #include <mtev_defines.h>
 #include "noit_config.h"
 #include <mtev_uuid.h>
+#include <mtev_json.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,6 +127,19 @@ MTEV_HOOK_IMPL(check_deleted,
   void *, closure,
   (void *closure, noit_check_t *check),
   (closure,check))
+
+MTEV_HOOK_IMPL(check_stats_set_metric_histogram,
+  (noit_check_t *check, metric_t *m),
+  void *, closure,
+  (void *closure, noit_check_t *check, metric_t *m),
+  (closure, check, m));
+
+MTEV_HOOK_IMPL(noit_check_stats_populate_json,
+  (struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
+  void *, closure,
+  (void *closure, struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
+  (closure, doc, check, s, name));
+
 
 #define STATS_INPROGRESS 0
 #define STATS_CURRENT 1
@@ -2201,6 +2215,25 @@ noit_stats_set_metric(noit_check_t *check,
   noit_stats_set_metric_with_timestamp(check, name, type, value, NULL);
 }
 
+void
+noit_stats_set_metric_histogram(noit_check_t *check,
+                                const char *name_raw, metric_type_t type, void *value) {
+  if(!check_stats_set_metric_histogram_hook_exists()) return;
+
+  void *replacement = NULL;
+  char tagged_name[MAX_METRIC_TAGGED_NAME];
+  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
+    return;
+  if(type == METRIC_GUESS)
+    type = noit_metric_guess_type((char *)value, &replacement);
+  if(type == METRIC_GUESS) return;
+
+  metric_t m_onstack = { .metric_name = tagged_name,
+                         .metric_type = type,
+                         .metric_value = { .vp = replacement ? replacement : value } };
+  check_stats_set_metric_histogram_hook_invoke(check, &m_onstack);
+  free(replacement);
+}
 void
 noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
                              const char *name_raw, metric_type_t t,

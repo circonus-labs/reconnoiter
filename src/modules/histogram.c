@@ -351,21 +351,32 @@ static void free_hash_o_histotier(void *vh) {
   mtev_hash_destroy(h, free, free_histotier);
   free(h);
 }
+static int
+extract_Hformat_metric(const char *v, uint64_t *p_cnt, double *p_bucket) {
+  uint64_t cnt;
+  double bucket;
+  /* We expect: H[<float>]=%d */
+  const char *lhs;
+  char *endptr;
+  if(v[0] != 'H' || v[1] != '[') return -1;
+  if(NULL == (lhs = strchr(v+2, ']'))) return -1;
+  lhs++;
+  if(*lhs++ != '=') return -1;
+  bucket = strtod(v+2, &endptr);
+  if(endptr == v+2) return -1;
+  cnt = strtoull(lhs, &endptr, 10);
+  if(endptr == lhs) return -1;
+  *p_bucket = bucket;
+  *p_cnt = cnt;
+  return 0;
+}
 static mtev_hook_return_t
-histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
-                    metric_t *m) {
+histogram_metric(void *closure, noit_check_t *check, metric_t *m) {
   void *vht;
   histotier *ht;
-  mtev_hash_table *config, *metrics;
-  const char *track = "";
+  mtev_hash_table *metrics;
   mtev_dso_generic_t *self = closure;
   struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
-
-  config = noit_check_get_module_config(check, histogram_module_id);
-  if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
-  (void)mtev_hash_retr_str(config, m->metric_name, strlen(m->metric_name), &track);
-  if(!track || strcmp(track, "add"))
-    return MTEV_HOOK_CONTINUE;
 
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) {
@@ -395,32 +406,47 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
         UPDATE_HISTOTIER(i); break;
       case METRIC_DOUBLE:
         UPDATE_HISTOTIER(n); break;
+      case METRIC_STRING: {
+        uint64_t cnt;
+        double bucket;
+        if(extract_Hformat_metric(m->metric_value.s, &cnt, &bucket) == 0 && cnt > 0) {
+          update_histotier(ht, time(NULL), conf, check, m->metric_name, bucket, cnt);
+        }
+      } break;
       default: /*noop*/
         break;
     }
   }
   return MTEV_HOOK_CONTINUE;
 }
-
 static mtev_hook_return_t
-histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
-                            const char *metric_name, metric_type_t type, const char *v,
-                            mtev_boolean success) {
-  void *vht;
-  histotier *ht;
-  mtev_hash_table *config, *metrics;
+histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
+                    metric_t *m) {
+  mtev_hash_table *config;
   const char *track = "";
   mtev_dso_generic_t *self = closure;
   struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
 
-  if(success) return MTEV_HOOK_CONTINUE;
-
   config = noit_check_get_module_config(check, histogram_module_id);
   if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
-  (void)mtev_hash_retr_str(config, metric_name, strlen(metric_name), &track);
+  (void)mtev_hash_retr_str(config, m->metric_name, strlen(m->metric_name), &track);
   if(!track || strcmp(track, "add"))
     return MTEV_HOOK_CONTINUE;
 
+  histogram_metric(closure, check, m);
+  return MTEV_HOOK_CONTINUE;
+}
+
+static void
+histogram_metric_hformat(void *closure,
+                         noit_check_t *check, stats_t *stats, const char *metric_name,
+                         metric_type_t type, const char *v) {
+  mtev_dso_generic_t *self = closure;
+  struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
+
+  void *vht;
+  histotier *ht;
+  mtev_hash_table *metrics;
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) {
     metrics = calloc(1, sizeof(*metrics));
@@ -437,21 +463,31 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
   }
   else ht = vht;
   if(v != NULL) {
-    /* We expect: H[<float>]=%d */
-    const char *lhs;
-    char *endptr;
     double bucket;
     uint64_t cnt;
-    if(v[0] != 'H' || v[1] != '[') return MTEV_HOOK_CONTINUE;
-    if(NULL == (lhs = strchr(v+2, ']'))) return MTEV_HOOK_CONTINUE;
-    lhs++;
-    if(*lhs++ != '=') return MTEV_HOOK_CONTINUE;
-    bucket = strtod(v+2, &endptr);
-    if(endptr == v+2) return MTEV_HOOK_CONTINUE;
-    cnt = strtoull(lhs, &endptr, 10);
-    if(endptr == lhs) return MTEV_HOOK_CONTINUE;
-    update_histotier(ht, time(NULL), conf, check, metric_name, bucket, cnt);
+    if(extract_Hformat_metric(v, &cnt, &bucket) == 0 && cnt > 0) {
+      update_histotier(ht, time(NULL), conf, check, metric_name, bucket, cnt);
+    }
   }
+}
+static mtev_hook_return_t
+histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
+                            const char *metric_name, metric_type_t type, const char *v,
+                            mtev_boolean success) {
+  mtev_hash_table *config;
+  const char *track = "";
+  mtev_dso_generic_t *self = closure;
+  struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
+
+  if(success) return MTEV_HOOK_CONTINUE;
+
+  config = noit_check_get_module_config(check, histogram_module_id);
+  if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
+  (void)mtev_hash_retr_str(config, metric_name, strlen(metric_name), &track);
+  if(!track || strcmp(track, "add"))
+    return MTEV_HOOK_CONTINUE;
+
+  histogram_metric_hformat(closure, check, stats, metric_name, type, v);
   return MTEV_HOOK_CONTINUE;
 }
 
@@ -579,8 +615,49 @@ histogram_hb_hook_impl(void *closure, noit_module_t *self,
   heartbeat_all_metrics(conf, check, metrics);
   return MTEV_HOOK_CONTINUE;
 }
+
+static mtev_hook_return_t
+histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, noit_check_t *check, stats_t *c, const char *name) {
+  if(!name || strcmp(name, "current")) return MTEV_HOOK_CONTINUE;
+  (void)c;
+
+  mtev_hash_table *metrics = noit_check_get_module_metadata(check, histogram_module_id);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+
+  while(mtev_hash_adv_spmc(metrics, &iter)) {
+    histotier *ht = iter.value.ptr;
+    struct mtev_json_object *v = MJ_OBJ();
+    MJ_KV(doc, iter.key.str, v);
+    MJ_KV(v, "_type", json_object_new_string("h"));
+    if(ht->last_aggr) {
+      int nbuckets = hist_bucket_count(ht->last_aggr);
+      struct mtev_json_object *o = MJ_ARR();
+      MJ_KV(v, "_value", o);
+      for (int i=0; i<nbuckets; i++) {
+        hist_bucket_t bucket;
+        uint64_t cnt;
+        if(hist_bucket_idx_bucket(ht->last_aggr, i, &bucket, &cnt)) {
+          char buf[44];
+          char numstr[32];
+          buf[0] = 'H'; buf[1] = '[';
+          hist_bucket_to_string(bucket, buf + 2);
+          strlcat(buf, "]=", sizeof(buf));
+          snprintf(numstr, sizeof(numstr), "%" PRIu64, cnt);
+          strlcat(buf, numstr, sizeof(buf));
+          MJ_ADD(o, MJ_STR(buf));
+        }
+      }
+    }
+    else {
+      MJ_KV(v, "_value", MJ_NULL());
+    }
+  }
+
+}
 static int
 histogram_init(mtev_dso_generic_t *self) {
+  noit_check_stats_populate_json_hook_register("histogram", histogram_stats_populate_json_impl, self);
+  check_stats_set_metric_histogram_hook_register("histogram", histogram_metric, self);
   check_stats_set_metric_hook_register("histogram", histogram_hook_impl, self);
   check_stats_set_metric_coerce_hook_register("histogram", histogram_hook_special_impl, self);
   check_set_stats_hook_register("histogram", histogram_stats_fixup, self);

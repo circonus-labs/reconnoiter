@@ -312,6 +312,11 @@ API_EXPORT(void)
                                const char *);
 
 API_EXPORT(void)
+  noit_stats_set_metric_histogram(noit_check_t *check,
+                                  const char *name, metric_type_t t,
+                                  void *value);
+
+API_EXPORT(void)
   noit_stats_log_immediate_metric(noit_check_t *check,
                                   const char *name, metric_type_t type,
                                   const void *value);
@@ -473,5 +478,15 @@ MTEV_HOOK_PROTO(check_deleted,
                 (noit_check_t *check),
                 void *, closure,
                 (void *closure, noit_check_t *check));
+
+MTEV_HOOK_PROTO(check_stats_set_metric_histogram,
+                (noit_check_t *check, metric_t *m),
+                void *, closure,
+                (void *closure, noit_check_t *check, metric_t *m));
+
+MTEV_HOOK_PROTO(noit_check_stats_populate_json,
+                (struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
+                void *, closure,
+                (void *closure, struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name));
 
 #endif

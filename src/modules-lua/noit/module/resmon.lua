@@ -153,6 +153,8 @@ function set_check_metric(check, name, type, value)
         check.metric_double(name, value)
     elseif type == 's' then
         check.metric_string(name, value)
+    elseif type == 'h' then
+        check.metric_histogram(name, value)
     else
         check.metric(name, value)
     end

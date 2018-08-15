@@ -303,7 +303,8 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     if(stringLen != 1) return 0;
     if(*stringVal == 'L' || *stringVal == 'l' ||
         *stringVal == 'I' || *stringVal == 'i' ||
-        *stringVal == 'n' || *stringVal == 's') {
+        *stringVal == 'n' || *stringVal == 's' ||
+        *stringVal == 'h') {
       json->last_type = *stringVal;
       json->saw_complex_type |= HT_EX_TYPE;
       _YD("[%3d] cb_string { _type: %c }\n", json->depth, *stringVal);
@@ -429,11 +430,15 @@ httptrap_yajl_cb_end_map(void *ctx) {
     }
           
     for(p=json->last_value;p;p=p->next) {
-      noit_stats_set_metric_coerce_with_timestamp(json->check,
-            metric_name,
-            (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
-            p->v,
-            (json->got_timestamp) ? &json->last_timestamp : NULL);
+      if(json->last_type == 'h') {
+        noit_stats_set_metric_histogram(json->check, metric_name, METRIC_GUESS, p->v);
+      } else {
+        noit_stats_set_metric_coerce_with_timestamp(json->check,
+              metric_name,
+              (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
+              p->v,
+              (json->got_timestamp) ? &json->last_timestamp : NULL);
+      }
       last_p = p;
       if((p->v != NULL) && (json->saw_complex_type & HT_EX_TYPE) && (IS_METRIC_TYPE_NUMERIC(json->last_type))) {
         total += strtold(p->v, NULL);
@@ -459,7 +464,8 @@ httptrap_yajl_cb_end_map(void *ctx) {
         m->accumulator = cnt;
       }
     }
-    if(json->immediate && last_p != NULL) {
+    if(json->immediate && last_p != NULL && json->last_type != 'h') {
+      /* histograms are never immediate */
       if(use_computed_value) {
         noit_stats_log_immediate_metric_timed(json->check,
                 metric_name,

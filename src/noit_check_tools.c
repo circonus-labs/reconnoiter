@@ -291,24 +291,46 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
 
 
         if (has_value == NULL) {
-          noit_stats_set_metric_coerce(check, prefix, (metric_type_t)*type_str, NULL);
-          count++;
+          if(*type_str != 'h') {
+            noit_stats_set_metric_coerce(check, prefix, (metric_type_t)*type_str, NULL);
+            count++;
+          }
         }
         else if(json_object_is_type(has_value, json_type_array)) {
           int i, alen = json_object_array_length(has_value);
           for(i=0;i<alen;i++) {
             struct json_object *item = json_object_array_get_idx(has_value, i);
             if (item) {
-              COERCE_JSON_OBJECT(*type_str, item);
+              if(*type_str == 'h') {
+                const char *value_str = NULL;
+                if(json_object_is_type(item, json_type_string))
+                  value_str = json_object_get_string(item);
+                else if(!json_object_is_type(item, json_type_null))
+                  value_str = json_object_to_json_string(item);
+                if(value_str) noit_stats_set_metric_histogram(check, prefix, METRIC_GUESS, (void *)value_str);
+              }
+              else {
+                COERCE_JSON_OBJECT(*type_str, item);
+              }
             }
-            else {
+            else if(*type_str != 'h') {
               noit_stats_set_metric_coerce(check, prefix, (metric_type_t)*type_str, NULL);
               count++;
             }
           }
         }
         else {
-          COERCE_JSON_OBJECT(*type_str, has_value);
+          if(*type_str == 'h') {
+            const char *value_str = NULL;
+            if(json_object_is_type(has_value, json_type_string))
+              value_str = json_object_get_string(has_value);
+            else if(!json_object_is_type(has_value, json_type_null))
+              value_str = json_object_to_json_string(has_value);
+            if(value_str) noit_stats_set_metric_histogram(check, prefix, METRIC_GUESS, (void *)value_str);
+          }
+          else {
+            COERCE_JSON_OBJECT(*type_str, has_value);
+          }
         }
       }
       break;
