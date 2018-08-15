@@ -226,18 +226,23 @@ metric_name_from_labels(Prometheus__Label **labels, size_t label_count)
       /* make base64 encoded tags out of the incoming prometheus tags for safety */
       /* TODO base64 encode these */
       size_t tl = strlen(l->name);
-      mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer));
+      int len = mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer) - 1);
+      if (len > 0) {
+        encode_buffer[len] = '\0';
 
-      strlcat(b, "b\"", sizeof(buffer));
-      strlcat(b, encode_buffer, sizeof(buffer));
-      strlcat(b, "\":b\"", sizeof(buffer));
+        strlcat(b, "b\"", sizeof(buffer));
+        strlcat(b, encode_buffer, sizeof(buffer));
+        strlcat(b, "\":b\"", sizeof(buffer));
 
-      tl = strlen(l->value);
-      mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer));
-
-      strlcat(b, encode_buffer, sizeof(buffer));
-      strlcat(b, "\"", sizeof(buffer));
-      tag_count++;
+        tl = strlen(l->value);
+        len = mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer) - 1);
+        if (len > 0) {
+          encode_buffer[len] = '\0';
+          strlcat(b, encode_buffer, sizeof(buffer));
+        }
+        strlcat(b, "\"", sizeof(buffer));
+        tag_count++;
+      }
     }
   }
   strlcat(name, "|ST[", sizeof(final_name));
