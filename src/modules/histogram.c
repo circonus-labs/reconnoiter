@@ -39,6 +39,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_clustering.h"
 #include "histogram.h"
 
 static mtev_log_stream_t metrics_log = NULL;
@@ -103,11 +104,11 @@ histogram_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
 }
 
 typedef struct histotier {
-  histogram_t *tensecs[6];
-  histogram_t *secs[10];
+  histogram_t **secs;
   histogram_t *last_aggr;
-  uint8_t last_second;
-  uint64_t last_minute;
+  uint8_t cadence;
+  uint8_t last_sec_off;
+  uint64_t last_period;
 } histotier;
 
 static void
@@ -150,8 +151,10 @@ noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
   }
   mtev_uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str));
 
+  unsigned long ms_cluster_jitter = noit_cluster_self_index() + 1;
+
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
-#define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
+#define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000) + ms_cluster_jitter)
 
   if(live_feed && check->feeds) {
     mtev_skiplist_node *curr, *next;
@@ -190,6 +193,8 @@ log_histo(noit_check_t *check, uint64_t whence_s,
   whence.tv_sec = whence_s;
   whence.tv_usec = 0;
 
+  if(hist_bucket_count(h) == 0) return;
+
   est = hist_serialize_estimate(h);
   hist_serial = malloc(est);
   if(!hist_serial) {
@@ -224,36 +229,21 @@ log_histo(noit_check_t *check, uint64_t whence_s,
 
 static void
 sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *ht, const char *name) {
-  histogram_t *tgt;
-  uint64_t aligned_seconds = ht->last_minute * 60;
-  int cidx = 0, sidx = 0;
+  histogram_t *tgt = NULL;
+  uint64_t aligned_seconds = ht->last_period * ht->cadence;
+  int cidx;
   /* find the first histogram to use as an aggregation target */
-  for(cidx=0; cidx<6; cidx++) {
-    if(NULL != (tgt = ht->tensecs[cidx])) {
-      ht->tensecs[cidx] = NULL;
+  for(cidx=0; cidx<ht->cadence; cidx++) {
+    if(NULL != (tgt = ht->secs[cidx])) {
+      ht->secs[cidx] = NULL;
       break;
     }
   }
-  if(tgt == NULL) {
-    for(sidx=0; sidx<10; sidx++) {
-      if(NULL != (tgt = ht->secs[sidx])) {
-        ht->secs[sidx] = NULL;
-        break;
-      }
-    }
-  }
   if(tgt != NULL) {
-    /* aggregate all remaining tensecs */
-    /* we can do all of them b/c we've removed the tgt */
-    if(cidx < 5) hist_accumulate(tgt, (const histogram_t * const *)ht->tensecs, 6);
-    if(sidx < 9) hist_accumulate(tgt, (const histogram_t * const *)ht->secs, 10);
-    for(cidx=0;cidx<6;cidx++) {
-      hist_free(ht->tensecs[cidx]);
-      ht->tensecs[cidx] = NULL;
-    }
-    for(sidx=0;sidx<10;sidx++) {
-      hist_free(ht->secs[sidx]);
-      ht->secs[sidx] = NULL;
+    hist_accumulate(tgt, (const histogram_t * const *)ht->secs, ht->cadence);
+    for(cidx=0;cidx<ht->cadence;cidx++) {
+      hist_free(ht->secs[cidx]);
+      ht->secs[cidx] = NULL;
     }
   }
 
@@ -268,81 +258,56 @@ sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *
 }
 
 static void
-sweep_roll_tensec(histotier *ht) {
-  histogram_t *tgt;
-  int tgt_bucket = ht->last_second / 10;
-  int sidx;
-  /* We can't very well rollup the same bucket twice */
-  mtevAssert(tgt_bucket >= 0 && tgt_bucket < 6 && ht->tensecs[tgt_bucket] == NULL);
-  for(sidx=0;sidx<10;sidx++) {
-    if(NULL != (tgt = ht->secs[sidx])) {
-      ht->secs[sidx] = NULL;
-      break;
-    }
-  }
-  if(tgt == NULL) return; /* nothing to do */
-  ht->tensecs[tgt_bucket] = tgt;
-  hist_accumulate(tgt, (const histogram_t * const *)ht->secs, 10);
-  for(sidx=0;sidx<10;sidx++) {
-    hist_free(ht->secs[sidx]);
-    ht->secs[sidx] = NULL;
-  }
-}
-static void
 update_histotier(histotier *ht, uint64_t s,
                  struct histogram_config *conf, noit_check_t *check,
                  const char *name, double val, uint64_t cnt) {
-  uint64_t minute = s/60;
-  uint8_t second = s%60;
-  uint8_t sec_bucket = s%10;
+  uint64_t this_period = s/ht->cadence;
+  uint8_t sec_off = s%ht->cadence;
   noit_check_metric_count_add(cnt);
-  if((second != ht->last_second || check->flags & NP_TRANSIENT) &&
+  if((sec_off != ht->last_sec_off || check->flags & NP_TRANSIENT) &&
      check->feeds) {
-    int last_second = ht->last_second;
-    int last_minute = ht->last_minute;
+    int last_sec_off = ht->last_sec_off;
+    int last_period = ht->last_period;
     uint8_t last_bucket;
 
     /* If we are transient we're coming to this sloppy.
      * Someone else owns this ht. So, if we're high-traffic
-     * then last_second has already been bumped, so we need to
+     * then last_sec_off has already been bumped, so we need to
      * rewind it.
      */
-    if(check->flags & NP_TRANSIENT && second == last_second) {
-      last_second--;
-      if(last_second < 0) {
-        last_second = 59;
-        last_minute--;
+    /* I think this is not needed... 
+    if(check->flags & NP_TRANSIENT && sec_off == last_sec_off) {
+      last_sec_off--;
+      if(last_sec_off < 0) {
+        last_sec_off = ht->cadence-1;
+        last_period--;
       }
     }
-    last_bucket = last_second % 10;
-    if(ht->secs[last_bucket] && hist_num_buckets(ht->secs[last_bucket])
+    */
+    if(ht->secs[last_sec_off] && hist_num_buckets(ht->secs[last_sec_off])
         && conf->histogram)
-      log_histo(check, last_minute * 60 + last_second, name,
-          ht->secs[last_bucket], mtev_true);
+      log_histo(check, last_period * ht->cadence + last_sec_off, name,
+          ht->secs[last_sec_off], mtev_true);
   }
-  if(minute > ht->last_minute) {
+  if(this_period > ht->last_period) {
     sweep_roll_n_log(conf, check, ht, name);
   }
-  else if(second/10 > ht->last_second/10) {
-    sweep_roll_tensec(ht);
-  }
   if(cnt > 0) {
-    if(ht->secs[sec_bucket] == NULL)
-      ht->secs[sec_bucket] = hist_alloc();
-    hist_insert(ht->secs[sec_bucket], val, cnt);
+    if(ht->secs[sec_off] == NULL)
+      ht->secs[sec_off] = hist_alloc();
+    hist_insert(ht->secs[sec_off], val, cnt);
   }
-  ht->last_minute = minute;
-  ht->last_second = second;
+  ht->last_period = this_period;
+  ht->last_sec_off = sec_off;
 }
 
 static void free_histotier(void *vht) {
   int i;
   histotier *ht = vht;
   if(vht == NULL) return;
-  for(i=0;i<10;i++)
+  for(i=0;i<ht->cadence;i++)
     if(ht->secs[i]) hist_free(ht->secs[i]);
-  for(i=0;i<6;i++)
-    if(ht->tensecs[i]) hist_free(ht->tensecs[i]);
+  free(ht->secs);
   if(ht->last_aggr) hist_free(ht->last_aggr);
   free(ht);
 }
@@ -389,6 +354,10 @@ histogram_metric(void *closure, noit_check_t *check, metric_t *m) {
                          &vht)) {
     ht = calloc(1, sizeof(*ht));
     vht = ht;
+    ht->cadence = check->period/1000;
+    if(ht->cadence < 1) ht->cadence = 1;
+    if(ht->cadence > 60) ht->cadence = 60;
+    ht->secs = calloc(ht->cadence, sizeof(*ht->secs));
     mtev_hash_store(metrics, strdup(m->metric_name), strlen(m->metric_name),
                     vht);
   }
@@ -586,8 +555,16 @@ heartbeat_all_metrics(struct histogram_config *conf,
   void *data;
   uint64_t s = time(NULL);
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
+    int has_data = 0;
     histotier *ht = data;
     update_histotier(ht, s, conf, check, k, 0, 0);
+
+    /* if there's no data, drop the histogram */
+    for(int i=0; i<ht->cadence; i++) if(ht->secs[i]) has_data++;
+    if(hist_bucket_count(ht->last_aggr)) has_data++;
+    if(!has_data) {
+      mtev_hash_delete(metrics, k, klen, free, free_histotier);
+    }
   }
 }
 static mtev_hook_return_t
@@ -622,6 +599,7 @@ histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, 
   (void)c;
 
   mtev_hash_table *metrics = noit_check_get_module_metadata(check, histogram_module_id);
+  if(!metrics) return MTEV_HOOK_CONTINUE;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
 
   while(mtev_hash_adv_spmc(metrics, &iter)) {
