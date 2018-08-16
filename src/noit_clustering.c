@@ -711,6 +711,21 @@ cluster_change_nice_name(mtev_cluster_node_changes_t c)  {
   }
   return "unknown";
 }
+static int my_cluster_id = -1;
+int noit_cluster_self_index(void) {
+  if(my_cluster_id >= 0) return my_cluster_id;
+
+  mtev_cluster_t *cluster = mtev_cluster_by_name(NOIT_MTEV_CLUSTER_NAME);
+  if(!cluster) return -1;
+
+  uuid_t me;
+  mtev_cluster_get_self(me);
+  mtev_cluster_node_t *self = mtev_cluster_get_node(cluster, me);
+  if(!self) return -1;
+
+  my_cluster_id = mtev_cluster_node_get_idx(self);
+  return my_cluster_id;
+}
 static mtev_hook_return_t
 cluster_topo_cb(void *closure,
                 mtev_cluster_node_changes_t node_changes,
@@ -723,6 +738,7 @@ cluster_topo_cb(void *closure,
         mtev_cluster_node_get_cn(updated_node),
         cluster_change_nice_name(node_changes));
   if(!strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    my_cluster_id = -1;
     attach_to_cluster(cluster);
     if(!mtev_cluster_is_that_me(updated_node)) update_peer(updated_node);
     else {
@@ -773,6 +789,7 @@ static int
 noit_clustering_show(mtev_console_closure_t ncct,
                      int argc, char **argv,
                      mtev_console_state_t *state, void *closure) {
+  nc_printf(ncct, "my_cluster_id: %d\n", noit_cluster_self_index());
   if(!my_cluster) {
     nc_printf(ncct, "clustering not configured.\n");
     return 0;

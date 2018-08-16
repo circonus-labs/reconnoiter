@@ -57,4 +57,7 @@ void
 mtev_boolean
   noit_cluster_checkid_replication_pending(uuid_t);
 
+int
+  noit_cluster_self_index(void);
+
 #endif
