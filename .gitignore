@@ -100,6 +100,7 @@ test/t/logs
 test/test_tags
 pkg/debian/changelog
 *~
+.*.swp
 src/bundle.pb-c.c
 src/bundle.pb-c.h
 src/java/com/

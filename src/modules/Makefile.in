@@ -53,7 +53,9 @@ LIBNOIT_LUA_MODULES=noit_lua/libnoit_binding.so
 SMODULES=@BUILD_SMODULES@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
-all:	$(MODULES) $(SMODULES) $(LUA_MODULES) test_abort.@MODULEEXT@
+TESTMODULES=test_abort.@MODULEEXT@ test_ingestor.@MODULEEXT@
+
+all:	$(MODULES) $(SMODULES) $(LUA_MODULES) $(TESTMODULES)
 
 .xml.xmlh:
 	$(Q)$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
@@ -122,6 +124,12 @@ postgres_ingestor.@MODULEEXT@:	postgres_ingestor.lo
 postgres_ingestor.lo: postgres_ingestor.c postgres_ingestor.xmlh
 	@echo "- compiling $<"
 	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
+
+test_ingestor.lo:	test_ingestor.c test_ingestor.xmlh
+
+test_ingestor.@MODULEEXT@:	test_ingestor.lo
+	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ test_ingestor.lo
 
 handoff_ingestor.lo:	handoff_ingestor.c handoff_ingestor.xmlh
 

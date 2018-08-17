@@ -30,6 +30,9 @@ top_srcdir=@top_srcdir@
 all:	testcerts testcrl others test_tags
 clean:	clean-keys clean-tests
 
+check:	all
+	(cd busted && ./run-tests.sh)
+
 # This stuff if all cert stuff to make testing the daemons easier
 
 test_tags:	test_tags.c

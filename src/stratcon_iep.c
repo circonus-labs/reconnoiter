@@ -99,6 +99,12 @@ struct iep_job_closure {
 static void
 start_iep_daemon();
 
+static int
+start_iep_daemon_ecb(eventer_t e, int mask, void *closure, struct timeval *now) {
+  start_iep_daemon();
+  return 0;
+}
+
 static double
 stratcon_iep_age_from_line(char *data, struct timeval now) {
   double n, t;
@@ -425,6 +431,10 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     return 0;
   }
 
+  for(struct driver_list *d = drivers; d; d = d->next) {
+    (void)connect_iep_driver(d);
+  }
+
   if(!job->line || job->line[0] == '\0') return 0;
 
   if((age = stratcon_iep_age_from_line(job->line, *now)) > 60) {
@@ -561,7 +571,7 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
       exit(-1);
     }
     mtevL(noit_iep, "IEP daemon is done, starting a new one\n");
-    start_iep_daemon();
+    eventer_add_in_s_us(start_iep_daemon_ecb, NULL, 0, 100000);
     eventer_remove_fde(e);
     iep_daemon_info_free(info);
     return 0;

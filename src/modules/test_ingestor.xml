@@ -1,0 +1,22 @@
+<module>
+  <name>test_ingestor</name>
+  <description><para>A noop ingestor for the test suite.</para></description>
+  <loader>C</loader>
+  <image>handoff_ingestor.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig />
+  <examples>
+    <example>
+      <title>Loading the test_ingestor.</title>
+      <para>This example loads the test_ingestor.</para>
+      <programlisting><![CDATA[
+      <stratcon>
+        <modules>
+          <module image="handoff_ingestor" name="handoff_ingestor" />
+        </modules>
+      </stratcon>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

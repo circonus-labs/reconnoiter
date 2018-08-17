@@ -300,6 +300,7 @@ static int child_main() {
   mtev_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
   mtev_conf_watch_and_journal_watchdog(noit_conf_write_log, NULL);
 
+  mtevL(mtev_debug, "noitd ready\n");
   eventer_loop();
   return 0;
 }
