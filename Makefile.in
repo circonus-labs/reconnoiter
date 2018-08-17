@@ -3,6 +3,9 @@ all:
 	(cd sql && $(MAKE))
 	(cd test && $(MAKE))
 
+check:	all
+	(cd test && $(MAKE) check)
+
 install:	all
 	(cd src && $(MAKE) install DESTDIR=$(DESTDIR))
 	(cd sql && $(MAKE) install DESTDIR=$(DESTDIR))

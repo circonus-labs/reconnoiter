@@ -1,0 +1,28 @@
+describe("noit", function()
+  local noit, api, badapi
+  setup(function()
+    Reconnoiter.clean_workspace()
+    noit = Reconnoiter.TestNoit:new("noit", { rest_acls = { { type = "deny", rules = { { cn = ".", type = "allow" } } } } })
+  end)
+  teardown(function() if noit ~= nil then noit:stop() end end)
+
+  it("should start", function()
+    assert.is_true(noit:start():is_booted())
+    api = noit:API()
+    badapi = noit:API("badclient")
+  end)
+
+  describe("good cert", function()
+    it("is allowed", function()
+      local code = api:raw("GET", "/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc.json")
+      assert.is.equal(404, code)
+    end)
+  end)
+
+  describe("bad cert", function()
+    it("is denied", function()
+      local code = badapi:raw("GET", "/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc.json")
+      assert.is.equal(-1, code)
+    end)
+  end)
+end)

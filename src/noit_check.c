@@ -576,7 +576,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   int ridx, flags, found;
   int no_period = 0;
   int no_oncheck = 0;
-  int period = 0, timeout = 0;
+  int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   uuid_t uuid, out_uuid;
   int64_t config_seq = 0;
@@ -650,8 +650,15 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
     busted = mtev_true;
   }
 
-  if(!INHERIT(int32, period, &period) || period == 0)
+  INHERIT(int32, minimum_period, &minimum_period);
+  INHERIT(int32, maximum_period, &maximum_period);
+  if(!INHERIT(int32, period, &period) || period == 0) {
     no_period = 1;
+	}
+	else {
+		if(period < minimum_period) period = minimum_period;
+		if(period > maximum_period) period = maximum_period;
+	}
 
   if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
     no_oncheck = 1;
@@ -674,6 +681,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
       mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
       busted = mtev_true;
     }
+		if(timeout < 0) timeout = 0;
     if(!no_period && timeout >= period) {
       mtevL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;

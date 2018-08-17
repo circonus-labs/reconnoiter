@@ -695,27 +695,11 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           }
         }
         else CHECK_N_SET(period) {
-          int32_t pint;
-          xmlChar *tmp;
-          tmp = xmlNodeGetContent(an);
-          pint = mtev_conf_string_to_int32((char *)tmp);
-          xmlFree(tmp);
-          if(pint < 1000 || pint > 300000) {
-            *error = "invalid period";
-            goto out;
-          }
+					/* period is enfored in noit_check */
           period = 1;
         }
         else CHECK_N_SET(timeout) {
-          int32_t pint;
-          xmlChar *tmp;
-          tmp = xmlNodeGetContent(an);
-          pint = mtev_conf_string_to_int32((char *)tmp);
-          xmlFree(tmp);
-          if(pint < 0 || pint > 300000) {
-            *error = "invalid timeout";
-            goto out;
-          }
+					/* timeout is enforces in noit_check */
           timeout = 1;
         }
         else CHECK_N_SET(filterset) {

@@ -222,6 +222,7 @@ static int child_main() {
 
   mtev_conf_watch_and_journal_watchdog(stratcon_datastore_saveconfig, NULL);
 
+  mtevL(mtev_debug, "stratcond ready\n");
   eventer_loop();
   return 0;
 }
