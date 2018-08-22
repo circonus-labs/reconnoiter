@@ -1264,12 +1264,12 @@ describe_lua_check_context(mtev_console_closure_t ncct,
   noit_lua_resume_check_info_t *ci = ri->context_data;
   nc_printf(ncct, "lua_check(ri: %p, state:%p, parent:%p)\n",
             ri, ri->coro_state, mtev_lua_lmc_L(ri->lmc));
-  if(ci) {
+  if(ci && ci->check) {
     mtev_uuid_unparse_lower(ci->check->checkid, uuid_str);
     nc_printf(ncct, "\tcheck: %s\n", uuid_str);
-    nc_printf(ncct, "\tname: %s\n", ci->check->name);
-    nc_printf(ncct, "\tmodule: %s\n", ci->check->module);
-    nc_printf(ncct, "\ttarget: %s\n", ci->check->target);
+    nc_printf(ncct, "\tname: %s\n", ci->check->name ? ci->check->name : "(null)");
+    nc_printf(ncct, "\tmodule: %s\n", ci->check->module ? ci->check->module : "(null)");
+    nc_printf(ncct, "\ttarget: %s\n", ci->check->target ? ci->check->target : "(null)");
   }
 }
 
