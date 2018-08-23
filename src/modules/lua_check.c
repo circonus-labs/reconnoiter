@@ -65,6 +65,7 @@ struct loader_conf {
   pthread_key_t key;
   char *script_dir;
   char *cpath;
+  lua_module_gc_params_t *gc_params;
 };
 struct module_conf {
   struct loader_conf *c;
@@ -140,6 +141,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
     lua_State *L;
     int rv;
     lmc = mtev_lua_lmc_alloc((mtev_dso_generic_t *)mod, noit_lua_check_resume);
+    mtev_lua_set_gc_params(lmc, mc->c->gc_params);
     pthread_setspecific(mc->c->key, lmc);
     mtevL(nldeb, "lua_state[%s]: new state\n", mod->hdr.name);
     L = mtev_lua_open(mod->hdr.name, lmc,
@@ -972,13 +974,12 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
         mtevL(nldeb, "lua_State(%p) -> %d [check: %p]\n", ri->coro_state,
               lua_status(ri->coro_state), ci ? ci->check: NULL);
       }
-      lua_gc(mtev_lua_lmc_L(ri->lmc), LUA_GCCOLLECT, 0);
       break;
     case LUA_YIELD: /* The complicated case */
       /* The person yielding had better setup an event
        * to wake up the coro...
        */
-      lua_gc(mtev_lua_lmc_L(ri->lmc), LUA_GCCOLLECT, 0);
+      mtev_lua_gc(ri->lmc);
       goto done;
     default: /* Errors */
       mtevL(nldeb, "lua resume returned: %d\n", result);
@@ -1020,6 +1021,7 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
     noit_lua_log_results(self, check);
     noit_check_end(check);
   }
+  mtev_lua_gc(ri->lmc);
   mtev_lua_resume_clean_events(ri);
   mtev_lua_cancel_coro(ri);
 
@@ -1223,6 +1225,9 @@ static int
 noit_lua_loader_config(mtev_dso_loader_t *self, mtev_hash_table *o) {
   struct loader_conf *c = __get_loader_conf(self);
   const char *dir = ".";
+
+  c->gc_params = mtev_lua_config_gc_params(o);
+
   (void)mtev_hash_retr_str(o, "directory", strlen("directory"), &dir);
   c->script_dir = strdup(dir);
  
