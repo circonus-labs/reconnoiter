@@ -1049,8 +1049,10 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     /* Our coro is still "in-flight". To fix this we will unreference
      * it, garbage collect it and then ensure that it failes a resume
      */
+    lua_module_closure_t *lmc = ri->lmc;
     mtev_lua_resume_clean_events(ri);
     mtev_lua_cancel_coro(ri);
+    mtev_lua_gc(lmc);
   }
   if(check) {
     noit_stats_set_status(check, "timeout");
