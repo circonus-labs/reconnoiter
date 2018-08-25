@@ -85,12 +85,16 @@ noit_cluster_setup_ssl(int port) {
   mtev_hash_table *sslconfig = mtev_conf_get_hash(listener, "sslconfig");
 #define SSLSETUP(sslconfig, name, var) do { \
   const char *v; \
+  free(var); \
+  var = NULL; \
   if(mtev_hash_retr_str(sslconfig, name, strlen(name), &v)) \
     var = strdup(v); \
 } while(0)
   SSLSETUP(sslconfig, "ca_chain", cainfo);
   SSLSETUP(sslconfig, "certificate_file", certinfo);
   SSLSETUP(sslconfig, "key_file", keyinfo);
+  mtev_hash_destroy(sslconfig, free, free);
+  free(sslconfig);
 #undef SSLSETUP
   mtev_conf_release_section(listener);
 }
