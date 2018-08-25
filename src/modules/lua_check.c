@@ -954,12 +954,13 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
   noit_module_t *self = NULL;
   noit_check_t *check = NULL;
   noit_lua_resume_check_info_t *ci = ri->context_data;
+  lua_module_closure_t *lmc = ri->lmc;
 
   mtevAssert(pthread_equal(pthread_self(), ri->bound_thread));
 
   mtevL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
 #if LUA_VERSION_NUM >= 502
-  result = lua_resume(ri->coro_state, mtev_lua_lmc_L(ri->lmc), nargs);
+  result = lua_resume(ri->coro_state, mtev_lua_lmc_L(lmc), nargs);
 #else
   result = lua_resume(ri->coro_state, nargs);
 #endif
@@ -974,8 +975,6 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
         mtevL(nldeb, "lua_State(%p) -> %d [check: %p]\n", ri->coro_state,
               lua_status(ri->coro_state), ci ? ci->check: NULL);
       }
-      /* always GC on success, GC aggressiveness controlled via config */
-      mtev_lua_gc(ri->lmc);
       break;
     case LUA_YIELD: /* The complicated case */
       /* The person yielding had better setup an event
@@ -1023,9 +1022,9 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
     noit_lua_log_results(self, check);
     noit_check_end(check);
   }
-  mtev_lua_gc(ri->lmc);
   mtev_lua_resume_clean_events(ri);
   mtev_lua_cancel_coro(ri);
+  mtev_lua_gc(lmc);
 
  done:
   return result;
