@@ -974,6 +974,8 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
         mtevL(nldeb, "lua_State(%p) -> %d [check: %p]\n", ri->coro_state,
               lua_status(ri->coro_state), ci ? ci->check: NULL);
       }
+      /* always GC on success, GC aggressiveness controlled via config */
+      mtev_lua_gc(ri->lmc);
       break;
     case LUA_YIELD: /* The complicated case */
       /* The person yielding had better setup an event
