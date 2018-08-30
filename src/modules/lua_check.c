@@ -877,7 +877,6 @@ noit_lua_module_config(noit_module_t *mod,
   mtev_lua_hash_to_table(L, options);
   lua_pcall(L, 2, 1, 0);
 
-  mtevL(mtev_error, "(%s) BASE -> %d\n", mod->hdr.name, lua_gettop(L));
   /* If rv == 0, the caller will free options. We've
    * already freed options, that would be bad. fudge -> 1 */
   RETURN_INT(L, object, "config",
