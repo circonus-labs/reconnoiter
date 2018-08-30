@@ -845,11 +845,11 @@ noit_lua_module_onload(mtev_image_t *img) {
   if(lua_isnumber(L, -1)) {
     int rv;
     rv = lua_tointeger(L, -1);
-    lua_pop(L, 1);
+    lua_pop(L, lua_gettop(L));
     return rv;
   }
   mtevL(nlerr, "%s.onload must return a integer not %s (%s)\n", mc->object, mtev_lua_type_name(lua_type(L,-1)), lua_tostring(L,-1));
-  lua_pop(L,1);
+  lua_pop(L,lua_gettop(L));
   return -1;
 }
 
@@ -919,12 +919,12 @@ noit_lua_module_cleanup(noit_module_t *mod, noit_check_t *check) {
  clean:
   if(ri) {
     mtev_lua_resume_clean_events(ri);
-    if(ri->context_data) {
-      free(ri->context_data);
-    }
+    mtev_lua_cancel_coro(ri);
+    free(ri->context_data);
     free(ri);
     check->closure = NULL;
   }
+  lua_pop(L,lua_gettop(L));
 }
 
 /* Here is where the magic starts */
@@ -1021,9 +1021,12 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
   if(check) {
     noit_lua_log_results(self, check);
     noit_check_end(check);
+    check->closure = NULL;
   }
   mtev_lua_resume_clean_events(ri);
   mtev_lua_cancel_coro(ri);
+  free(ri->context_data);
+  free(ri);
   mtev_lua_gc(lmc);
 
  done:
@@ -1049,8 +1052,10 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     /* Our coro is still "in-flight". To fix this we will unreference
      * it, garbage collect it and then ensure that it failes a resume
      */
+    lua_module_closure_t *lmc = ri->lmc;
     mtev_lua_resume_clean_events(ri);
     mtev_lua_cancel_coro(ri);
+    mtev_lua_gc(lmc);
   }
   if(check) {
     noit_stats_set_status(check, "timeout");
@@ -1058,7 +1063,10 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     noit_stats_set_state(check, NP_BAD);
     noit_lua_log_results(self, check);
     noit_check_end(check);
+    check->closure = NULL;
   }
+  free(ri->context_data);
+  free(ri);
 
   if(int_cl->free) int_cl->free(int_cl);
   return 0;
@@ -1085,7 +1093,6 @@ noit_lua_initiate_ex(noit_module_t *self, noit_check_t *check,
     ri = lua_noit_new_resume_info(lmc);
     check->closure = ri;
     mtevAssert(ri->context_data == NULL);
-    lua_pop(L, 1);
   }
   else {
     ri = check->closure;
@@ -1099,8 +1106,6 @@ noit_lua_initiate_ex(noit_module_t *self, noit_check_t *check,
   /* We cannot be running */
   BAIL_ON_RUNNING_CHECK(check);
   noit_check_begin(check);
-
-  if(!ri->coro_state) mtev_lua_new_coro(ri);
 
   /* this will config & init if it hasn't happened yet */
   noit_lua_module_config(self, NULL);
@@ -1125,8 +1130,6 @@ noit_lua_initiate_ex(noit_module_t *self, noit_check_t *check,
   eventer_add(ci->timeout_event);
 
   ri->lmc = lmc;
-  // ri->check = check; /* This is the coroutine from which the check is run */
-  //mtev_lua_new_coro(ri);
 
   SETUP_CALL(ri->coro_state, object, "initiate", goto fail);
   noit_lua_setup_module(ri->coro_state, ci->self);
