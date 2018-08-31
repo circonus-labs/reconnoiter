@@ -245,7 +245,7 @@ noit_check_stats_alloc() {
   stats_t *n;
   n = mtev_memory_safe_malloc_cleanup(sizeof(*n), noit_check_safe_free_stats);
   memset(n, 0, sizeof(*n));
-  mtev_hash_init_locks(&n->metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_mtev_memory(&n->metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   return n;
 }
 static void *
