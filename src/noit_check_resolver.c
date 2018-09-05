@@ -53,6 +53,7 @@
 #include <mtev_conf.h>
 #include <mtev_console.h>
 #include "noit_mtev_bridge.h"
+#include "noit_check_resolver.h"
 
 #define MAX_RR 256
 #define DEFAULT_FAILED_TTL 60
@@ -209,6 +210,8 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
   uint8_t progression[2];
   dns_cache_node *n;
   void *vnode;
+
+  noit_check_resolver_init();
 
   buff[0] = '\0';
   if(!target) return -1;
@@ -693,9 +696,13 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
 }
 
 void noit_check_resolver_init() {
+  static int initialized = 0;
   int32_t cnt;
   mtev_conf_section_t *servers, *searchdomains;
   eventer_t e;
+
+  if(ck_pr_faa_int(&initialized, 1) != 0) return;
+
   if(dns_init(NULL, 0) < 0)
     mtevL(noit_error, "dns initialization failed.\n");
   dns_ctx = dns_new(NULL);
