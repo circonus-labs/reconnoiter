@@ -706,10 +706,10 @@ attach_to_cluster(mtev_cluster_t *nc) {
     sizeof(int64_t));
 }
 static const char *
-cluster_change_nice_name(mtev_cluster_node_changes_t c)  {
+cluster_change_nice_name(mtev_cluster_node_changes_t c, long tdiff)  {
   switch(c) {
     case MTEV_CLUSTER_NODE_DIED: return "died";
-    case MTEV_CLUSTER_NODE_REBOOTED: return "(re)booted";
+    case MTEV_CLUSTER_NODE_REBOOTED: return tdiff < 0 ? "is present" : "(re)booted";
     case MTEV_CLUSTER_NODE_CHANGED_SEQ: return "reconfigured";
     case MTEV_CLUSTER_NODE_CHANGED_PAYLOAD: return "has changes";
   }
@@ -736,11 +736,22 @@ cluster_topo_cb(void *closure,
                 mtev_cluster_node_t *updated_node,
                 mtev_cluster_t *cluster,
                 struct timeval old_boot_time) {
+  uuid_t id, me;
+  char id_str[UUID_STR_LEN+1];
+  mtev_cluster_get_self(me);
+  mtev_cluster_node_t *self = mtev_cluster_get_node(cluster, me);
+  struct timeval my_boot_time = mtev_cluster_node_get_boot_time(self);
+
+  mtev_cluster_node_get_id(updated_node, id);
+  mtev_uuid_unparse_lower(id, id_str);
+  struct timeval boot_time = mtev_cluster_node_get_boot_time(updated_node);
+  struct timeval diff;
+  sub_timeval(boot_time, my_boot_time, &diff);
   mtevL(node_changes == MTEV_CLUSTER_NODE_CHANGED_PAYLOAD ? cldeb : mtev_notice,
-        "cluster %s:%s -> %s\n",
+        "cluster %s:%s [%s%s] -> %s\n",
         mtev_cluster_get_name(cluster),
-        mtev_cluster_node_get_cn(updated_node),
-        cluster_change_nice_name(node_changes));
+        mtev_cluster_node_get_cn(updated_node), mtev_uuid_compare(me,id) ? "" : "me:",
+        id_str, cluster_change_nice_name(node_changes, diff.tv_sec));
   if(!strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     my_cluster_id = -1;
     attach_to_cluster(cluster);
