@@ -50,6 +50,7 @@ noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
       for(int i=0;i<node->contents.args.cnt; i++) {
         noit_metric_tag_search_free(node->contents.args.node[i]);
       }
+      free(node->contents.args.node);
   }
   if(node->user_data_free) node->user_data_free(node->user_data);
   free(node);
