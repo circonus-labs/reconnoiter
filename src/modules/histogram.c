@@ -630,7 +630,7 @@ histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, 
       MJ_KV(v, "_value", MJ_NULL());
     }
   }
-
+  return MTEV_HOOK_CONTINUE;
 }
 static int
 histogram_init(mtev_dso_generic_t *self) {
