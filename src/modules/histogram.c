@@ -386,7 +386,7 @@ histogram_metric(void *closure, noit_check_t *check, metric_t *m) {
         break;
     }
   }
-  return MTEV_HOOK_CONTINUE;
+  return MTEV_HOOK_DONE;
 }
 static mtev_hook_return_t
 histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
@@ -403,7 +403,8 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
     return MTEV_HOOK_CONTINUE;
 
   histogram_metric(closure, check, m);
-  return MTEV_HOOK_CONTINUE;
+  mtevL(mtev_error, "HERE with '%s'\n", m->metric_name);
+  return MTEV_HOOK_DONE;
 }
 
 static void
@@ -461,7 +462,7 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
     return MTEV_HOOK_CONTINUE;
 
   histogram_metric_hformat(closure, check, stats, metric_name, type, v);
-  return MTEV_HOOK_CONTINUE;
+  return MTEV_HOOK_DONE;
 }
 
 static void

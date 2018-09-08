@@ -3,7 +3,7 @@ describe("noit", function()
   setup(function()
     Reconnoiter.clean_workspace()
     noit = Reconnoiter.TestNoit:new("trap", {
-      modules = { httptrap = { image = "httptrap" } }
+      modules = { httptrap = { image = "httptrap", config = { asynch_metrics = "true" } } }
     })
   end)
   teardown(function() if noit ~= nil then noit:stop() end end)
@@ -43,13 +43,13 @@ describe("noit", function()
   expected_stats["array`2"] = { _type = "s", _value = "string" }
   expected_stats["array`3"] = { _type = "s", _value = "100" }
   expected_stats["array`4"] = { _type = "n", _value = "1.844674407371e+19" }
-  expected_stats["explicit_histogram"] = { _type = "n", _value = "1.500000000000e+00" }
-  expected_stats["implicit_histogram"] = { _type = "h", _value = {
+  expected_stats["explicit_histogram"] = { _type = "h", _value = {
       'H[+10e-001]=1',
       'H[+20e-001]=1',
       'H[+30e-001]=1',
       'H[+40e-001]=120'
   } }
+  expected_stats["implicit_histogram"] = expected_stats["explicit_histogram"]
   expected_stats["lvl1`lvl2`boolean"] = { _type = "i", _value = "1" }
 
   it("should start", function()
@@ -105,7 +105,7 @@ describe("noit", function()
             end
           end
         end
-        if metrics.implicit_histogram ~= nil then break end
+        if metrics.implicit_histogram ~= nil and metrics.explicit_histogram ~= nil then break end
       end
       assert.is.same(expected_stats, metrics)
     end)

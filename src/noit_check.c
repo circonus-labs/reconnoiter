@@ -1962,6 +1962,7 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
 
 static void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
+  mtevL(mtev_error, "ADD '%s'\n", m->metric_name);
   mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
@@ -1972,13 +1973,8 @@ __mark_metric_logged(stats_t *newstate, metric_t *m) {
   if(mtev_hash_retrieve(&newstate->metrics,
       m->metric_name, strlen(m->metric_name), &vm)) {
     ((metric_t *)vm)->logged = mtev_true;
-    return mtev_false;
-  } else {
-    m->logged = mtev_true;
-    mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
-                        m, NULL, (void (*)(void *))mtev_memory_safe_free);
-    return mtev_true;
   }
+  return mtev_false;
 }
 
 static size_t
@@ -2204,8 +2200,11 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
   }
   noit_check_metric_count_add(1);
   c = noit_check_get_stats_inprogress(check);
-  check_stats_set_metric_hook_invoke(check, c, m);
-  __stats_add_metric(c, m);
+  if(check_stats_set_metric_hook_invoke(check, c, m) == MTEV_HOOK_CONTINUE) {
+    __stats_add_metric(c, m);
+  } else {
+    mtev_memory_safe_free(m);
+  }
 }
 
 void
