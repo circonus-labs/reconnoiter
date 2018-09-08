@@ -489,4 +489,9 @@ MTEV_HOOK_PROTO(noit_check_stats_populate_json,
                 void *, closure,
                 (void *closure, struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name));
 
+MTEV_HOOK_PROTO(noit_stats_log_immediate_metric_timed,
+                (noit_check_t *check, const char *metric_name, metric_type_t type, const void *value, const struct timeval *whence),
+                void *, closure,
+                (void *closure, noit_check_t *check, const char *metric_name, metric_type_t type, const void *value, const struct timeval *whence));
+
 #endif

@@ -140,6 +140,11 @@ MTEV_HOOK_IMPL(noit_check_stats_populate_json,
   (void *closure, struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
   (closure, doc, check, s, name));
 
+MTEV_HOOK_IMPL(noit_stats_log_immediate_metric_timed,
+  (noit_check_t *check, const char *metric_name, metric_type_t type, const void *value, const struct timeval *whence),
+  void *, closure,
+  (void *closure, noit_check_t *check, const char *metric_name, metric_type_t type, const void *value, const struct timeval *whence),
+  (closure, check, metric_name, type, value, whence));
 
 #define STATS_INPROGRESS 0
 #define STATS_CURRENT 1
@@ -1962,7 +1967,6 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
 
 static void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
-  mtevL(mtev_error, "ADD '%s'\n", m->metric_name);
   mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
@@ -1973,8 +1977,13 @@ __mark_metric_logged(stats_t *newstate, metric_t *m) {
   if(mtev_hash_retrieve(&newstate->metrics,
       m->metric_name, strlen(m->metric_name), &vm)) {
     ((metric_t *)vm)->logged = mtev_true;
+    return mtev_false;
+  } else {
+    m->logged = mtev_true;
+    mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
+                        m, NULL, (void (*)(void *))mtev_memory_safe_free);
+    return mtev_true;
   }
-  return mtev_false;
 }
 
 static size_t
@@ -2346,6 +2355,11 @@ noit_stats_log_immediate_metric_timed(noit_check_t *check,
     return;
   }
 
+  if(noit_stats_log_immediate_metric_timed_hook_invoke(check, tagged_name, type,
+                                                       value, whence) != MTEV_HOOK_CONTINUE) {
+    return;
+  }
+
   record_immediate_metric_with_tagset(check, tagged_name, type, value, mtev_true, whence);
 }
 void
@@ -2375,6 +2389,8 @@ noit_stats_log_immediate_histo(noit_check_t *check,
     return mtev_false;
   }
 
+  /* This sets up a dummy numeric entry so that other people will know the name exists. */
+  /* This should likely be handled in the histogram module, but that plumbing is far from here */
   record_immediate_metric_with_tagset(check, name, METRIC_INT32, NULL, mtev_false, &whence);
   return mtev_true;
 }

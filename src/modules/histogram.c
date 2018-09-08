@@ -403,7 +403,6 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
     return MTEV_HOOK_CONTINUE;
 
   histogram_metric(closure, check, m);
-  mtevL(mtev_error, "HERE with '%s'\n", m->metric_name);
   return MTEV_HOOK_DONE;
 }
 
@@ -637,9 +636,33 @@ histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, 
   }
   return MTEV_HOOK_CONTINUE;
 }
+static mtev_hook_return_t
+histogram_log_immediate_impl(void *closure, noit_check_t *check, const char *metric_name,
+                             metric_type_t type, const void *value, const struct timeval *whence) {
+  /* Here, if this is elligible for histogams... then we do our own logging and do nothing
+   * here. Basically, we detect if it is our responsibility and if it is, we do nothing and
+   * return MTEV_HOOK_DONE.*/
+
+  /* It's out responsibility if we have an active histotier for it... */
+  mtev_hash_table *metrics = noit_check_get_module_metadata(check, histogram_module_id);
+  if(metrics && mtev_hash_retrieve(metrics, metric_name, strlen(metric_name), NULL)) {
+    return MTEV_HOOK_DONE;
+  }
+
+  /* If it is explicitly registered as a histogram, it is also ours. */
+  const char *track = "";
+  mtev_hash_table *config = noit_check_get_module_config(check, histogram_module_id);
+  if(config && mtev_hash_retr_str(config, metric_name, strlen(metric_name), &track) &&
+     !strcmp(track, "add")) {
+    return MTEV_HOOK_DONE;
+  }
+
+  return MTEV_HOOK_CONTINUE;
+}
 static int
 histogram_init(mtev_dso_generic_t *self) {
   noit_check_stats_populate_json_hook_register("histogram", histogram_stats_populate_json_impl, self);
+  noit_stats_log_immediate_metric_timed_hook_register("histogram", histogram_log_immediate_impl, self);
   check_stats_set_metric_histogram_hook_register("histogram", histogram_metric, self);
   check_stats_set_metric_hook_register("histogram", histogram_hook_impl, self);
   check_stats_set_metric_coerce_hook_register("histogram", histogram_hook_special_impl, self);
