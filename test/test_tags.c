@@ -345,7 +345,7 @@ void query_parsing(void) {
 
 void loop(char *str) {
   int len;
-  const int nloop = 1000000;
+  const int nloop = 100000;
   struct timeval start, end;
   char *hbuff = strdup(str);
   int hlen = strlen(hbuff);

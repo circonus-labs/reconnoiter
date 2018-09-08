@@ -1,7 +1,7 @@
 local test = describe
 if not utils.postgres_reqs() then test = pending end
 
-test("end to end", function()
+test("end to end #db", function()
   local db
   setup(function()
     Reconnoiter.clean_workspace()
