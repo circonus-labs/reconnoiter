@@ -272,13 +272,14 @@ function TestConfig:make_logs_config(fd, opts)
   "  <feeds>\n" ..
   "    <config><extended_id>on</extended_id></config>\n" ..
   "    <outlet name=\"feed\"/>\n" ..
+  "    <log name=\"config\"/>\n" ..
+  "    <also>\n" ..
+  "    <outlet name=\"error\"/>\n" ..
   "    <log name=\"bundle\"/>\n" ..
-  "    <log name=\"check\">\n" ..
-  "      <outlet name=\"error\"/>\n" ..
-  "    </log>\n" ..
+  "    <log name=\"check\"/>\n" ..
   "    <log name=\"status\"/>\n" ..
   "    <log name=\"metrics\"/>\n" ..
-  "    <log name=\"config\"/>\n" ..
+  "    </also>\n" ..
   "  </feeds>\n" ..
   "</logs>\n")
 end

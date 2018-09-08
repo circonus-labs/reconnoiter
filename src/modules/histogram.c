@@ -427,6 +427,10 @@ histogram_metric_hformat(void *closure,
                          &vht)) {
     ht = calloc(1, sizeof(*ht));
     vht = ht;
+    ht->cadence = check->period/1000;
+    if(ht->cadence < 1) ht->cadence = 1;
+    if(ht->cadence > 60) ht->cadence = 60;
+    ht->secs = calloc(ht->cadence, sizeof(*ht->secs));
     mtev_hash_store(metrics, strdup(metric_name), strlen(metric_name),
                     vht);
   }
