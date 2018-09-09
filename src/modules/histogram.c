@@ -598,6 +598,54 @@ histogram_hb_hook_impl(void *closure, noit_module_t *self,
 }
 
 static mtev_hook_return_t
+histogram_stats_populate_xml_impl(void *closure, xmlNodePtr doc, noit_check_t *check, stats_t *c, const char *name) {
+  if(!name || strcmp(name, "current")) return MTEV_HOOK_CONTINUE;
+  (void)c;
+
+  mtev_hash_table *metrics = noit_check_get_module_metadata(check, histogram_module_id);
+  if(!metrics) return MTEV_HOOK_CONTINUE;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+
+  while(mtev_hash_adv_spmc(metrics, &iter)) {
+    histotier *ht = iter.value.ptr;
+    xmlNodePtr tmp;
+    xmlAddChild(doc, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
+    xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)iter.key.str);
+    xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)"H");
+    if(ht->last_aggr && hist_bucket_count(ht->last_aggr) > 0) {
+      ssize_t est = hist_serialize_estimate(ht->last_aggr);
+      char *hist_encode = NULL;
+      char *hist_serial = malloc(est);
+      if(!hist_serial) {
+        mtevL(noit_error, "malloc(%d) failed\n", (int)est);
+      } else {
+        ssize_t enc_est = ((est + 2)/3)*4 + 1;
+        hist_encode = malloc(enc_est+1);
+        if(!hist_encode) {
+          mtevL(noit_error, "malloc(%d) failed\n", (int)enc_est);
+        } else {
+          if(hist_serialize(ht->last_aggr, hist_serial, est) != est) {
+            mtevL(noit_error, "histogram serialization failure\n");
+          } else {
+            enc_est = mtev_b64_encode((unsigned char *)hist_serial, est,
+                                      hist_encode, enc_est);
+            if(enc_est < 0) {
+              mtevL(noit_error, "base64 histogram encoding failure\n");
+            } else {
+              hist_encode[enc_est] = '\0';
+              xmlNodeAddContent(tmp, (xmlChar *)hist_encode);
+            }
+          }
+        }
+      }
+      free(hist_encode);
+      free(hist_serial);
+    }
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
 histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, noit_check_t *check, stats_t *c, const char *name) {
   if(!name || strcmp(name, "current")) return MTEV_HOOK_CONTINUE;
   (void)c;
@@ -610,25 +658,34 @@ histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, 
     histotier *ht = iter.value.ptr;
     struct mtev_json_object *v = MJ_OBJ();
     MJ_KV(doc, iter.key.str, v);
-    MJ_KV(v, "_type", json_object_new_string("h"));
-    if(ht->last_aggr) {
-      int nbuckets = hist_bucket_count(ht->last_aggr);
-      struct mtev_json_object *o = MJ_ARR();
-      MJ_KV(v, "_value", o);
-      for (int i=0; i<nbuckets; i++) {
-        hist_bucket_t bucket;
-        uint64_t cnt;
-        if(hist_bucket_idx_bucket(ht->last_aggr, i, &bucket, &cnt)) {
-          char buf[44];
-          char numstr[32];
-          buf[0] = 'H'; buf[1] = '[';
-          hist_bucket_to_string(bucket, buf + 2);
-          strlcat(buf, "]=", sizeof(buf));
-          snprintf(numstr, sizeof(numstr), "%" PRIu64, cnt);
-          strlcat(buf, numstr, sizeof(buf));
-          MJ_ADD(o, MJ_STR(buf));
+    MJ_KV(v, "_type", json_object_new_string("H"));
+    if(ht->last_aggr && hist_bucket_count(ht->last_aggr) > 0) {
+      ssize_t est = hist_serialize_estimate(ht->last_aggr);
+      char *hist_encode = NULL;
+      char *hist_serial = malloc(est);
+      if(!hist_serial) {
+        mtevL(noit_error, "malloc(%d) failed\n", (int)est);
+      } else {
+        ssize_t enc_est = ((est + 2)/3)*4;
+        hist_encode = malloc(enc_est);
+        if(!hist_encode) {
+          mtevL(noit_error, "malloc(%d) failed\n", (int)enc_est);
+        } else {
+          if(hist_serialize(ht->last_aggr, hist_serial, est) != est) {
+            mtevL(noit_error, "histogram serialization failure\n");
+          } else {
+            enc_est = mtev_b64_encode((unsigned char *)hist_serial, est,
+                                      hist_encode, enc_est);
+            if(enc_est < 0) {
+              mtevL(noit_error, "base64 histogram encoding failure\n");
+            } else {
+              MJ_KV(v, "_value", MJ_STRN(hist_encode, enc_est));
+            }
+          }
         }
       }
+      free(hist_encode);
+      free(hist_serial);
     }
     else {
       MJ_KV(v, "_value", MJ_NULL());
@@ -662,6 +719,7 @@ histogram_log_immediate_impl(void *closure, noit_check_t *check, const char *met
 static int
 histogram_init(mtev_dso_generic_t *self) {
   noit_check_stats_populate_json_hook_register("histogram", histogram_stats_populate_json_impl, self);
+  noit_check_stats_populate_xml_hook_register("histogram", histogram_stats_populate_xml_impl, self);
   noit_stats_log_immediate_metric_timed_hook_register("histogram", histogram_log_immediate_impl, self);
   check_stats_set_metric_histogram_hook_register("histogram", histogram_metric, self);
   check_stats_set_metric_hook_register("histogram", histogram_hook_impl, self);

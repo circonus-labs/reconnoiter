@@ -167,16 +167,19 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
       }
       xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
   
+      noit_check_stats_populate_xml_hook_invoke(metrics, check, noit_check_get_stats_inprogress(check), "inprogress");
       add_metrics_to_node(noit_check_get_stats_inprogress(check), metrics, "inprogress", 0, supp);
       whence = noit_check_stats_whence(c, NULL);
       if(whence->tv_sec) {
         xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+        noit_check_stats_populate_xml_hook_invoke(metrics, check, c, "current");
         add_metrics_to_node(c, metrics, "current", 1, supp);
       }
       previous = noit_check_get_stats_previous(check);
       whence = noit_check_stats_whence(previous, NULL);
       if(whence->tv_sec) {
         xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+        noit_check_stats_populate_xml_hook_invoke(metrics, check, previous, "previous");
         add_metrics_to_node(previous, metrics, "previous", 1, supp);
       }
       if(supp) mtev_hash_destroy(supp, NULL, NULL);

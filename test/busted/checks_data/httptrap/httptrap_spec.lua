@@ -43,12 +43,7 @@ describe("noit", function()
   expected_stats["array`2"] = { _type = "s", _value = "string" }
   expected_stats["array`3"] = { _type = "s", _value = "100" }
   expected_stats["array`4"] = { _type = "n", _value = "1.844674407371e+19" }
-  expected_stats["explicit_histogram"] = { _type = "h", _value = {
-      'H[+10e-001]=1',
-      'H[+20e-001]=1',
-      'H[+30e-001]=1',
-      'H[+40e-001]=120'
-  } }
+  expected_stats["explicit_histogram"] = { _type = "H", _value = "AAQKAAABFAAAAR4AAAEoAAB4" }
   expected_stats["implicit_histogram"] = expected_stats["explicit_histogram"]
   expected_stats["lvl1`lvl2`boolean"] = { _type = "i", _value = "1" }
 
@@ -88,15 +83,23 @@ describe("noit", function()
       -- the histograms should be the same.
       assert.is.equal(rparts[1][5], rparts[2][5])
     end)
-    it("is reporting", function()
-      local metrics = {}
+    it("is reporting xml/json", function()
+      local metrics, xmetrics = {}, {}
+      local code, doc, xml
       -- we need to line this up to fire right after an aligned 1s boundary b/c
-      -- the histogram stats will roll 
+      -- the histogram stats will roll... ten tries at a 1.1 second stutter
       for i=1,10 do
-        local code, doc, raw = api:json("POST", "/module/httptrap/" .. uuid .. "/foofoo", payload)
+        code, doc = api:json("POST", "/module/httptrap/" .. uuid .. "/foofoo", payload)
         assert.is.equal(200, code)
         mtev.sleep(1.1)
-        local code, doc = api:json("GET", "/checks/show/" .. uuid .. ".json")
+        code, doc = api:json("GET", "/checks/show/" .. uuid .. ".json")
+        assert.is.equal(200, code)
+        code, xml, stuff = api:xml("GET", "/checks/show/" .. uuid)
+        for node in xml:xpath("//metrics/metric") do
+          if xmetrics[node:attr("name")] == nil then
+            xmetrics[node:attr("name")] = { _type = node:attr("type"), _value = node:contents() }
+          end
+        end
         assert.is.equal(200, code)
         for i, key in ipairs({ 'previous', 'current', 'inprogress' }) do
           if doc.metrics[key] ~= nil then
@@ -105,9 +108,13 @@ describe("noit", function()
             end
           end
         end
-        if metrics.implicit_histogram ~= nil and metrics.explicit_histogram ~= nil then break end
+        if metrics.implicit_histogram ~= nil and metrics.explicit_histogram ~= nil and
+           xmetrics.implicit_histogram ~= nil and xmetrics.explicit_histogram ~= nil then
+          break
+        end
       end
       assert.is.same(expected_stats, metrics)
+      assert.is.same(expected_stats, xmetrics)
     end)
   end)
 end)
