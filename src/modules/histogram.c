@@ -266,8 +266,8 @@ update_histotier(histotier *ht, uint64_t s,
   noit_check_metric_count_add(cnt);
   if((sec_off != ht->last_sec_off || check->flags & NP_TRANSIENT) &&
      check->feeds) {
-    int last_sec_off = ht->last_sec_off;
-    int last_period = ht->last_period;
+    uint64_t last_sec_off = ht->last_sec_off;
+    uint64_t last_period = ht->last_period;
     uint8_t last_bucket;
 
     /* If we are transient we're coming to this sloppy.
@@ -286,7 +286,7 @@ update_histotier(histotier *ht, uint64_t s,
     */
     if(ht->secs[last_sec_off] && hist_num_buckets(ht->secs[last_sec_off])
         && conf->histogram)
-      log_histo(check, last_period * ht->cadence + last_sec_off, name,
+      log_histo(check, last_period * (uint64_t)ht->cadence + last_sec_off, name,
           ht->secs[last_sec_off], mtev_true);
   }
   if(this_period > ht->last_period) {
