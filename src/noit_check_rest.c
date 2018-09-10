@@ -167,16 +167,19 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
       }
       xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
   
+      noit_check_stats_populate_xml_hook_invoke(metrics, check, noit_check_get_stats_inprogress(check), "inprogress");
       add_metrics_to_node(noit_check_get_stats_inprogress(check), metrics, "inprogress", 0, supp);
       whence = noit_check_stats_whence(c, NULL);
       if(whence->tv_sec) {
         xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+        noit_check_stats_populate_xml_hook_invoke(metrics, check, c, "current");
         add_metrics_to_node(c, metrics, "current", 1, supp);
       }
       previous = noit_check_get_stats_previous(check);
       whence = noit_check_stats_whence(previous, NULL);
       if(whence->tv_sec) {
         xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+        noit_check_stats_populate_xml_hook_invoke(metrics, check, previous, "previous");
         add_metrics_to_node(previous, metrics, "previous", 1, supp);
       }
       if(supp) mtev_hash_destroy(supp, NULL, NULL);
@@ -186,7 +189,7 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
 }
 
 static struct json_object *
-stats_to_json(stats_t *c, mtev_hash_table *supp) {
+stats_to_json(noit_check_t *check, stats_t *c, const char *name, mtev_hash_table *supp) {
   struct json_object *doc;
   doc = json_object_new_object();
   mtev_hash_table *metrics;
@@ -194,6 +197,8 @@ stats_to_json(stats_t *c, mtev_hash_table *supp) {
   const char *k;
   int klen;
   void *data;
+
+  noit_check_stats_populate_json_hook_invoke(doc, check, c, name);
 
   metrics = noit_check_stats_metrics(c);
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
@@ -317,7 +322,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   
       t = noit_check_stats_whence(c, NULL);
       if(t->tv_sec) {
-        json_object_object_add(metrics, "current", stats_to_json(c, supp));
+        json_object_object_add(metrics, "current", stats_to_json(check, c, "current", supp));
         snprintf(timestr, sizeof(timestr), "%llu%03d",
                  (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
         json_object_object_add(metrics, "current_timestamp", json_object_new_string(timestr));
@@ -326,7 +331,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
       c = noit_check_get_stats_inprogress(check);
       t = noit_check_stats_whence(c, NULL);
       if(t->tv_sec) {
-        json_object_object_add(metrics, "inprogress", stats_to_json(c, supp));
+        json_object_object_add(metrics, "inprogress", stats_to_json(check, c, "inprogress", supp));
         snprintf(timestr, sizeof(timestr), "%llu%03d",
                  (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
         json_object_object_add(metrics, "inprogress_timestamp", json_object_new_string(timestr));
@@ -335,7 +340,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
       c = noit_check_get_stats_previous(check);
       t = noit_check_stats_whence(c, NULL);
       if(t->tv_sec) {
-        json_object_object_add(metrics, "previous", stats_to_json(c, supp));
+        json_object_object_add(metrics, "previous", stats_to_json(check, c, "previous", supp));
         snprintf(timestr, sizeof(timestr), "%llu%03d",
                  (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
         json_object_object_add(metrics, "previous_timestamp", json_object_new_string(timestr));

@@ -500,6 +500,32 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
 }
 
 static int
+noit_lua_set_metric_histogram(lua_State *L) {
+  noit_check_t *check;
+  const char *metric_name;
+  struct timeval whence = { 0UL, 0UL };
+
+  double __n = 0.0;
+  int32_t __i = 0;
+  uint32_t __I = 0;
+  int64_t __l = 0;
+  uint64_t __L = 0;
+
+  if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
+  metric_name = lua_tostring(L, 1);
+
+  if(lua_isnil(L, 2)) {
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+  noit_stats_set_metric_histogram(check, metric_name, METRIC_GUESS, (void *)lua_tostring(L,2));
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+static int
 noit_lua_set_histo_metric(lua_State *L) {
   noit_check_t *check;
   const char *metric_name;
@@ -708,6 +734,10 @@ noit_check_index_func(lua_State *L) {
       else IF_METRIC_BLOCK("metric_int64", METRIC_INT64)
       else IF_METRIC_BLOCK("metric_uint64", METRIC_UINT64)
       else IF_METRIC_BLOCK("metric_double", METRIC_DOUBLE)
+      else if(!strcmp(k, "metric_histogram")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_set_metric_histogram, 1);
+      }
       else if(!strcmp(k, "metric_json")) {
         lua_pushlightuserdata(L, check);
         lua_pushcclosure(L, noit_lua_set_metric_json, 1);

@@ -34,6 +34,7 @@
 #include <mtev_defines.h>
 #include "noit_config.h"
 #include <mtev_uuid.h>
+#include <mtev_json.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,6 +127,30 @@ MTEV_HOOK_IMPL(check_deleted,
   void *, closure,
   (void *closure, noit_check_t *check),
   (closure,check))
+
+MTEV_HOOK_IMPL(check_stats_set_metric_histogram,
+  (noit_check_t *check, metric_t *m),
+  void *, closure,
+  (void *closure, noit_check_t *check, metric_t *m),
+  (closure, check, m));
+
+MTEV_HOOK_IMPL(noit_check_stats_populate_json,
+  (struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
+  void *, closure,
+  (void *closure, struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
+  (closure, doc, check, s, name));
+
+MTEV_HOOK_IMPL(noit_check_stats_populate_xml,
+  (xmlNodePtr doc, noit_check_t *check, stats_t *s, const char *name),
+  void *, closure,
+  (void *closure, xmlNodePtr doc, noit_check_t *check, stats_t *s, const char *name),
+  (closure, doc, check, s, name));
+
+MTEV_HOOK_IMPL(noit_stats_log_immediate_metric_timed,
+  (noit_check_t *check, const char *metric_name, metric_type_t type, const void *value, const struct timeval *whence),
+  void *, closure,
+  (void *closure, noit_check_t *check, const char *metric_name, metric_type_t type, const void *value, const struct timeval *whence),
+  (closure, check, metric_name, type, value, whence));
 
 #define STATS_INPROGRESS 0
 #define STATS_CURRENT 1
@@ -2190,8 +2215,11 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
   }
   noit_check_metric_count_add(1);
   c = noit_check_get_stats_inprogress(check);
-  check_stats_set_metric_hook_invoke(check, c, m);
-  __stats_add_metric(c, m);
+  if(check_stats_set_metric_hook_invoke(check, c, m) == MTEV_HOOK_CONTINUE) {
+    __stats_add_metric(c, m);
+  } else {
+    mtev_memory_safe_free(m);
+  }
 }
 
 void
@@ -2201,6 +2229,25 @@ noit_stats_set_metric(noit_check_t *check,
   noit_stats_set_metric_with_timestamp(check, name, type, value, NULL);
 }
 
+void
+noit_stats_set_metric_histogram(noit_check_t *check,
+                                const char *name_raw, metric_type_t type, void *value) {
+  if(!check_stats_set_metric_histogram_hook_exists()) return;
+
+  void *replacement = NULL;
+  char tagged_name[MAX_METRIC_TAGGED_NAME];
+  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
+    return;
+  if(type == METRIC_GUESS)
+    type = noit_metric_guess_type((char *)value, &replacement);
+  if(type == METRIC_GUESS) return;
+
+  metric_t m_onstack = { .metric_name = tagged_name,
+                         .metric_type = type,
+                         .metric_value = { .vp = replacement ? replacement : value } };
+  check_stats_set_metric_histogram_hook_invoke(check, &m_onstack);
+  free(replacement);
+}
 void
 noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
                              const char *name_raw, metric_type_t t,
@@ -2314,6 +2361,11 @@ noit_stats_log_immediate_metric_timed(noit_check_t *check,
     return;
   }
 
+  if(noit_stats_log_immediate_metric_timed_hook_invoke(check, tagged_name, type,
+                                                       value, whence) != MTEV_HOOK_CONTINUE) {
+    return;
+  }
+
   record_immediate_metric_with_tagset(check, tagged_name, type, value, mtev_true, whence);
 }
 void
@@ -2343,6 +2395,8 @@ noit_stats_log_immediate_histo(noit_check_t *check,
     return mtev_false;
   }
 
+  /* This sets up a dummy numeric entry so that other people will know the name exists. */
+  /* This should likely be handled in the histogram module, but that plumbing is far from here */
   record_immediate_metric_with_tagset(check, name, METRIC_INT32, NULL, mtev_false, &whence);
   return mtev_true;
 }
