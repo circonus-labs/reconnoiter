@@ -853,8 +853,9 @@ function TestPostgres:setup()
   ret, out, err = system({
     argv = { 'psql', '-h', 'localhost', '-p', self.db_port, 'postgres',
              '-f', cwd .. "/../../sql/reconnoiter_ddl_dump.sql" },
-    timeout = 5
+    timeout = 10
   })
+  err = err and err or ""
   local lines = err:split("\n")
   for i, line in ipairs(lines) do
     if line ~= '' then
@@ -862,7 +863,8 @@ function TestPostgres:setup()
       if not rv then return line end
     end
   end
-  if ret ~= 0 then return "psql load failed" end
+  out = out or ""
+  if ret ~= 0 then return "psql load failed (" .. out .. ") (" .. err .. ")" end
   return nil
 end
 
