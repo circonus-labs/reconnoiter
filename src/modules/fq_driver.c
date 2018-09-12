@@ -46,6 +46,9 @@
 
 static mtev_log_stream_t nlerr = NULL;
 static mtev_hash_table filtered_checks_hash;
+static mtev_hash_table suppress_account_id;
+static mtev_hash_table suppress_check_id;
+static mtev_hash_table suppress_check_uuid;
 static bool filtered_metrics_exist = false;
 
 typedef struct {
@@ -236,6 +239,33 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
       global_fq_ctx.round_robin = 0;
     }
   }
+  char *str;
+  if(mtev_conf_get_string(conf, "suppress_account_id", &str)) {
+    for(cp = strtok_r(str, ",", &brk);
+        cp; cp = strtok_r(NULL, ",", &brk), i++) {
+      int *acct = malloc(sizeof(int));
+      *acct = atoi(cp);
+      mtev_hash_replace(&suppress_account_id, (const char *)acct, sizeof(int), NULL, free, NULL);
+    }
+    free(str);
+  }
+  if(mtev_conf_get_string(conf, "suppress_check_id", &str)) {
+    for(cp = strtok_r(str, ",", &brk);
+        cp; cp = strtok_r(NULL, ",", &brk), i++) {
+      int *checkid = malloc(sizeof(int));
+      *checkid = atoi(cp);
+      mtev_hash_replace(&suppress_check_id, (const char *)checkid, sizeof(int), NULL, free, NULL);
+    }
+    free(str);
+  }
+  if(mtev_conf_get_string(conf, "suppress_check_uuid", &str)) {
+    for(cp = strtok_r(str, ",", &brk);
+        cp; cp = strtok_r(NULL, ",", &brk), i++) {
+      char *checkuuid = strdup(cp);
+      mtev_hash_replace(&suppress_check_uuid, checkuuid, strlen(checkuuid), NULL, free, NULL);
+    }
+    free(str);
+  }
   (void)mtev_conf_get_string(conf, "hostname", &hostname);
   if(!hostname) hostname = strdup("127.0.0.1");
   for(cp = hostname; cp; cp = strchr(cp+1, ',')) global_fq_ctx.nhosts++;
@@ -303,6 +333,13 @@ noit_fq_submit(iep_thread_driver_t *dr,
     if(extract_uuid_from_jlog(payload, payloadlen,
                               &account_id, &check_id, uuid_str,
                               uuid_formatted_str, &metric)) {
+      if(mtev_hash_retrieve(&suppress_account_id, (const char *)&account_id, sizeof(int), NULL) ||
+         mtev_hash_retrieve(&suppress_check_id, (const char *)&check_id, sizeof(int), NULL) ||
+         mtev_hash_retrieve(&suppress_check_uuid, uuid_str, UUID_STR_LEN, NULL)) {
+        free(metric);
+        return 0;
+      }
+
       if(*routingkey) {
         char *replace = NULL;
         int newlen = strlen(driver->routingkey) + 1 + sizeof(uuid_str) + 2 * 32;
@@ -313,6 +350,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
         routingkey = replace;
       }
     }
+
   }
 
   /* Let through any messages that aren't metrics or bundles */
@@ -582,6 +620,9 @@ static int noit_fq_driver_init(mtev_dso_generic_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/fq_driver");
   if(!nlerr) nlerr = mtev_error;
   mtev_hash_init(&filtered_checks_hash);
+  mtev_hash_init(&suppress_account_id);
+  mtev_hash_init(&suppress_check_id);
+  mtev_hash_init(&suppress_check_uuid);
   stratcon_iep_mq_driver_register("fq", &mq_driver_fq);
   register_console_fq_commands();
   eventer_add_in_s_us(fq_status_checker, NULL, 0, 0);
