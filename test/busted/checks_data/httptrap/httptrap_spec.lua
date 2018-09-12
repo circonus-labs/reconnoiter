@@ -116,5 +116,14 @@ describe("noit", function()
       assert.is.same(expected_stats, metrics)
       assert.is.same(expected_stats, xmetrics)
     end)
+
+    it("supports streaming json", function()
+      local code, doc = api:json("PUT", "/module/httptrap/" .. uuid .. "/foofoo",
+                                 [=[{"a":1}{"b":2}
+                                    {"a":3,"b":4}
+                                    {"c":5}]=])
+      assert.is.equal(200,code)
+      assert.is.equal(5,doc.stats)
+    end)
   end)
 end)
