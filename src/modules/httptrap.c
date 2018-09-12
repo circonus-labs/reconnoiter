@@ -782,6 +782,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     yajl_config(rxc->parser, yajl_allow_comments, 1);
     yajl_config(rxc->parser, yajl_dont_validate_strings, 1);
     yajl_config(rxc->parser, yajl_allow_trailing_garbage, 1);
+    yajl_config(rxc->parser, yajl_allow_multiple_values, 1);
     yajl_config(rxc->parser, yajl_allow_partial_values, 1);
     restc->call_closure_free = rest_json_payload_free;
   }
