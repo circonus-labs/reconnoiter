@@ -262,7 +262,7 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
     for(cp = strtok_r(str, ",", &brk);
         cp; cp = strtok_r(NULL, ",", &brk), i++) {
       char *checkuuid = strdup(cp);
-      mtev_hash_replace(&suppress_check_uuid, checkuuid, sizeof(int), NULL, free, NULL);
+      mtev_hash_replace(&suppress_check_uuid, checkuuid, strlen(checkuuid), NULL, free, NULL);
     }
     free(str);
   }
