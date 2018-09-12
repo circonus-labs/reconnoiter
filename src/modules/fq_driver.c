@@ -242,7 +242,7 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
   char *str;
   if(mtev_conf_get_string(conf, "suppress_account_id", &str)) {
     for(cp = strtok_r(str, ",", &brk);
-        cp; cp = strtok_r(NULL, ",", &brk), i++) {
+        cp; cp = strtok_r(NULL, ",", &brk)) {
       int *acct = malloc(sizeof(int));
       *acct = atoi(cp);
       mtev_hash_replace(&suppress_account_id, (const char *)acct, sizeof(int), NULL, free, NULL);
@@ -251,7 +251,7 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
   }
   if(mtev_conf_get_string(conf, "suppress_check_id", &str)) {
     for(cp = strtok_r(str, ",", &brk);
-        cp; cp = strtok_r(NULL, ",", &brk), i++) {
+        cp; cp = strtok_r(NULL, ",", &brk)) {
       int *checkid = malloc(sizeof(int));
       *checkid = atoi(cp);
       mtev_hash_replace(&suppress_check_id, (const char *)checkid, sizeof(int), NULL, free, NULL);
@@ -260,7 +260,7 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
   }
   if(mtev_conf_get_string(conf, "suppress_check_uuid", &str)) {
     for(cp = strtok_r(str, ",", &brk);
-        cp; cp = strtok_r(NULL, ",", &brk), i++) {
+        cp; cp = strtok_r(NULL, ",", &brk)) {
       char *checkuuid = strdup(cp);
       mtev_hash_replace(&suppress_check_uuid, checkuuid, strlen(checkuuid), NULL, free, NULL);
     }
