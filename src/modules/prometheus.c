@@ -497,13 +497,18 @@ static int noit_prometheus_init(noit_module_t *self) {
 
   noit_module_set_userdata(self, conf);
 
+  eventer_pool_t *dp = eventer_pool("noit_module_prometheus");
+
   /* register rest handler */
-  mtev_http_rest_register("PUT", "/module/prometheus/",
-                          "^(" UUID_REGEX ")/([^/]*).*$",
-                          rest_prometheus_handler);
-  mtev_http_rest_register("POST", "/module/prometheus/",
-                          "^(" UUID_REGEX ")/([^/]*).*$",
-                          rest_prometheus_handler);
+  mtev_rest_mountpoint_t *rule;
+  rule = mtev_http_rest_new_rule("PUT", "/module/prometheus/",
+                                 "^(" UUID_REGEX ")/([^/]*).*$",
+                                 rest_prometheus_handler);
+  if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+  rule = mtev_http_rest_new_rule("POST", "/module/prometheus/",
+                                 "^(" UUID_REGEX ")/([^/]*).*$",
+                                 rest_prometheus_handler);
+  if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
   return 0;
 }
 
