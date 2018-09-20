@@ -245,6 +245,15 @@ noit_module_help(mtev_console_closure_t ncct,
 void noit_module_init() {
   mtev_conf_section_t *sections;
   int i, cnt = 0;
+  const char *module_list = getenv("NOIT_MODULES");
+  if(!module_list) module_list = ".";
+
+  const char *error;
+  int error_off;
+  pcre *module_match = pcre_compile(module_list, 0, &error, &error_off, NULL);
+  if(!module_match) {
+    mtevL(mtev_error, "Error in NOIT_MODULES regex! (offset: %d)\n", error_off);
+  }
 
   mtev_dso_add_type("module", noit_module_list_modules);
   mtev_console_add_help("module", noit_module_help, noit_module_options);
@@ -266,6 +275,15 @@ void noit_module_init() {
                                 module_name, sizeof(module_name))) {
       mtevL(noit_stderr, "No name defined in module stanza %d\n", i+1);
       continue;
+    }
+
+    /* Check if we intend to allow this module. */
+    if(module_match) {
+      int ovector[30];
+      if(pcre_exec(module_match, NULL, module_name, strlen(module_name), 0, 0, ovector, 30) < 0) {
+        mtevL(mtev_notice, "skipping check module '%s' due to NOIT_MODULES.\n", module_name);
+        continue;
+      }
     }
 
     if(mtev_conf_env_off(sections[i], NULL)) {
@@ -323,6 +341,7 @@ void noit_module_init() {
     mtevL(noit_debug, "Module %s successfully loaded.\n", module_name);
   }
   mtev_conf_release_sections(sections, cnt);
+  if(module_match) pcre_free(module_match);
 }
 
 void noit_module_init_globals(void) {
