@@ -281,7 +281,7 @@ void noit_module_init() {
     if(module_match) {
       int ovector[30];
       if(pcre_exec(module_match, NULL, module_name, strlen(module_name), 0, 0, ovector, 30) < 0) {
-        mtevL(mtev_notice, "skipping check module '%s' due to NOIT_MODULES.\n", module_name);
+        mtevL(mtev_notice, "skipping noit module '%s' due to NOIT_MODULES env var.\n", module_name);
         continue;
       }
     }
