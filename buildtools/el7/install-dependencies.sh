@@ -15,6 +15,7 @@ DEPS_SYSTEM="
 "
 
 DEPS_BUILD="
+    circonus-platform-lua-pgmoon
     circonus-developer-build-maven
     circonus-developer-protobuf-c-compiler
     circonus-developer-jq
