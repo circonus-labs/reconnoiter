@@ -444,7 +444,6 @@ graphite_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
 
   const char *endptr = strchr(sni_name, '.');
   if(!endptr) endptr = sni_name + strlen(sni_name);
-  int rv = -666;
   if(endptr - sni_name < UUID_STR_LEN + 1 ||
      endptr - sni_name >= UUID_STR_LEN + sizeof(secret) ||
      sni_name[UUID_STR_LEN] != '-') {

@@ -268,7 +268,6 @@ update_histotier(histotier *ht, uint64_t s,
      check->feeds) {
     uint64_t last_sec_off = ht->last_sec_off;
     uint64_t last_period = ht->last_period;
-    uint8_t last_bucket;
 
     /* If we are transient we're coming to this sloppy.
      * Someone else owns this ht. So, if we're high-traffic
@@ -393,8 +392,6 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
                     metric_t *m) {
   mtev_hash_table *config;
   const char *track = "";
-  mtev_dso_generic_t *self = closure;
-  struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
 
   config = noit_check_get_module_config(check, histogram_module_id);
   if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
@@ -449,8 +446,6 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
                             mtev_boolean success) {
   mtev_hash_table *config;
   const char *track = "";
-  mtev_dso_generic_t *self = closure;
-  struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
 
   if(success) return MTEV_HOOK_CONTINUE;
 

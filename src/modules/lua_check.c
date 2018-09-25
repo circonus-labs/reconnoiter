@@ -503,13 +503,6 @@ static int
 noit_lua_set_metric_histogram(lua_State *L) {
   noit_check_t *check;
   const char *metric_name;
-  struct timeval whence = { 0UL, 0UL };
-
-  double __n = 0.0;
-  int32_t __i = 0;
-  uint32_t __I = 0;
-  int64_t __l = 0;
-  uint64_t __L = 0;
 
   if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   check = lua_touserdata(L, lua_upvalueindex(1));
