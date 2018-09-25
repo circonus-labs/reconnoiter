@@ -16,6 +16,7 @@ DEPS_SYSTEM="
 
 DEPS_BUILD="
     circonus-developer-build-maven
+    circonus-developer-protobuf-c-compiler
     circonus-developer-jq
     circonus-field-ck
     circonus-field-jdk
