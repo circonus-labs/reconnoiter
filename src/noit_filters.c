@@ -266,7 +266,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   }
 
   filterrule_t *cursor;
-  for(cursor = set->rules; cursor->next; cursor = cursor->next) {
+  for(cursor = set->rules; cursor && cursor->next; cursor = cursor->next) {
     if(cursor->skipto) {
       filterrule_t *target;
       for(target = cursor->next; target; target = target->next) {

@@ -160,6 +160,7 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq, const char **err) 
   if(seqstr) xmlFree(seqstr);
 
   previous_child = root;
+  int rulecnt = 0;
   for(r = root->children; r; r = r->next) {
 #define CHECK_N_SET(a) if(!strcmp((char *)r->name, #a))
     char *type;
@@ -171,6 +172,7 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq, const char **err) 
         *err = "unknown type";
         return NULL;
       }
+      rulecnt++;
       if(type) xmlFree(type);
     }
     else CHECK_N_SET(seq) {
@@ -192,6 +194,10 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq, const char **err) 
     previous_child = r;
   }
 
+  if(rulecnt == 0) {
+    *err = "no rules";
+    return NULL;
+  }
   return root;
 }
 static int
