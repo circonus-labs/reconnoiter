@@ -125,25 +125,40 @@ make_conf_path(char *path) {
   return start;
 }
 static xmlNodePtr
-validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq) {
+validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq, const char **err) {
   xmlNodePtr root, r, previous_child;
   char *old_name;
+  *err = "data validation error";
 
   if(seq) *seq = 0;
   root = xmlDocGetRootElement(doc);
   if(!root) return NULL;
-  if(strcmp((char *)root->name, "filterset")) return NULL;
+  if(strcmp((char *)root->name, "filterset")) {
+    *err = "bad root node";
+    return NULL;
+  }
 
   old_name = (char *)xmlGetProp(root, (xmlChar *)"name");
   if(old_name == NULL) {
     xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
   } else if(name == NULL || strcmp(old_name, name)) {
     xmlFree(old_name);
+    *err = "name mismatch";
     return NULL;
   }
   if(old_name) xmlFree(old_name);
 
-  if(!root->children) return NULL;
+  if(!root->children) {
+    *err = "no rules";
+    return NULL;
+  }
+
+  xmlChar *seqstr = xmlGetProp(root, (xmlChar *)"seq");
+  if(seqstr && seq) {
+    *seq = strtoll((const char *)seqstr, NULL, 10);
+  }
+  if(seqstr) xmlFree(seqstr);
+
   previous_child = root;
   for(r = root->children; r; r = r->next) {
 #define CHECK_N_SET(a) if(!strcmp((char *)r->name, #a))
@@ -153,6 +168,7 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq) {
       if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow") &&
                    strncmp(type, "skipto:", strlen("skipto:")))) {
         if(type) xmlFree(type);
+        *err = "unknown type";
         return NULL;
       }
       if(type) xmlFree(type);
@@ -170,6 +186,7 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq) {
       xmlFree(v);
     }
     else {
+      *err = "unknown attribute";
       return NULL;
     }
     previous_child = r;
@@ -248,7 +265,10 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   int64_t old_seq = 0;
   const char *error = "internal error";
 
-  if(npats != 2) goto error;
+  if(npats != 2) {
+    error = "invalid URI";
+    goto error;
+  }
 
   indoc = rest_get_xml_upload(restc, &mask, &complete);
   if(!complete) return mask;
@@ -260,13 +280,18 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   exists = noit_filter_get_seq(pats[1], &old_seq);
   if(mtev_conf_section_is_empty(section) && exists == mtev_true) {
     /* It's someone else's */
+    error = "invalid path";
     error_code = 403;
     goto error;
   }
 
-  if((newfilter = validate_filter_post(indoc, pats[1], &seq)) == NULL) goto error;
+  if((newfilter = validate_filter_post(indoc, pats[1], &seq, &error)) == NULL) {
+    goto error;
+  }
+  mtevL(mtev_error, "exists: %d, old_seq: %" PRId64 ", seq: %" PRId64 "\n", exists, old_seq, seq);
   if(exists && (old_seq >= seq && seq != 0)) {
     error_code = 403;
+    error = "sequencing error";
     goto error;
   }
 
