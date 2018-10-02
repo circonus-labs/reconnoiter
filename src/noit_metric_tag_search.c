@@ -80,6 +80,7 @@ build_regex_from_expansion(const char *expansion) {
   regex[ridx++] = '$';
   return regex;
 }
+
 static mtev_boolean
 noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int part) {
   char decoded_tag[512];
@@ -127,12 +128,18 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       query = *endq;
     }
 
-    
-
     while(**endq &&
           (is_encoded ?
            noit_metric_tagset_is_taggable_b64_char(**endq) :
-           (noit_metric_tagset_is_taggable_key(*endq, 1) || **endq == '*' || **endq == '?') )) {
+           (
+            (part == 2 ?
+               noit_metric_tagset_is_taggable_value(*endq, 1) :
+               noit_metric_tagset_is_taggable_key(*endq, 1)
+            ) || **endq == '*' || **endq == '?'
+           )
+          )
+         )
+    {
       (*endq)++;
     }
 

@@ -140,6 +140,16 @@ void test_ast_decode()
   test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
   test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
   noit_metric_tag_search_free(ast);
+
+  /* simple test with colons in value */
+  ast = noit_metric_tag_search_parse("and(foo:bar:baz)", &erroroffset);
+  test_assert(ast != NULL);
+  test_assert(ast->operation == OP_AND_ARGS);
+  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar:baz") == 0);
+  noit_metric_tag_search_free(ast);
+
   
   /* half / test */
   ast = noit_metric_tag_search_parse("and(/endpoint`latency:/bar)", &erroroffset);
