@@ -49,9 +49,6 @@
 static mtev_log_stream_t ds_err = NULL;
 static mtev_log_stream_t ds_deb = NULL;
 
-static char *basejpath = NULL;
-static mtev_hash_table uuid_map;
-
 static void
 noop_iep_check_preload() {
   mtevL(mtev_debug, "iep_preload is a noop in test mode\n");
