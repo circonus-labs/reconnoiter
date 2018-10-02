@@ -209,6 +209,36 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
 }
 
 noit_metric_tag_search_ast_t *
+noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
+  if(!in) return NULL;
+  noit_metric_tag_search_ast_t *out = malloc(sizeof(*out));
+  memcpy(out, in, sizeof(*out));
+  if(out->operation == OP_MATCH) {
+    int erroffset;
+    const char *error;
+    if(out->contents.spec.cat.str)
+      out->contents.spec.cat.str = strdup(out->contents.spec.cat.str);
+    if(out->contents.spec.cat.re)
+      out->contents.spec.cat.re = pcre_compile(out->contents.spec.cat.str,
+                                               0, &error, &erroffset, NULL);
+    if(out->contents.spec.name.str)
+      out->contents.spec.name.str = strdup(out->contents.spec.name.str);
+    if(out->contents.spec.name.re)
+      out->contents.spec.name.re = pcre_compile(out->contents.spec.name.str,
+                                               0, &error, &erroffset, NULL);
+  }
+  else {
+    noit_metric_tag_search_ast_t **nodes = calloc(out->contents.args.cnt, sizeof(*nodes));
+    for(int i=0; i<out->contents.args.cnt; i++)
+      nodes[i] = noit_metric_tag_search_clone(out->contents.args.node[i]);
+    out->contents.args.node = nodes;
+  }
+
+  out->user_data = NULL;
+  out->user_data_free = NULL;
+  return out;
+}
+noit_metric_tag_search_ast_t *
 noit_metric_tag_search_parse(const char *query, int *erroff) {
   noit_metric_tag_search_ast_t *tree;
   const char *eop;

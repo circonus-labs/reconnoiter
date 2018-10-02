@@ -94,6 +94,9 @@ typedef struct noit_metric_tag_search_ast_t {
   void (*user_data_free)(void *);
 } noit_metric_tag_search_ast_t;
 
+API_EXPORT(noit_metric_tag_search_ast_t *)
+  noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *);
+
 API_EXPORT(void)
   noit_metric_tag_search_free(noit_metric_tag_search_ast_t *);
 
