@@ -54,6 +54,7 @@
 #include "noit_check_tools.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
+#define FAILC(c, a) do { error_code = (c); error = (a); goto error; } while(0)
 
 #define NCINIT \
   mtev_boolean nc__locked = mtev_false; \
@@ -877,15 +878,15 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
     exists = mtev_true;
 
   rv = noit_check_xpath(xpath, sizeof(xpath), pats[0], pats[1]);
-  if(rv == 0) FAIL("uuid not valid");
-  if(rv < 0) FAIL("Tricky McTrickster... No");
+  if(rv == 0) FAILC(400, "uuid not valid");
+  if(rv < 0) FAILC(403, "Tricky McTrickster... No");
 
   NCLOCK;
   mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    if(exists) { error_code = 403; FAIL("uuid not yours"); }
+    if(exists) FAILC(403, "uuid not yours");
     goto not_found;
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
@@ -958,7 +959,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
 
   indoc = rest_get_xml_upload(restc, &mask, &complete);
   if(!complete) return mask;
-  if(indoc == NULL) FAIL("xml parse error");
+  if(indoc == NULL) FAILC(400, "xml parse error");
   if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) goto error;
 
   if(mtev_uuid_parse(pats[1], checkid)) goto error;
@@ -967,15 +968,15 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     exists = mtev_true;
 
   rv = noit_check_xpath(xpath, sizeof(xpath), pats[0], pats[1]);
-  if(rv == 0) FAIL("uuid not valid");
-  if(rv < 0) FAIL("Tricky McTrickster... No");
+  if(rv == 0) FAILC(403, "uuid not valid");
+  if(rv < 0) FAILC(403, "Tricky McTrickster... No");
 
   NCLOCK;
   mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    if(exists) { error_code = 403; FAIL("uuid not yours"); }
+    if(exists) FAILC(403, "uuid not yours");
     else {
       int64_t seq;
       uint64_t old_seq = 0;
@@ -998,15 +999,15 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       if(target) xmlFree(target);
       if(name) xmlFree(name);
       if(module) xmlFree(module);
-      if(exists) FAIL("target`name already registered");
-      if(!m) FAIL("module does not exist");
+      if(exists) FAILC(409, "target`name already registered");
+      if(!m) FAILC(412, "module does not exist");
       /* create a check here */
       newcheck = xmlNewNode(NULL, (xmlChar *)"check");
       xmlSetProp(newcheck, (xmlChar *)"uuid", (xmlChar *)pats[1]);
       parent = make_conf_path(pats[0]);
       if(!parent) FAIL("invalid path");
       configure_xml_check(parent, newcheck, attr, config, &seq);
-      if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
+      if(old_seq >= seq && seq != 0) FAILC(409, "sequencing error");
       xmlAddChild(parent, newcheck);
       CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(newcheck));
     }
@@ -1044,13 +1045,13 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     xmlFree(target);
     xmlFree(name);
     xmlFree(module);
-    if(ocheck && ocheck != check) FAIL("new target`name would collide");
-    if(module_change) FAIL("cannot change module");
+    if(ocheck && ocheck != check) FAILC(409, "new target`name would collide");
+    if(module_change) FAILC(400, "cannot change module");
     parent = make_conf_path(pats[0]);
     if(!parent) FAIL("invalid path");
     configure_xml_check(parent, node, attr, config, &seq);
     if(check) old_seq = check->config_seq;
-    if(old_seq >= seq && seq != 0) FAIL("invalid sequence");
+    if(old_seq >= seq && seq != 0) FAILC(409, "sequencing error");
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
     CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));

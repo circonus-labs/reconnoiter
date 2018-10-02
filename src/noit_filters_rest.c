@@ -294,9 +294,8 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   if((newfilter = validate_filter_post(indoc, pats[1], &seq, &error)) == NULL) {
     goto error;
   }
-  mtevL(mtev_error, "exists: %d, old_seq: %" PRId64 ", seq: %" PRId64 "\n", exists, old_seq, seq);
   if(exists && (old_seq >= seq && seq != 0)) {
-    error_code = 403;
+    error_code = 409;
     error = "sequencing error";
     goto error;
   }
