@@ -25,8 +25,8 @@ describe("cluster", function()
   <attributes>
     <target>127.0.0.1</target>
     <seq>]=] .. tostring(global_seq) .. [=[</seq>
-    <period>5000</period>
-    <timeout>1000</timeout>
+    <period>1000</period>
+    <timeout>800</timeout>
     <name>]=] .. name .. [=[</name>
     <filterset>allowall</filterset>
     <module>]=] .. module .. [=[</module>
@@ -131,10 +131,14 @@ describe("cluster", function()
     end)
     it("deletes completely", function()
       local code
-      mtev.sleep(1.5)
-      code = api1:json("GET", "/checks/show/" .. check_uuid .. ".json")
-      assert.is.equal(404, code)
-      code = api2:json("GET", "/checks/show/" .. check_uuid .. ".json")
+      for i = 1, 10 do
+        mtev.sleep(0.5)
+        code = api1:json("GET", "/checks/show/" .. check_uuid .. ".json")
+        if code == 404 then
+          code = api2:json("GET", "/checks/show/" .. check_uuid .. ".json")
+          if code == 404 then break end
+        end
+      end
       assert.is.equal(404, code)
     end)
   end)
