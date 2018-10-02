@@ -131,10 +131,9 @@ function orderedPairs(t)
 end
 
 function escape(s)
-  s = string.gsub(s, "([%%,:/&=+%c])", function (c)
+  s = string.gsub(s, "([%%,:/&=+%c%s])", function (c)
     return string.format("%%%02X", string.byte(c))
   end)
-  s = string.gsub(s, " ", "%20")
   return s
 end
 
