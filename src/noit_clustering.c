@@ -124,6 +124,7 @@ typedef struct {
   struct timeval boot;
   struct {
     /* these are inbound */
+    int64_t prev_fetched;
     int64_t fetched;
     int64_t available;
     int last_batch;
@@ -134,6 +135,7 @@ typedef struct {
   } checks;
   struct {
     /* these are inbound */
+    int64_t prev_fetched;
     int64_t fetched;
     int64_t available;
     int last_batch;
@@ -403,7 +405,7 @@ fetch_xml_from_noit(CURL *curl, const char *url, struct curl_slist *connect_to) 
   if(fd < 0) return NULL;
   unlink(tfile);
 
-  mtevL(cldeb, "Pulling %s\n", url);
+  mtevL(cldeb, "REPL_JOB Pulling %s\n", url);
   curl_easy_setopt(curl, CURLOPT_URL, url);
   curl_easy_setopt(curl, CURLOPT_CONNECT_TO, connect_to);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &fd);
@@ -447,6 +449,12 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
     }
     mtevL(cldeb, "REPL_JOB start [%s] F[%"PRId64",%"PRId64"] C:[%"PRId64",%"PRId64"]\n",
       ((noit_peer_t *)vp)->cn, rj->filters.prev, rj->filters.end, rj->checks.prev, rj->checks.end);
+    if(rj->filters.end == 0 && rj->checks.end == 0) {
+      mtevL(cldeb, "REPL_JOB noop, nothing to do.\n");
+      pthread_mutex_unlock(&noit_peer_lock);
+      sleep(1);
+      return 0;
+    }
     pthread_mutex_unlock(&noit_peer_lock);
 
     mtev_cluster_get_self(my_id);
@@ -535,10 +543,16 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       noit_peer_t *peer = vp;
       peer->job_inflight = mtev_false;
       peer->filters.last_batch = rj->filters.batch_size;
+      if(rj->filters.success && rj->filters.prev) {
+        peer->filters.prev_fetched = rj->filters.prev;
+      }
       if(rj->filters.success && rj->filters.end) {
         peer->filters.fetched = rj->filters.end;
       }
       peer->checks.last_batch = rj->checks.batch_size;
+      if(rj->checks.success && rj->checks.prev) {
+        peer->checks.prev_fetched = rj->checks.prev;
+      }
       if(rj->checks.success && rj->checks.end) {
         peer->checks.fetched = rj->checks.end;
       }
@@ -555,11 +569,17 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
 }
 static void
 possibly_start_job(noit_peer_t *peer) {
-  if(peer->job_inflight) return;
-  if(mtev_cluster_get_node(my_cluster, peer->id) == NULL) return;
+  if(peer->job_inflight) {
+    mtevL(cldeb, "REPL_JOB job already inflight\n");
+    return;
+  }
+  if(mtev_cluster_get_node(my_cluster, peer->id) == NULL) {
+    mtevL(cldeb, "REPL_JOB peer %s no longer in cluster\n", peer->cn);
+    return;
+  }
   if(peer->checks.last_batch || peer->filters.last_batch ||
-     peer->checks.available != peer->checks.fetched ||
-     peer->filters.available != peer->filters.fetched) {
+     peer->checks.available != peer->checks.prev_fetched ||
+     peer->filters.available != peer->filters.prev_fetched) {
     /* We have work to do */
     repl_job_t *rj = calloc(1, sizeof(*rj));
     mtev_uuid_copy(rj->peerid, peer->id);
@@ -567,14 +587,16 @@ possibly_start_job(noit_peer_t *peer) {
     rj->checks.end = peer->checks.available;
     rj->filters.prev = peer->filters.fetched;
     rj->filters.end = peer->filters.available;
-    if(rj->checks.prev == rj->checks.end && peer->checks.last_batch == 0) {
+    if(peer->checks.prev_fetched == rj->checks.end && peer->checks.last_batch == 0) {
       rj->checks.prev = rj->checks.end = 0;
     }
-    if(rj->filters.prev == rj->filters.end && peer->filters.last_batch == 0) {
+    if(peer->filters.prev_fetched == rj->filters.end && peer->filters.last_batch == 0) {
       rj->filters.prev = rj->filters.end = 0;
     }
     peer->job_inflight = true;
     eventer_add_asynch(repl_jobq, eventer_alloc_asynch(repl_work, rj));
+  } else {
+    mtevL(cldeb, "REPL_JOB no more work to do\n");
   }
 }
 
@@ -645,6 +667,8 @@ update_peer(mtev_cluster_node_t *node) {
     memcpy(&peer->boot, &boot, sizeof(boot));
     peer->checks.fetched = 0;
     peer->filters.fetched = 0;
+    peer->checks.prev_fetched = 0;
+    peer->filters.prev_fetched = 0;
     noit_peer_rebuild_changelog(peer);
   }
   if(mtev_cluster_get_heartbeat_payload(node,
