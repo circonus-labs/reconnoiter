@@ -256,9 +256,9 @@ function TestConfig:make_logs_config(fd, opts)
   "<logs>\n" ..
   "  <console_output>\n" ..
   "    <outlet name=\"stderr\"/>\n" ..
-  "    <log name=\"error\" disabled=\"" .. opts['logs_error'][''] .. "\" timestamps=\"true\"/>\n" ..
-  "    <log name=\"debug\" disabled=\"" .. opts['logs_debug'][''] .. "\" timestamps=\"true\"/>\n" ..
-  "    <log name=\"http/access\" disabled=\"false\" timestamps=\"true\"/>\n" ..
+  "    <log name=\"error\" debug=\"true\" disabled=\"" .. opts['logs_error'][''] .. "\" timestamps=\"true\"/>\n" ..
+  "    <log name=\"debug\" debug=\"true\" disabled=\"" .. opts['logs_debug'][''] .. "\" timestamps=\"true\"/>\n" ..
+  "    <log name=\"http/access\" debug=\"true\" disabled=\"false\" timestamps=\"true\"/>\n" ..
   "  </console_output>\n" ..
   "  <feeds>\n" ..
   "    <log name=\"feed\" type=\"jlog\" path=\"" .. opts.workspace .. "/logs/" .. opts.name .. ".feed(*)\"/>\n" ..
