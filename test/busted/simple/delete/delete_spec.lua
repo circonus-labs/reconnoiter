@@ -6,9 +6,11 @@ describe("noit", function()
   end)
   teardown(function() if noit ~= nil then noit:stop() end end)
 
-  local uuid = mtev.uuid()
+  local check_cnt = 50
+  local uuid = {}
+  for i = 1,check_cnt do uuid[i] = mtev.uuid() end
   local gseq = 0
-  local check_xml = function()
+  local check_xml = function(i)
     gseq = gseq + 2
     local id = "foo_" .. gseq
     return
@@ -19,7 +21,7 @@ describe("noit", function()
     <target>]=] .. id .. [=[</target>
     <period>1000</period>
     <timeout>500</timeout>
-    <name>thisisauniquename_]=] .. id .. [=[</name>
+    <name>thisisauniquename_]=] .. tostring(i) .. [=[</name>
     <filterset>allowall</filterset>
     <module>http</module>
   </attributes>
@@ -35,42 +37,37 @@ describe("noit", function()
 
   describe("check", function()
     it("is not present", function()
-      local code = api:json("GET", "/checks/show/" .. uuid .. ".json")
-      assert.is.equal(404, code)
+      for i = 1,check_cnt do
+        local code = api:json("GET", "/checks/show/" .. uuid[i] .. ".json")
+        assert.is.equal(404, code)
+      end
     end)
     it("adds", function()
-      local code, doc = api:raw("PUT", "/checks/set/" .. uuid, check_xml())
-      assert.is.equal(200, code)
+      for i = 1,check_cnt do
+        local code, doc = api:raw("PUT", "/checks/set/" .. uuid[i], check_xml(i))
+        assert.is.equal(200, code)
+      end
     end)
     it("is present", function()
-      local code, doc = api:json("GET", "/checks/show/" .. uuid .. ".json")
-      assert.is.equal(200, code)
-    end)
-  end)
-
-  describe("check", function()
-    it("deletes", function()
-      local code, doc = api:raw("DELETE", "/checks/delete/" .. uuid)
-      assert.is.equal(200, code)
-    end)
-    it("is not present", function()
-      local code, doc, data = api:json("GET", "/checks/show/" .. uuid .. ".json")
-      assert.is_true(code == 404 or bit.band(doc.flags, tonumber("80", 16)) ~= 0)
+      for i = 1,check_cnt do
+        local code, doc = api:json("GET", "/checks/show/" .. uuid[i] .. ".json")
+        assert.is.equal(200, code)
+      end
     end)
   end)
 
   describe("check", function()
     it("tortures w/o delete", function()
       for i=1,100,1 do
-        local code, doc, data = api:raw("PUT", "/checks/set/" .. uuid, check_xml())
+        local code, doc, data = api:raw("PUT", "/checks/set/" .. uuid[8], check_xml(8))
         assert.is.equal(200, code)
       end
     end)
     it("tortures w delete", function()
       for i=1,100,1 do
-        local code, doc = api:raw("PUT", "/checks/set/" .. uuid, check_xml())
+        local code, doc = api:raw("PUT", "/checks/set/" .. uuid[8], check_xml(8))
         assert.is.equal(200, code)
-        code, doc = api:raw("DELETE", "/checks/delete/" .. uuid)
+        code, doc = api:raw("DELETE", "/checks/delete/" .. uuid[8])
         assert.is.equal(200, code)
       end
     end)

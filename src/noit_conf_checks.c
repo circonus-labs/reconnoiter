@@ -699,7 +699,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
         CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node));
       } else {
         nc_printf(ncct, "descheduling %s\n", uuid_conf);
-        if(noit_poller_deschedule(checkid, mtev_true)) {
+        if(noit_poller_deschedule(checkid, mtev_true, mtev_false)) {
           CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
           xmlUnlinkNode(node);
           removed = mtev_true;
