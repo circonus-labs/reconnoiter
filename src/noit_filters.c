@@ -441,7 +441,7 @@ noit_filter_update_conf_rule(const char *fname, int idx, const char *rname, cons
   mtev_conf_section_t rulenode;
   xmlNodePtr child;
 
-  snprintf(xpath, sizeof(xpath), "//filtersets/filterset[@name=\"%s\"]/rule[%d]", fname, idx);
+  snprintf(xpath, sizeof(xpath), "//filtersets//filterset[@name=\"%s\"]/rule[%d]", fname, idx);
   rulenode = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
   if(mtev_conf_section_is_empty(rulenode)) {
     mtev_conf_release_section(rulenode);
