@@ -899,7 +899,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   /* delete this here */
   mtev_boolean just_mark = mtev_false;
   if(check)
-    if(!noit_poller_deschedule(check->checkid, mtev_true))
+    if(!noit_poller_deschedule(check->checkid, mtev_true, mtev_false))
       just_mark = mtev_true;
   if(just_mark) {
     int64_t newseq = noit_conf_check_bump_seq(node);

@@ -348,7 +348,8 @@ noit_console_show_timing_slots(mtev_console_closure_t ncct,
   return 0;
 }
 static int
-noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
+noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char *newip) {
+  int rv = 1;
   char *oldname = NULL;
   if(newname) {
     /* track this stuff outside the lock to avoid allocs */
@@ -358,20 +359,27 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
   if(!(new_check->flags & NP_TRANSIENT)) {
     mtevAssert(new_check->name || newname);
     /* This remove could fail -- no big deal */
-    if(new_check->name != NULL)
-      mtev_skiplist_remove(polls_by_name, new_check, NULL);
+    if(new_check->name != NULL) {
+      mtevAssert(mtev_skiplist_remove(polls_by_name, new_check, NULL));
+    }
 
     /* optional update the name (at the critical point) */
     if(newname) {
       new_check->name = strdup(newname);
     }
+    if(newip) {
+      new_check->target_ip[0] = '\0';
+      strlcpy(new_check->target_ip, newip, sizeof(new_check->target_ip));
+    }
 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
+    rv = 0;
     if(!mtev_skiplist_insert(polls_by_name, new_check)) {
       mtevL(noit_error, "Check %s`%s disabled due to naming conflict\n",
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
+      rv = -1;
     }
     if(oldname) free(oldname);
   }
@@ -737,7 +745,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   }
   pthread_mutex_unlock(&polls_lock);
   if(found)
-    noit_poller_deschedule(uuid, mtev_false);
+    noit_poller_deschedule(uuid, mtev_false, !deleted);
   if(backdated) {
     mtevL(noit_error, "Check config seq backwards, ignored\n");
     if(found) noit_check_log_delete((noit_check_t *)vcheck);
@@ -751,6 +759,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   }
   for(ridx=0; ridx<reg_module_id; ridx++) {
     if(moptions[ridx]) {
+
       mtev_hash_destroy(moptions[ridx], free, free);
       free(moptions[ridx]);
     }
@@ -829,7 +838,7 @@ noit_poller_flush_epoch(int oldest_allowed) {
     }
     pthread_mutex_unlock(&polls_lock);
     if(i==0) break;
-    while(i>0) noit_poller_deschedule(tofree[--i]->checkid, mtev_true);
+    while(i>0) noit_poller_deschedule(tofree[--i]->checkid, mtev_true, mtev_false);
   }
 #undef TOFREE_PER_ITER
 }
@@ -1187,14 +1196,11 @@ noit_check_set_ip(noit_check_t *new_check,
                   const char *ip_str, const char *newname) {
   int8_t family;
   int rv, failed = 0;
-  char old_target_ip[INET6_ADDRSTRLEN];
+  char new_target_ip[INET6_ADDRSTRLEN];
   union {
     struct in_addr addr4;
     struct in6_addr addr6;
   } a;
-
-  memset(old_target_ip, 0, INET6_ADDRSTRLEN);
-  strlcpy(old_target_ip, new_check->target_ip, sizeof(old_target_ip));
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
@@ -1212,23 +1218,28 @@ noit_check_set_ip(noit_check_t *new_check,
     }
   }
 
+  new_target_ip[0] = '\0';
+  /* target_family and target_addr are not indexes, we can change them
+   * whilst in list */
   new_check->target_family = family;
   memcpy(&new_check->target_addr, &a, sizeof(a));
-  new_check->target_ip[0] = '\0';
-  if(failed == 0)
+  if(failed == 0) {
     if(inet_ntop(new_check->target_family,
                  &new_check->target_addr,
-                 new_check->target_ip,
-                 sizeof(new_check->target_ip)) == NULL) {
+                 new_target_ip,
+                 sizeof(new_target_ip)) == NULL) {
+      failed = -1;
       mtevL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
+  }
   /*
    * new_check->name could be null if this check is being set for the
    * first time.  add_to_list will set it.
    */
   if (new_check->name == NULL ||
-      strcmp(old_target_ip, new_check->target_ip) != 0) {
-    noit_check_add_to_list(new_check, newname);
+      strcmp(new_check->target_ip, new_target_ip) != 0) {
+    noit_check_add_to_list(new_check, newname,
+                           (failed == 0 && strcmp(new_check->target_ip, new_target_ip)) ? new_target_ip : NULL);
   }
 
   if(new_check->name == NULL && newname != NULL) {
@@ -1266,6 +1277,7 @@ noit_check_update(noit_check_t *new_check,
                   const char *oncheck,
                   int64_t seq,
                   int flags) {
+  int rv = 0;
   char uuid_str[37];
   int mask = NP_DISABLED | NP_UNCONFIG;
 
@@ -1293,15 +1305,31 @@ noit_check_update(noit_check_t *new_check,
     uuid_t id, dummy;
     mtev_uuid_copy(id, new_check->checkid);
     strlcpy(module, new_check->module, sizeof(module));
-    noit_poller_deschedule(id, mtev_false);
+    noit_poller_deschedule(id, mtev_false, mtev_true);
     return noit_poller_schedule(target, module, name, filterset,
                                 config, mconfigs, period, timeout, oncheck,
                                 seq, flags, id, dummy);
   }
 
   new_check->generation = __config_load_generation;
+
+  /* The polls_by_name is indexed off target/name, we can't change the
+   * target whilst in list... if it is there and it is us, bracket our
+   * change with a remove and re-add. */
+  pthread_mutex_lock(&polls_lock);
+  noit_check_t *existing = NULL;
+  if(new_check->target && new_check->name) {
+    existing = noit_poller_lookup_by_name__nolock(new_check->target, new_check->name);
+  }
+  if(existing == new_check) {
+    mtev_skiplist_remove(polls_by_name, existing, NULL);
+  }
   if(new_check->target) free(new_check->target);
   new_check->target = strdup(target);
+  if(existing == new_check) {
+    mtev_skiplist_insert(polls_by_name, existing);
+  }
+  pthread_mutex_unlock(&polls_lock);
 
   // apply resolution flags to check.
   if (flags & NP_PREFER_IPV6)
@@ -1396,9 +1424,11 @@ noit_check_update(noit_check_t *new_check,
   if((new_check->flags & NP_TRANSIENT) == 0)
     noit_check_activate(new_check);
 
-  noit_check_add_to_list(new_check, NULL);
-  check_updated_hook_invoke(new_check);
-  return 0;
+  rv = noit_check_add_to_list(new_check, NULL, NULL);
+  if(rv == 0) {
+    check_updated_hook_invoke(new_check);
+  }
+  return rv;
 }
 int
 noit_poller_schedule(const char *target,
@@ -1478,6 +1508,8 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
     return;
   }
 
+  mtevAssert(noit_poller_lookup_by_name__nolock(checker->target, checker->name) != checker);
+
   mod = noit_module_lookup(checker->module);
   if(mod && mod->cleanup) mod->cleanup(mod, checker);
   else if(checker->closure) free(checker->closure);
@@ -1547,7 +1579,7 @@ check_recycle_bin_processor_internal() {
       mtevL(noit_debug, "cluster delete of %s complete.\n", idstr);
       /* Set the config_seq to zero so it can be truly descheduled */
       check->config_seq = 0;
-      noit_poller_deschedule(check->checkid, mtev_true);
+      noit_poller_deschedule(check->checkid, mtev_true, mtev_false);
 
       if(noit_check_xpath(xpath, sizeof(xpath), "/", idstr) > 0) {
         xmlXPathContextPtr xpath_ctxt = NULL;
@@ -1611,7 +1643,7 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
 }
 
 int
-noit_poller_deschedule(uuid_t in, mtev_boolean log) {
+noit_poller_deschedule(uuid_t in, mtev_boolean log, mtev_boolean readding) {
   void *vcheck;
   noit_check_t *checker;
   if(mtev_hash_retrieve(&polls,
@@ -1624,14 +1656,14 @@ noit_poller_deschedule(uuid_t in, mtev_boolean log) {
 
   if(log) noit_check_log_delete(checker);
 
-  if(checker->config_seq == 0) {
+  if(checker->config_seq == 0 || readding) {
     mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
     mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
   }
 
   check_deleted_hook_invoke(checker);
 
-  if(checker->config_seq == 0) {
+  if(checker->config_seq == 0 || readding) {
     noit_poller_free_check(checker);
     return 1;
   }
