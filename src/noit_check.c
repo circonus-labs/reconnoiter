@@ -384,7 +384,7 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char 
     if(oldname) free(oldname);
   }
   pthread_mutex_unlock(&polls_lock);
-  return 1;
+  return rv;
 }
 
 uint64_t noit_check_metric_count() {
