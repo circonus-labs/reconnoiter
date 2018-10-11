@@ -189,27 +189,6 @@ noit_check_log_check(noit_check_t *check) {
 }
 
 static int
-_noit_filterset_log_auto_add(mtev_log_stream_t ls,
-                             char *filter, noit_check_t *check, metric_t *m, mtev_boolean allow) {
-  struct timeval __now;
-  char uuid_str[256*3+37];
-  SETUP_LOG(check, );
-  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
-
-  mtev_gettimeofday(&__now, NULL);
-  return mtev_log(ls, &__now, __FILE__, __LINE__,
-                  "F1\t%lu.%03lu\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-                  SECPART(&__now), MSECPART(&__now),
-                  uuid_str, filter, check->target, check->module, check->name, m->metric_name, allow ? "allow" : "deny");
-}
-
-void
-noit_filterset_log_auto_add(char *filter, noit_check_t *check, metric_t *m, mtev_boolean allow) {
-  SETUP_LOG(filterset, return);
-  _noit_filterset_log_auto_add(filterset_log, filter, check, m, allow);
-}
-
-static int
 _noit_check_log_status(mtev_log_stream_t ls,
                        noit_check_t *check) {
   stats_t *c;

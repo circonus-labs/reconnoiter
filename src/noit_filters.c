@@ -59,6 +59,7 @@ static pthread_mutex_t filterset_lock;
 static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
+#define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 static char* filtersets_replication_path = NULL;
 
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
@@ -92,6 +93,8 @@ typedef struct _filterrule {
   char *measurement_tags;
   noit_metric_tag_search_ast_t *mtsearch;
   struct _filterrule *next;
+  struct timeval last_flush;
+  struct timeval flush_interval;
 } filterrule_t;
 
 typedef struct {
@@ -186,7 +189,12 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
                      NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
     }
-
+    int32_t ffp = DEFAULT_FILTER_FLUSH_PERIOD_MS;
+    if(!mtev_conf_get_int32(rules[j], "ancestor-or-self::node()/@filter_flush_period", &ffp))
+      ffp = DEFAULT_FILTER_FLUSH_PERIOD_MS;
+    if(ffp < 0) ffp = 0;
+    rule->flush_interval.tv_sec = ffp/1000;
+    rule->flush_interval.tv_usec = ffp%1000;
     if(mtev_conf_get_stringbuf(rules[j], "@id", buffer, sizeof(buffer))) {
       rule->ruleid = strdup(buffer);
     }
@@ -435,27 +443,7 @@ noit_apply_filterrule_metric(filterrule_t *r,
   }
   return mtev_true;
 }
-static int
-noit_filter_update_conf_rule(const char *fname, int idx, const char *rname, const char *value) {
-  char xpath[1024];
-  mtev_conf_section_t rulenode;
-  xmlNodePtr child;
 
-  snprintf(xpath, sizeof(xpath), "//filtersets//filterset[@name=\"%s\"]/rule[%d]", fname, idx);
-  rulenode = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
-  if(mtev_conf_section_is_empty(rulenode)) {
-    mtev_conf_release_section(rulenode);
-    return -1;
-  }
-  child = xmlNewNode(NULL, (xmlChar *)rname);
-  xmlNodeAddContent(child, (xmlChar *)value);
-  xmlAddChild(mtev_conf_section_to_xmlnodeptr(rulenode), child);
-  CONF_DIRTY(rulenode);
-  mtev_conf_mark_changed();
-  mtev_conf_request_write();
-  mtev_conf_release_section(rulenode);
-  return 0;
-}
 mtev_boolean
 noit_apply_filterset(const char *filterset,
                      noit_check_t *check,
@@ -466,6 +454,8 @@ noit_apply_filterset(const char *filterset,
   void *vfs;
   if(!filterset) return mtev_true;   /* No filter */
   if(!filtersets) return mtev_false; /* Couldn't possibly match */
+  struct timeval now;
+  mtev_gettimeofday(&now, NULL);
 
   noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
   noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
@@ -480,14 +470,12 @@ noit_apply_filterset(const char *filterset,
     filterset_t *fs = (filterset_t *)vfs;
     filterrule_t *r, *skipto_rule = NULL;
     mtev_boolean ret = mtev_false;
-    int idx = 0;
     ck_pr_inc_32(&fs->ref_cnt);
     UNLOCKFS();
 #define MATCHES(rname, value) noit_apply_filterrule(r->rname##_ht, r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {
       int need_target, need_module, need_name, need_metric;
       /* If we're targeting a skipto rule, match or continue */
-      idx++;
       if(skipto_rule && skipto_rule != r) continue;
       skipto_rule = NULL;
 
@@ -506,18 +494,24 @@ noit_apply_filterset(const char *filterset,
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
 #define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && mtev_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
-      if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
-#define UPDATE_FILTER_RULE(rnum, rname, value) do { \
-  mtev_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL); \
-  if(noit_filter_update_conf_rule(fs->name, rnum, #rname, value) < 0) { \
-    mtevL(noit_error, "Error updating configuration for new filter auto_add on %s=%s\n", #rname, value); \
+#define UPDATE_FILTER_RULE(rname, value) do { \
+  if(r->flush_interval.tv_sec || r->flush_interval.tv_usec) { \
+    struct timeval reset; \
+    add_timeval(r->last_flush, r->flush_interval, &reset); \
+    if(compare_timeval(now, reset) >= 0) { \
+      mtev_hash_delete_all(r->rname##_ht, free, NULL); \
+      flushed = mtev_true; \
+    } \
   } \
+  mtev_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL); \
 } while(0)
-        if(need_target) UPDATE_FILTER_RULE(idx, target, check->target);
-        if(need_module) UPDATE_FILTER_RULE(idx, module, check->module);
-        if(need_name) UPDATE_FILTER_RULE(idx, name, check->name);
-        if(need_metric) UPDATE_FILTER_RULE(idx, metric, metric->metric_name);
-        noit_filterset_log_auto_add(fs->name, check, metric, r->type == NOIT_FILTER_ACCEPT);
+      if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
+        mtev_boolean flushed = mtev_false;
+        if(need_target) UPDATE_FILTER_RULE(target, check->target);
+        if(need_module) UPDATE_FILTER_RULE(module, check->module);
+        if(need_name) UPDATE_FILTER_RULE(name, check->name);
+        if(need_metric) UPDATE_FILTER_RULE(metric, metric->metric_name);
+        if(flushed) memcpy(&r->last_flush, &now, sizeof(now));
         if(r->type == NOIT_FILTER_SKIPTO) {
           skipto_rule = r->skipto_rule;
           continue;
