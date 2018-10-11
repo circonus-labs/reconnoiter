@@ -59,7 +59,7 @@ static pthread_mutex_t filterset_lock;
 static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
-#define DEFAULT_FILTER_FLUSH_PERIOD 300000 /* 5 minutes */
+#define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 static char* filtersets_replication_path = NULL;
 
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
@@ -189,9 +189,9 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
                      NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
     }
-    int32_t ffp = DEFAULT_FILTER_FLUSH_PERIOD;
+    int32_t ffp = DEFAULT_FILTER_FLUSH_PERIOD_MS;
     if(!mtev_conf_get_int32(rules[j], "ancestor-or-self::node()/@filter_flush_period", &ffp))
-      ffp = DEFAULT_FILTER_FLUSH_PERIOD;
+      ffp = DEFAULT_FILTER_FLUSH_PERIOD_MS;
     if(ffp < 0) ffp = 0;
     rule->flush_interval.tv_sec = ffp/1000;
     rule->flush_interval.tv_usec = ffp%1000;
