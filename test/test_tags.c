@@ -208,7 +208,34 @@ void test_ast_decode()
   test_assert(not->contents.spec.cat.re != NULL);
   test_assert(strcmp(not->contents.spec.name.str,"value") == 0);
   noit_metric_tag_search_free(ast);
-  
+
+  /* wildcard category parse */
+  ast = noit_metric_tag_search_parse("and(*:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  test_assert(ast->operation == OP_AND_ARGS);
+  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+  noit_metric_tag_search_free(ast);
+
+  /* wildcard category parse */
+  ast = noit_metric_tag_search_parse("and(f*:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  test_assert(ast->operation == OP_AND_ARGS);
+  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+  noit_metric_tag_search_free(ast);
+
+  /* wildcard value parse */
+  ast = noit_metric_tag_search_parse("and(foo:b*r)", &erroroffset);
+  test_assert(ast != NULL);
+  test_assert(ast->operation == OP_AND_ARGS);
+  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str, "foo") == 0);
+  test_assert(ast->contents.args.node[0]->contents.spec.name.re != NULL);
+  noit_metric_tag_search_free(ast);
+
 }
 
 void test_tag_match()
