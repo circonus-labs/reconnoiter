@@ -600,7 +600,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   xmlAddChild(root, state);
 
   mtev_cluster_node_t *owner = NULL;
-  if(!noit_should_run_check(check, &owner) && owner) {
+  if(check && !noit_should_run_check(check, &owner) && owner) {
     const char *cn = mtev_cluster_node_get_cn(owner);
     char url[1024];
     struct sockaddr *addr;
