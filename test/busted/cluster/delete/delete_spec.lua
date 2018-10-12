@@ -120,14 +120,22 @@ describe("cluster", function()
       local code, obj = api2:raw("DELETE", "/checks/delete/" .. check_uuid)
       assert.is.equal(200, code)
       code, obj = api2:json("GET", "/checks/show/" .. check_uuid .. ".json")
-      assert.is.equal(302, code)
-      assert.is.not_equal(0, bit.band(tonumber(obj.flags), 0x80))
+      if code == 404 then
+        assert.is.equal(404, code)
+      else
+        assert.is.equal(302, code)
+        assert.is.not_equal(0, bit.band(tonumber(obj.flags), 0x80))
+      end
     end)
     it("delete migrates to node1", function()
       mtev.sleep(0.5)
       local code, obj = api1:json("GET", "/checks/show/" .. check_uuid .. ".json")
-      assert.is.equal(200, code)
-      assert.is.not_equal(0, bit.band(tonumber(obj.flags), 0x80))
+      if code == 404 then
+        assert.is.equal(404, code)
+      else
+        assert.is.equal(200, code)
+        assert.is.not_equal(0, bit.band(tonumber(obj.flags), 0x80))
+      end
     end)
     it("deletes completely", function()
       local code
