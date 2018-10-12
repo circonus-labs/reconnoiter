@@ -410,8 +410,34 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
   int full = 1;
   if(metrics && strtoll(metrics, NULL, 10) == 0) full = -1;
   doc = noit_check_state_as_json(check, full);
-  
-  mtev_http_response_ok(restc->http_ctx, "application/json");
+
+  mtev_cluster_node_t *owner = NULL;
+  if(!noit_should_run_check(check, &owner) && owner) {
+    const char *cn = mtev_cluster_node_get_cn(owner);
+    char url[1024];
+    struct sockaddr *addr;
+    socklen_t addrlen;
+    unsigned short port;
+    switch(mtev_cluster_node_get_addr(owner, &addr, &addrlen)) {
+      case AF_INET:
+        port = ntohs(((struct sockaddr_in *)addr)->sin_port);
+        break;
+      case AF_INET6:
+        port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+        break;
+      default:
+        port = 43191;
+    }
+    char uuid_str[UUID_STR_LEN+1];
+    mtev_uuid_unparse_lower(checkid, uuid_str);
+    snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s.json",
+             cn, port, uuid_str);
+    mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    mtev_http_response_standard(ctx, 302, "NOT IT", "application/json");
+  }
+  else {
+    mtev_http_response_ok(restc->http_ctx, "application/json");
+  }
   jsonstr = json_object_to_json_string(doc);
   mtev_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
   mtev_http_response_append(restc->http_ctx, "\n", 1);
@@ -572,7 +598,34 @@ rest_show_check(mtev_http_rest_closure_t *restc,
     state = noit_check_state_as_xml(check, full);
   }
   xmlAddChild(root, state);
-  mtev_http_response_ok(ctx, "text/xml");
+
+  mtev_cluster_node_t *owner = NULL;
+  if(!noit_should_run_check(check, &owner) && owner) {
+    const char *cn = mtev_cluster_node_get_cn(owner);
+    char url[1024];
+    struct sockaddr *addr;
+    socklen_t addrlen;
+    unsigned short port;
+    switch(mtev_cluster_node_get_addr(owner, &addr, &addrlen)) {
+      case AF_INET:
+        port = ntohs(((struct sockaddr_in *)addr)->sin_port);
+        break;
+      case AF_INET6:
+        port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+        break;
+      default:
+        port = 43191;
+    }
+    char uuid_str[UUID_STR_LEN+1];
+    mtev_uuid_unparse_lower(checkid, uuid_str);
+    snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s",
+             cn, port, uuid_str);
+    mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    mtev_http_response_standard(ctx, 302, "NOT IT", "text/cml");
+  }
+  else {
+    mtev_http_response_ok(ctx, "text/xml");
+  }
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
   goto cleanup;
