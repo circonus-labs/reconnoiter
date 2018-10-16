@@ -39,8 +39,10 @@
 #include <mtev_json_object.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
+#include <mtev_maybe_alloc.h>
 #include <circllhist.h>
 #include <ctype.h>
+#include <openssl/sha.h>
 
 #include <stdio.h>
 
@@ -335,7 +337,7 @@ noit_metric_tagset_is_taggable_value(const char *val, size_t len)
 size_t
 noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len)
 {
-  char scratch[NOIT_TAG_MAX_PAIR_LEN];
+  char scratch[NOIT_TAG_MAX_PAIR_LEN+1];
   if(max_len > sizeof(scratch)) return -1;
   int i = 0, sepcnt = 0;
   for(i=0; i<decoded_len; i++)
@@ -343,7 +345,9 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
       sepcnt = i;
       break;
     }
-  if(sepcnt == 0) return -1;
+  if(sepcnt == 0) {
+    return -1;
+  }
   int first_part_needs_b64 = 0;
   for(i=0;i<sepcnt;i++)
     first_part_needs_b64 += !noit_metric_tagset_is_taggable_key_char(decoded_tag[i]);
@@ -356,14 +360,18 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
   int second_part_len = decoded_len - sepcnt - 1;
   if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
 
-  if(first_part_len + second_part_len + 2 > max_len) return -1;
+  if(first_part_len + second_part_len + 1 > max_len) {
+    return -1;
+  }
   char *cp = scratch;
   if(first_part_needs_b64) {
     *cp++ = 'b';
     *cp++ = '"';
     int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt,
                               cp, sizeof(scratch) - (cp - scratch));
-    if(len <= 0) return -1;
+    if(len <= 0) {
+      return -1;
+    }
     cp += len;
     *cp++ = '"';
   } else {
@@ -376,15 +384,19 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
     *cp++ = '"';
     int len = mtev_b64_encode((unsigned char *)decoded_tag + sepcnt + 1,
                               decoded_len - sepcnt - 1, cp, sizeof(scratch) - (cp - scratch));
-    if(len <= 0) return -1;
+    if(len <= 0) {
+      return -1;
+    }
     cp += len;
     *cp++ = '"';
   } else {
     memcpy(cp, decoded_tag + sepcnt + 1, decoded_len - sepcnt - 1);
     cp += decoded_len - sepcnt - 1;
   }
-  *cp = '\0';
-  memcpy(encoded_tag, scratch, cp - scratch + 1);
+  memcpy(encoded_tag, scratch, cp - scratch);
+  if(cp-scratch < max_len) {
+    encoded_tag[cp-scratch] = '\0';
+  }
   return cp - scratch;
 }
 size_t
@@ -412,6 +424,9 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
     encoded += (colon - encoded);
   }
   encoded++; // skip over the colon
+  // we can't have our field separator inside the first field
+  // and it could have been stashed in there.
+  if(memchr(decoded_tag, 0x1f, decoded - decoded_tag) != NULL) return 0;
   *decoded = 0x1f; //replace colon with ascii unit sep
   decoded++;
   if (memcmp(encoded, "b\"", 2) == 0) {
@@ -436,28 +451,166 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
 /* This is a reimplementation of the stuff in noit_message_decoder b/c allocations are
  * rampant there and it's basically impossible to change the API.
  */
+#define MAX_TAG_REPLACEMENTS 32
+#define TAG_REPL_SUFFIX_LEADER "_tldr_"
+#define TAG_REPL_SUFFIX_LEADER_LEN 6
+#define TAG_REPL_SUFFIX_LEN ((2 * SHA_DIGEST_LENGTH) + TAG_REPL_SUFFIX_LEADER_LEN)
+struct tag_replacements {
+  int used;
+  char tag[MAX_TAG_REPLACEMENTS][NOIT_TAG_MAX_PAIR_LEN+1];
+};
+static inline size_t encode_len_b64(size_t a) { return (((((a)+2)/3)*4)+3); }
+static inline size_t decode_len_b64(size_t a) { return (((((a)-3)/4)*3)-2); }
+static inline size_t encode_decode_identity(size_t a) { return a; }
+static void
+simple_sha1_hex(void *in, size_t len, char out[2 * SHA_DIGEST_LENGTH]) {
+  unsigned char outb[SHA_DIGEST_LENGTH];
+  static const char _hexchars[16] =
+    {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+  SHA_CTX ctx;
+  SHA1_Init(&ctx);
+  SHA1_Update(&ctx, in, len);
+  SHA1_Final(outb, &ctx);
+  for(int i=0; i<SHA_DIGEST_LENGTH; i++) {
+    out[i*2] = _hexchars[(outb[i] >> 4) & 0xf];
+    out[i*2+1] = _hexchars[outb[i] & 0xf];
+  }
+}
 static mtev_boolean
-build_tags(const char *input, size_t len, noit_metric_tag_t *tags, int max_tags, int *ntags) {
-  
+build_tags(const char *input, size_t len, noit_metric_tag_t *tags, int max_tags, int *ntags,
+           struct tag_replacements *repl) {
+  MTEV_MAYBE_DECL(char, bigtag, 32768);
   while(len > 0 && *ntags < max_tags) {
-    const char *next = noit_metric_tags_parse_one(input, len, &tags[*ntags]);
-    if(!next) return mtev_false;
+    mtev_boolean toolong = mtev_false;
+    const char *next = noit_metric_tags_parse_one(input, len, &tags[*ntags], &toolong);
+    if(!next) {
+      MTEV_MAYBE_FREE(bigtag);
+      return mtev_false;
+    }
     
     len -= (next - input);
+    if(toolong) {
+      /* If it is too long, we need to decode it and then build a "unique"
+       * size-appropriate tag to replace it, if there's room in the repl.
+       */
+      size_t long_tag_len = (next-input);
+      if(repl && repl->used >= 0 && repl->used < MAX_TAG_REPLACEMENTS) {
+        if(len > MTEV_MAYBE_SIZE(bigtag)) MTEV_MAYBE_REALLOC(bigtag, long_tag_len);
+        size_t dlen = noit_metric_tagset_decode_tag(bigtag, MTEV_MAYBE_SIZE(bigtag), input, long_tag_len);
+        if(dlen > 0) {
+          char hexhash[2 * SHA_DIGEST_LENGTH];
+          char *tkey = bigtag;
+          char *tval = memchr(bigtag, 0x1f, dlen);
+          if(tval) {
+            char decoded_tag[NOIT_TAG_MAX_PAIR_LEN];
+            size_t decoded_len = 0;
+            size_t tkey_len = tval-tkey;
+            size_t tval_len = dlen - tkey_len - 1;
+            tval++;
+
+            /* Our tldr hashing is completely safe (character wise),
+             * so if the existing key or value need not be encoded, then
+             * the modified key need not be encoded.. and we have more room.
+             */
+            size_t (*encode_key_len)(size_t) = encode_decode_identity;
+            size_t (*decode_key_len)(size_t) = encode_decode_identity;
+            if(!noit_metric_tagset_is_taggable_key(tkey, tkey_len)) {
+              encode_key_len = encode_len_b64;
+              decode_key_len = decode_len_b64;
+            }
+            size_t (*encode_val_len)(size_t) = encode_decode_identity;
+            size_t (*decode_val_len)(size_t) = encode_decode_identity;
+            if(!noit_metric_tagset_is_taggable_value(tval, tval_len)) {
+              encode_val_len = encode_len_b64;
+              decode_val_len = decode_len_b64;
+            }
+
+            /* We need enough space to store the tag value after this... or at least the _tldr_.... */
+            if(encode_key_len(tkey_len) >
+               MIN(NOIT_TAG_MAX_PAIR_LEN - MIN(encode_val_len(tval_len),encode_val_len(TAG_REPL_SUFFIX_LEN)) - 1,
+                   NOIT_TAG_MAX_CAT_LEN)) {
+              /* The key is too big, how much room do we have? */
+              size_t tgtsize = decode_key_len(NOIT_TAG_MAX_CAT_LEN);
+              if(tval_len + 1 > decode_key_len(NOIT_TAG_MAX_PAIR_LEN-NOIT_TAG_MAX_CAT_LEN)) {
+                tgtsize = MIN(tgtsize, decode_key_len(NOIT_TAG_MAX_PAIR_LEN/2));
+              }
+              /* There must be at least TAG_REPL_SUFFIX_LEN+1 space left in the tag to store the value */
+              if(encode_key_len(tgtsize) + encode_val_len(TAG_REPL_SUFFIX_LEN) + 1 > NOIT_TAG_MAX_PAIR_LEN) {
+                tgtsize = decode_key_len(NOIT_TAG_MAX_PAIR_LEN - encode_val_len(TAG_REPL_SUFFIX_LEN) - 1);
+              }
+              assert(tgtsize >= TAG_REPL_SUFFIX_LEN);
+              simple_sha1_hex(tkey, tkey_len, hexhash);
+              memcpy(decoded_tag, bigtag, tgtsize - TAG_REPL_SUFFIX_LEN);
+              memcpy(decoded_tag + (tgtsize - TAG_REPL_SUFFIX_LEN),
+                     TAG_REPL_SUFFIX_LEADER, TAG_REPL_SUFFIX_LEADER_LEN);
+              memcpy(decoded_tag + (tgtsize - (2 * SHA_DIGEST_LENGTH)),
+                     hexhash, 2 * SHA_DIGEST_LENGTH);
+              decoded_tag[tgtsize] = 0x1f;
+              decoded_len = tgtsize+1;
+            } else {
+              memcpy(decoded_tag, bigtag, tkey_len+1);
+              decoded_len = tkey_len+1;
+            }
+
+            /* now for the value... slightly differnet math to calculate how
+             * much room we have left, but the rest is the same as above.
+             */
+
+            if(encode_val_len(tval_len) > NOIT_TAG_MAX_PAIR_LEN - encode_key_len(decoded_len-1) - 1) {
+              size_t tgtsize =  decode_val_len(NOIT_TAG_MAX_PAIR_LEN - encode_key_len(decoded_len-1) - 1);
+              assert(tgtsize >= TAG_REPL_SUFFIX_LEN);
+              simple_sha1_hex(tval, tval_len, hexhash);
+              memcpy(decoded_tag + decoded_len, tval, tgtsize - TAG_REPL_SUFFIX_LEN);
+              memcpy(decoded_tag + decoded_len + (tgtsize - TAG_REPL_SUFFIX_LEN),
+                     TAG_REPL_SUFFIX_LEADER, TAG_REPL_SUFFIX_LEADER_LEN);
+              memcpy(decoded_tag + decoded_len + (tgtsize - (2 * SHA_DIGEST_LENGTH)),
+                     hexhash, 2 * SHA_DIGEST_LENGTH);
+              decoded_len += tgtsize;
+            } else {
+              memcpy(decoded_tag + decoded_len, tval, tval_len);
+              decoded_len += tval_len;
+            }
+
+            /* put this into the tags. */
+            ssize_t newtag_size = 
+              noit_metric_tagset_encode_tag(repl->tag[repl->used], sizeof(repl->tag[repl->used]),
+                                            decoded_tag, decoded_len);
+            if(newtag_size > 0) {
+              char *colon = memchr(repl->tag[repl->used], ':', newtag_size);
+              if(colon && ((colon - repl->tag[repl->used] + 1) <= NOIT_TAG_MAX_CAT_LEN)) {
+                tags[*ntags].tag = repl->tag[repl->used];
+                tags[*ntags].total_size = newtag_size;
+                tags[*ntags].category_size = (colon - repl->tag[repl->used]) + 1;
+                assert(long_tag_len >= tags[*ntags].category_size);
+
+                repl->used++;
+                (*ntags)++;
+              }
+            }
+          }
+        }
+      }
+    } else {
+      (*ntags)++;
+    }
+
     input = next;
-    (*ntags)++;
     if(len > 0) {
       /* there's string left, we require it to be ",<next_tag>". */
-      if(*input != ',' || len == 1) return mtev_false;
+      if(*input != ',' || len == 1) {
+        MTEV_MAYBE_FREE(bigtag);
+        return mtev_false;
+      }
       input++;
       len--;
     }
   }
+  MTEV_MAYBE_FREE(bigtag);
   return mtev_true;
 }
 static mtev_boolean
 eat_up_tags(const char *input, size_t *input_len, noit_metric_tag_t *tags, int max_tags,
-            int *ntags, const char *prefix, const char *suffix) {
+            int *ntags, const char *prefix, const char *suffix, struct tag_replacements *repl) {
   int slen = strlen(suffix);
   int plen = strlen(prefix);
   const char *end = input + *input_len;
@@ -474,7 +627,7 @@ eat_up_tags(const char *input, size_t *input_len, noit_metric_tag_t *tags, int m
   }
   if(!block_start) return mtev_false;
   if(build_tags(block_start + plen, *input_len - (block_start + plen - input) - slen,
-                  tags, max_tags, ntags)) {
+                  tags, max_tags, ntags, repl)) {
     *input_len = (block_start - input);
     return mtev_true;
   }
@@ -534,8 +687,8 @@ noit_metric_parse_tags(const char *input, size_t input_len,
   int stag_cnt = stset->tag_count;
   int mtag_cnt = mtset->tag_count;
   stset->tag_count = mtset->tag_count = 0;
-  while(eat_up_tags(input, &input_len, stset->tags, stag_cnt, &stset->tag_count, "|ST[", "]") ||
-        eat_up_tags(input, &input_len, mtset->tags, mtag_cnt, &mtset->tag_count, "|MT{", "}"));
+  while(eat_up_tags(input, &input_len, stset->tags, stag_cnt, &stset->tag_count, "|ST[", "]", NULL) ||
+        eat_up_tags(input, &input_len, mtset->tags, mtag_cnt, &mtset->tag_count, "|MT{", "}", NULL));
   
   if(mtev_memmem(input, input_len, "|ST[", 4) || mtev_memmem(input, input_len, "|MT{", 4))
     return -1;
@@ -545,21 +698,22 @@ ssize_t
 noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
                          mtev_boolean null_term) {
   int i = 0, ntags = 0;
+  struct tag_replacements repl = { .used = 0 };
   noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
   int n_stags = 0, n_mtags = 0;
   char buff[MAX_METRIC_TAGGED_NAME];
   if(output_len < input_len) return -1;
-  if(input_len > MAX_METRIC_TAGGED_NAME) return -1;
+  if(input_len > MAX_METRIC_TAGGED_NAME) return -2;
   if(input != output) memcpy(output, input, input_len);
 
   for(i=0; i<input_len; i++) ntags += (input[i] == ',');
-  if(ntags > MAX_TAGS) return -1;
+  if(ntags > MAX_TAGS) return -3;
 
-  while(eat_up_tags(output, &input_len, stags, MAX_TAGS, &n_stags, "|ST[", "]") ||
-        eat_up_tags(output, &input_len, mtags, MAX_TAGS, &n_mtags, "|MT{", "}"));
+  while(eat_up_tags(output, &input_len, stags, MAX_TAGS, &n_stags, "|ST[", "]", &repl) ||
+        eat_up_tags(output, &input_len, mtags, MAX_TAGS, &n_mtags, "|MT{", "}", &repl));
 
   if(mtev_memmem(output, input_len, "|ST[", 4) || mtev_memmem(output, input_len, "|MT{", 4))
-    return -1;
+    return -4;
 
   decode_tags(stags, n_stags);
   decode_tags(mtags, n_mtags);
@@ -572,20 +726,22 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   int len;
 
   input_len = noit_metric_clean_name(output, input_len);
-  if(input_len < 1) return -1;
+  if(input_len < 1) return -5;
   memcpy(out, output, input_len);
   out += input_len;
   if(n_stags) {
     memcpy(out, "|ST[", 4); out += 4;
     len = noit_metric_tags_canonical(stags, n_stags, out, (output_len - (out-buff)), mtev_true);
-    if(len < 0) return -1;
+    if(len < 0) {
+      return -6;
+    }
     out += len;
     *out++ = ']';
   }
   if(n_mtags) {
     memcpy(out, "|MT{", 4); out += 4;
     len = noit_metric_tags_canonical(mtags, n_mtags, out, (output_len - (out-buff)), mtev_true);
-    if(len < 0) return -1;
+    if(len < 0) return -7;
     out += len;
     *out++ = '}';
   }

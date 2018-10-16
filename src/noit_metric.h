@@ -80,6 +80,8 @@ typedef enum {
 } noit_message_type;
 
 #define NOIT_TAG_MAX_PAIR_LEN 256
+/* category_size is uint8_t (255), but includes the : */
+#define NOIT_TAG_MAX_CAT_LEN  254
 
 typedef struct {
   uint16_t total_size;

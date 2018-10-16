@@ -2,6 +2,8 @@
 #include "noit_metric.h"
 #include "noit_metric_tag_search.h"
 #include "noit_message_decoder.h"
+#include <mtev_hash.h>
+#include <mtev_b64.h>
 #include <assert.h>
 #include <sys/time.h>
 
@@ -24,6 +26,18 @@ const char *tcpairs[][2] = {
 
   { "blank_values|ST[a:b,c:]|MT{foo:bar}|ST[e:f,a:b]",
     "blank_values|ST[a:b,c:,e:f]|MT{foo:bar}" },
+
+  /* long val */
+  { "metric|ST[short:tag,superlongtagthatismorethan256characterstotal:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,another:acceptabletag]",
+    "metric|ST[another:acceptabletag,short:tag,superlongtagthatismorethan256characterstotal:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_tldr_8e2bd46fa751af2d2b093c2f5465f786cbe2b8a9]" },
+
+  /* long cat and long val */
+  { "metric|ST[short:tag,superlongtagcatthatismorethan256characterstotalyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,another:acceptabletag]",
+    "metric|ST[another:acceptabletag,short:tag,superlongtagcatthatismorethan256characterstotalyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy_tldr_2584f4690f561d00c607ad5333d7c31a3f06664c:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_tldr_8e2bd46fa751af2d2b093c2f5465f786cbe2b8a9]" },
+
+  /* long (but not too long) cat */
+  { "metric|ST[short:tag,superlongtagcatthatismorethan256characterstotalyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,another:acceptabletag]",
+    "metric|ST[another:acceptabletag,short:tag,superlongtagcatthatismorethan256characterstotalyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy_tldr_ce6340dfd8ee2343280ad9723eb4d54d87ebc435:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]" },
 
 };
 
@@ -280,6 +294,67 @@ void test_canon(const char *in, const char *expect) {
   else test_assert_namef(expect && !strcmp(expect, buff), "canon(%s) -> %s", expect, buff);
 }
 
+void test_fuzz_canon() {
+  for(int encode = 0; encode < 4; encode++) {
+    int cnt = 0;
+    char buff[4096];
+    char _obuff[32678];
+    char *obuff = _obuff + 10;
+    memcpy(_obuff, "metric|ST[", 10);
+    char out[MAX_METRIC_TAGGED_NAME];
+    mtev_hash_table unique;
+    mtev_hash_init(&unique);
+    for(int i=1; i<260; i++) {
+      int offset = i;
+  
+      if(encode & 1) {
+        memset(buff, ',', i);
+        offset = mtev_b64_encode((unsigned char *)buff, i, obuff+2, sizeof(_obuff)-2);
+        assert(offset > 0);
+        obuff[0] = 'b'; obuff[1] = '"';
+        obuff[offset + 2] = '"';
+        offset += 3;
+      } else {
+        memset(buff, 'c', i);
+        memcpy(obuff, buff, offset);
+      }
+      obuff[offset] = ':';
+      for(int j=1; j<260; j++) {
+        if(encode & 2) {
+          memset(buff, ',', j);
+          int vlen = mtev_b64_encode((unsigned char *)buff, j, obuff+offset+3, sizeof(_obuff)-(offset+4));
+          assert(vlen > 0);
+          obuff[offset+1] = 'b'; obuff[offset+2] = '"';
+          obuff[offset + vlen + 3] = '"';
+          obuff[offset + vlen + 4] = ']';
+          obuff[offset + vlen + 5] = '\0';
+        } else {
+          memset(buff, 'v', j);
+          memset(obuff+offset+1, 'v', j);
+          obuff[offset+j+1] = ']';
+          obuff[offset+j+2] = '\0';
+        }
+        /* We can only operate on metric names up to sizeof(out), so just elide the testing
+         * from longer names. */
+        if(strlen(_obuff) <= sizeof(out)) {
+          int len = noit_metric_canonicalize(_obuff, strlen(_obuff), out, sizeof(out), mtev_true);
+          if(len < 0) {
+            test_assert_namef(len > 0, "canonicalization failed %d (%s)", len, _obuff);
+            return;
+          }
+          mtev_hash_replace(&unique, strdup(out), strlen(out), NULL, free, NULL);
+          cnt++;
+        }
+      }
+    }
+    test_assert_namef(mtev_hash_size(&unique) == cnt, "fuzzed uniquely [%c%c] (%d==%d)",
+                      encode & 1 ? 'b' : '-',
+                      encode & 2 ? 'b' : '-',
+                      mtev_hash_size(&unique), cnt);
+    mtev_hash_destroy(&unique, free, NULL);
+  }
+}
+
 void test_line(const char *name, const char *in, const char *expect, int rval_expect, mtev_boolean allocd) {
   noit_metric_message_t message;
   memset(&message, 0, sizeof(message));
@@ -332,6 +407,7 @@ void metric_parsing(void) {
   for(int i=0; i<sizeof(tcpairs)/sizeof(*tcpairs); i++) {
     test_canon(tcpairs[i][0], tcpairs[i][1]);
   }
+  test_fuzz_canon();
 }
 
 void query_parsing(void) {

@@ -36,7 +36,7 @@
 
 API_EXPORT(const char *)
   noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
-                             noit_metric_tag_t *output);
+                             noit_metric_tag_t *output, mtev_boolean *toolong);
 
 static inline int
 noit_metric_tags_compare(const void *v_l, const void *v_r) {
