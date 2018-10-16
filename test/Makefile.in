@@ -36,7 +36,7 @@ check:	all
 # This stuff if all cert stuff to make testing the daemons easier
 
 test_tags:	test_tags.c
-	$(CC) -g -o test_tags -I../src $(CPPFLAGS) $(CFLAGS) -I$(MTEV_INCLUDEDIR) test_tags.c -L../src -lnoit
+	$(CC) -g -o test_tags -I../src $(CPPFLAGS) $(CFLAGS) -I$(MTEV_INCLUDEDIR) test_tags.c -L../src -lnoit $(LDFLAGS) -lmtev
 
 others:
 	$(MAKE) -C ../src tests
