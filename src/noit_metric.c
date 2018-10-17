@@ -694,7 +694,6 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   int n_stags = 0, n_mtags = 0;
   char buff[MAX_METRIC_TAGGED_NAME];
   if(output_len < input_len) return -1;
-  if(input_len > MAX_METRIC_TAGGED_NAME) return -2;
   if(input != output) memcpy(output, input, input_len);
 
   for(i=0; i<input_len; i++) ntags += (input[i] == ',');
@@ -710,7 +709,6 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   decode_tags(mtags, n_mtags);
   n_stags = tags_sort_dedup(stags, n_stags);
   n_mtags = tags_sort_dedup(mtags, n_mtags);
-  if(output_len > MAX_METRIC_TAGGED_NAME) output_len = MAX_METRIC_TAGGED_NAME;
 
   /* write to buff then copy to allow for output and input to be the same */
   char *out = buff;
@@ -738,5 +736,6 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   }
   memcpy(output, buff, (out-buff));
   if(null_term) output[out-buff] = '\0';
+  if((out-buff) > MAX_METRIC_TAGGED_NAME) return -8;
   return (out - buff);
 }
