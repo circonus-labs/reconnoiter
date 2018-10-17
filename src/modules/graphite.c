@@ -470,6 +470,7 @@ graphite_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
     ERR_TO_CLIENT("invalid uuid: not configured\n");
     goto bail;
   }
+  gc = check->closure;
   if(strcmp(check->module, gc->self->hdr.name)) {
     ERR_TO_CLIENT("invalid check: bad type\n");
     goto bail;
