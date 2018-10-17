@@ -466,12 +466,12 @@ graphite_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
     ERR_TO_CLIENT("invalid uuid: not found\n");
     goto bail;
   }
-  if(strcmp(check->module, "graphite")) {
-    ERR_TO_CLIENT("invalid uuid: bad type\n");
-    goto bail;
-  }
   if(!check->closure) {
     ERR_TO_CLIENT("invalid uuid: not configured\n");
+    goto bail;
+  }
+  if(strcmp(check->module, gc->self->hdr.name)) {
+    ERR_TO_CLIENT("invalid check: bad type\n");
     goto bail;
   }
   const char *expect_secret = NULL;
