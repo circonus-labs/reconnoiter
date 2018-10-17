@@ -223,7 +223,7 @@ graphite.@MODULEEXT@:	graphite.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ graphite.lo
 
-graphite.lo:	graphite.xmlh graphite_tls.xmlh graphite_plain.xmlh graphite.c
+graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite.c
 
 statsd.@MODULEEXT@:	statsd.lo
 	@echo "- linking $@"
