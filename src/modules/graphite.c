@@ -743,21 +743,55 @@ static int noit_graphite_onload(mtev_image_t *self) {
 
 static int noit_graphite_init(noit_module_t *self) 
 {
-  eventer_name_callback_ext("graphite/graphite_listener", graphite_mtev_listener, describe_mtev_callback, self);
+  if(!strcmp(self->hdr.name, "graphite_tls")) {
+    eventer_name_callback_ext("graphite/graphite_listener", graphite_mtev_listener, describe_mtev_callback, self);
+  }
   eventer_name_callback_ext("graphite/graphite_handler", graphite_handler, describe_callback, self);
   eventer_name_callback_ext("graphite/graphite_listen_handler", graphite_listen_handler, describe_callback, self);
 
   return 0;
 }
 
-#include "graphite.xmlh"
+/* This is here for legacy */
 noit_module_t graphite = {
   {
     .magic = NOIT_MODULE_MAGIC,
     .version = NOIT_MODULE_ABI_VERSION,
     .name = "graphite",
     .description = "graphite(carbon) collection",
-    .xml_description = graphite_xml_description,
+    .xml_description = "",
+    .onload = noit_graphite_onload
+  },
+  noit_graphite_config,
+  noit_graphite_init,
+  noit_graphite_initiate_check,
+  noit_graphite_cleanup
+};
+
+#include "graphite_tls.xmlh"
+noit_module_t graphite_tls = {
+  {
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "graphite_tls",
+    .description = "graphite_tls(carbon) collection",
+    .xml_description = graphite_tls_xml_description,
+    .onload = noit_graphite_onload
+  },
+  noit_graphite_config,
+  noit_graphite_init,
+  noit_graphite_initiate_check,
+  noit_graphite_cleanup
+};
+
+#include "graphite_plain.xmlh"
+noit_module_t graphite_plain = {
+  {
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "graphite_plain",
+    .description = "graphite_plain(carbon) collection",
+    .xml_description = graphite_plain_xml_description,
     .onload = noit_graphite_onload
   },
   noit_graphite_config,

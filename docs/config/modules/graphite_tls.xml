@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
+  <title>graphite_tls</title>
+  <para>The graphite module provides a simple way to push data into reconnoiter via the carbon-relay or carbon-c-relay.  This requires wild-card DNS (or tricks) and SNI TLS Extensions.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>graphite.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>secret</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para/>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^[a-z0-9]{0,63}$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Specify a secreate to be extract from the TLS hostname.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>rows_per_cycle</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>100</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>[0-9]+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The max number of rows to process in one event loop.  Defaults to 100.  Turn this up higher if you have very high volume metric collection.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Ingesting graphite data</title>
+      <para>
+        <code>
+          [example]
+           pattern = ^mydata\.foo\..+
+           servers = 1b4e28ba-2fa1-11d2-893f-e9b761bde3fb-knsdf98234bwdf.fqdn:2004
+        </code>
+      </para>
+      <para>The carbon relay config example above will direct any metrics starting "mydata.foo" at the broker:2003 for ingestion</para>
+      <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="graphite" name="graphite"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="graphite_tls"
+            target="127.0.0.1" period="60000" timeout="30000"&gt;
+            &lt;config&gt;&lt;secret&gt;knsdf98234bwdf&lt;/secret&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </programlisting>
+    </example>
+  </section>
+</section>

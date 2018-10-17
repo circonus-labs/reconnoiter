@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
+  <title>graphite</title>
+  <para>The graphite module provides a simple way to push data into reconnoiter via the carbon-relay or carbon-c-relay.  Simply configure the relay to write to the provided port.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>graphite.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>listen_port</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>2003</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>[0-9]+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Specify the port which this check listens on.  Carbon relay or carbon-c-relay should be configured to send plain text metrics to this port.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>rows_per_cycle</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>100</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>[0-9]+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The max number of rows to process in one event loop.  Defaults to 100.  Turn this up higher if you have very high volume metric collection.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Ingesting graphite data</title>
+      <para>
+        <code>
+          [example]
+           pattern = ^mydata\.foo\..+
+           servers = broker:2003
+        </code>
+      </para>
+      <para>The carbon relay config example above will direct any metrics starting "mydata.foo" at the broker:2003 for ingestion</para>
+      <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="graphite" name="graphite"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="graphite"
+            target="127.0.0.1" period="60000" timeout="30000"&gt;
+            &lt;config&gt;&lt;listen_port&gt;2003&lt;/listen_port&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </programlisting>
+    </example>
+  </section>
+</section>

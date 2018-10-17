@@ -2,10 +2,10 @@
 <section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>reverse_check</title>
   <para>
-          Allows a reverse:key config to dictate reverse tunnelling of checks.
+          Allows a reverse:secret_key config to dictate reverse tunnelling of checks.
           Specification of the key will cause reverse connection attempts from
           clients to "checks/&lt;id&gt;" to be denied, accepting only
-          "checks/&lt;id&gt;#&lt;key&gt;" instead.
+          "checks/&lt;id&gt;#&lt;secret_key&gt;" instead.
         </para>
   <variablelist>
     <varlistentry>
@@ -26,7 +26,7 @@
     <example>
       <title>Loading the reverse_check module.</title>
       <para>This example loads the reverse_check module and creates a
-             key=boobooboo config setting.
+             secret_key=boobooboo config setting.
              </para>
       <programlisting>
       &lt;noit&gt;
@@ -35,7 +35,7 @@
         &lt;/modules&gt;
         &lt;checks&gt;
           &lt;config xmlns:reverse="noit://module/reverse"&gt;
-            &lt;reverse:key&gt;boobooboo&lt;/reverse:key&gt;
+            &lt;reverse:secret_key&gt;boobooboo&lt;/reverse:secret_key&gt;
           &lt;/config&gt;
         &lt;/checks&gt;
       &lt;/noit&gt;
