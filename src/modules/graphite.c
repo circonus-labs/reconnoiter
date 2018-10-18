@@ -596,7 +596,11 @@ static int noit_graphite_initiate_check(noit_module_t *self,
                           (const char **)&config_val)) {
       port = atoi(config_val);
     }
-    ccl->port = port;
+
+    /* Skip setting the port for the tls variant, it works differently */
+    if(strcmp(check->module, "graphite_tls")) {
+      ccl->port = port;
+    }
 
     if(mtev_hash_retr_str(check->config, "rows_per_cycle",
                           strlen("rows_per_cycle"),
