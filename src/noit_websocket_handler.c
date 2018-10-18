@@ -130,8 +130,9 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
 
   if (wcl->use_filter == mtev_true) {
     for (int i = 0; i < wcl->filter_count; i++) {
-      if (message.id.name_len_with_tags > 0 &&
-        strncmp(wcl->filters[i], message.id.name, message.id.name_len_with_tags) == 0) {
+      if ((message.id.name_len_with_tags > 0) &&
+          (strlen(wcl->filters[i]) == message.id.name_len_with_tags) &&
+          (0 == memcmp(wcl->filters[i], message.id.name, message.id.name_len_with_tags))) {
         noit_metric_to_json(&message, &json, &json_len, mtev_false);
         mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
                                       WSLAY_TEXT_FRAME,
