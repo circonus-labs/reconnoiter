@@ -296,12 +296,14 @@ static int ping_icmp_handler(eventer_t e, int mask,
     check = NULL;
     k.addr_of_check = payload->addr_of_check;
     mtev_uuid_copy(k.checkid, payload->checkid);
+    vcheck = NULL;
     ck_spinlock_lock(&ping_data->in_flight_lock);
-    if(mtev_hash_retrieve(ping_data->in_flight,
-                          (const char *)&k, sizeof(k),
-                          &vcheck))
-      check = vcheck;
+    mtev_hash_retrieve(ping_data->in_flight,
+                       (const char *)&k, sizeof(k),
+                       &vcheck);
     ck_spinlock_unlock(&ping_data->in_flight_lock);
+    check = noit_poller_lookup(k.checkid);
+    if(check != vcheck) continue;
 
     /* make sure this check is from this generation! */
     if(!check) {
