@@ -91,15 +91,6 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
     mtev_json_object_object_add(o, "noit", mtev_json_object_new_string(name));
   }
   mtev_json_object_object_add(o, "check_uuid", mtev_json_object_new_string(uuid_str));
-  if(metric->id.stream.tags) {
-    mtev_json_object *jst_tags = mtev_json_object_new_array();
-    for(int i=0;i<metric->id.stream.tag_count;i++) {
-      mtev_json_object_array_add(jst_tags,
-                                 mtev_json_object_new_string_len(metric->id.stream.tags[i].tag,
-                                 metric->id.stream.tags[i].total_size));
-    }
-    mtev_json_object_object_add(o, "stream_tags", jst_tags);
-  }
   if(metric->id.measurement.tag_count) {
     mtev_json_object *jm_tags = mtev_json_object_new_array();
     for(int i=0;i<metric->id.measurement.tag_count;i++) {
@@ -119,9 +110,9 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
   }
 
   if (metric->type == MESSAGE_TYPE_M) {
-    char name[metric->id.name_len + 1];
-    strncpy(name, metric->id.name, metric->id.name_len);
-    name[metric->id.name_len] = '\0';
+    char name[metric->id.name_len_with_tags + 1];
+    strncpy(name, metric->id.name, metric->id.name_len_with_tags);
+    name[metric->id.name_len_with_tags] = '\0';
     struct mtev_json_object *int_value = mtev_json_object_new_int(metric->value.value.v_int32);
 
     if(metric->value.is_null) {
@@ -205,9 +196,9 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
         mtev_json_object_array_add(histogram, bucket);
       }
       hist_free(histo);
-      char name[metric->id.name_len + 1];
-      strncpy(name, metric->id.name, metric->id.name_len);
-      name[metric->id.name_len] = '\0';
+      char name[metric->id.name_len_with_tags + 1];
+      strncpy(name, metric->id.name, metric->id.name_len_with_tags);
+      name[metric->id.name_len_with_tags] = '\0';
       mtev_json_object_object_add(o, name, histogram);
     }
   }
