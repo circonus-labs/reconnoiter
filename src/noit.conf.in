@@ -40,7 +40,6 @@
         <log name="error/postgres"/>
         <log name="error/selfcheck"/>
         <log name="error/snmp"/>
-        <log name="error/ssh2"/>
         <log name="error/statsd"/>
         <log name="error/prometheus"/>
       </error>
@@ -57,7 +56,6 @@
         <log name="debug/postgres" disabled="true"/>
         <log name="debug/selfcheck" disabled="true"/>
         <log name="debug/snmp" disabled="true"/>
-        <log name="debug/ssh2" disabled="true"/>
         <log name="debug/statsd" disabled="true"/>
         <log name="debug/prometheus" disabled="true"/>
       </debug>
