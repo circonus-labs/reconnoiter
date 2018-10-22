@@ -266,7 +266,7 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
   /* decode the protobuf */
   bundle = bundle__unpack(&protobuf_c_system_allocator, ulen, raw_protobuf);
   if(!bundle) {
-    mtevL(noit_error, "bundle decode: protobuf invalid\n");
+    mtevL(noit_error, "bundle decode: protobuf invalid: %s\n", uuid_str);
     goto bad_line;
   }
   has_status = bundle->status ? 1 : 0;
