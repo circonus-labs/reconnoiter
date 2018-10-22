@@ -400,6 +400,7 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                            noit_metric_tag_t *output, mtev_boolean *toolong) {
   size_t colon_pos = 0;
   size_t cur_size = 0;
+  *toolong = mtev_false;
   while(cur_size < tagnmlen) {
     char test_char = tagnm[cur_size];
     if(test_char == ':' && !colon_pos) {
