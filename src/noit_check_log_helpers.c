@@ -136,7 +136,7 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
   char *compbuff, *rawbuff;
 
   /* Decode */
-  initial_dlen = ((len_in / 4) * 3);
+  initial_dlen = (((len_in + 3) / 4) * 3);
   compbuff = malloc(initial_dlen);
   if (!compbuff) return -1;
   dlen = mtev_b64_decode((char *)buf_in, len_in,
