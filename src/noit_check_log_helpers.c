@@ -130,7 +130,7 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
                                      const char *buf_in,
                                      unsigned int len_in,
                                      char *buf_out,
-                                     unsigned int len_out) {
+                                     unsigned int *len_out) {
   int rv = 0;
   size_t initial_dlen, dlen, rawlen;
   char *compbuff, *rawbuff;
@@ -161,14 +161,14 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
       break;
   }
 
-  size_t size_t_len_out = len_out;
+  size_t size_t_len_out = *len_out;
   if (0 != mtev_stream_decompress(ctx, (const unsigned char *)compbuff, &dlen, (unsigned char *)buf_out, (size_t *)&size_t_len_out)) {
     mtevL(noit_error, "Failed to decompress b64 encoded chunk\n");
     if(compbuff) free(compbuff);
     return -1;
   }
-  len_out = size_t_len_out;
-  if(compbuff) free(compbuff);
+  *len_out = size_t_len_out;
+  free(compbuff);
 
   mtev_stream_decompress_finish(ctx);
   mtev_destroy_stream_decompress_ctx(ctx);
@@ -259,7 +259,7 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
   if(noit_check_log_bundle_decompress_b64(ctype,
                                           rest, len - (rest - line),
                                           (char *)raw_protobuf,
-                                          ulen)) {
+                                          &ulen)) {
     mtevL(noit_error, "bundle decode: failed to decompress\n");
     goto bad_line;
   }
@@ -396,7 +396,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   if(noit_check_log_bundle_decompress_b64(NOIT_COMPRESS_LZ4,
                                           rest, len - (rest - line),
                                           (char *)raw_data,
-                                          ulen)) {
+                                          &ulen)) {
     mtevL(noit_error, "bundle decode: failed to decompress\n");
     goto bad_line;
   }
