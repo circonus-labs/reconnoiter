@@ -382,6 +382,15 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char 
       rv = -1;
     }
     if(oldname) free(oldname);
+  } else {
+    if(newname) {
+      free(new_check->name);
+      new_check->name = strdup(newname);
+    }
+    if(newip) {
+      new_check->target_ip[0] = '\0';
+      strlcpy(new_check->target_ip, newip, sizeof(new_check->target_ip));
+    }
   }
   pthread_mutex_unlock(&polls_lock);
   return rv;
