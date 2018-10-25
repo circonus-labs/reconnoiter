@@ -6,7 +6,10 @@ if [ $? -eq 0 ]; then
   HASH=`git show --format=%H | head -1`
   TSTAMP=`git show --format=%at | head -1`
   echo "    * version -> $HASH"
-  SYM=`git name-rev $HASH | awk '{print $2;}' | sed -e 's/\^.*//'`
+  SYM=`git symbolic-ref -q HEAD | awk -F'/' '{ print $NF }'`
+  if [ -z "$SYM" ]; then
+    SYM="detached"
+  fi
   if [ -z "`echo $SYM | grep '^tags/'`" ]; then
     SYM="branches/$SYM"
   fi
