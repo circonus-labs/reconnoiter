@@ -231,6 +231,9 @@ static int child_main() {
   mtev_log_reopen_all();
   mtevL(noit_notice, "process starting: %d\n", (int)getpid());
   mtev_log_go_asynch();
+  /* Make sure out feed has dedup turned off */
+  mtev_log_stream_t ls = mtev_log_stream_find("feed");
+  if(ls) mtev_log_stream_set_dedup_s(ls, 0);
 
   signal(SIGHUP, request_conf_reload);
 
