@@ -60,7 +60,7 @@ all:	$(MODULES) $(SMODULES) $(LUA_MODULES) $(TESTMODULES)
 .xml.xmlh:
 	$(Q)$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
 
-selfcheck.lo:	selfcheck.xmlh
+selfcheck.lo:	selfcheck.xmlh broker.xmlh
 
 check_test.lo:	check_test.xmlh
 

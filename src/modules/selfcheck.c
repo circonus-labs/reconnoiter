@@ -284,3 +284,19 @@ noit_module_t selfcheck = {
   selfcheck_cleanup
 };
 
+#include "broker.xmlh"
+noit_module_t broker = {
+  {
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "broker",
+    .description = "noitd self-checker",
+    .xml_description = broker_xml_description,
+    .onload = selfcheck_onload
+  },
+  NULL,
+  NULL,
+  selfcheck_initiate_check,
+  selfcheck_cleanup
+};
+
