@@ -146,7 +146,7 @@ _noit_check_log_delete(mtev_log_stream_t ls,
   stats_t *c;
   struct timeval *whence;
   char uuid_str[256*3+37];
-  SETUP_LOG(delete, );
+  mtev_log_stream_set_dedup_s(ls, 0);
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), status_log, check);
 
   c = noit_check_get_stats_current(check);
@@ -169,7 +169,7 @@ _noit_check_log_check(mtev_log_stream_t ls,
                       noit_check_t *check) {
   struct timeval __now;
   char uuid_str[256*3+37];
-  SETUP_LOG(check, );
+  mtev_log_stream_set_dedup_s(ls, 0);
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
 
   mtev_gettimeofday(&__now, NULL);
@@ -194,7 +194,7 @@ _noit_check_log_status(mtev_log_stream_t ls,
   stats_t *c;
   struct timeval *whence;
   char uuid_str[256*3+37];
-  SETUP_LOG(status, );
+  mtev_log_stream_set_dedup_s(ls, 0);
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), status_log, check);
 
   c = noit_check_get_stats_current(check);
@@ -243,6 +243,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
 
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
   if(m->logged) return 0;
+  mtev_log_stream_set_dedup_s(ls, 0);
 
   const char *v;
   mtev_boolean extended_id = mtev_false;
@@ -300,6 +301,7 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
 
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
   if(m->logged) return 0;
+  mtev_log_stream_set_dedup_s(ls, 0);
 
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), ls, check);
   v_comp = mtev_log_stream_get_property(ls, "compression");
@@ -382,6 +384,7 @@ _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
   if(m->logged) return 0;
   if(!N_L_S_ON(ls)) return 0;
+  mtev_log_stream_set_dedup_s(ls, 0);
 
   if(!uuid_str) {
     MAKE_CHECK_UUID_STR(our_uuid_str, sizeof(our_uuid_str), metrics_log, check);
@@ -452,7 +455,7 @@ _noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check) {
   int klen;
   stats_t *c;
   void *vm;
-  SETUP_LOG(metrics, );
+  mtev_log_stream_set_dedup_s(ls, 0);
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), metrics_log, check);
 
   c = noit_check_get_stats_current(check);
@@ -524,6 +527,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   char *buf, *out_buf;
   mtev_hash_table *metrics;
 
+  mtev_log_stream_set_dedup_s(ls, 0);
   c = noit_check_get_stats_current(check);
   whence = noit_check_stats_whence(c, NULL);
 
@@ -587,7 +591,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   char *buf, *out_buf;
   mtev_hash_table *metrics;
   noit_compression_type_t comp;
-  SETUP_LOG(bundle, );
+  mtev_log_stream_set_dedup_s(ls, 0);
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
   mtev_boolean use_compression = mtev_true;
   const char *v_comp, *v_mpb;
@@ -733,6 +737,7 @@ noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
     while(curr) {
       const char *feed_name = (char *)mtev_skiplist_data(curr);
       mtev_log_stream_t ls = mtev_log_stream_find(feed_name);
+      mtev_log_stream_set_dedup_s(ls, 0);
       mtev_skiplist_next(check->feeds, &next);
       if(!ls || _noit_check_log_metric(ls, check, uuid_str, whence, m))
         noit_check_transient_remove_feed(check, feed_name);
