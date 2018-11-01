@@ -63,6 +63,10 @@ describe("noit", function()
     it("gets data", function()
       local expect, rkey, metric = {}
       rkey, metric = mtev.waitfor(key, 5)
+      if metric == nil then
+        -- mtev.notify bug, doesn't wake up across C/lua resume boundary
+        rkey, metric = mtev.waitfor(key, 5)
+      end
       assert.is_not_nil(metric)
       assert.is.equal('M', metric.type)
       expect.check_cnt = expect.check_cnt or metric.check_cnt
