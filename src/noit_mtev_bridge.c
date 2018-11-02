@@ -31,11 +31,21 @@
 #include <eventer/eventer.h>
 #include <mtev_log.h>
 #include <mtev_console.h>
+#include <noit_mtev_bridge.h>
+
+mtev_log_stream_t noit_error_impl = NULL;
+mtev_log_stream_t noit_notice_impl = NULL;
+mtev_log_stream_t noit_debug_impl = NULL;
 
 static int noit_console_handler(eventer_t e, int mask, void *closure,
                                 struct timeval *now) {
   return mtev_console_handler(e,mask,closure,now);
 }
+
 void noit_mtev_bridge_init() {
+  noit_error_impl = mtev_log_stream_find("error/noit");
+  noit_notice_impl = mtev_log_stream_find("notice/noit");
+  noit_debug_impl = mtev_log_stream_find("debug/noit");
+
   eventer_name_callback("noit_console", noit_console_handler);
 }
