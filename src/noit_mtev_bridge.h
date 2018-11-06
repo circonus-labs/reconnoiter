@@ -33,9 +33,13 @@
 
 #include <mtev_log.h>
 
-#define noit_debug mtev_debug
-#define noit_error mtev_error
-#define noit_notice mtev_notice
+extern mtev_log_stream_t noit_error_impl;
+extern mtev_log_stream_t noit_notice_impl;
+extern mtev_log_stream_t noit_debug_impl;
+
+#define noit_error ( (noit_error_impl) ? (noit_error_impl) : (mtev_error) )
+#define noit_notice ( (noit_notice_impl) ? (noit_notice_impl) : (mtev_notice) )
+#define noit_debug ( (noit_debug_impl) ? (noit_debug_impl) : (mtev_debug) )
 #define noit_stderr mtev_stderr
 
 API_EXPORT(void)
