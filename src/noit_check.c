@@ -759,12 +759,13 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
     mtevL(noit_error, "Check config seq backwards, ignored\n");
     if(found) noit_check_log_delete((noit_check_t *)vcheck);
   }
-  else if (!deleted) {
+  else {
     noit_poller_schedule(target, module, name, filterset, options,
                          moptions_used ? moptions : NULL,
                          period, timeout, oncheck[0] ? oncheck : NULL,
                          config_seq, flags, uuid, out_uuid);
     mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
+    if(deleted) noit_poller_deschedule(uuid, mtev_false, mtev_false);
   }
   for(ridx=0; ridx<reg_module_id; ridx++) {
     if(moptions[ridx]) {
@@ -1596,7 +1597,7 @@ check_recycle_bin_processor_internal() {
         mtev_conf_xml_xpath(NULL, &xpath_ctxt);
         pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
         if(pobj && pobj->type == XPATH_NODESET && !xmlXPathNodeSetIsEmpty(pobj->nodesetval) &&
-           xmlXPathNodeSetGetLength(pobj->nodesetval) > 1) {
+           xmlXPathNodeSetGetLength(pobj->nodesetval) >= 1) {
           xmlNodePtr node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
           CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
           xmlUnlinkNode(node);

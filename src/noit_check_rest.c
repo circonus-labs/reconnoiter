@@ -830,6 +830,7 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
     ATTR2PROP(disable);
     ATTR2PROP(filterset);
     ATTR2PROP(seq);
+    xmlUnsetProp(check, (xmlChar*)"deleted");
     if(seq && !strcmp((char *)n->name, "seq")) {
       xmlChar *v = xmlNodeGetContent(n);
       *seq = strtoll((const char *)v, NULL, 10);
