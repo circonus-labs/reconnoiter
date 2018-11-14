@@ -754,7 +754,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   }
   pthread_mutex_unlock(&polls_lock);
   if(found)
-    noit_poller_deschedule(uuid, mtev_false, !deleted);
+    noit_poller_deschedule(uuid, mtev_false, mtev_true);
   if(backdated) {
     mtevL(noit_error, "Check config seq backwards, ignored\n");
     if(found) noit_check_log_delete((noit_check_t *)vcheck);
