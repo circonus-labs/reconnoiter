@@ -322,6 +322,7 @@ noit_poller_lookup__nolock(uuid_t in) {
 static noit_check_t *
 noit_poller_lookup_by_name__nolock(char *target, char *name) {
   noit_check_t tmp_check;
+  if(!polls_by_name) return NULL;
   memset(&tmp_check, 0, sizeof(tmp_check));
   tmp_check.target = target;
   tmp_check.name = name;
@@ -979,13 +980,18 @@ noit_poller_init() {
   noit_check_resolver_init();
   noit_check_tools_init();
 
-  polls_by_name = mtev_skiplist_alloc();
-  mtev_skiplist_set_compare(polls_by_name, __check_name_compare,
+  mtev_skiplist *pbn;
+  pbn = mtev_skiplist_alloc();
+  mtev_skiplist_set_compare(pbn, __check_name_compare,
                             __check_name_compare);
-  mtev_skiplist_add_index(polls_by_name, __check_target_ip_compare,
+  mtev_skiplist_add_index(pbn, __check_target_ip_compare,
                           __check_target_ip_compare);
-  mtev_skiplist_add_index(polls_by_name, __check_target_compare,
+  mtev_skiplist_add_index(pbn, __check_target_compare,
                           __check_target_compare);
+  ck_pr_barrier();
+  /* Now when people see it, it will be complete and functional */
+  polls_by_name = pbn;
+
   watchlist = mtev_skiplist_alloc();
   mtev_skiplist_set_compare(watchlist, __watchlist_compare,
                             __watchlist_compare);
@@ -1004,6 +1010,7 @@ noit_poller_init() {
 
 int
 noit_poller_check_count() {
+  if(polls_by_name == NULL) return 0;
   return mtev_skiplist_size(polls_by_name);
 }
 
@@ -1708,6 +1715,8 @@ noit_poller_target_ip_do(const char *target_ip,
   noit_check_t *todo_onstack[8192];
   noit_check_t **todo = todo_onstack;
 
+  if(!polls_by_name) return 0;
+
   tlist = mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
                              __check_target_ip_compare, NULL);
 
@@ -1758,6 +1767,8 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   noit_check_t *todo_onstack[8192];
   noit_check_t **todo = todo_onstack;
 
+  if(!polls_by_name) return 0;
+
   tlist = mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
                              __check_target_compare, NULL);
 
@@ -1802,6 +1813,8 @@ noit_poller_do(int (*f)(noit_check_t *, void *),
   mtev_skiplist_node *iter;
   int i, count = 0, max_count = 0;
   noit_check_t **todo;
+
+  if(!polls_by_name) return 0;
 
   max_count = mtev_skiplist_size(polls_by_name);
   if(max_count == 0) return 0;
@@ -2792,6 +2805,7 @@ noit_console_show_checks_name(mtev_console_closure_t ncct,
                               int argc, char **argv,
                               mtev_console_state_t *dstate,
                               void *closure) {
+  if(!polls_by_name) return 0;
   return noit_console_short_checks_sl(ncct, polls_by_name);
 }
 
@@ -2800,6 +2814,7 @@ noit_console_show_checks_target(mtev_console_closure_t ncct,
                                    int argc, char **argv,
                                    mtev_console_state_t *dstate,
                                    void *closure) {
+  if(!polls_by_name) return 0;
   return noit_console_short_checks_sl(ncct,
            mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
            __check_target_compare, NULL));
@@ -2810,6 +2825,7 @@ noit_console_show_checks_target_ip(mtev_console_closure_t ncct,
                                    int argc, char **argv,
                                    mtev_console_state_t *dstate,
                                    void *closure) {
+  if(!polls_by_name) return 0;
   return noit_console_short_checks_sl(ncct,
            mtev_skiplist_find(mtev_skiplist_indexes(polls_by_name),
            __check_target_ip_compare, NULL));
