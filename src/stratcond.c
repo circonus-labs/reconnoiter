@@ -56,7 +56,7 @@
 #include <mtev_reverse_socket.h>
 #include <mtev_events_rest.h>
 #include <mtev_capabilities_listener.h>
-
+#include <mtev_heap_profiler.h>
 #include "noit_mtev_bridge.h"
 #include "noit_config.h"
 #include "noit_module.h"
@@ -191,6 +191,7 @@ static int child_main() {
   mtev_reverse_socket_acl(mtev_reverse_socket_denier);
   mtev_events_rest_init();
   mtev_capabilities_listener_init();
+  mtev_heap_profiler_rest_init();
   noit_build_version(stratcon_version, sizeof(stratcon_version));
   mtev_capabilities_add_feature("stratcon", stratcon_version);
   stratcon_realtime_http_init(APPNAME);
