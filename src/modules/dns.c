@@ -890,7 +890,10 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
       ci->error = strdup("submission error");
     }
     else {
-      dns_module_eventer_dns_utm_fn(ci->h->ctx, 0, ci->h);
+      /* inside the above if, dns_submit_cn could releare ci->h within dns_cb. */
+      if(ci->h) {
+        dns_module_eventer_dns_utm_fn(ci->h->ctx, 0, ci->h);
+      }
     }
   }
 
