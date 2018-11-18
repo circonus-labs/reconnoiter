@@ -42,6 +42,7 @@
 #include <mtev_memory.h>
 #include <mtev_rest.h>
 #include <mtev_conf.h>
+#include <mtev_thread.h>
 
 #include <jlog.h>
 #include <jlog_private.h>
@@ -210,6 +211,9 @@ noit_jlog_thread_main(void *e_vptr) {
   noit_jlog_closure_t *jcl = mtev_acceptor_closure_ctx(ac);
   char inbuff[sizeof(jlog_id)];
 
+  char thrname[16];
+  snprintf(thrname, sizeof(thrname), "f:%s", jcl->subscriber);
+  mtev_thread_setname(thrname);
   mtev_memory_init_thread();
   eventer_set_fd_blocking(eventer_get_fd(e));
 
@@ -317,6 +321,7 @@ noit_jlog_thread_main(void *e_vptr) {
   ck_pr_dec_32(&jcl->feed_stats->connections);
   noit_jlog_closure_free(jcl);
   mtev_acceptor_closure_free(ac);
+  mtev_thread_setname(NULL);
   mtev_memory_maintenance();
   return NULL;
 }
