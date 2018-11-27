@@ -413,17 +413,23 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
 
   mtev_cluster_node_t *owner = NULL;
   if(!noit_should_run_check(check, &owner) && owner) {
-    const char *cn = mtev_cluster_node_get_cn(owner);
     char url[1024];
     struct sockaddr *addr;
+    struct sockaddr_in6 *sa6;
+    struct sockaddr_in *sa;
+    char ip_str[INET6_ADDRSTRLEN] = {0};
     socklen_t addrlen;
     unsigned short port;
     switch(mtev_cluster_node_get_addr(owner, &addr, &addrlen)) {
       case AF_INET:
-        port = ntohs(((struct sockaddr_in *)addr)->sin_port);
+        sa = (struct sockaddr_in *) addr;
+        port = ntohs(sa->sin_port);
+        inet_ntop(AF_INET, &sa->sin_addr, ip_str, sizeof(ip_str));
         break;
       case AF_INET6:
-        port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+        sa6 = (struct sockaddr_in6 *) addr;
+        port = ntohs(sa6->sin6_port);
+        inet_ntop(AF_INET6, &sa6->sin6_addr, ip_str, sizeof(ip_str));
         break;
       default:
         port = 43191;
@@ -431,9 +437,9 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
     char uuid_str[UUID_STR_LEN+1];
     mtev_uuid_unparse_lower(checkid, uuid_str);
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s.json",
-             cn, port, uuid_str);
+             ip_str, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
-    mtev_http_response_standard(ctx, 302, "NOT IT", "application/json");
+    mtev_http_response_standard(ctx, 302, "CLUSTER LEAD", "application/json");
   }
   else {
     mtev_http_response_ok(restc->http_ctx, "application/json");
@@ -601,17 +607,23 @@ rest_show_check(mtev_http_rest_closure_t *restc,
 
   mtev_cluster_node_t *owner = NULL;
   if(check && !noit_should_run_check(check, &owner) && owner) {
-    const char *cn = mtev_cluster_node_get_cn(owner);
     char url[1024];
     struct sockaddr *addr;
+    struct sockaddr_in6 *sa6;
+    struct sockaddr_in *sa;
+    char ip_str[INET6_ADDRSTRLEN] = {0};
     socklen_t addrlen;
     unsigned short port;
     switch(mtev_cluster_node_get_addr(owner, &addr, &addrlen)) {
       case AF_INET:
-        port = ntohs(((struct sockaddr_in *)addr)->sin_port);
+        sa = (struct sockaddr_in *) addr;
+        port = ntohs(sa->sin_port);
+        inet_ntop(AF_INET, &sa->sin_addr, ip_str, sizeof(ip_str));
         break;
       case AF_INET6:
-        port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+        sa6 = (struct sockaddr_in6 *) addr;
+        port = ntohs(sa6->sin6_port);
+        inet_ntop(AF_INET6, &sa6->sin6_addr, ip_str, sizeof(ip_str));
         break;
       default:
         port = 43191;
@@ -619,9 +631,9 @@ rest_show_check(mtev_http_rest_closure_t *restc,
     char uuid_str[UUID_STR_LEN+1];
     mtev_uuid_unparse_lower(checkid, uuid_str);
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s",
-             cn, port, uuid_str);
+             ip_str, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
-    mtev_http_response_standard(ctx, 302, "NOT IT", "text/cml");
+    mtev_http_response_standard(ctx, 302, "CLUSTER LEAD", "text/cml");
   }
   else {
     mtev_http_response_ok(ctx, "text/xml");
