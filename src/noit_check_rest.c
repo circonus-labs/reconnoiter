@@ -1121,10 +1121,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(pobj) xmlXPathFreeObject(pobj);
   restc->fastpath = rest_show_check;
   NCUNLOCK;
-  int rc = restc->fastpath(restc, restc->nparams, restc->params);
-  // Override HTTP response code. We did a sucessful write, so return 200
-  mtev_http_response_standard(ctx, 200, "OK", "text/xml");
-  return rc;
+  return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
