@@ -291,21 +291,24 @@ noit_lua_tagset_copy_free(lua_State *L) {
   noit_metric_tagset_t *set = *udata;
   free(set->tags);
   free(set);
+  return 0;
 }
 
 static int
 noit_lua_tagset_copy_setup(lua_State *L, noit_metric_tagset_t *src_set) {
-  noit_metric_tagset_t *set = calloc(1, sizeof(*src_set));
-  *set = *src_set;
-  noit_metric_tag_t *tags = calloc(src_set->tag_count, sizeof(noit_metric_tag_t));
-  memcpy(set->tags, src_set->tags, src_set->tag_count*sizeof(noit_metric_tag_t));
-  noit_metric_tagset_t **udata = (noit_metric_tagset_t **) lua_newuserdata(L, sizeof(set));
-  *udata = set;
+  noit_metric_tagset_t *dst_set = calloc(1, sizeof(*src_set));
+  memcpy(dst_set, src_set, sizeof(dst_set));
+  noit_metric_tag_t *dst_tags = calloc(src_set->tag_count, sizeof(noit_metric_tag_t));
+  memcpy(dst_tags, src_set->tags, src_set->tag_count*sizeof(noit_metric_tag_t));
+  dst_set->tags = dst_tags;
+  noit_metric_tagset_t **udata = (noit_metric_tagset_t **) lua_newuserdata(L, sizeof(dst_set));
+  *udata = dst_set;
   if(luaL_newmetatable(L, "noit_metric_tagset_t") == 1){
     lua_pushcclosure(L, noit_lua_tagset_copy_free, 0);
     lua_setfield(L, -2, "__gc");
   }
   lua_setmetatable(L, -2);
+  return 0;
 }
 
 // TODO: GC
