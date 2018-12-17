@@ -34,6 +34,8 @@
 #include "lua_mtev.h"
 #include "noit_metric_director.h"
 #include "lua.h"
+#include "noit_metric_tag_search.h"
+
 
 static int
 lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
@@ -282,6 +284,54 @@ lua_noit_tag_search_parse(lua_State *L) {
   return 1;
 }
 
+static int
+noit_lua_tagset_copy_setup(lua_State *L, noit_metric_tagset_t *src_set) {
+  noit_metric_tagset_t *set = calloc(1, sizeof(*src_set));
+  *set = *src_set;
+  noit_metric_tag_t *tags = calloc(src_set->tag_count, sizeof(noit_metric_tag_t));
+  memcpy(set->tags, src_set->tags, src_set->tag_count*sizeof(noit_metric_tag_t));
+  noit_metric_tagset_t **udata = (noit_metric_tagset_t **) lua_newuserdata(L, sizeof(set));
+  *udata = set;
+  luaL_newmetatable(L, "noit_metric_tagset_t");
+  lua_setmetatable(L, -2);
+  // TODO: GC
+}
+
+// TODO: GC
+// param: name
+// returns: stags, mtags (userdata)
+static int
+lua_noit_tag_parse(lua_State *L) {
+  const char* name = luaL_checkstring(L, 1);
+  noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+  int rc = noit_metric_parse_tags(name, strlen(name), &stset, &mtset);
+  if (rc < 0) {
+    luaL_error(L, "Error parsing tags for metric %s", name);
+    return 0;
+  }
+  noit_lua_tagset_copy_setup(L, &stset);
+  noit_lua_tagset_copy_setup(L, &mtset);
+  return 2;
+}
+
+
+// param: ast (userdata)
+// param: tagset (userdata)
+// returns: matches (boolean)
+static int
+lua_noit_tag_search_eval(lua_State *L) {
+  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  noit_metric_tagset_t **set_ud = (noit_metric_tagset_t **)
+    luaL_checkudata(L, 2, "noit_metric_tagset_t");
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, *set_ud);
+  lua_pushboolean(L, ok);
+  return 1;
+}
+
+
 // param: ast (userdata)
 // param: name (string)
 // returns: matches (boolean)
@@ -313,6 +363,8 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
   { "tag_search_parse", lua_noit_tag_search_parse},
+  { "tag_parse", lua_noit_tag_parse},
+  { "tag_search_eval", lua_noit_tag_search_eval},
   { "tag_search_eval_string", lua_noit_tag_search_eval_string},
   { NULL, NULL }
 };
