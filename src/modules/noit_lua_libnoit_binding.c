@@ -285,6 +285,15 @@ lua_noit_tag_search_parse(lua_State *L) {
 }
 
 static int
+noit_lua_tagset_copy_free(lua_State *L) {
+  noit_metric_tagset_t **udata = (noit_metric_tagset_t **)
+    luaL_checkudata(L, 1, "noit_metric_tagset_t");
+  noit_metric_tagset_t *set = *udata;
+  free(set->tags);
+  free(set);
+}
+
+static int
 noit_lua_tagset_copy_setup(lua_State *L, noit_metric_tagset_t *src_set) {
   noit_metric_tagset_t *set = calloc(1, sizeof(*src_set));
   *set = *src_set;
@@ -292,9 +301,11 @@ noit_lua_tagset_copy_setup(lua_State *L, noit_metric_tagset_t *src_set) {
   memcpy(set->tags, src_set->tags, src_set->tag_count*sizeof(noit_metric_tag_t));
   noit_metric_tagset_t **udata = (noit_metric_tagset_t **) lua_newuserdata(L, sizeof(set));
   *udata = set;
-  luaL_newmetatable(L, "noit_metric_tagset_t");
+  if(luaL_newmetatable(L, "noit_metric_tagset_t") == 1){
+    lua_pushcclosure(L, noit_lua_tagset_copy_free, 0);
+    lua_setfield(L, -2, "__gc");
+  }
   lua_setmetatable(L, -2);
-  // TODO: GC
 }
 
 // TODO: GC
@@ -316,7 +327,6 @@ lua_noit_tag_parse(lua_State *L) {
   return 2;
 }
 
-
 // param: ast (userdata)
 // param: tagset (userdata)
 // returns: matches (boolean)
@@ -330,7 +340,6 @@ lua_noit_tag_search_eval(lua_State *L) {
   lua_pushboolean(L, ok);
   return 1;
 }
-
 
 // param: ast (userdata)
 // param: name (string)
