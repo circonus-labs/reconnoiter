@@ -246,6 +246,47 @@ lua_noit_metric_messages_distributed(lua_State *L) {
   return 1;
 }
 
+// param: query
+// retuns: ast
+static int
+lua_noit_tag_search_parse(lua_State *L) {
+  const char *query = luaL_checkstring(L, 1);
+  noit_metric_tag_search_ast_t *ast;
+  int erroroff;
+  ast = noit_metric_tag_search_parse(query, &erroroff);
+  if (ast == NULL) {
+    luaL_error(L, "Error parsing tag_search query (%s) at position %d", query, erroroff);
+    return 0;
+  }
+  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **) lua_newuserdata(L, sizeof(ast));
+  *ast_ud = ast;
+  luaL_newmetatable(L, "noit_metric_tag_search_ast_t");
+  // TODO: GC
+  lua_setmetatable(L, -2);
+  return 1;
+}
+
+// param: ast (userdata)
+// param: name (string)
+// returns: matches (boolean)
+static int
+lua_noit_tag_search_eval_string(lua_State *L) {
+  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  const char* name = luaL_checkstring(L, 2);
+  noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+  int rc = noit_metric_parse_tags(name, strlen(name), &stset, &mtset);
+  if (rc < 0) {
+    luaL_error(L, "Error parsing tagset for metric %s", name);
+    return 0;
+  }
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, &mtset);
+  lua_pushboolean(L, ok);
+  return 1;
+}
+
 #ifndef NO_LUAOPEN_LIBNOIT
 static const luaL_Reg libnoit_binding[] = {
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
@@ -255,6 +296,8 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
+  { "tag_search_parse", lua_noit_tag_search_parse},
+  { "tag_search_eval_string", lua_noit_tag_search_eval_string},
   { NULL, NULL }
 };
 
