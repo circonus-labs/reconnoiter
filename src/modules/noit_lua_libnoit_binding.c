@@ -246,6 +246,26 @@ lua_noit_metric_messages_distributed(lua_State *L) {
   return 1;
 }
 
+static int
+noit_lua_tag_search_ast_free(lua_State *L) {
+  noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  noit_metric_tag_search_free(*udata);
+  return 0;
+}
+
+static int
+noit_lua_tag_search_ast_setup(lua_State *L, noit_metric_tag_search_ast_t *ast) {
+  noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **) lua_newuserdata(L, sizeof(ast));
+  *udata = ast;
+  if(luaL_newmetatable(L, "noit_metric_tag_search_ast_t") == 1){
+    lua_pushcclosure(L, noit_lua_tag_search_ast_free, 0);
+    lua_setfield(L, -2, "__gc");
+  }
+  lua_setmetatable(L, -2);
+  return 0;
+}
+
 // param: query
 // retuns: ast
 static int
@@ -258,11 +278,7 @@ lua_noit_tag_search_parse(lua_State *L) {
     luaL_error(L, "Error parsing tag_search query (%s) at position %d", query, erroroff);
     return 0;
   }
-  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **) lua_newuserdata(L, sizeof(ast));
-  *ast_ud = ast;
-  luaL_newmetatable(L, "noit_metric_tag_search_ast_t");
-  // TODO: GC
-  lua_setmetatable(L, -2);
+  noit_lua_tag_search_ast_setup(L, ast);
   return 1;
 }
 
