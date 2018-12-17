@@ -297,7 +297,7 @@ noit_lua_tagset_copy_free(lua_State *L) {
 static int
 noit_lua_tagset_copy_setup(lua_State *L, noit_metric_tagset_t *src_set) {
   noit_metric_tagset_t *dst_set = calloc(1, sizeof(*src_set));
-  memcpy(dst_set, src_set, sizeof(dst_set));
+  memcpy(dst_set, src_set, sizeof(*dst_set));
   noit_metric_tag_t *dst_tags = calloc(src_set->tag_count, sizeof(noit_metric_tag_t));
   memcpy(dst_tags, src_set->tags, src_set->tag_count*sizeof(noit_metric_tag_t));
   dst_set->tags = dst_tags;
