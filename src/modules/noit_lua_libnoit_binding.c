@@ -71,6 +71,9 @@ lua_noit_checks_unsubscribe(lua_State *L) {
   return lua_noit_checks_adjustsubscribe(L, -1);
 }
 
+static int
+noit_lua_tagset_copy_setup(lua_State *, noit_metric_tagset_t *);
+
 static int noit_metric_id_index_func(lua_State *L) {
   int n;
   const char *k;
@@ -112,6 +115,16 @@ static int noit_metric_id_index_func(lua_State *L) {
         lua_pushinteger(L, metric_id->name_len);
       } else {
         break;
+      }
+      return 1;
+    case 'm':
+      if(!strcmp(k, "mtags")) {
+        noit_lua_tagset_copy_setup(L, &(metric_id->measurement));
+      }
+      return 1;
+    case 's':
+      if(!strcmp(k, "stags")) {
+        noit_lua_tagset_copy_setup(L, &(metric_id->stream));
       }
       return 1;
     default:
