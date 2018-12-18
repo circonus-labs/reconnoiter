@@ -36,13 +36,19 @@
 #include "lua.h"
 #include "noit_metric_tag_search.h"
 
+void noit_lua_libnoit_init();
+static ck_spinlock_t noit_lua_libnoit_init_lock = CK_SPINLOCK_INITIALIZER;
+
 // We need to hold-on to a reference to the metric name as long as we make use of the tagset
 typedef struct {
   noit_metric_tagset_t tagset;
   int lua_name_ref;
 } noit_lua_tagset_t;
 
-void libnoit_init();
+// account_set is a map: account_id => account_interests
+// account_interests is an array of integers, such that account_interests[lane] > 0
+//   if we should deliver messages for the given account_id to the lane.
+static mtev_hash_table *account_set = NULL;
 
 static int
 noit_lua_tagset_copy_setup(lua_State *, noit_lua_tagset_t *);
@@ -100,11 +106,6 @@ lua_noit_metric_subscribe_all(lua_State *L) {
   return 0;
 }
 
-// account_set is a map: account_id => account_interests
-// account_interests is an array of integers, such that account_interests[lane] > 0
-//   if we should deliver messages for the given account_id to the lane.
-static mtev_hash_table *account_set = NULL;
-
 mtev_hook_return_t
 hook_metric_subscribe_account(void *closure, noit_metric_message_t *m, int *w, int wlen) {
   if(account_set == NULL) {
@@ -122,9 +123,8 @@ hook_metric_subscribe_account(void *closure, noit_metric_message_t *m, int *w, i
 
 static int
 lua_noit_metric_subscribe_account(lua_State *L) {
-  // TODO: Call this during startup. Where to put this?
   if(account_set == NULL) {
-    libnoit_init();
+    noit_lua_libnoit_init();
   }
   int account_id = luaL_checkint(L, 1);
   int *account_interests = NULL;
@@ -486,10 +486,22 @@ lua_noit_tag_search_eval_string(lua_State *L) {
 }
 
 void
-libnoit_init() {
-  account_set = calloc(1, sizeof(*account_set));
-  mtev_hash_init(account_set);
-  metric_director_want_hook_register("metrics_select", hook_metric_subscribe_account, NULL);
+noit_lua_libnoit_init() {
+  // TODO: Call this once during startup.
+  // I did not find a good place to put this:
+  // - Can't do it from noitd.c: This is a dynamically loaded module.
+  // - Can't do it during module initialization: this is used from the lua_general/lua_web in mtev
+  // - Can't do it during lua state initialization: we have multiple states that get initialized concurrentlya
+  // Also we can't just lock this section with a pthread_mutex: Where should we create the pthread_mutex_t?
+  // Using a spinlock instead, since it does not require initialization
+  ck_spinlock_lock(&noit_lua_libnoit_init_lock);
+  if (account_set == NULL) {
+    mtev_hash_table *tmp = calloc(1, sizeof(*account_set));
+    mtev_hash_init(tmp);
+    ck_pr_store_ptr(&account_set, tmp);
+    metric_director_want_hook_register("metrics_select", hook_metric_subscribe_account, NULL);
+  }
+  ck_spinlock_unlock(&noit_lua_libnoit_init_lock);
 }
 
 #ifndef NO_LUAOPEN_LIBNOIT
