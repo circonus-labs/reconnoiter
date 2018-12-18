@@ -157,6 +157,11 @@ static const luaL_Reg noit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
+  { "tag_parse", lua_noit_tag_parse},
+  { "tag_tostring", lua_noit_tag_tostring},
+  { "tag_search_parse", lua_noit_tag_search_parse},
+  { "tag_search_eval", lua_noit_tag_search_eval},
+  { "tag_search_eval_string", lua_noit_tag_search_eval_string},
   // noit binding additions
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
@@ -173,4 +178,3 @@ LUALIB_API int luaopen_noit_binding(lua_State *L)
   luaL_openlib(L, "noit_binding", noit_binding, 0);
   return 1;
 }
-

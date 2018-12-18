@@ -312,6 +312,22 @@ noit_lua_tagset_copy_setup(lua_State *L, noit_metric_tagset_t *src_set) {
   return 0;
 }
 
+// Convert a tagset to strings
+// param: tag
+// returns: tag1, tag2, ...
+static int
+lua_noit_tag_tostring(lua_State *L) {
+  noit_metric_tagset_t **udata = (noit_metric_tagset_t **)
+    luaL_checkudata(L, 1, "noit_metric_tagset_t");
+  noit_metric_tagset_t *set = *udata;
+  int cnt = set->tag_count;
+  for (int i=0; i<cnt; i++) {
+    noit_metric_tag_t tag = set->tags[i];
+    lua_pushlstring(L, tag.tag, tag.total_size);
+  }
+  return cnt;
+}
+
 // Parse a metric name to a tagset
 // param: name
 // returns: stags, mtags (userdata)
@@ -378,6 +394,7 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
   { "tag_parse", lua_noit_tag_parse},
+  { "tag_tostring", lua_noit_tag_tostring},
   { "tag_search_parse", lua_noit_tag_search_parse},
   { "tag_search_eval", lua_noit_tag_search_eval},
   { "tag_search_eval_string", lua_noit_tag_search_eval_string},
