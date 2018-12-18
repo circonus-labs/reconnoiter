@@ -36,7 +36,16 @@
 #include "lua.h"
 #include "noit_metric_tag_search.h"
 
+// We need to hold-on to a reference to the metric name as long as we make use of the tagset
+typedef struct {
+  noit_metric_tagset_t tagset;
+  int lua_name_ref;
+} noit_lua_tagset_t;
+
 void libnoit_init();
+
+static int
+noit_lua_tagset_copy_setup(lua_State *, noit_lua_tagset_t *);
 
 static int
 lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
@@ -130,9 +139,6 @@ lua_noit_metric_subscribe_account(lua_State *L) {
   return 0;
 }
 
-static int
-noit_lua_tagset_copy_setup(lua_State *, noit_metric_tagset_t *);
-
 static int noit_metric_id_index_func(lua_State *L) {
   int n;
   const char *k;
@@ -178,14 +184,18 @@ static int noit_metric_id_index_func(lua_State *L) {
       return 1;
     case 'm':
       if(!strcmp(k, "mtags")) {
-        // We don't own the tagset. Pass a copy to the lua state.
-        noit_lua_tagset_copy_setup(L, &(metric_id->measurement));
+        lua_pushvalue(L, 2);
+        int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        noit_lua_tagset_t set = { .tagset = metric_id->measurement, .lua_name_ref = ref };
+        noit_lua_tagset_copy_setup(L, &set);
       }
       return 1;
     case 's':
       if(!strcmp(k, "stags")) {
-        // We don't own the tagset. Pass a copy to the lua state.
-        noit_lua_tagset_copy_setup(L, &(metric_id->stream));
+        lua_pushvalue(L, 2);
+        int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        noit_lua_tagset_t set = { .tagset = metric_id->stream, .lua_name_ref = ref };
+        noit_lua_tagset_copy_setup(L, &set);
       }
       return 1;
     default:
@@ -361,24 +371,25 @@ lua_noit_tag_search_parse(lua_State *L) {
 
 static int
 noit_lua_tagset_copy_free(lua_State *L) {
-  noit_metric_tagset_t **udata = (noit_metric_tagset_t **)
-    luaL_checkudata(L, 1, "noit_metric_tagset_t");
-  noit_metric_tagset_t *set = *udata;
-  free(set->tags);
+  noit_lua_tagset_t **udata = (noit_lua_tagset_t **)
+    luaL_checkudata(L, 1, "noit_lua_tagset_t");
+  noit_lua_tagset_t *set = *udata;
+  luaL_unref(L, LUA_REGISTRYINDEX, set->lua_name_ref);
+  free(set->tagset.tags);
   free(set);
   return 0;
 }
 
 static int
-noit_lua_tagset_copy_setup(lua_State *L, noit_metric_tagset_t *src_set) {
-  noit_metric_tagset_t *dst_set = calloc(1, sizeof(*src_set));
+noit_lua_tagset_copy_setup(lua_State *L, noit_lua_tagset_t *src_set) {
+  noit_lua_tagset_t *dst_set = calloc(1, sizeof(*src_set));
   memcpy(dst_set, src_set, sizeof(*dst_set));
-  noit_metric_tag_t *dst_tags = calloc(src_set->tag_count, sizeof(noit_metric_tag_t));
-  memcpy(dst_tags, src_set->tags, src_set->tag_count*sizeof(noit_metric_tag_t));
-  dst_set->tags = dst_tags;
-  noit_metric_tagset_t **udata = (noit_metric_tagset_t **) lua_newuserdata(L, sizeof(dst_set));
+  noit_metric_tag_t *dst_tags = calloc(src_set->tagset.tag_count, sizeof(noit_metric_tag_t));
+  memcpy(dst_tags, src_set->tagset.tags, src_set->tagset.tag_count*sizeof(noit_metric_tag_t));
+  dst_set->tagset.tags = dst_tags;
+  noit_lua_tagset_t **udata = (noit_lua_tagset_t **) lua_newuserdata(L, sizeof(dst_set));
   *udata = dst_set;
-  if(luaL_newmetatable(L, "noit_metric_tagset_t") == 1){
+  if(luaL_newmetatable(L, "noit_lua_tagset_t") == 1) {
     lua_pushcclosure(L, noit_lua_tagset_copy_free, 0);
     lua_setfield(L, -2, "__gc");
   }
@@ -416,8 +427,15 @@ lua_noit_tag_parse(lua_State *L) {
     luaL_error(L, "Error parsing tags for metric %s", name);
     return 0;
   }
-  noit_lua_tagset_copy_setup(L, &stset);
-  noit_lua_tagset_copy_setup(L, &mtset);
+  int ref;
+  lua_pushvalue(L, 1);
+  ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  noit_lua_tagset_t l_stset = { .tagset = stset, .lua_name_ref = ref };
+  lua_pushvalue(L, 1);
+  ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  noit_lua_tagset_t l_mtset = { .tagset = mtset, .lua_name_ref = ref };
+  noit_lua_tagset_copy_setup(L, &l_stset);
+  noit_lua_tagset_copy_setup(L, &l_mtset);
   return 2;
 }
 
