@@ -157,6 +157,7 @@ static const luaL_Reg noit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
+  { "metric_director_subscribe_all", lua_noit_metric_subscribe_all},
   { "tag_parse", lua_noit_tag_parse},
   { "tag_tostring", lua_noit_tag_tostring},
   { "tag_search_parse", lua_noit_tag_search_parse},

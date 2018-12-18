@@ -71,6 +71,22 @@ lua_noit_checks_unsubscribe(lua_State *L) {
   return lua_noit_checks_adjustsubscribe(L, -1);
 }
 
+mtev_hook_return_t
+hook_metric_subscribe_all(void *closure, noit_metric_message_t *m, int *w, int wlen) {
+  int *lane = (int*) closure;
+  assert(*lane < wlen);
+  w[*lane] = 1;
+  return MTEV_HOOK_CONTINUE;
+}
+
+static int
+lua_noit_metric_subscribe_all(lua_State *L) {
+  int *lane = malloc(sizeof(int));
+  *lane = noit_metric_director_my_lane();
+  metric_director_want_hook_register("metrics_select", hook_metric_subscribe_all, lane);
+  return 0;
+}
+
 static int
 noit_lua_tagset_copy_setup(lua_State *, noit_metric_tagset_t *);
 
@@ -406,6 +422,7 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
+  { "metric_director_subscribe_all", lua_noit_metric_subscribe_all},
   { "tag_parse", lua_noit_tag_parse},
   { "tag_tostring", lua_noit_tag_tostring},
   { "tag_search_parse", lua_noit_tag_search_parse},
