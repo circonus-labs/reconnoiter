@@ -128,11 +128,20 @@ lua_noit_metric_subscribe_account(lua_State *L) {
   }
   int account_id = luaL_checkint(L, 1);
   int *account_interests = NULL;
-  if(!mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)) {
+  while(!mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
     int nthreads = eventer_loop_concurrency();
     account_interests = calloc(nthreads, (sizeof(*account_interests)));
-    int rc = mtev_hash_store(account_set, (const char *)&account_id, sizeof(account_id), (void **)account_interests);
-    // TODO: check rc. What can go wrong?
+    int *account_id_copy = calloc(1, sizeof(int));
+    *account_id_copy = account_id;
+    int rc = mtev_hash_store(account_set, (const char *)account_id_copy, sizeof(*account_id_copy), (void **)account_interests);
+    if(!rc) {
+      // We lost the race. Try again
+      free(account_id_copy);
+      free(account_interests);
+    }
+    else {
+      break;
+    }
   }
   assert(account_interests);
   account_interests[noit_metric_director_my_lane()] += 1;
