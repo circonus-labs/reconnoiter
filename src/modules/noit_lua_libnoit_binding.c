@@ -36,6 +36,7 @@
 #include "lua.h"
 #include "noit_metric_tag_search.h"
 
+void libnoit_init();
 
 static int
 lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
@@ -51,6 +52,7 @@ static int
 lua_noit_metric_subscribe(lua_State *L) {
   return lua_noit_metric_adjustsubscribe(L, 1);
 }
+
 static int
 lua_noit_metric_unsubscribe(lua_State *L) {
   return lua_noit_metric_adjustsubscribe(L, -1);
@@ -66,6 +68,7 @@ static int
 lua_noit_checks_subscribe(lua_State *L) {
   return lua_noit_checks_adjustsubscribe(L, 1);
 }
+
 static int
 lua_noit_checks_unsubscribe(lua_State *L) {
   return lua_noit_checks_adjustsubscribe(L, -1);
@@ -83,7 +86,47 @@ static int
 lua_noit_metric_subscribe_all(lua_State *L) {
   int *lane = malloc(sizeof(int));
   *lane = noit_metric_director_my_lane();
+  // Q: Can we register the same hook multiple times (with different closure data)?
   metric_director_want_hook_register("metrics_select", hook_metric_subscribe_all, lane);
+  return 0;
+}
+
+// account_set is a map: account_id => account_interests
+// account_interests is an array of integers, such that account_interests[lane] > 0
+//   if we should deliver messages for the given account_id to the lane.
+static mtev_hash_table *account_set = NULL;
+
+mtev_hook_return_t
+hook_metric_subscribe_account(void *closure, noit_metric_message_t *m, int *w, int wlen) {
+  if(account_set == NULL) {
+    return MTEV_HOOK_ABORT;
+  }
+  int account_id = m->id.account_id;
+  int *account_interests;
+  if(mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
+    for(int i=0; i<wlen; i++){
+      w[i] = account_interests[i];
+    }
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+static int
+lua_noit_metric_subscribe_account(lua_State *L) {
+  // TODO: Call this during startup. Where to put this?
+  if(account_set == NULL) {
+    libnoit_init();
+  }
+  int account_id = luaL_checkint(L, 1);
+  int *account_interests = NULL;
+  if(!mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)) {
+    int nthreads = eventer_loop_concurrency();
+    account_interests = calloc(nthreads, (sizeof(*account_interests)));
+    int rc = mtev_hash_store(account_set, (const char *)&account_id, sizeof(account_id), (void **)account_interests);
+    // TODO: check rc. What can go wrong?
+  }
+  assert(account_interests);
+  account_interests[noit_metric_director_my_lane()] += 1;
   return 0;
 }
 
@@ -413,6 +456,13 @@ lua_noit_tag_search_eval_string(lua_State *L) {
   return 1;
 }
 
+void
+libnoit_init() {
+  account_set = calloc(1, sizeof(*account_set));
+  mtev_hash_init(account_set);
+  metric_director_want_hook_register("metrics_select", hook_metric_subscribe_account, NULL);
+}
+
 #ifndef NO_LUAOPEN_LIBNOIT
 static const luaL_Reg libnoit_binding[] = {
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
@@ -423,6 +473,7 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
   { "metric_director_subscribe_all", lua_noit_metric_subscribe_all},
+  { "metric_director_subscribe_account", lua_noit_metric_subscribe_account},
   { "tag_parse", lua_noit_tag_parse},
   { "tag_tostring", lua_noit_tag_tostring},
   { "tag_search_parse", lua_noit_tag_search_parse},
