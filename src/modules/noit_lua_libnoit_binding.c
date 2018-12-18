@@ -178,11 +178,13 @@ static int noit_metric_id_index_func(lua_State *L) {
       return 1;
     case 'm':
       if(!strcmp(k, "mtags")) {
+        // We don't own the tagset. Pass a copy to the lua state.
         noit_lua_tagset_copy_setup(L, &(metric_id->measurement));
       }
       return 1;
     case 's':
       if(!strcmp(k, "stags")) {
+        // We don't own the tagset. Pass a copy to the lua state.
         noit_lua_tagset_copy_setup(L, &(metric_id->stream));
       }
       return 1;
