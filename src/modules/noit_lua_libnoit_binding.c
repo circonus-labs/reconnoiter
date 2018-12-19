@@ -412,7 +412,7 @@ noit_lua_tagset_copy_setup(lua_State *L, noit_lua_tagset_t *src_set) {
 static int
 lua_noit_tag_tostring(lua_State *L) {
   noit_metric_tagset_t **udata = (noit_metric_tagset_t **)
-    luaL_checkudata(L, 1, "noit_metric_tagset_t");
+    luaL_checkudata(L, 1, "noit_lua_tagset_t");
   noit_metric_tagset_t *set = *udata;
   int cnt = set->tag_count;
   for (int i=0; i<cnt; i++) {
@@ -457,7 +457,7 @@ lua_noit_tag_search_eval(lua_State *L) {
   noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **)
     luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
   noit_metric_tagset_t **set_ud = (noit_metric_tagset_t **)
-    luaL_checkudata(L, 2, "noit_metric_tagset_t");
+    luaL_checkudata(L, 2, "noit_lua_tagset_t");
   mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, *set_ud);
   lua_pushboolean(L, ok);
   return 1;
