@@ -167,6 +167,13 @@ static int noit_metric_id_index_func(lua_State *L) {
 
   k = lua_tostring(L, 2);
   switch (*k) {
+    case 'a':
+      if(!strcmp(k, "account_id")){
+        lua_pushinteger(L, metric_id->account_id);
+      } else {
+        break;
+      }
+      return 1;
     case 'i':
       if(!strcmp(k, "id")) {
         char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
