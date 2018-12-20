@@ -29,11 +29,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mtev_defines.h>
-#include "noit_metric_rollup.h"
-#include "lua_mtev.h"
-#include "noit_metric_director.h"
+
+#include <stdio.h>
+
 #include "lua.h"
+#include <mtev_log.h>
+#include <mtev_defines.h>
+#include "lua_mtev.h"
+#include "noit_metric_rollup.h"
+#include "noit_metric_director.h"
 #include "noit_metric_tag_search.h"
 
 void noit_lua_libnoit_init();
@@ -504,7 +508,23 @@ lua_noit_tag_search_eval_message(lua_State *L) {
     luaL_checkudata(L, 2, "metric_message_t");
   noit_metric_message_t *msg = *msg_ud;
   // evaluate ast against stream tags
-  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, &(msg->id.stream));
+  noit_metric_tagset_t tagset = msg->id.stream;
+  // Add in extra tags: __uuid, __name
+  if ( tagset.tag_count > MAX_TAGS - 2 ) { return 0; }
+  noit_metric_tag_t tags[MAX_TAGS];
+  memcpy(&tags, tagset.tags, tagset.tag_count * sizeof(noit_metric_tag_t));
+  tagset.tags = tags;
+  char name_str[NOIT_TAG_MAX_PAIR_LEN + 1];
+  char uuid_str[13 + UUID_STR_LEN + 1];
+  snprintf(name_str, sizeof(name_str), "__name:%.*s", msg->id.name_len, msg->id.name);
+  strcpy(uuid_str, "__check_uuid:");
+  mtev_uuid_unparse_lower(msg->id.id, uuid_str + 13);
+  noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
+  noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 7 };
+  tags[tagset.tag_count] = name_tag;
+  tags[tagset.tag_count + 1] = uuid_tag;
+  tagset.tag_count += 2;
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, &tagset);
   lua_pushboolean(L, ok);
   return 1;
 }
