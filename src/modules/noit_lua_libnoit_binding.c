@@ -492,6 +492,24 @@ lua_noit_tag_search_eval_string(lua_State *L) {
   return 1;
 }
 
+// Eval tag search query against a metric_message_t
+// param: ast (userdata)
+// param: message (userdata)
+// returns: match (boolean)
+static int
+lua_noit_tag_search_eval_message(lua_State *L) {
+  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  noit_metric_message_t **msg_ud = (noit_metric_message_t **)
+    luaL_checkudata(L, 2, "metric_message_t");
+  noit_metric_message_t *msg = *msg_ud;
+  // evaluate ast against stream tags
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, &(msg->id.stream));
+  lua_pushboolean(L, ok);
+  return 1;
+}
+
+
 void
 noit_lua_libnoit_init() {
   // TODO: Call this once during startup.
@@ -527,6 +545,7 @@ static const luaL_Reg libnoit_binding[] = {
   { "tag_search_parse", lua_noit_tag_search_parse},
   { "tag_search_eval", lua_noit_tag_search_eval},
   { "tag_search_eval_string", lua_noit_tag_search_eval_string},
+  { "tag_search_eval_message", lua_noit_tag_search_eval_message},
   { NULL, NULL }
 };
 

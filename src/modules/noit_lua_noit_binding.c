@@ -164,6 +164,7 @@ static const luaL_Reg noit_binding[] = {
   { "tag_search_parse", lua_noit_tag_search_parse},
   { "tag_search_eval", lua_noit_tag_search_eval},
   { "tag_search_eval_string", lua_noit_tag_search_eval_string},
+  { "tag_search_eval_message", lua_noit_tag_search_eval_message},
   // noit binding additions
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
