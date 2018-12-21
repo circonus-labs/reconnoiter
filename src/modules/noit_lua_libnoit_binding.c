@@ -519,7 +519,7 @@ lua_noit_tag_search_eval_message(lua_State *L) {
   strcpy(uuid_str, "__check_uuid:");
   mtev_uuid_unparse_lower(msg->id.id, uuid_str + 13);
   noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
-  noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 7 };
+  noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 13 };
   tags[tagset.tag_count] = name_tag;
   tags[tagset.tag_count + 1] = uuid_tag;
   tagset.tag_count += 2;
