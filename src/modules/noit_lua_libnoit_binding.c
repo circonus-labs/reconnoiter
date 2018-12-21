@@ -105,7 +105,6 @@ static int
 lua_noit_metric_subscribe_all(lua_State *L) {
   int *lane = malloc(sizeof(int));
   *lane = noit_metric_director_my_lane();
-  // Q: Can we register the same hook multiple times (with different closure data)?
   metric_director_want_hook_register("metrics_select", hook_metric_subscribe_all, lane);
   return 0;
 }
@@ -532,13 +531,9 @@ lua_noit_tag_search_eval_message(lua_State *L) {
 
 void
 noit_lua_libnoit_init() {
-  // TODO: Call this once during startup.
-  // I did not find a good place to put this:
-  // - Can't do it from noitd.c: This is a dynamically loaded module.
-  // - Can't do it during module initialization: this is used from the lua_general/lua_web in mtev
-  // - Can't do it during lua state initialization: we have multiple states that get initialized concurrentlya
-  // Also we can't just lock this section with a pthread_mutex: Where should we create the pthread_mutex_t?
-  // Using a spinlock instead, since it does not require initialization
+  // It would be better to call this function once during startup.
+  // However, I did not find a good place to put this, so we are using locks instead,
+  // to ensure this get's called only once.
   ck_spinlock_lock(&noit_lua_libnoit_init_lock);
   if (account_set == NULL) {
     mtev_hash_table *tmp = calloc(1, sizeof(*account_set));
