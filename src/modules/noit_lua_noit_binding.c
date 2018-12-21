@@ -149,12 +149,7 @@ nl_hosts_cache_lookup(lua_State *L) {
 }
 
 static const luaL_Reg noit_binding[] = {
-  { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
-  { "valid_ip", nl_valid_ip },
-  { "check", nl_check },
-  { "check_ud", nl_check_ud },
-  { "hosts_cache_lookup", nl_hosts_cache_lookup },
-  { "filtersets_cull", lua_general_filtersets_cull },
+  // libnoit bindings
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
   { "metric_director_unsubscribe_checks", lua_noit_checks_unsubscribe },
   { "metric_director_subscribe", lua_noit_metric_subscribe },
@@ -162,6 +157,21 @@ static const luaL_Reg noit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
+  { "metric_director_subscribe_all", lua_noit_metric_subscribe_all},
+  { "metric_director_subscribe_account", lua_noit_metric_subscribe_account},
+  { "tag_parse", lua_noit_tag_parse},
+  { "tag_tostring", lua_noit_tag_tostring},
+  { "tag_search_parse", lua_noit_tag_search_parse},
+  { "tag_search_eval", lua_noit_tag_search_eval},
+  { "tag_search_eval_string", lua_noit_tag_search_eval_string},
+  { "tag_search_eval_message", lua_noit_tag_search_eval_message},
+  // noit binding additions
+  { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
+  { "valid_ip", nl_valid_ip },
+  { "check", nl_check },
+  { "check_ud", nl_check_ud },
+  { "hosts_cache_lookup", nl_hosts_cache_lookup },
+  { "filtersets_cull", lua_general_filtersets_cull },
   { "checks_do", lua_noit_check_do },
   { NULL, NULL }
 };
@@ -171,4 +181,3 @@ LUALIB_API int luaopen_noit_binding(lua_State *L)
   luaL_openlib(L, "noit_binding", noit_binding, 0);
   return 1;
 }
-

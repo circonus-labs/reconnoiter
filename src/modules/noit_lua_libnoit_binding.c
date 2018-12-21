@@ -29,11 +29,33 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <mtev_defines.h>
-#include "noit_metric_rollup.h"
-#include "lua_mtev.h"
-#include "noit_metric_director.h"
+
+#include <stdio.h>
+
 #include "lua.h"
+#include <mtev_log.h>
+#include <mtev_defines.h>
+#include "lua_mtev.h"
+#include "noit_metric_rollup.h"
+#include "noit_metric_director.h"
+#include "noit_metric_tag_search.h"
+
+void noit_lua_libnoit_init();
+static ck_spinlock_t noit_lua_libnoit_init_lock = CK_SPINLOCK_INITIALIZER;
+
+// We need to hold-on to a reference to the metric name as long as we make use of the tagset
+typedef struct {
+  noit_metric_tagset_t tagset;
+  int lua_name_ref;
+} noit_lua_tagset_t;
+
+// account_set is a map: account_id => account_interests
+// account_interests is an array of integers, such that account_interests[lane] > 0
+//   if we should deliver messages for the given account_id to the lane.
+static mtev_hash_table *account_set = NULL;
+
+static int
+noit_lua_tagset_copy_setup(lua_State *, noit_lua_tagset_t *);
 
 static int
 lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
@@ -49,6 +71,7 @@ static int
 lua_noit_metric_subscribe(lua_State *L) {
   return lua_noit_metric_adjustsubscribe(L, 1);
 }
+
 static int
 lua_noit_metric_unsubscribe(lua_State *L) {
   return lua_noit_metric_adjustsubscribe(L, -1);
@@ -64,9 +87,68 @@ static int
 lua_noit_checks_subscribe(lua_State *L) {
   return lua_noit_checks_adjustsubscribe(L, 1);
 }
+
 static int
 lua_noit_checks_unsubscribe(lua_State *L) {
   return lua_noit_checks_adjustsubscribe(L, -1);
+}
+
+mtev_hook_return_t
+hook_metric_subscribe_all(void *closure, noit_metric_message_t *m, int *w, int wlen) {
+  int *lane = (int*) closure;
+  assert(*lane < wlen);
+  w[*lane] = 1;
+  return MTEV_HOOK_CONTINUE;
+}
+
+static int
+lua_noit_metric_subscribe_all(lua_State *L) {
+  int *lane = malloc(sizeof(int));
+  *lane = noit_metric_director_my_lane();
+  metric_director_want_hook_register("metrics_select", hook_metric_subscribe_all, lane);
+  return 0;
+}
+
+mtev_hook_return_t
+hook_metric_subscribe_account(void *closure, noit_metric_message_t *m, int *w, int wlen) {
+  if(account_set == NULL) {
+    return MTEV_HOOK_ABORT;
+  }
+  int account_id = m->id.account_id;
+  int *account_interests;
+  if(mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
+    for(int i=0; i<wlen; i++){
+      w[i] = account_interests[i];
+    }
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+static int
+lua_noit_metric_subscribe_account(lua_State *L) {
+  if(account_set == NULL) {
+    noit_lua_libnoit_init();
+  }
+  int account_id = luaL_checkint(L, 1);
+  int *account_interests = NULL;
+  while(!mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
+    int nthreads = eventer_loop_concurrency();
+    account_interests = calloc(nthreads, (sizeof(*account_interests)));
+    int *account_id_copy = calloc(1, sizeof(int));
+    *account_id_copy = account_id;
+    int rc = mtev_hash_store(account_set, (const char *)account_id_copy, sizeof(*account_id_copy), (void **)account_interests);
+    if(!rc) {
+      // We lost the race. Try again
+      free(account_id_copy);
+      free(account_interests);
+    }
+    else {
+      break;
+    }
+  }
+  assert(account_interests);
+  account_interests[noit_metric_director_my_lane()] += 1;
+  return 0;
 }
 
 static int noit_metric_id_index_func(lua_State *L) {
@@ -88,6 +170,13 @@ static int noit_metric_id_index_func(lua_State *L) {
 
   k = lua_tostring(L, 2);
   switch (*k) {
+    case 'a':
+      if(!strcmp(k, "account_id")){
+        lua_pushinteger(L, metric_id->account_id);
+      } else {
+        break;
+      }
+      return 1;
     case 'i':
       if(!strcmp(k, "id")) {
         char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
@@ -110,6 +199,22 @@ static int noit_metric_id_index_func(lua_State *L) {
         lua_pushinteger(L, metric_id->name_len);
       } else {
         break;
+      }
+      return 1;
+    case 'm':
+      if(!strcmp(k, "mtags")) {
+        lua_pushvalue(L, 2);
+        int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        noit_lua_tagset_t set = { .tagset = metric_id->measurement, .lua_name_ref = ref };
+        noit_lua_tagset_copy_setup(L, &set);
+      }
+      return 1;
+    case 's':
+      if(!strcmp(k, "stags")) {
+        lua_pushvalue(L, 2);
+        int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        noit_lua_tagset_t set = { .tagset = metric_id->stream, .lua_name_ref = ref };
+        noit_lua_tagset_copy_setup(L, &set);
       }
       return 1;
     default:
@@ -246,6 +351,199 @@ lua_noit_metric_messages_distributed(lua_State *L) {
   return 1;
 }
 
+static int
+noit_lua_tag_search_ast_free(lua_State *L) {
+  noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  noit_metric_tag_search_free(*udata);
+  return 0;
+}
+
+static int
+noit_lua_tag_search_ast_setup(lua_State *L, noit_metric_tag_search_ast_t *ast) {
+  noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **) lua_newuserdata(L, sizeof(ast));
+  *udata = ast;
+  if(luaL_newmetatable(L, "noit_metric_tag_search_ast_t") == 1){
+    lua_pushcclosure(L, noit_lua_tag_search_ast_free, 0);
+    lua_setfield(L, -2, "__gc");
+  }
+  lua_setmetatable(L, -2);
+  return 0;
+}
+
+// Parse tag search query string into a tag-search ast
+// param: query
+// retuns: ast
+static int
+lua_noit_tag_search_parse(lua_State *L) {
+  const char *query = luaL_checkstring(L, 1);
+  noit_metric_tag_search_ast_t *ast;
+  int erroroff;
+  ast = noit_metric_tag_search_parse(query, &erroroff);
+  if (ast == NULL) {
+    luaL_error(L, "Error parsing tag_search query (%s) at position %d", query, erroroff);
+    return 0;
+  }
+  noit_lua_tag_search_ast_setup(L, ast);
+  return 1;
+}
+
+static int
+noit_lua_tagset_copy_free(lua_State *L) {
+  noit_lua_tagset_t **udata = (noit_lua_tagset_t **)
+    luaL_checkudata(L, 1, "noit_lua_tagset_t");
+  noit_lua_tagset_t *set = *udata;
+  luaL_unref(L, LUA_REGISTRYINDEX, set->lua_name_ref);
+  free(set->tagset.tags);
+  free(set);
+  return 0;
+}
+
+static int
+noit_lua_tagset_copy_setup(lua_State *L, noit_lua_tagset_t *src_set) {
+  noit_lua_tagset_t *dst_set = calloc(1, sizeof(*src_set));
+  memcpy(dst_set, src_set, sizeof(*dst_set));
+  noit_metric_tag_t *dst_tags = calloc(src_set->tagset.tag_count, sizeof(noit_metric_tag_t));
+  memcpy(dst_tags, src_set->tagset.tags, src_set->tagset.tag_count*sizeof(noit_metric_tag_t));
+  dst_set->tagset.tags = dst_tags;
+  noit_lua_tagset_t **udata = (noit_lua_tagset_t **) lua_newuserdata(L, sizeof(dst_set));
+  *udata = dst_set;
+  if(luaL_newmetatable(L, "noit_lua_tagset_t") == 1) {
+    lua_pushcclosure(L, noit_lua_tagset_copy_free, 0);
+    lua_setfield(L, -2, "__gc");
+  }
+  lua_setmetatable(L, -2);
+  return 0;
+}
+
+// Convert a tagset to strings
+// param: tag
+// returns: tag1, tag2, ...
+static int
+lua_noit_tag_tostring(lua_State *L) {
+  noit_metric_tagset_t **udata = (noit_metric_tagset_t **)
+    luaL_checkudata(L, 1, "noit_lua_tagset_t");
+  noit_metric_tagset_t *set = *udata;
+  int cnt = set->tag_count;
+  for (int i=0; i<cnt; i++) {
+    noit_metric_tag_t tag = set->tags[i];
+    lua_pushlstring(L, tag.tag, tag.total_size);
+  }
+  return cnt;
+}
+
+// Parse a metric name to a tagset
+// param: name
+// returns: stags, mtags (userdata)
+static int
+lua_noit_tag_parse(lua_State *L) {
+  const char* name = luaL_checkstring(L, 1);
+  noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+  int rc = noit_metric_parse_tags(name, strlen(name), &stset, &mtset);
+  if (rc < 0) {
+    luaL_error(L, "Error parsing tags for metric %s", name);
+    return 0;
+  }
+  int ref;
+  lua_pushvalue(L, 1);
+  ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  noit_lua_tagset_t l_stset = { .tagset = stset, .lua_name_ref = ref };
+  lua_pushvalue(L, 1);
+  ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  noit_lua_tagset_t l_mtset = { .tagset = mtset, .lua_name_ref = ref };
+  noit_lua_tagset_copy_setup(L, &l_stset);
+  noit_lua_tagset_copy_setup(L, &l_mtset);
+  return 2;
+}
+
+// Eval tag search query against tagset
+// param: ast (userdata)
+// param: tagset (userdata)
+// returns: matches (boolean)
+static int
+lua_noit_tag_search_eval(lua_State *L) {
+  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  noit_metric_tagset_t **set_ud = (noit_metric_tagset_t **)
+    luaL_checkudata(L, 2, "noit_lua_tagset_t");
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, *set_ud);
+  lua_pushboolean(L, ok);
+  return 1;
+}
+
+// Eval tag search query against string
+// param: ast (userdata)
+// param: name (string)
+// returns: matches (boolean)
+static int
+lua_noit_tag_search_eval_string(lua_State *L) {
+  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  const char* name = luaL_checkstring(L, 2);
+  noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+  int rc = noit_metric_parse_tags(name, strlen(name), &stset, &mtset);
+  if (rc < 0) {
+    luaL_error(L, "Error parsing tagset for metric %s", name);
+    return 0;
+  }
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, &mtset);
+  lua_pushboolean(L, ok);
+  return 1;
+}
+
+// Eval tag search query against a metric_message_t
+// param: ast (userdata)
+// param: message (userdata)
+// returns: match (boolean)
+static int
+lua_noit_tag_search_eval_message(lua_State *L) {
+  noit_metric_tag_search_ast_t **ast_ud = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
+  noit_metric_message_t **msg_ud = (noit_metric_message_t **)
+    luaL_checkudata(L, 2, "metric_message_t");
+  noit_metric_message_t *msg = *msg_ud;
+  // evaluate ast against stream tags
+  noit_metric_tagset_t tagset = msg->id.stream;
+  // Add in extra tags: __uuid, __name
+  if ( tagset.tag_count > MAX_TAGS - 2 ) { return 0; }
+  noit_metric_tag_t tags[MAX_TAGS];
+  memcpy(&tags, tagset.tags, tagset.tag_count * sizeof(noit_metric_tag_t));
+  tagset.tags = tags;
+  char name_str[NOIT_TAG_MAX_PAIR_LEN + 1];
+  char uuid_str[13 + UUID_STR_LEN + 1];
+  snprintf(name_str, sizeof(name_str), "__name:%.*s", msg->id.name_len, msg->id.name);
+  strcpy(uuid_str, "__check_uuid:");
+  mtev_uuid_unparse_lower(msg->id.id, uuid_str + 13);
+  noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
+  noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 7 };
+  tags[tagset.tag_count] = name_tag;
+  tags[tagset.tag_count + 1] = uuid_tag;
+  tagset.tag_count += 2;
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags(*ast_ud, &tagset);
+  lua_pushboolean(L, ok);
+  return 1;
+}
+
+
+void
+noit_lua_libnoit_init() {
+  // It would be better to call this function once during startup.
+  // However, I did not find a good place to put this, so we are using locks instead,
+  // to ensure this get's called only once.
+  ck_spinlock_lock(&noit_lua_libnoit_init_lock);
+  if (account_set == NULL) {
+    mtev_hash_table *tmp = calloc(1, sizeof(*account_set));
+    mtev_hash_init(tmp);
+    ck_pr_store_ptr(&account_set, tmp);
+    metric_director_want_hook_register("metrics_select", hook_metric_subscribe_account, NULL);
+  }
+  ck_spinlock_unlock(&noit_lua_libnoit_init_lock);
+}
+
 #ifndef NO_LUAOPEN_LIBNOIT
 static const luaL_Reg libnoit_binding[] = {
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
@@ -255,6 +553,14 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_get_messages_received", lua_noit_metric_messages_received },
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
+  { "metric_director_subscribe_all", lua_noit_metric_subscribe_all},
+  { "metric_director_subscribe_account", lua_noit_metric_subscribe_account},
+  { "tag_parse", lua_noit_tag_parse},
+  { "tag_tostring", lua_noit_tag_tostring},
+  { "tag_search_parse", lua_noit_tag_search_parse},
+  { "tag_search_eval", lua_noit_tag_search_eval},
+  { "tag_search_eval_string", lua_noit_tag_search_eval_string},
+  { "tag_search_eval_message", lua_noit_tag_search_eval_message},
   { NULL, NULL }
 };
 
