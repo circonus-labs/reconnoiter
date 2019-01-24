@@ -803,7 +803,6 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
 
   mtev_hash_init(&seen);
 
-  mtev_http_process_querystring(req);
   type = mtev_http_request_querystring(req, "type");
   want_cn = mtev_http_request_querystring(req, "cn");
 
@@ -1032,7 +1031,6 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
     }
   }
 
-  mtev_http_process_querystring(req);
   type = mtev_http_request_querystring(req, "type");
   want_cn = mtev_http_request_querystring(req, "cn");
 
@@ -1374,7 +1372,6 @@ rest_set_noit(mtev_http_rest_closure_t *restc,
   if(npats < 1 || npats > 2)
     mtev_http_response_server_error(ctx, "text/xml");
   if(npats == 2) port = atoi(pats[1]);
-  mtev_http_process_querystring(req);
   cn = mtev_http_request_querystring(req, "cn");
   if(stratcon_add_noit(pats[0], port, cn) >= 0)
     mtev_http_response_ok(ctx, "text/xml");

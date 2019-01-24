@@ -612,7 +612,6 @@ rest_stream_data(mtev_http_rest_closure_t *restc,
     document_domain = "";
   }
 
-  mtev_http_process_querystring(mtev_http_session_request(ctx));
   /* Rewire the http context */
   e = mtev_http_connection_event(conn);
   eventer_set_callback(e, stratcon_realtime_http_handler);
