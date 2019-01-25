@@ -105,9 +105,9 @@ noit_websocket_closure_free(void *jcl) {
 static void send_heartbeat(noit_websocket_closure_t *wcl)
 {
 #ifdef HAVE_WSLAY
-mtev_http1_websocket_queue_msg((mtev_http1_session_ctx *)wcl->restc->http_ctx,
-                               WSLAY_TEXT_FRAME,
-                               (const unsigned char *)heartbeat_str, heartbeat_str_len);
+mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
+                              WSLAY_TEXT_FRAME,
+                              (const unsigned char *)heartbeat_str, heartbeat_str_len);
 #endif
 }
 
@@ -134,9 +134,9 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
           (strlen(wcl->filters[i]) == message.id.name_len_with_tags) &&
           (0 == memcmp(wcl->filters[i], message.id.name, message.id.name_len_with_tags))) {
         noit_metric_to_json(&message, &json, &json_len, mtev_false);
-        mtev_http1_websocket_queue_msg((mtev_http1_session_ctx *)wcl->restc->http_ctx,
-                                       WSLAY_TEXT_FRAME,
-                                       (const unsigned char *)json, json_len);
+        mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
+                                      WSLAY_TEXT_FRAME,
+                                      (const unsigned char *)json, json_len);
         sent++;
         free(json);
         break;
@@ -144,9 +144,9 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
     }
   } else {
         noit_metric_to_json(&message, &json, &json_len, mtev_false);
-        mtev_http1_websocket_queue_msg((mtev_http1_session_ctx *)wcl->restc->http_ctx,
-                                       WSLAY_TEXT_FRAME,
-                                       (const unsigned char *)json, json_len);
+        mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
+                                      WSLAY_TEXT_FRAME,
+                                      (const unsigned char *)json, json_len);
         sent++;
         free(json);
   }
@@ -359,9 +359,9 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
     mtev_json_object_object_add(e, "errors", errors);
 
     const char *json_error = mtev_json_object_to_json_string(e);
-    mtev_http1_websocket_queue_msg((mtev_http1_session_ctx *)restc->http_ctx,
-                                   WSLAY_TEXT_FRAME | WSLAY_CONNECTION_CLOSE,
-                                   (const unsigned char *)json_error, strlen(json_error));
+    mtev_http_websocket_queue_msg(restc->http_ctx,
+                                  WSLAY_TEXT_FRAME | WSLAY_CONNECTION_CLOSE,
+                                  (const unsigned char *)json_error, strlen(json_error));
     mtevL(noit_error, "websocket error: %s\n", error);
     mtev_json_object_put(e);
   }
