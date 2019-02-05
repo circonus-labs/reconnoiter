@@ -338,36 +338,48 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+struct show_filters_crutch {
+  mtev_http_rest_closure_t *restc;
+  uuid_t peerid;
+  int64_t prev, end;
+  xmlDocPtr doc;
+};
+
+static void
+rest_show_filter_updates_compose(void *closure) {
+  struct show_filters_crutch *c = closure;
+  xmlNodePtr root;
+
+  c->doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewNode(NULL, (xmlChar *)"filtersets");
+  xmlDocSetRootElement(c->doc, root);
+  noit_cluster_xml_filter_changes(c->peerid, c->restc->remote_cn, c->prev, c->end, root);
+}
+
 static int
-rest_show_filter_updates(mtev_http_rest_closure_t *restc,
-                         int npats, char **pats) {
+rest_show_filter_updates_aco(mtev_http_rest_closure_t *restc,
+                             int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_http_request *req = mtev_http_session_request(ctx);
-  xmlDocPtr doc = NULL;
-  xmlNodePtr root;
-  int64_t prev = 0, end = 0;
+  struct show_filters_crutch c = { .restc = restc };
 
   const char *prev_str = mtev_http_request_querystring(req, "prev"); 
-  if(prev_str) prev = strtoll(prev_str, NULL, 10);
+  if(prev_str) c.prev = strtoll(prev_str, NULL, 10);
   const char *end_str = mtev_http_request_querystring(req, "end"); 
-  if(end_str) end = strtoll(end_str, NULL, 10);
+  if(end_str) c.end = strtoll(end_str, NULL, 10);
   const char *peer_str = mtev_http_request_querystring(req, "peer");
-  uuid_t peerid;
-  if(!peer_str || !restc->remote_cn || mtev_uuid_parse(peer_str, peerid) != 0) {
+  if(!peer_str || !restc->remote_cn || mtev_uuid_parse(peer_str, c.peerid) != 0) {
     mtev_http_response_server_error(ctx, "text/xml");
     mtev_http_response_end(ctx);
     return 0;
   }
 
-  doc = xmlNewDoc((xmlChar *)"1.0");
-  root = xmlNewNode(NULL, (xmlChar *)"filtersets");
-  xmlDocSetRootElement(doc, root);
-  noit_cluster_xml_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  eventer_aco_simple_asynch(rest_show_filter_updates_compose, &c);
   mtev_http_response_ok(ctx, "text/xml");
-  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_xml(ctx, c.doc);
   mtev_http_response_end(ctx);
 
-  if(doc) xmlFreeDoc(doc);
+  if(c.doc) xmlFreeDoc(c.doc);
 
   return 0;
 }
@@ -375,10 +387,13 @@ rest_show_filter_updates(mtev_http_rest_closure_t *restc,
 
 void
 noit_filters_rest_init() {
-  mtevAssert(mtev_http_rest_register_auth(
-    "GET", "/filters/", "^updates$",
-    rest_show_filter_updates, mtev_http_rest_client_cert_auth
-  ) == 0);
+  mtev_rest_mountpoint_t *rule;
+  rule = mtev_http_rest_new_rule(
+    "GET", "/filters/", "^updates$", rest_show_filter_updates_aco
+  );
+  mtev_rest_mountpoint_set_auth(rule, mtev_http_rest_client_cert_auth);
+  mtev_rest_mountpoint_set_aco(rule, mtev_true);
+
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^show(/.*)(?<=/)([^/]+)$",
     rest_show_filter, mtev_http_rest_client_cert_auth
