@@ -769,9 +769,11 @@ void noit_check_resolver_init() {
                        EVENTER_READ|EVENTER_EXCEPTION);
   eventer_add(e);
 
-  nc_dns_cache = mtev_skiplist_alloc();
-  mtev_skiplist_set_compare(nc_dns_cache, name_lookup, name_lookup_k);
-  mtev_skiplist_add_index(nc_dns_cache, refresh_idx, refresh_idx_k);
+  mtev_skiplist *dc = mtev_skiplist_alloc();
+  mtev_skiplist_set_compare(dc, name_lookup, name_lookup_k);
+  mtev_skiplist_add_index(dc, refresh_idx, refresh_idx_k);
+  ck_pr_barrier();
+  nc_dns_cache = dc;
 
   /* maybe load it from cache */
   if(noit_resolver_cache_load_hook_exists()) {
