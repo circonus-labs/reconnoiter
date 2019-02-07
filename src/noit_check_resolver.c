@@ -701,13 +701,18 @@ void noit_check_resolver_init() {
   mtev_conf_section_t *servers, *searchdomains;
   eventer_t e;
 
-  if(ck_pr_faa_int(&initialized, 1) != 0) return;
+  DCLOCK();
+  if(initialized != 0) {
+    DCUNLOCK();
+    return;
+  }
 
   if(dns_init(NULL, 0) < 0)
     mtevL(noit_error, "dns initialization failed.\n");
   dns_ctx = dns_new(NULL);
   if(dns_init(dns_ctx, 0) != 0) {
     mtevL(noit_error, "dns initialization failed.\n");
+    DCUNLOCK();
     exit(-1);
   }
 
@@ -761,6 +766,7 @@ void noit_check_resolver_init() {
 
   if(dns_open(dns_ctx) < 0) {
     mtevL(noit_error, "dns open failed.\n");
+    DCUNLOCK();
     exit(-1);
   }
   eventer_name_callback("dns_cache_callback", dns_cache_callback);
@@ -802,9 +808,7 @@ void noit_check_resolver_init() {
           int fudge = MIN(60, n->ttl) + 1;
           n->last_updated = now.tv_sec - n->ttl + (lrand48() % fudge);
         }
-        DCLOCK();
         mtev_skiplist_insert(nc_dns_cache, n);
-        DCUNLOCK();
         n = NULL;
       }
       else {
@@ -821,6 +825,8 @@ void noit_check_resolver_init() {
 
   mtev_hash_init(&etc_hosts_cache);
   noit_check_etc_hosts_cache_refresh(NULL, 0, NULL, NULL);
+  initialized = 1;
+  DCUNLOCK();
 }
 
 int noit_check_should_resolve_targets(mtev_boolean *should_resolve) {
