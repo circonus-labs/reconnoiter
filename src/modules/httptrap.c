@@ -68,7 +68,7 @@ static noit_module_t *global_self = NULL; /* used for cross traps */
 #define _YD(fmt...) mtevL(nlyajl, fmt)
 
 static mtev_boolean httptrap_surrogate;
-static const char *TRUNCATE_ERROR = "at least one metric truncated to 255 characters";
+static const char *TRUNCATE_ERROR = "at least one metric exceeded max name length";
 
 typedef struct _mod_config {
   mtev_hash_table *options;
@@ -161,8 +161,8 @@ set_array_key(struct rest_json_payload *json) {
     else {
       int uplen = strlen(json->keys[json->depth-1]);
       /* This is too large.... return an error */
-      if(uplen + 1 + strLen > 255) {
-	   strLen = 255 - uplen - 1;
+      if(uplen + 1 + strLen > MAX_METRIC_TAGGED_NAME) {
+	   strLen = MAX_METRIC_TAGGED_NAME - uplen - 1;
 	   if(strLen < 0) strLen = 0;
         if(!json->supp_err)
 	     json->supp_err = strdup(TRUNCATE_ERROR);
@@ -515,10 +515,10 @@ static int
 httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
                          size_t stringLen) {
   struct rest_json_payload *json = ctx;
-  if(stringLen > 255) {
+  if(stringLen > MAX_METRIC_TAGGED_NAME) {
     if(!json->supp_err)
       json->supp_err = strdup(TRUNCATE_ERROR);
-    stringLen = 255;
+    stringLen = MAX_METRIC_TAGGED_NAME;
   }
   if(json->keys[json->depth]) free(json->keys[json->depth]);
   json->keys[json->depth] = NULL;
@@ -553,9 +553,9 @@ httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
   }
   else {
     int uplen = strlen(json->keys[json->depth-1]);
-    if(uplen + 1 + stringLen > 255) {
-      if(255 - uplen - 1 < 0) stringLen = 0;
-      else stringLen = 255 - uplen - 1;
+    if(uplen + 1 + stringLen > MAX_METRIC_TAGGED_NAME) {
+      if(MAX_METRIC_TAGGED_NAME - uplen - 1 < 0) stringLen = 0;
+      else stringLen = MAX_METRIC_TAGGED_NAME - uplen - 1;
       if(!json->supp_err)
 	   json->supp_err = strdup(TRUNCATE_ERROR);
     }
