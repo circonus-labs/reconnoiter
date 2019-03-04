@@ -108,6 +108,8 @@
 #define NP_BAD 'B'                 /* stats_t.state */
 #define NP_GOOD 'G'                /* stats_t.state */
 
+#define NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT  4096
+
 typedef struct stats_t stats_t;
 
 typedef struct dep_list {

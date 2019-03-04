@@ -857,7 +857,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       /*Extract metrics*/
       while(mtev_hash_next(metrics, &iter, &k, &klen, &data))
       {
-        char buff[DEFAULT_TEXT_METRIC_SIZE_LIMIT], type_str[2];
+        char buff[NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT], type_str[2];
         metric_t *tmp=(metric_t *)data;
         char *metric_name=tmp->metric_name;
         metric_type_t metric_type=tmp->metric_type;
