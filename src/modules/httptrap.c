@@ -6,7 +6,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -68,7 +68,7 @@ static noit_module_t *global_self = NULL; /* used for cross traps */
 #define _YD(fmt...) mtevL(nlyajl, fmt)
 
 static mtev_boolean httptrap_surrogate;
-static const char *TRUNCATE_ERROR = "at least one metric truncated to 255 characters";
+static const char *TRUNCATE_ERROR = "at least one metric exceeded max name length";
 
 typedef struct _mod_config {
   mtev_hash_table *options;
@@ -106,7 +106,7 @@ struct rest_json_payload {
   mtev_boolean got_timestamp;
   struct timeval last_timestamp;
   httptrap_vop_t vop_flag;
-  
+
   metric_type_t last_type;
   struct value_list *last_value;
   int cnt;
@@ -161,8 +161,8 @@ set_array_key(struct rest_json_payload *json) {
     else {
       int uplen = strlen(json->keys[json->depth-1]);
       /* This is too large.... return an error */
-      if(uplen + 1 + strLen > 255) {
-	   strLen = 255 - uplen - 1;
+      if(uplen + 1 + strLen > MAX_METRIC_TAGGED_NAME) {
+	   strLen = MAX_METRIC_TAGGED_NAME - uplen - 1;
 	   if(strLen < 0) strLen = 0;
         if(!json->supp_err)
 	     json->supp_err = strdup(TRUNCATE_ERROR);
@@ -428,7 +428,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
       total = old_total;
       break;
     }
-          
+
     for(p=json->last_value;p;p=p->next) {
       if(json->last_type == 'h') {
         noit_stats_set_metric_histogram(json->check, metric_name, METRIC_GUESS, p->v);
@@ -515,10 +515,10 @@ static int
 httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
                          size_t stringLen) {
   struct rest_json_payload *json = ctx;
-  if(stringLen > 255) {
+  if(stringLen > MAX_METRIC_TAGGED_NAME) {
     if(!json->supp_err)
       json->supp_err = strdup(TRUNCATE_ERROR);
-    stringLen = 255;
+    stringLen = MAX_METRIC_TAGGED_NAME;
   }
   if(json->keys[json->depth]) free(json->keys[json->depth]);
   json->keys[json->depth] = NULL;
@@ -553,9 +553,9 @@ httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
   }
   else {
     int uplen = strlen(json->keys[json->depth-1]);
-    if(uplen + 1 + stringLen > 255) {
-      if(255 - uplen - 1 < 0) stringLen = 0;
-      else stringLen = 255 - uplen - 1;
+    if(uplen + 1 + stringLen > MAX_METRIC_TAGGED_NAME) {
+      if(MAX_METRIC_TAGGED_NAME - uplen - 1 < 0) stringLen = 0;
+      else stringLen = MAX_METRIC_TAGGED_NAME - uplen - 1;
       if(!json->supp_err)
 	   json->supp_err = strdup(TRUNCATE_ERROR);
     }
@@ -659,7 +659,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
 
   noit_httptrap_check_asynch(self, check);
   if(!check->closure) {
-    ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t)); 
+    ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t));
     memset(ccl, 0, sizeof(httptrap_closure_t));
     ccl->self = self;
   } else {
@@ -756,7 +756,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       error = "no such httptrap check";
       goto error;
     }
- 
+
     /* check "secret" then "httptrap_secret" as a fallback */
     (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
     if(!secret) (void)mtev_hash_retr_str(check->config, "httptrap_secret", strlen("httptrap_secret"), &secret);
@@ -809,14 +809,14 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
 
   cnt = rxc->cnt;
 
-  mtev_http_response_status_set(ctx, 200, "OK"); 
+  mtev_http_response_status_set(ctx, 200, "OK");
   mtev_http_response_header_set(ctx, "Content-Type", "application/json");
-  mtev_http_response_option_set(ctx, MTEV_HTTP_CLOSE); 
-  
+  mtev_http_response_option_set(ctx, MTEV_HTTP_CLOSE);
+
   /*Examine headers for x-circonus-httptrap-debug flag*/
   req = mtev_http_session_request(ctx);
-  hdrs = mtev_http_request_headers_table(req); 
-    
+  hdrs = mtev_http_request_headers_table(req);
+
   /*Check if debug header passed in. If present and set to true, set debugflag value to one.*/
   if(mtev_hash_retr_str(hdrs, "x-circonus-httptrap-debug", strlen("x-circonus-httptrap-debug"), &debugchkflag))
   {
@@ -825,7 +825,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       debugflag=1;
     }
   }
-   
+
   json_object *obj =  NULL;
   obj = json_object_new_object();
   /*If debugflag remains zero, simply output the number of metrics.*/
@@ -835,16 +835,16 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     if (rxc->supp_err)
       json_object_object_add(obj, "error", json_object_new_string(rxc->supp_err));
   }
-  
+
   /*Otherwise, if set to one, output current metrics in addition to number of current metrics.*/
   else if (debugflag==1)
-  {        
+  {
       stats_t *c;
       mtev_hash_table *metrics;
       json_object *metrics_obj;
       metrics_obj = json_object_new_object();
-        
-      /*Retrieve check information.*/        
+
+      /*Retrieve check information.*/
       check = rxc->check;
       c = noit_check_get_stats_inprogress(check);
       metrics = noit_check_stats_metrics(c);
@@ -853,11 +853,11 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       int klen;
       void *data;
       memset(debugdata_out,'\0',sizeof(debugdata_out));
-      
+
       /*Extract metrics*/
       while(mtev_hash_next(metrics, &iter, &k, &klen, &data))
       {
-        char buff[256], type_str[2];
+        char buff[DEFAULT_TEXT_METRIC_SIZE_LIMIT], type_str[2];
         metric_t *tmp=(metric_t *)data;
         char *metric_name=tmp->metric_name;
         metric_type_t metric_type=tmp->metric_type;
@@ -868,7 +868,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
         json_object_object_add(value_obj, "_value", json_object_new_string(buff));
         json_object_object_add(metrics_obj, metric_name, value_obj);
       }
-        
+
       /*Output stats and metrics.*/
       json_object_object_add(obj, "stats", json_object_new_int(cnt));
       json_object_object_add(obj, "metrics", metrics_obj);
