@@ -70,7 +70,6 @@
 #include "noit_check_resolver.h"
 #include "modules/histogram.h"
 
-#define DEFAULT_TEXT_METRIC_SIZE_LIMIT  4096
 static int check_recycle_period = 60000;
 static mtev_boolean perpetual_metrics = mtev_false;
 
@@ -294,7 +293,7 @@ struct vp_w_free {
 };
 
 static mtev_boolean system_needs_causality = mtev_false;
-static int32_t text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
+static int32_t text_size_limit = NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT;
 static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
 static int reg_module_used = -1;
@@ -1002,7 +1001,7 @@ noit_poller_init() {
   eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
   mtev_conf_get_int32(MTEV_CONF_ROOT, "noit/@text_size_limit", &text_size_limit);
   if (text_size_limit <= 0) {
-    text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
+    text_size_limit = NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
   noit_check_dns_ignore_list_init();
   noit_poller_reload(NULL);
