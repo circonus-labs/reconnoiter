@@ -187,7 +187,8 @@ validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq, const char **err) 
 
       xmlFree(v);
     }
-    else {
+    else if(strcmp((char *)r->name, "text") != 0) {
+      /* ignore text nodes */
       *err = "unknown attribute";
       return NULL;
     }

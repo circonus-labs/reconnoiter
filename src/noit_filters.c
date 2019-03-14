@@ -457,6 +457,8 @@ noit_apply_filterset(const char *filterset,
   struct timeval now;
   mtev_gettimeofday(&now, NULL);
 
+  char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
+  char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
   noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
   noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
   noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
@@ -464,6 +466,17 @@ noit_apply_filterset(const char *filterset,
   if(mlen < 0) {
     stset.tag_count = mtset.tag_count = 0;
     mlen = strlen(metric->metric_name);
+  }
+  if(stset.tag_count < MAX_TAGS-1) {
+    /* add __name */
+    snprintf(decoded_nametag, sizeof(decoded_nametag), "__name%c%.*s",
+             NOIT_TAG_DECODED_SEPARATOR, mlen, metric->metric_name);
+    size_t nlen = noit_metric_tagset_encode_tag(encoded_nametag, sizeof(encoded_nametag),
+                                                decoded_nametag, strlen(decoded_nametag));
+    stset.tags[stset.tag_count].category_size = 7;
+    stset.tags[stset.tag_count].total_size = nlen;
+    stset.tags[stset.tag_count].tag = encoded_nametag;
+    stset.tag_count++;
   }
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
@@ -482,7 +495,7 @@ noit_apply_filterset(const char *filterset,
       need_target = !MATCHES(target, check->target);
       need_module = !MATCHES(module, check->module);
       need_name = !MATCHES(name, check->name);
-      need_metric = !noit_apply_filterrule_metric(r, metric->metric_name, strlen(metric->metric_name), &stset, &mtset);
+      need_metric = !noit_apply_filterrule_metric(r, metric->metric_name, mlen, &stset, &mtset);
 
       if(!need_target && !need_module && !need_name && !need_metric) {
         if(r->type == NOIT_FILTER_SKIPTO) {
