@@ -79,7 +79,7 @@ static int
 rest_show_config(mtev_http_rest_closure_t *, int, char **);
 
 static void
-add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
+add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
                     int include_time, mtev_hash_table *supp) {
   mtev_hash_table *mets;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
@@ -101,6 +101,9 @@ add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
     xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)m->metric_name);
     buff[0] = m->metric_type; buff[1] = '\0';
     xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
+    if(!noit_apply_filterset(check->filterset, check, m)) {
+      xmlSetProp(tmp, (xmlChar *)"filtered", (xmlChar *)"true");
+    }
     if(m->metric_value.s) {
       int rv;
       rv = noit_stats_snprint_metric_value(buff, sizeof(buff), m);
@@ -169,19 +172,19 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
       xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
   
       noit_check_stats_populate_xml_hook_invoke(metrics, check, noit_check_get_stats_inprogress(check), "inprogress");
-      add_metrics_to_node(noit_check_get_stats_inprogress(check), metrics, "inprogress", 0, supp);
+      add_metrics_to_node(check, noit_check_get_stats_inprogress(check), metrics, "inprogress", 0, supp);
       whence = noit_check_stats_whence(c, NULL);
       if(whence->tv_sec) {
         xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
         noit_check_stats_populate_xml_hook_invoke(metrics, check, c, "current");
-        add_metrics_to_node(c, metrics, "current", 1, supp);
+        add_metrics_to_node(check, c, metrics, "current", 1, supp);
       }
       previous = noit_check_get_stats_previous(check);
       whence = noit_check_stats_whence(previous, NULL);
       if(whence->tv_sec) {
         xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
         noit_check_stats_populate_xml_hook_invoke(metrics, check, previous, "previous");
-        add_metrics_to_node(previous, metrics, "previous", 1, supp);
+        add_metrics_to_node(check, previous, metrics, "previous", 1, supp);
       }
       if(supp) mtev_hash_destroy(supp, NULL, NULL);
     }
@@ -218,6 +221,9 @@ stats_to_json(noit_check_t *check, stats_t *c, const char *name, mtev_hash_table
       rv = noit_stats_snprint_metric_value(buff, sizeof(buff), m);
       if(rv >= 0)
         json_object_object_add(metric, "_value", json_object_new_string(buff));
+    }
+    if(!noit_apply_filterset(check->filterset, check, m)) {
+      json_object_object_add(metric, "_filtered", json_object_new_boolean(1));
     }
     json_object_object_add(doc, m->metric_name, metric);
   }
