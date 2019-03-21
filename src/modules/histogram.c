@@ -126,12 +126,20 @@ debug_print_hist(histogram_t *ht) {
 }
 
 void
-noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
+noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *whence,
           const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
-          mtev_boolean live_feed) {
+          mtev_boolean live_feed, mtev_boolean validate) {
   mtev_boolean extended_id = mtev_false;
   char uuid_str[256*3+37];
   const char *v;
+
+  if(validate) {
+    histogram_t *h = hist_alloc();
+    ssize_t rv = hist_deserialize_b64(h, hist_encode, hist_encode_len);
+    hist_free(h);
+    mtevL(noit_debug, "Bad histogram, refusing to log.\n");
+    if(rv <= 0) return;
+  }
 
   if(whence->tv_sec == 0 && whence->tv_usec == 0) return;
 
@@ -184,6 +192,13 @@ noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
   }
 }
 
+void
+noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
+          const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
+          mtev_boolean live_feed) {
+  noit_log_histo_encoded_function_validate(check,whence,metric_name,hist_encode,hist_encode_len,live_feed,mtev_true);
+}
+
 static void
 log_histo(noit_check_t *check, uint64_t whence_s,
           const char *metric_name, histogram_t *h,
@@ -222,7 +237,7 @@ log_histo(noit_check_t *check, uint64_t whence_s,
 
 
 
-  noit_log_histo_encoded_function(check, &whence, metric_name, hist_encode, enc_est, live_feed);
+  noit_log_histo_encoded_function_validate(check, &whence, metric_name, hist_encode, enc_est, live_feed, mtev_false);
 
  cleanup:
   if(hist_serial) free(hist_serial);

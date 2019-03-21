@@ -431,7 +431,14 @@ httptrap_yajl_cb_end_map(void *ctx) {
 
     for(p=json->last_value;p;p=p->next) {
       if(json->last_type == 'h') {
-        noit_stats_set_metric_histogram(json->check, metric_name, METRIC_GUESS, p->v);
+        if(json->saw_complex_type & HT_EX_TS) {
+          if(p == json->last_value && p->next == NULL) {
+            /* There can be exactly one, it should be base64 encoded */
+            noit_stats_log_immediate_histo_tv(json->check, metric_name, p->v, strlen(p->v), json->last_timestamp);
+          }
+        } else {
+          noit_stats_set_metric_histogram(json->check, metric_name, METRIC_GUESS, p->v);
+        }
       } else {
         noit_stats_set_metric_coerce_with_timestamp(json->check,
               metric_name,
