@@ -2431,13 +2431,9 @@ noit_stats_log_immediate_metric(noit_check_t *check,
 
 
 mtev_boolean
-noit_stats_log_immediate_histo(noit_check_t *check,
+noit_stats_log_immediate_histo_tv(noit_check_t *check,
                                 const char *name, const char *hist_encoded, size_t hist_encoded_len,
-                                uint64_t whence_s) {
-  struct timeval whence;
-  whence.tv_sec = whence_s;
-  whence.tv_usec = 0;
-
+                                struct timeval whence) {
   char tagged_name[MAX_METRIC_TAGGED_NAME];
   if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
     return mtev_false;
@@ -2453,6 +2449,16 @@ noit_stats_log_immediate_histo(noit_check_t *check,
   /* This should likely be handled in the histogram module, but that plumbing is far from here */
   record_immediate_metric_with_tagset(check, name, METRIC_INT32, NULL, mtev_false, &whence);
   return mtev_true;
+}
+
+mtev_boolean
+noit_stats_log_immediate_histo(noit_check_t *check,
+                                const char *name, const char *hist_encoded, size_t hist_encoded_len,
+                                uint64_t whence_s) {
+  struct timeval whence;
+  whence.tv_sec = whence_s;
+  whence.tv_usec = 0;
+  return noit_stats_log_immediate_histo_tv(check,name,hist_encoded,hist_encoded_len,whence);
 }
 
 void

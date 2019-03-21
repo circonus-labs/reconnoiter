@@ -325,7 +325,7 @@ noit_metric_tagset_is_taggable_value(const char *val, size_t len)
     noit_metric_tagset_is_taggable_part(val, len, noit_metric_tagset_is_taggable_value_char);
 }
 
-size_t
+ssize_t
 noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len)
 {
   char scratch[NOIT_TAG_MAX_PAIR_LEN+1];
@@ -390,7 +390,7 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
   }
   return cp - scratch;
 }
-size_t
+ssize_t
 noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *encoded_tag, size_t encoded_size)
 {
   const char *colon = (const char *)memchr(encoded_tag, ':', encoded_size);

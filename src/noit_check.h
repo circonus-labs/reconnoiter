@@ -327,6 +327,12 @@ API_EXPORT(void)
                                   const char *name, metric_type_t type,
                                   const void *value, const struct timeval *whence);
 API_EXPORT(mtev_boolean)
+  noit_stats_log_immediate_histo_tv(noit_check_t *check, const char *name,
+                                    const char *hist_encoded,
+                                    size_t hist_encoded_len,
+                                    struct timeval whence);
+
+API_EXPORT(mtev_boolean)
   noit_stats_log_immediate_histo(noit_check_t *check, const char *name,
                                   const char *hist_encoded,
                                   size_t hist_encoded_len,
