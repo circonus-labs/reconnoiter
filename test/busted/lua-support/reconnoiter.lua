@@ -34,7 +34,7 @@ function API:new(port, cert)
     ca_chain = cwd .. '/../test-ca.crt',
   }
   obj.api = MBAPI:new("127.0.0.1", obj.port):ssl(obj.sslconfig)
-  obj.xmlapi = MBAPI:new("127.0.0.1", obj.port):headers({accept = "text/xml"}):ssl(obj.sslconfig)
+  obj.xmlapi = MBAPI:new("127.0.0.1", obj.port):headers({Accept = "text/xml"}):ssl(obj.sslconfig)
   setmetatable(obj, API)
   return obj
 end
