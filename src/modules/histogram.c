@@ -40,6 +40,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_clustering.h"
+#include "noit_filters.h"
 #include "histogram.h"
 
 static mtev_log_stream_t metrics_log = NULL;
@@ -182,6 +183,10 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
     }
   }
 
+  metric_t m_onstack = { .metric_name = (char *)metric_name,
+                         .metric_type = METRIC_GUESS,
+                         .metric_value = { .vp = NULL } };
+  if(!noit_apply_filterset(check->filterset, check, &m_onstack)) return;
   if(!live_feed) {
     SETUP_LOG(metrics, return);
     mtev_log_stream_set_dedup_s(metrics_log, 0);
