@@ -76,7 +76,7 @@ function API:curl_logger(headers, method, uri, payload)
       end
     end
     assert(self.curl_log:write("-w '\\n' "))
-    assert(self.curl_log:write("'http://127.0.0.1:" .. self.port .. uri .. "'\n"))
+    assert(self.curl_log:write("'https://127.0.0.1:" .. self.port .. uri .. "'\n"))
   end
 end
 
