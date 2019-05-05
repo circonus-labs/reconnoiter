@@ -108,3 +108,4 @@ src/modules/prometheus.pb-c.c
 src/modules/prometheus.pb-c.h
 src/modules/types.pb-c.c
 src/modules/types.pb-c.h
+.vscode/
