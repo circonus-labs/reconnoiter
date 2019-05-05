@@ -42,8 +42,9 @@ end
 
 local identity = function(...) return ... end
 
-function API:set_curl_log(curl_log_folder, curl_log)
+function API:set_curl_log(curl_log_folder, curl_node_name, curl_log)
   self.curl_log_folder = curl_log_folder
+  self.curl_node_name = curl_node_name
   self.curl_log = curl_log
 end
 
@@ -59,7 +60,8 @@ function API:curl_logger(headers, method, uri, payload)
     end
     if payload then
       if payload_is_binary then
-        local curl_binary_filename = self.curl_log_folder .. '/curl_binary' .. self.curl_count .. '.bin'
+        local curl_binary_filename = self.curl_log_folder .. '/curl_binary_' ..
+                                     self.curl_node_name .. self.curl_count .. '.bin'
         self.curl_count = self.curl_count + 1
         local curl_binary_file = assert(io.open(curl_binary_filename, 'wb'))
         assert(curl_binary_file:write(payload))
@@ -745,10 +747,10 @@ function TestProc:new(...)
   return TestProc:create():configure(...)
 end
 function TestProc:start(params, sloppy)
-  local curl_log_filename = self.opts.workspace .. '/curls.log'
+  local curl_log_filename = self.opts.workspace .. '/curls_' .. self.name .. '.log'
   self.curl_log = assert(io.open(curl_log_filename, 'a'))
   self.api = self:API()
-  self.api:set_curl_log(self.workspace, self.curl_log)
+  self.api:set_curl_log(self.workspace, self.name, self.curl_log)
   if self.proc ~= nil then
     if sloppy then return self end
     error("TestProc:start failed, already running")
@@ -797,7 +799,7 @@ function TestProc:stop()
     kill_child(self.proc)
   end
   self.proc = nil
-  self.API:set_curl_log(nil, nil)
+  self.api:set_curl_log(nil, nil, nil)
   return self
 end
 
