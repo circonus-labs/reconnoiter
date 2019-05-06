@@ -36,6 +36,7 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.ssh2.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.tcp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.varnish.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/opentsdb.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ping_icmp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/postgres.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/resolver_cache.xml"/>

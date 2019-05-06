@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2019, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -57,7 +57,7 @@ static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
 static void
-graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
+opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
 {
   char record[4096];
   char *part;
@@ -93,83 +93,118 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     part = s;
     /* save the row for later logging */
     strncpy(record, part, sizeof(record) - 1);
-
     size_t record_len = strlen(part);
+
     /*
-     * a graphite record is of the format:
+     * a OpenTSDB telnet record is of the format:
      *
-     * <dot.separated.metric.name>{;optional_tag_name=optional_tag_value;...}[:space:]<value>[:space:]<epoch seconds timestamp>\n
+     * put <metric> <timestamp> <value> <tagk1=tagv1[ tagk2=tagv2 ...tagkN=tagvN]>\n
      *
-     * This makes millisecond level collection impossible unless senders violate the graphite spec.
-     * We will use the noit_record_parse_m_timestamp function to deal with milliseconds
-     * in case they are sent.
+     * For example:
+     *
+     * put sys.cpu.user 1356998400 42.5 host=webserver01 cpu=0
+     *
+     * A 10 digit timestamp is in seconds since epoch.
+     * A 13 digit timestamp or a 10 digit timestamp with a decimal point and 3 more digits
+     * are seconds and milliseconds.
      */
+
+    // first space is metric name
     char *first_space = (char *)memchr(part, ' ', record_len);
     if (first_space == NULL) {
       first_space = (char *)memchr(part, '\t', record_len);
       if (first_space == NULL) {
-        mtevL(nldeb, "Invalid graphite record, can't find the first space or tab in: %s\n", record);
+        mtevL(nldeb, "Invalid OpenTSDB record, can't find the first space or tab in: %s\n", record);
         continue;
       }
     }
+    *first_space++ = 0;
+    while (*first_space == ' ' || *first_space == '\t') first_space++;
 
-    char *second_space = (char *)memchr(first_space + 1, ' ', record_len - (part - (first_space + 1)));
+    // second space is timestamp
+    char *second_space = (char *)memchr(first_space + 1, ' ', record_len - (first_space - part +
+                                                                            1));
     if (second_space == NULL) {
-      second_space = (char *)memchr(first_space + 1, '\t', record_len - (part - (first_space + 1)));
+      second_space = (char *)memchr(first_space + 1, '\t', record_len - (first_space - part + 1));
       if (second_space == NULL) {
-        mtevL(nldeb, "Invalid graphite record, can't find the second space or tab in: %s\n", record);
+        mtevL(nldeb, "Invalid OpenTSDB record, can't find the second space or tab in: %s\n", record);
         continue;
       }
     }
+    *second_space++ = 0;
+    while (*second_space == ' ' || *second_space == '\t') second_space++;
 
-    mtevL(nldeb, "Graphite record: %s\n", record);
-    char *graphite_metric_name = part;
-    *first_space = '\0';
-    first_space++;
-    const char *graphite_value = first_space;
-    *second_space = '\0';
-    second_space++;
-    const char *graphite_timestamp = second_space;
+    // third space is value
+    char *third_space = (char *)memchr(second_space + 1, ' ', record_len - (second_space - part +
+                                                                            1));
+    if (third_space == NULL) {
+      third_space = (char *)memchr(second_space + 1, '\t', record_len - (second_space - part + 1));
+      if (third_space == NULL) {
+        mtevL(nldeb, "Invalid OpenTSDB record, can't find the third space or tab in: %s\n", record);
+        continue;
+      }
+    }
+    *third_space++ = 0;
+    while (*third_space == ' ' || *third_space == '\t') third_space++;
 
-    size_t metric_name_len = strlen(graphite_metric_name);
+    // fourth space is tags
+    char *fourth_space = (char *)memchr(third_space + 1, ' ', record_len - (third_space - part +
+                                                                            1));
+    if (fourth_space == NULL) {
+      fourth_space = (char *)memchr(third_space + 1, '\t', record_len - (third_space - part + 1));
+      if (fourth_space == NULL) {
+        mtevL(nldeb, "Invalid OpenTSDB record, can't find the fourth space or tab in: %s\n", record);
+        continue;
+      }
+    }
+    *fourth_space++ = 0;
+    while (*fourth_space == ' ' || *fourth_space == '\t') fourth_space++;
 
+    mtevL(nldeb, "OpenTSDB record: %s\n", record);
+    char *opentsdb_metric_name = first_space;
+    const char *opentsdb_timestamp = second_space;
+    const char *opentsdb_value = third_space;
+    const char *opentsdb_tags = fourth_space;
+
+    size_t metric_name_len = strlen(opentsdb_metric_name);
+
+    // timestamps for telnet are allowed to contain a '.' before the milliseconds
+    // otherwise, if it is 10 digits or less it is seconds, more than 10 digits is ms
     char *dp;
-    uint64_t whence_ms = strtoull(graphite_timestamp, &dp, 10);
-    whence_ms *= 1000; /* s -> ms */
-    if(dp && *dp == '.')
-      whence_ms += (int) (1000.0 * atof(dp));
+    uint64_t whence_ms = 0;
+    if (strlen(opentsdb_timestamp) <= 10)
+    {
+      whence_ms = strtoull(opentsdb_timestamp, &dp, 10);
+    }
+    else {
+      whence_ms = strtoull(opentsdb_timestamp, &dp, 10) * 1000;
+      if (dp && *dp == '.')
+        whence_ms += (int)(1000.0 * atof(dp));
+    }
 
-    size_t graphite_value_len = strlen(graphite_value);
-    if (count_integral_digits(graphite_value, graphite_value_len, mtev_true) == 0) {
-      mtevL(nldeb, "Invalid graphite record, no digits in value: %s\n", record);
+    size_t opentsdb_value_len = strlen(opentsdb_value);
+    if (count_integral_digits(opentsdb_value, opentsdb_value_len, mtev_true) == 0) {
+      mtevL(nldeb, "Invalid OpenTSDB record, no digits in value: %s\n", third_space);
       continue;
     }
 
     double metric_value = 0.0;
-    const char *dot = strchr(graphite_value, '.');
+    const char *dot = strchr(opentsdb_value, '.');
     if (dot == NULL) {
       /* attempt fast integer parse, if we fail, jump to strtod parse */
-      if (*graphite_value == '-') {
-        errno = 0;
-        int64_t v = strtoll(graphite_value, NULL, 10);
-        if (errno == ERANGE) {
-          goto strtod_parse;
-        }
-        metric_value = (double)v;
-      } else {
-        errno = 0;
-        uint64_t v = strtoull(graphite_value, NULL, 10);
-        if (errno == ERANGE) {
-          goto strtod_parse;
-        }
-        metric_value = (double)v;
+      /* OpenTSDB only supports signed int64 */
+      errno = 0;
+      int64_t v = strtoll(opentsdb_value, NULL, 10);
+      if (errno == ERANGE) {
+        goto strtod_parse;
       }
+      metric_value = (double)v;
     } else {
     strtod_parse:
       errno = 0;
-      metric_value = strtod(graphite_value, NULL);
+      metric_value = strtod(opentsdb_value, NULL);
       if (errno == ERANGE) {
-        mtevL(nldeb, "Invalid graphite record, strtod cannot parse value: %s\n", record);
+        mtevL(nldeb, "Invalid opentsdb record, strtod cannot parse value: %s\n", third_space);
         continue;
       }
     }
@@ -178,44 +213,40 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     mtev_dyn_buffer_t tagged_name;
     mtev_dyn_buffer_init(&tagged_name);
 
-    /* http://graphite.readthedocs.io/en/latest/tags.html
-     *
+    /* OpenTSDB tags are k=v list with at least one kv, each kv separated by space
      * Re-format incoming name string into our tag format for parsing */
-    char *semicolon = strchr(graphite_metric_name, ';');
-    if (semicolon) {
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)graphite_metric_name, semicolon - graphite_metric_name);
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"|ST[", 4);
-
-      /* look for K=V pairs */
-      char *pair, *lasts;
-      bool comma = false;
-      for (pair = strtok_r(semicolon, ";", &lasts); pair; pair = strtok_r(NULL, ";", &lasts)) {
-        const char *equal = strchr(pair, '=');
-        if (equal) {
-          size_t pair_len = strlen(pair);
-          if (!noit_metric_tagset_is_taggable_key(pair, equal - pair) ||
-              !noit_metric_tagset_is_taggable_value(equal + 1, pair_len - ((equal + 1) - pair))) {
-            mtevL(nldeb, "Unacceptable tag key or value: '%s' skipping\n", pair);
-            continue;
-          }
-
-          if (comma) mtev_dyn_buffer_add(&tagged_name, (uint8_t *)",", 1);
-          mtev_dyn_buffer_add(&tagged_name, (uint8_t *)pair, equal - pair);
-          mtev_dyn_buffer_add(&tagged_name, (uint8_t *)":", 1);
-          mtev_dyn_buffer_add_printf(&tagged_name, "%s", equal + 1);
-          comma = true;
+    mtev_dyn_buffer_add(&tagged_name, (uint8_t *)opentsdb_metric_name, strlen(opentsdb_metric_name));
+    mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"|ST[", 4);
+    /* look for K=V pairs */
+    char *pair, *lasts;
+    bool comma = false;
+    char *space_loc = fourth_space;
+    for (pair = strtok_r(space_loc, " ", &lasts); pair; pair = strtok_r(NULL, " ", &lasts)) {
+      const char *equal = strchr(pair, '=');
+      if (equal) {
+        size_t pair_len = strlen(pair);
+        if (!noit_metric_tagset_is_taggable_key(pair, equal - pair) ||
+            !noit_metric_tagset_is_taggable_value(equal + 1, pair_len - ((equal + 1) - pair))) {
+          mtevL(nldeb, "Unacceptable tag key or value: '%s' skipping\n", pair);
+          continue;
         }
+
+        if (comma) mtev_dyn_buffer_add(&tagged_name, (uint8_t *)",", 1);
+        mtev_dyn_buffer_add(&tagged_name, (uint8_t *)pair, equal - pair);
+        mtev_dyn_buffer_add(&tagged_name, (uint8_t *)":", 1);
+        mtev_dyn_buffer_add_printf(&tagged_name, "%s", equal + 1);
+        comma = true;
       }
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"]", 1);
-    } else {
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)graphite_metric_name, metric_name_len);
     }
+    mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"]", 1);
     mtev_dyn_buffer_add(&tagged_name, (uint8_t*)"\0", 1);
 
-    mtevL(nldeb, "Reformatted graphite name: %s\n", mtev_dyn_buffer_data(&tagged_name));
+    mtevL(nldeb, "Reformatted OpenTSDB name: %s\n", mtev_dyn_buffer_data(&tagged_name));
+
     struct timeval tv;
     tv.tv_sec = (time_t)(whence_ms / 1000L);
     tv.tv_usec = (suseconds_t)((whence_ms % 1000L) * 1000);
+
     noit_stats_log_immediate_metric_timed(check,
                                           (const char *)mtev_dyn_buffer_data(&tagged_name),
                                           METRIC_DOUBLE,
@@ -225,7 +256,7 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
   }
 }
 
-static int noit_graphite_initiate_check(noit_module_t *self,
+static int noit_opentsdb_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
@@ -243,8 +274,8 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     ccl->ipv6_listen_fd = -1;
     ccl->nldeb = nldeb;
     ccl->nlerr = nlerr;
-    strcpy(ccl->nlname, "graphite");
-    ccl->payload_handler = graphite_handle_payload;
+    strcpy(ccl->nlname, "opentsdb");
+    ccl->payload_handler = opentsdb_handle_payload;
     ck_spinlock_init(&ccl->use_lock);
 
     unsigned short port = 2003;
@@ -260,11 +291,6 @@ static int noit_graphite_initiate_check(noit_module_t *self,
       port = atoi(config_val);
     }
 
-    /* Skip setting the port for the tls variant, it works differently */
-    if(strcmp(check->module, "graphite_tls")) {
-      ccl->port = port;
-    }
-
     if(mtev_hash_retr_str(check->config, "rows_per_cycle",
                           strlen("rows_per_cycle"),
                           (const char **)&config_val)) {
@@ -275,7 +301,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     if(port > 0) ccl->ipv4_listen_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
     if(ccl->ipv4_listen_fd < 0) {
       if(port > 0) {
-        mtevL(noit_error, "graphite: socket failed: %s\n", strerror(errno));
+        mtevL(noit_error, "opentsdb: socket failed: %s\n", strerror(errno));
         return -1;
       }
     }
@@ -284,7 +310,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
         close(ccl->ipv4_listen_fd);
         ccl->ipv4_listen_fd = -1;
         mtevL(noit_error,
-              "graphite: could not set socket (IPv4) non-blocking: %s\n",
+              "opentsdb: could not set socket (IPv4) non-blocking: %s\n",
               strerror(errno));
         return -1;
       }
@@ -294,12 +320,12 @@ static int noit_graphite_initiate_check(noit_module_t *self,
       skaddr.sin_port = htons(ccl->port);
       sockaddr_len = sizeof(skaddr);
       if(bind(ccl->ipv4_listen_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
-        mtevL(noit_error, "graphite bind(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+        mtevL(noit_error, "opentsdb bind(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
         close(ccl->ipv4_listen_fd);
         return -1;
       }
       if (listen(ccl->ipv4_listen_fd, 5) != 0) {
-        mtevL(noit_error, "graphite listen(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+        mtevL(noit_error, "opentsdb listen(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
         close(ccl->ipv4_listen_fd);
         return -1;
       }
@@ -311,7 +337,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
     if(port > 0) ccl->ipv6_listen_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
     if(ccl->ipv6_listen_fd < 0) {
       if(port > 0) {
-        mtevL(noit_error, "graphite: IPv6 socket failed: %s\n",
+        mtevL(noit_error, "opentsdb: IPv6 socket failed: %s\n",
               strerror(errno));
       }
     }
@@ -320,7 +346,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
         close(ccl->ipv6_listen_fd);
         ccl->ipv6_listen_fd = -1;
         mtevL(noit_error,
-              "graphite: could not set socket (IPv6) non-blocking: %s\n",
+              "opentsdb: could not set socket (IPv6) non-blocking: %s\n",
               strerror(errno));
       }
       else {
@@ -334,14 +360,14 @@ static int noit_graphite_initiate_check(noit_module_t *self,
         skaddr6.sin6_port = htons(ccl->port);
 
         if(bind(ccl->ipv6_listen_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
-          mtevL(noit_error, "graphite bind(IPv6) failed[%d]: %s\n",
+          mtevL(noit_error, "opentsdb bind(IPv6) failed[%d]: %s\n",
                 ccl->port, strerror(errno));
           close(ccl->ipv6_listen_fd);
           ccl->ipv6_listen_fd = -1;
         }
 
         else if (listen(ccl->ipv6_listen_fd, 5) != 0) {
-          mtevL(noit_error, "graphite listen(IPv6) failed[%d]: %s\n", ccl->port, strerror(errno));
+          mtevL(noit_error, "opentsdb listen(IPv6) failed[%d]: %s\n", ccl->port, strerror(errno));
           close(ccl->ipv6_listen_fd);
           if (ccl->ipv4_listen_fd <= 0) return -1;
         }
@@ -359,72 +385,36 @@ static int noit_graphite_initiate_check(noit_module_t *self,
   return 0;
 }
 
-static int noit_graphite_onload(mtev_image_t *self) {
-  if(!nlerr) nlerr = mtev_log_stream_find("error/graphite");
-  if(!nldeb) nldeb = mtev_log_stream_find("debug/graphite");
+static int noit_opentsdb_onload(mtev_image_t *self) {
+  if(!nlerr) nlerr = mtev_log_stream_find("error/opentsdb");
+  if(!nldeb) nldeb = mtev_log_stream_find("debug/opentsdb");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
   return 0;
 }
 
-static int noit_graphite_init(noit_module_t *self)
+static int noit_opentsdb_init(noit_module_t *self)
 {
-  if(!strcmp(self->hdr.name, "graphite_tls")) {
-    eventer_name_callback_ext("graphite/graphite_listener", listener_mtev_listener,
-                              listener_describe_mtev_callback, self);
-  }
-  eventer_name_callback_ext("graphite/graphite_handler", listener_handler,
+  eventer_name_callback_ext("opentsdb/opentsdb_handler", listener_handler,
                             listener_describe_callback, self);
-  eventer_name_callback_ext("graphite/graphite_listen_handler", listener_listen_handler,
+  eventer_name_callback_ext("opentsdb/opentsdb_listen_handler", listener_listen_handler,
                             listener_describe_callback, self);
 
   return 0;
 }
 
-/* This is here for legacy */
-noit_module_t graphite = {
+#include "opentsdb.xmlh"
+noit_module_t opentsdb = {
   {
     .magic = NOIT_MODULE_MAGIC,
     .version = NOIT_MODULE_ABI_VERSION,
-    .name = "graphite",
-    .description = "graphite(carbon) collection",
-    .xml_description = "",
-    .onload = noit_graphite_onload
+    .name = "opentsdb",
+    .description = "opentsdb collection",
+    .xml_description = opentsdb_xml_description,
+    .onload = noit_opentsdb_onload
   },
   noit_listener_config,
-  noit_graphite_init,
-  noit_graphite_initiate_check,
-  noit_listener_cleanup
-};
-
-#include "graphite_tls.xmlh"
-noit_module_t graphite_tls = {
-  {
-    .magic = NOIT_MODULE_MAGIC,
-    .version = NOIT_MODULE_ABI_VERSION,
-    .name = "graphite_tls",
-    .description = "graphite_tls(carbon) collection",
-    .xml_description = graphite_tls_xml_description,
-    .onload = noit_graphite_onload
-  },
-  noit_listener_config,
-  noit_graphite_init,
-  noit_graphite_initiate_check,
-  noit_listener_cleanup
-};
-
-#include "graphite_plain.xmlh"
-noit_module_t graphite_plain = {
-  {
-    .magic = NOIT_MODULE_MAGIC,
-    .version = NOIT_MODULE_ABI_VERSION,
-    .name = "graphite_plain",
-    .description = "graphite_plain(carbon) collection",
-    .xml_description = graphite_plain_xml_description,
-    .onload = noit_graphite_onload
-  },
-  noit_listener_config,
-  noit_graphite_init,
-  noit_graphite_initiate_check,
+  noit_opentsdb_init,
+  noit_opentsdb_initiate_check,
   noit_listener_cleanup
 };

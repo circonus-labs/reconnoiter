@@ -51,15 +51,20 @@ noit_metric_as_double(metric_t *metric, double *out) {
   if(metric == NULL || metric->metric_value.vp == NULL) return mtev_false;
   switch (metric->metric_type) {
   case METRIC_INT32:
-    if(out) *out = (double)*(metric->metric_value.i); break;
+    if(out) *out = (double)*(metric->metric_value.i);
+  break;
   case METRIC_UINT32:
-    if(out) *out = (double)*(metric->metric_value.I); break;
+    if(out) *out = (double)*(metric->metric_value.I);
+  break;
   case METRIC_INT64:
-    if(out) *out = (double)*(metric->metric_value.l); break;
+    if(out) *out = (double)*(metric->metric_value.l);
+  break;
   case METRIC_UINT64:
-    if(out) *out = (double)*(metric->metric_value.L); break;
+    if(out) *out = (double)*(metric->metric_value.L);
+  break;
   case METRIC_DOUBLE:
-    if(out) *out = *(metric->metric_value.n); break;
+    if(out) *out = *(metric->metric_value.n);
+  break;
   default: return mtev_false;
   }
   return true;
@@ -244,7 +249,7 @@ static uint8_t vtagmap_value[256] = {
 
 /*
  * map for base64 encoded tags
- 
+
   perl -e '$valid = qr/[A-Za-z0-9+\/=]/;
   foreach $i (0..7) {
   foreach $j (0..31) { printf "%d,", chr($i*32+$j) =~ $valid; }
@@ -344,8 +349,8 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
     first_part_needs_b64 += !noit_metric_tagset_is_taggable_key_char(decoded_tag[i]);
   int first_part_len = sepcnt;
   if(first_part_needs_b64) first_part_len = mtev_b64_encode_len(first_part_len) + 3;
- 
-  int second_part_needs_b64 = 0; 
+
+  int second_part_needs_b64 = 0;
   for(i=sepcnt+1;i<decoded_len;i++)
 	second_part_needs_b64 += !noit_metric_tagset_is_taggable_value_char(decoded_tag[i]);
   int second_part_len = decoded_len - sepcnt - 1;
@@ -478,7 +483,7 @@ build_tags(const char *input, size_t len, noit_metric_tag_t *tags, int max_tags,
       MTEV_MAYBE_FREE(bigtag);
       return mtev_false;
     }
-    
+
     len -= (next - input);
     if(toolong) {
       /* If it is too long, we need to decode it and then build a "unique"
@@ -563,7 +568,7 @@ build_tags(const char *input, size_t len, noit_metric_tag_t *tags, int max_tags,
             }
 
             /* put this into the tags. */
-            ssize_t newtag_size = 
+            ssize_t newtag_size =
               noit_metric_tagset_encode_tag(repl->tag[repl->used], sizeof(repl->tag[repl->used]),
                                             decoded_tag, decoded_len);
             if(newtag_size > 0) {
@@ -680,7 +685,7 @@ noit_metric_parse_tags(const char *input, size_t input_len,
   stset->tag_count = mtset->tag_count = 0;
   while(eat_up_tags(input, &input_len, stset->tags, stag_cnt, &stset->tag_count, "|ST[", "]", NULL) ||
         eat_up_tags(input, &input_len, mtset->tags, mtag_cnt, &mtset->tag_count, "|MT{", "}", NULL));
-  
+
   if(mtev_memmem(input, input_len, "|ST[", 4) || mtev_memmem(input, input_len, "|MT{", 4))
     return -1;
   return input_len;

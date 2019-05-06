@@ -119,7 +119,7 @@ do
             ;;
         --mnt-shell)
             echo "Running reconnoiter-el7-base container image"
-            $DOCKER_RUN -it --privileged -p 43191:43191 -p 2003:2003 -v $(pwd):/reconnoiter reconnoiter-el7-base $@
+            $DOCKER_RUN -it --privileged -p 43191:43191 -p 2003:2003 -p 4242:4242 -v $(pwd):/reconnoiter reconnoiter-el7-base $@
             exit 0
             ;;
         *)

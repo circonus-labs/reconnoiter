@@ -1,0 +1,53 @@
+<module>
+  <name>opentsdb</name>
+  <description>
+    <para>The opentsdb module provides a simple way to push data into reconnoiter via any compatible opentsdb data provider.  Simply configure the relay to write to the provided port.</para>
+  </description>
+  <loader>C</loader>
+  <image>opentsdb.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="listen_port"
+               required="optional"
+               default="4242"
+               allowed="[0-9]+">Specify the port which this check listens on.  The data provider should be configured to send plain text metrics to this port.</parameter>
+    <parameter name="rows_per_cycle"
+               required="optional"
+               default="100"
+               allowed="[0-9]+">The max number of rows to process in one event loop.  Defaults to 100.  Turn this up higher if you have very high volume metric collection.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Ingesting opentsdb data</title>
+      <para>
+        <code>
+          <Plugin write_tsdb>
+            <Node>
+              Host           "localhost"
+              Port           "4242"
+              HostTags       "datacenter=east hosttype=backend"
+              StoreRates     false
+              AlwaysAppendDS false
+            </Node>
+          </Plugin>
+        </code>
+      </para>
+      <para>The collectd write_tsdb plugin config example above will direct metric data to the broker:4242 for ingestion</para>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="opentsdb" name="opentsdb"/>
+        </modules>
+        <checks>
+          <check uuid="23fd6e18-6edc-718a-d491-84d3a712ba31" module="opentsdb"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><listen_port>4242</listen_port></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>
