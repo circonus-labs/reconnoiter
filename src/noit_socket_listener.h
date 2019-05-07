@@ -113,3 +113,4 @@ void listener_describe_callback(char *buffer, int size, eventer_t e, void *closu
 void listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure);
 int noit_listener_config(noit_module_t *self, mtev_hash_table *options);
 void noit_listener_cleanup(noit_module_t *self, noit_check_t *check);
+void listener_onload();
