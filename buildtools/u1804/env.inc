@@ -29,3 +29,4 @@ export NPM="/opt/circonus/bin/npm"
 export SHCFLAGS="-g"
 export MAKE="make"
 export CPPFLAGS
+export LIBS="-lm"
