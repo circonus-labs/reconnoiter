@@ -46,28 +46,24 @@ put opentsdb.foo.10 1557109227.043 12345.6 app=flarg parity=even
   end)
 
   describe("opentsdb", function()
-    local key = noit:watchfor(mtev.pcre('B1\t'), true)
+    local key = noit:watchfor(mtev.pcre('Reformatted OpenTSDB name'), true)
     it("create opentsdb check", function()
       local code, doc = api:raw("PUT", "/checks/set/" .. uuid, check_xml)
       assert.is.equal(200, code)
     end)
     it("ingests opentsdb data via TCP plaintext listener", function()
-      local conn, err = socket.connect("127.0.0.1", 4242)
-      assert.message("Error " .. (err or "?") .. " opening raw socket opentsdb port").is_not_nil(conn)
-      conn:settimeout(60, 't')
-      assert.message("Error sending datapoints").is_equal(#payload, conn:send(payload))
+      local conn = mtev.socket('inet','tcp')
+      assert.message("Error creating mtev tcp socket").is_not_nil(conn)
+      local rv, err = conn:connect('127.0.0.1', '4242')
+      assert.message("Error " .. (err or "nil") .. " connecting to port").is_not_equal(-1, rv)
+      local bytes, err = conn:send(payload)
+      assert.message("Error " .. (err or "nil") .. " sending payload").is_not_equal(-1, bytes)
+      assert.message("Incorrect number of bytes sent (" .. bytes .. "/" .. string.len(payload) .. ")").is_equal(string.len(payload), bytes)
       conn:close()
     end)
-    it("has matching B1 records", function()
-      local record = {}
-      local rparts = {}
-      -- split by \t, make sure we have the parts, and track #4 as the metric name
+    it("has matching OpenTSDB records", function()
       for i=1,10 do
-        record[i] = noit:waitfor(key, 2)
-        assert.is_not_nil(record[i])
-        rparts[i] = record[i]:split('\t')
-        assert.is_not_nil(rparts[i][4])
-        assert.is_not_nil(rparts[i][5])
+        noit:waitfor(key, 2)
       end
     end)
   end)

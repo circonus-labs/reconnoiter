@@ -1,40 +1,43 @@
 
-prometheus.pb-c.o: prometheus.pb-c.c prometheus.pb-c.h
-prometheus.pb-c.c prometheus.pb-c.h: prometheus.proto
-types.pb-c.o: types.pb-c.c types.pb-c.h
-types.pb-c.c types.pb-c.c: types.proto
-
 check_test.lo: check_test.c  \
   ../noit_mtev_bridge.h \
   ../noit_module.h  \
   ../noit_check.h \
-  ../noit_metric.h ../noit_check_rest.h ../noit_check_tools.h \
+  ../noit_metric.h ../noit_check.h \
+  ../noit_check_rest.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
   ../noit_check_tools_shared.h  \
   check_test.xmlh
 
 collectd.lo: collectd.c  \
   ../noit_module.h  \
   ../noit_check.h \
-  ../noit_metric.h ../noit_check_tools.h ../noit_check_tools_shared.h \
+  ../noit_metric.h ../noit_check.h \
+  ../noit_check_tools.h ../noit_module.h ../noit_clustering.h \
+  ../noit_check_tools_shared.h \
   ../noit_mtev_bridge.h collectd.xmlh
 
 custom_config.lo: custom_config.c  \
   ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h custom_config.xmlh
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h custom_config.xmlh
 
 dns.lo: dns.c  \
-  ../noit_mtev_bridge.h \
-  ../noit_module.h  \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h dns.xmlh
+  ../noit_mtev_bridge.h ../noit_module.h  \
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h dns.xmlh
 
 external.lo: external.c  \
   ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h external_proc.h external.xmlh
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h \
+  external_proc.h external.xmlh
 
 external_proc.lo: external_proc.c  \
   ../noit_mtev_bridge.h \
@@ -42,135 +45,195 @@ external_proc.lo: external_proc.c  \
 
 fq_driver.lo: fq_driver.c  \
   ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h \
+  ../stratcon_datastore.h \
+  ../stratcon_realtime_http.h ../stratcon_jlog_streamer.h \
   fq_driver.xmlh
 
 ganglia.lo: ganglia.c  \
   ../noit_module.h  \
   ../noit_check.h \
-  ../noit_metric.h ../noit_check_tools.h ../noit_check_tools_shared.h \
+  ../noit_metric.h ../noit_check.h \
+  ../noit_check_tools.h ../noit_module.h ../noit_clustering.h \
+  ../noit_check_tools_shared.h \
   ../noit_mtev_bridge.h ganglia.xmlh
 
+graphite.lo: graphite.c  \
+  ../noit_metric.h ../noit_module.h  \
+  ../noit_check.h  \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h prometheus.pb-c.h \
+  types.pb-c.h \
+  ../noit_socket_listener.h ../noit_check_tools.h ../noit_mtev_bridge.h \
+  graphite_tls.xmlh graphite_plain.xmlh
+
 handoff_ingestor.lo: handoff_ingestor.c \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h ../stratcon_iep.h \
-  ../stratcon_jlog_streamer.h \
+  ../stratcon_datastore.h ../stratcon_realtime_http.h \
+  ../stratcon_realtime_http.h ../stratcon_iep.h ../stratcon_datastore.h \
+  ../stratcon_jlog_streamer.h  \
   handoff_ingestor.xmlh
 
 histogram.lo: histogram.c  \
-  ../noit_mtev_bridge.h \
-  ../noit_module.h  \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h
+  ../noit_mtev_bridge.h ../noit_module.h  \
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_clustering.h ../noit_filters.h \
+  histogram.h
 
 httptrap.lo: httptrap.c  \
-  ../noit_module.h \
-  ../noit_check.h \
-  ../noit_metric.h ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h httptrap.xmlh
+  ../noit_metric.h \
+  ../noit_module.h  \
+  ../noit_check.h  \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h httptrap.xmlh
 
 ip_acl.lo: ip_acl.c  \
-  ../noit_mtev_bridge.h  \
+  ../noit_mtev_bridge.h \
   ../noit_module.h  \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h ip_acl.xmlh
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ip_acl.xmlh
 
 libstomp.lo: libstomp.c  \
   libstomp.h \
 
 lua_check.lo: lua_check.c  \
-  ../noit_config.h ../noit_module.h ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h  \
+  ../noit_config.h ../noit_module.h \
+  ../noit_check.h  \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h \
   lua_check.h lua.xmlh
 
-mysql.lo: mysql.c  \
-  ../noit_config.h ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h mysql.xmlh
+noit_lua_libnoit_binding.lo: noit_lua_libnoit_binding.c \
+  ../noit_metric_rollup.h \
+  ../noit_metric.h ../noit_metric_director.h ../noit_message_decoder.h \
+  ../noit_metric_tag_search.h
 
 noit_lua_noit_binding.lo: noit_lua_noit_binding.c \
-  ../noit_check.h \
-  ../noit_metric.h \
-  ../noit_filters.h  \
-  lua_check.h ../noit_module.h  \
-  ../noit_check_tools.h ../noit_check_tools_shared.h
+  noit_lua_libnoit_binding.c  \
+  ../noit_metric_rollup.h \
+  ../noit_metric.h ../noit_metric_director.h ../noit_message_decoder.h \
+  ../noit_metric_tag_search.h ../noit_check.h \
+  ../noit_check_resolver.h \
+  ../noit_filters.h ../noit_check.h lua_check.h ../noit_module.h \
+  ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h
 
 noit_lua_snmp.lo: noit_lua_snmp.c ../noit_config.h \
 
+opentsdb.lo: opentsdb.c  \
+  ../noit_metric.h ../noit_module.h  \
+  ../noit_check.h  \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h prometheus.pb-c.h \
+  types.pb-c.h \
+  ../noit_socket_listener.h ../noit_check_tools.h ../noit_mtev_bridge.h \
+  opentsdb.xmlh
+
 ping_icmp.lo: ping_icmp.c  \
-  ../noit_mtev_bridge.h \
-  ../noit_module.h  \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h ping_icmp.xmlh
+  ../noit_mtev_bridge.h ../noit_module.h  \
+  ../noit_check.h  \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ping_icmp.xmlh
 
 postgres.lo: postgres.c  \
   ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h postgres.xmlh
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h postgres.xmlh
 
-postgres_ingestor.lo: postgres_ingestor.c \
-  ../noit_mtev_bridge.h \
-  ../noit_module.h  ../noit_check.h \
-  ../noit_metric.h ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_ingest.h ../stratcon_iep.h ../stratcon_jlog_streamer.h \
-  ../noit_check_log_helpers.h ../bundle.pb-c.h postgres_ingestor.xmlh
+prometheus.lo: prometheus.c  \
+  ../noit_metric.h ../noit_module.h \
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h \
+  ../noit_check_tools.h ../noit_module.h ../noit_clustering.h \
+  ../noit_check_tools_shared.h \
+  ../noit_mtev_bridge.h prometheus.pb-c.h \
+  types.pb-c.h \
+  prometheus.xmlh
+
+prometheus.pb-c.lo: prometheus.pb-c.c prometheus.pb-c.h \
+  types.pb-c.h
 
 rabbitmq_driver.lo: rabbitmq_driver.c  \
   ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h \
+  ../stratcon_datastore.h \
+  ../stratcon_realtime_http.h  \
+  ../stratcon_jlog_streamer.h  \
   librabbitmq/amqp.h \
   librabbitmq/amqp_framing.h rabbitmq_driver.xmlh
 
 resolver_cache.lo: resolver_cache.c  \
   ../noit_mtev_bridge.h \
-  ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_resolver.h resolver_cache.xmlh
+  ../noit_module.h  \
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check_resolver.h resolver_cache.xmlh
 
 reverse_check.lo: reverse_check.c  \
-  ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h reverse_check.xmlh
+  ../noit_module.h  \
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h reverse_check.xmlh
 
 selfcheck.lo: selfcheck.c  \
   ../noit_mtev_bridge.h \
-  ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_jlog_listener.h ../noit_check_tools.h \
-  ../noit_check_tools_shared.h ../noit_version.h selfcheck.xmlh
+  ../noit_module.h  \
+  ../noit_check.h \
+  ../noit_metric.h ../noit_jlog_listener.h ../noit_check.h \
+  ../noit_check_tools.h ../noit_module.h ../noit_clustering.h \
+  ../noit_check_tools_shared.h \
+  ../noit_version.h selfcheck.xmlh broker.xmlh
 
 snmp.lo: snmp.c  \
   ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h snmp.xmlh snmptrap.xmlh
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h snmp.xmlh \
+  snmptrap.xmlh
 
 ssh2.lo: ssh2.c  \
   ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h ssh2.xmlh
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h \
+  ssh2.xmlh
 
 statsd.lo: statsd.c  \
   ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h statsd.xmlh
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h statsd.xmlh
 
 stomp_driver.lo: stomp_driver.c  \
   ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h \
+  ../stratcon_datastore.h \
+  ../stratcon_realtime_http.h ../stratcon_jlog_streamer.h \
   libstomp.h \
   stomp_driver.xmlh
 
 test_abort.lo: test_abort.c  \
   ../noit_module.h \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h
+  ../noit_check.h \
+  ../noit_metric.h ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h
+
+test_ingestor.lo: test_ingestor.c  \
+  ../stratcon_datastore.h ../stratcon_realtime_http.h \
+  ../stratcon_realtime_http.h ../stratcon_iep.h ../stratcon_datastore.h \
+  ../stratcon_jlog_streamer.h  \
+  test_ingestor.xmlh
+
+types.pb-c.lo: types.pb-c.c types.pb-c.h \

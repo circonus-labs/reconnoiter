@@ -56,8 +56,7 @@
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
-static void
-opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
+static void opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
 {
   char record[4096];
   char *part;
@@ -93,6 +92,7 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
     part = s;
     /* save the row for later logging */
     strncpy(record, part, sizeof(record) - 1);
+    record[sizeof(record) - 1] = 0;
     size_t record_len = strlen(part);
 
     /*
@@ -162,11 +162,9 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
 
     mtevL(nldeb, "OpenTSDB record: %s\n", record);
     char *opentsdb_metric_name = first_space;
-    const char *opentsdb_timestamp = second_space;
-    const char *opentsdb_value = third_space;
-    const char *opentsdb_tags = fourth_space;
-
-    size_t metric_name_len = strlen(opentsdb_metric_name);
+    char *opentsdb_timestamp = second_space;
+    char *opentsdb_value = third_space;
+    char *opentsdb_tags = fourth_space;
 
     // timestamps for telnet are allowed to contain a '.' before the milliseconds
     // otherwise, if it is 10 digits or less it is seconds, more than 10 digits is ms
@@ -220,7 +218,7 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
     /* look for K=V pairs */
     char *pair, *lasts;
     bool comma = false;
-    char *space_loc = fourth_space;
+    char *space_loc = opentsdb_tags;
     for (pair = strtok_r(space_loc, " ", &lasts); pair; pair = strtok_r(NULL, " ", &lasts)) {
       const char *equal = strchr(pair, '=');
       if (equal) {
@@ -278,7 +276,7 @@ static int noit_opentsdb_initiate_check(noit_module_t *self,
     ccl->payload_handler = opentsdb_handle_payload;
     ck_spinlock_init(&ccl->use_lock);
 
-    unsigned short port = 2003;
+    unsigned short port = 4242;
     int rows_per_cycle = 100;
     struct sockaddr_in skaddr;
     int sockaddr_len;
@@ -290,6 +288,8 @@ static int noit_opentsdb_initiate_check(noit_module_t *self,
                           (const char **)&config_val)) {
       port = atoi(config_val);
     }
+
+    ccl->port = port;
 
     if(mtev_hash_retr_str(check->config, "rows_per_cycle",
                           strlen("rows_per_cycle"),
