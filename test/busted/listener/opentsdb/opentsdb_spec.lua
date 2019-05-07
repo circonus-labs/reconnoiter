@@ -1,4 +1,3 @@
-local socket = require("socket")
 describe("opentsdb #opentsdb #listener", function()
   local noit, api
   setup(function()
