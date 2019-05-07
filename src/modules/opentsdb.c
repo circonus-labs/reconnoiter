@@ -56,7 +56,8 @@
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
-static void opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
+static void
+opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
 {
   char record[4096];
   char *part;
@@ -91,7 +92,7 @@ static void opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t le
     }
     part = s;
     /* save the row for later logging */
-    strncpy(record, part, sizeof(record) - 1);
+    strlcpy(record, part, sizeof(record) - 1);
     record[sizeof(record) - 1] = 0;
     size_t record_len = strlen(part);
 
@@ -254,7 +255,8 @@ static void opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t le
   }
 }
 
-static int noit_opentsdb_initiate_check(noit_module_t *self,
+static int
+noit_opentsdb_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
@@ -385,7 +387,8 @@ static int noit_opentsdb_initiate_check(noit_module_t *self,
   return 0;
 }
 
-static int noit_opentsdb_onload(mtev_image_t *self) {
+static int
+noit_opentsdb_onload(mtev_image_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/opentsdb");
   if(!nldeb) nldeb = mtev_log_stream_find("debug/opentsdb");
   if(!nlerr) nlerr = noit_error;
@@ -393,7 +396,8 @@ static int noit_opentsdb_onload(mtev_image_t *self) {
   return 0;
 }
 
-static int noit_opentsdb_init(noit_module_t *self)
+static int
+noit_opentsdb_init(noit_module_t *self)
 {
   eventer_name_callback_ext("opentsdb/opentsdb_handler", listener_handler,
                             listener_describe_callback, self);

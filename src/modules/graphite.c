@@ -179,7 +179,7 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     mtev_dyn_buffer_init(&tagged_name);
 
     /* http://graphite.readthedocs.io/en/latest/tags.html
-     *
+     * 
      * Re-format incoming name string into our tag format for parsing */
     char *semicolon = strchr(graphite_metric_name, ';');
     if (semicolon) {
@@ -231,8 +231,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
   check->flags |= NP_PASSIVE_COLLECTION;
   check->nldeb = nldeb;
   check->nlerr = nlerr;
-  if (check->closure == NULL)
-  {
+  if (check->closure == NULL) {
 
     listener_closure_t *ccl;
     ccl = check->closure = (void *)calloc(1, sizeof(listener_closure_t));
@@ -303,7 +302,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
         close(ccl->ipv4_listen_fd);
         return -1;
       }
-
+  
       eventer_t newe = eventer_alloc_fd(listener_listen_handler, ccl, ccl->ipv4_listen_fd,
                                         EVENTER_READ | EVENTER_EXCEPTION);
       eventer_add(newe);
@@ -367,7 +366,7 @@ static int noit_graphite_onload(mtev_image_t *self) {
   return 0;
 }
 
-static int noit_graphite_init(noit_module_t *self)
+static int noit_graphite_init(noit_module_t *self) 
 {
   if(!strcmp(self->hdr.name, "graphite_tls")) {
     eventer_name_callback_ext("graphite/graphite_listener", listener_mtev_listener,

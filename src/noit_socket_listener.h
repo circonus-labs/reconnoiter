@@ -74,7 +74,8 @@ typedef struct listener_closure_s {
 
 #define READ_CHUNK 32768
 
-static inline size_t count_integral_digits(const char *str, size_t len, mtev_boolean can_be_signed)
+static inline size_t
+count_integral_digits(const char *str, size_t len, mtev_boolean can_be_signed)
 {
   size_t rval = 0;
   if (can_be_signed && len > 0 && *str == '-') {
@@ -91,7 +92,9 @@ static inline size_t count_integral_digits(const char *str, size_t len, mtev_boo
 
 /* Count endlines to determine how many full records we
  * have */
-static inline int count_records(char *buffer) {
+static inline int
+count_records(char *buffer)
+{
   char *iter = buffer;
   int count = 0;
   while ((iter = strchr(iter, '\n')) != 0) {

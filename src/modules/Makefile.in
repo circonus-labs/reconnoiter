@@ -247,7 +247,7 @@ collectd.lo:	collectd.c collectd.xmlh
 
 ganglia.@MODULEEXT@:	ganglia.lo
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ ganglia.lo -lssl
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ ganglia.lo -lssl 
 
 ganglia.lo:	ganglia.c ganglia.xmlh
 	@echo "- compiling $<"

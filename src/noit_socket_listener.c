@@ -52,11 +52,15 @@
 #include "noit_mtev_bridge.h"
 #include "noit_socket_listener.h"
 
-void listener_closure_ref(listener_closure_t *lc) {
+void
+listener_closure_ref(listener_closure_t *lc)
+{
   ck_pr_inc_int(&lc->refcnt);
 }
 
-static void listener_closure_deref(listener_closure_t *lc) {
+static void
+listener_closure_deref(listener_closure_t *lc)
+{
   bool zero;
   ck_pr_dec_int_zero(&lc->refcnt, &zero);
   if(!zero) return;
@@ -67,7 +71,8 @@ static void listener_closure_deref(listener_closure_t *lc) {
   free(lc);
 }
 
-int listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
+int
+listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
 {
   listener_closure_t *ccl;
   struct timeval duration;
@@ -117,7 +122,8 @@ int listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *caus
   return 0;
 }
 
-int listener_handler(eventer_t e, int mask, void *closure, struct timeval *now)
+int
+listener_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 {
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
   listener_closure_t *self = (listener_closure_t *)closure;
@@ -190,7 +196,8 @@ socket_close:
   return newmask | EVENTER_EXCEPTION;
 }
 
-int listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now)
+int
+listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 {
   listener_closure_t *self = (listener_closure_t *)closure;
   ck_spinlock_lock(&self->use_lock);
@@ -233,7 +240,8 @@ int listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
-int listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now)
+int
+listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now)
 {
   uuid_t checkid;
   char uuid_str[UUID_STR_LEN+1];
@@ -319,7 +327,8 @@ int listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval 
   return 0;
 }
 
-void listener_describe_callback(char *buffer, int size, eventer_t e, void *closure)
+void
+listener_describe_callback(char *buffer, int size, eventer_t e, void *closure)
 {
   listener_closure_t *lc = (listener_closure_t *)eventer_get_closure(e);
   if (lc) {
@@ -332,7 +341,8 @@ void listener_describe_callback(char *buffer, int size, eventer_t e, void *closu
   }
 }
 
-void listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure)
+void
+listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure)
 {
   mtev_acceptor_closure_t *ac = (mtev_acceptor_closure_t *)eventer_get_closure(e);
   listener_closure_t *lc = (listener_closure_t *)mtev_acceptor_closure_ctx(ac);
@@ -346,7 +356,8 @@ void listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *
   }
 }
 
-int noit_listener_config(noit_module_t *self, mtev_hash_table *options)
+int
+noit_listener_config(noit_module_t *self, mtev_hash_table *options)
 {
   listener_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
@@ -364,7 +375,8 @@ int noit_listener_config(noit_module_t *self, mtev_hash_table *options)
   return 1;
 }
 
-void noit_listener_cleanup(noit_module_t *self, noit_check_t *check)
+void
+noit_listener_cleanup(noit_module_t *self, noit_check_t *check)
 {
   listener_closure_t *lc = (listener_closure_t *)check->closure;
 
