@@ -51,15 +51,20 @@ noit_metric_as_double(metric_t *metric, double *out) {
   if(metric == NULL || metric->metric_value.vp == NULL) return mtev_false;
   switch (metric->metric_type) {
   case METRIC_INT32:
-    if(out) *out = (double)*(metric->metric_value.i); break;
+    if(out) *out = (double)*(metric->metric_value.i);
+  break;
   case METRIC_UINT32:
-    if(out) *out = (double)*(metric->metric_value.I); break;
+    if(out) *out = (double)*(metric->metric_value.I);
+  break;
   case METRIC_INT64:
-    if(out) *out = (double)*(metric->metric_value.l); break;
+    if(out) *out = (double)*(metric->metric_value.l);
+  break;
   case METRIC_UINT64:
-    if(out) *out = (double)*(metric->metric_value.L); break;
+    if(out) *out = (double)*(metric->metric_value.L);
+  break;
   case METRIC_DOUBLE:
-    if(out) *out = *(metric->metric_value.n); break;
+    if(out) *out = *(metric->metric_value.n);
+  break;
   default: return mtev_false;
   }
   return true;
