@@ -93,7 +93,6 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
     part = s;
     /* save the row for later logging */
     strlcpy(record, part, sizeof(record) - 1);
-    record[sizeof(record) - 1] = 0;
     size_t record_len = strlen(part);
 
     /*
@@ -391,8 +390,7 @@ static int
 noit_opentsdb_onload(mtev_image_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/opentsdb");
   if(!nldeb) nldeb = mtev_log_stream_find("debug/opentsdb");
-  if(!nlerr) nlerr = noit_error;
-  if(!nldeb) nldeb = noit_debug;
+  listener_onload();
   return 0;
 }
 

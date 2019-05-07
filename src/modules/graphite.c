@@ -361,8 +361,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
 static int noit_graphite_onload(mtev_image_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/graphite");
   if(!nldeb) nldeb = mtev_log_stream_find("debug/graphite");
-  if(!nlerr) nlerr = noit_error;
-  if(!nldeb) nldeb = noit_debug;
+  listener_onload();
   return 0;
 }
 

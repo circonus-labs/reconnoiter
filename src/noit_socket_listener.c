@@ -52,6 +52,8 @@
 #include "noit_mtev_bridge.h"
 #include "noit_socket_listener.h"
 
+static mtev_log_stream_t nldeb = NULL;
+
 void
 listener_closure_ref(listener_closure_t *lc)
 {
@@ -106,7 +108,7 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
              check->generation, stats_count);
-    mtevL(check->nldeb, "%s(%s) [%s]\n", check->module, check->target, human_buffer);
+    mtevL(nldeb, "%s(%s) [%s]\n", check->module, check->target, human_buffer);
 
     // Not sure what to do here
     noit_stats_set_available(check, (stats_count > 0) ?
@@ -398,4 +400,10 @@ noit_listener_cleanup(noit_module_t *self, noit_check_t *check)
 
   /* This is potential memory cleanup */
   listener_closure_deref(lc);
+}
+
+void
+listener_onload()
+{
+  if(!nldeb) nldeb = mtev_log_stream_find("debug/listener");
 }

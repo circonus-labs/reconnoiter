@@ -150,9 +150,6 @@ typedef struct noit_check {
 
   void *statistics;
   Zipkin_Span *span;
-  
-  mtev_log_stream_t nlerr;
-  mtev_log_stream_t nldeb;
 } noit_check_t;
 
 API_EXPORT(void) noit_check_begin(noit_check_t *);
