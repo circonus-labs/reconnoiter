@@ -1,4 +1,3 @@
-local socket = require("socket")
 describe("graphite #graphite #listener", function()
   local noit, api
   setup(function()
