@@ -223,12 +223,6 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
       const char *equal = strchr(pair, '=');
       if (equal) {
         size_t pair_len = strlen(pair);
-        if (!noit_metric_tagset_is_taggable_key(pair, equal - pair) ||
-            !noit_metric_tagset_is_taggable_value(equal + 1, pair_len - ((equal + 1) - pair))) {
-          mtevL(nldeb, "Unacceptable tag key or value: '%s' skipping\n", pair);
-          continue;
-        }
-
         if (comma) mtev_dyn_buffer_add(&tagged_name, (uint8_t *)",", 1);
         mtev_dyn_buffer_add(&tagged_name, (uint8_t *)pair, equal - pair);
         mtev_dyn_buffer_add(&tagged_name, (uint8_t *)":", 1);
