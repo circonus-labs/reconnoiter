@@ -53,6 +53,7 @@
 #include "noit_socket_listener.h"
 
 static mtev_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
 
 void
 listener_closure_ref(listener_closure_t *lc)
@@ -260,7 +261,7 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   char _b[128]; \
   int _len = snprintf(_b, sizeof(_b), a); \
   eventer_write(e, _b, _len, &mask); \
-  mtevL(lc->nlerr, "%s", _b); \
+  mtevL(nlerr, "%s", _b); \
 } while(0)
 
   eventer_ssl_ctx_t *ctx = eventer_get_eventer_ssl_ctx(e);
@@ -270,7 +271,7 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   }
   const char *sni_name = eventer_ssl_get_sni_name(ctx);
   if(!sni_name) {
-    mtevL(lc->nlerr, "Cannot support mtev accept without SNI from secure client.\n");
+    mtevL(nlerr, "Cannot support mtev accept without SNI from secure client.\n");
     goto bail;
   }
 
@@ -309,7 +310,7 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   }
   const char *expect_secret = NULL;
   if(check->config)
-    mtev_hash_retr_str(check->config, "secret", strlen("secret"), &expect_secret);
+    (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &expect_secret);
   if(!expect_secret) expect_secret = "";
 
   if(strlen(expect_secret) != secret_len ||
@@ -406,4 +407,5 @@ void
 listener_onload()
 {
   if(!nldeb) nldeb = mtev_log_stream_find("debug/listener");
+  if(!nlerr) nlerr = mtev_log_stream_find("error/listener");
 }

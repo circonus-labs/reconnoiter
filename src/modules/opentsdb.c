@@ -82,7 +82,6 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
       }
 
       *e = '\0';
-      d = length + 1;
       length = 0;
     } else {
       /* Update cursor. */
