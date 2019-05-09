@@ -822,7 +822,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
 
   if (debugflag) {
-    mtevL(nldeb, "HTTPTRAP: Processing JSON upload\n");
+    mtevL(nldeb, "Processing JSON upload\n");
   }
 
   rxc = rest_get_json_upload(restc, &mask, &complete);
@@ -855,7 +855,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       json_object *metrics_obj;
       metrics_obj = json_object_new_object();
 
-      mtevL(nldeb, "HTTPTRAP: Processed %d records\n", cnt);
+      mtevL(nldeb, "Processed %d records\n", cnt);
 
       /*Retrieve check information.*/
       check = rxc->check;
@@ -898,7 +898,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if (rxc && rxc->error)
     error = rxc->error;
-  mtevL(nldeb, "HTTPTRAP: Error %s\n", error);
+  mtevL(nldeb, "Error %s\n", error);
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
