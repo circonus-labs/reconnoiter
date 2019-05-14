@@ -808,18 +808,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     }
   }
 
-  rxc = rest_get_json_upload(restc, &mask, &complete);
-  if(rxc == NULL && !complete) return mask;
-
-  if(!rxc) goto error;
-  if(rxc->error) goto error;
-
-  cnt = rxc->cnt;
-
-  mtev_http_response_status_set(ctx, 200, "OK");
-  mtev_http_response_header_set(ctx, "Content-Type", "application/json");
-  mtev_http_response_option_set(ctx, MTEV_HTTP_CLOSE);
-
   /*Examine headers for x-circonus-httptrap-debug flag*/
   req = mtev_http_session_request(ctx);
   hdrs = mtev_http_request_headers_table(req);
@@ -832,6 +820,22 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       debugflag=1;
     }
   }
+
+  if (debugflag) {
+    mtevL(nldeb, "Processing JSON upload\n");
+  }
+
+  rxc = rest_get_json_upload(restc, &mask, &complete);
+  if(rxc == NULL && !complete) return mask;
+
+  if(!rxc) goto error;
+  if(rxc->error) goto error;
+
+  cnt = rxc->cnt;
+
+  mtev_http_response_status_set(ctx, 200, "OK");
+  mtev_http_response_header_set(ctx, "Content-Type", "application/json");
+  mtev_http_response_option_set(ctx, MTEV_HTTP_CLOSE);
 
   json_object *obj =  NULL;
   obj = json_object_new_object();
@@ -850,6 +854,8 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       mtev_hash_table *metrics;
       json_object *metrics_obj;
       metrics_obj = json_object_new_object();
+
+      mtevL(nldeb, "Processed %d records\n", cnt);
 
       /*Retrieve check information.*/
       check = rxc->check;
@@ -890,7 +896,9 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
  error:
   mtev_http_response_server_error(ctx, "application/json");
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
-  if(rxc && rxc->error) error = rxc->error;
+  if (rxc && rxc->error)
+    error = rxc->error;
+  mtevL(nldeb, "Error %s\n", error);
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);

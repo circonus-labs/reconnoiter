@@ -35,14 +35,56 @@ function API:new(port, cert)
   }
   obj.api = MBAPI:new("127.0.0.1", obj.port):ssl(obj.sslconfig)
   obj.xmlapi = MBAPI:new("127.0.0.1", obj.port):headers({accept = "text/xml"}):ssl(obj.sslconfig)
+  obj.curl_count = 0
   setmetatable(obj, API)
   return obj
 end
 
 local identity = function(...) return ... end
 
-function API:json(...)
-  return self.api:HTTPS(...)
+function API:set_curl_log(curl_log_folder, curl_node_name, curl_log)
+  self.curl_log_folder = curl_log_folder
+  self.curl_node_name = curl_node_name
+  self.curl_log = curl_log
+end
+
+function API:curl_logger(headers, method, uri, payload)
+  local payload_is_binary = false
+  if self.curl_log ~= nil then
+    assert(self.curl_log:write("curl -k --compressed -X " .. method .. " "))
+    for k,v in pairs(headers) do
+      assert(self.curl_log:write("-H '" .. k .. ": " .. v .. "' "))
+      if string.lower(k) == "content-type" and string.find(string.lower(v), "flatbuffer") then
+        payload_is_binary=true
+      end
+    end
+    if payload then
+      if payload_is_binary then
+        local curl_binary_filename = self.curl_log_folder .. '/curl_binary_' ..
+                                     self.curl_node_name .. self.curl_count .. '.bin'
+        self.curl_count = self.curl_count + 1
+        local curl_binary_file = assert(io.open(curl_binary_filename, 'wb'))
+        assert(curl_binary_file:write(payload))
+        assert(curl_binary_file:close())
+        assert(self.curl_log:write("--data-binary '@" .. curl_binary_filename .. "' "))
+      else
+        if type(payload) == "table" then
+          payload = mtev.tojson(payload):tostring()
+        else
+          payload = tostring(payload)
+        end
+        payload = string.gsub(payload, '\n', '\\n')
+        assert(self.curl_log:write("-d $'" .. payload .. "' "))
+      end
+    end
+    assert(self.curl_log:write("-w '\\n' "))
+    assert(self.curl_log:write("'https://127.0.0.1:" .. self.port .. uri .. "'\n"))
+  end
+end
+
+function API:json(method, uri, payload, _pp, config)
+  self:curl_logger({}, method, uri, payload)
+  return self.api:HTTPS(method, uri, payload, _pp, config)
 end
 
 function API:xml(method, uri, payload, _pp, config)
@@ -52,11 +94,13 @@ function API:xml(method, uri, payload, _pp, config)
       return doc
     end
   end
+  self:curl_logger({accept = "text/xml"}, method, uri, payload)
   return self.xmlapi:HTTPS(method, uri, payload, _pp, config)
 end
 
 function API:raw(method, uri, payload, _pp, config)
   if _pp == nil then _pp = identity end
+  self:curl_logger({}, method, uri, payload)
   return self.api:HTTPS(method, uri, payload, _pp, config)
 end
 
@@ -252,7 +296,7 @@ function TestConfig:make_logs_config(fd, opts)
     end
   end
 
-  local buff = "\n" .. 
+  local buff = "\n" ..
   "<logs>\n" ..
   "  <console_output>\n" ..
   "    <outlet name=\"stderr\"/>\n" ..
@@ -285,7 +329,7 @@ function TestConfig:make_logs_config(fd, opts)
 end
 
 function TestConfig:make_modules_config(fd, opts)
-  mtev.write(fd,"\n" .. 
+  mtev.write(fd,"\n" ..
   "<modules directory=\"" .. cwd .. "/../../src/modules\">\n")
   for k, loader in pairs(opts.loaders or {}) do
     mtev.write(fd, "    <loader")
@@ -305,7 +349,7 @@ function TestConfig:make_modules_config(fd, opts)
   end
   for k, generic in pairs(opts.generics or {}) do
     mtev.write(fd, "    <generic")
-    if generic.image ~= nil then 
+    if generic.image ~= nil then
       mtev.write(fd, " image=\"" .. generic.image .. "\"")
     end
     mtev.write(fd, " name=\"" .. k .. "\">\n")
@@ -464,7 +508,7 @@ function TestConfig:make_stratcon_noits_config(fd, opts)
     mtev.write(fd,"    <noit");
     for k,v in pairs(n) do
       mtev.write(fd," " .. k .. "=\"" .. v .. "\"")
-    end 
+    end
     mtev.write(fd,"/>\n")
   end
   mtev.write(fd,"</noits>\n")
@@ -703,6 +747,10 @@ function TestProc:new(...)
   return TestProc:create():configure(...)
 end
 function TestProc:start(params, sloppy)
+  local curl_log_filename = self.opts.workspace .. '/curls_' .. self.name .. '.log'
+  self.curl_log = assert(io.open(curl_log_filename, 'a'))
+  self.api = self:API()
+  self.api:set_curl_log(self.workspace, self.name, self.curl_log)
   if self.proc ~= nil then
     if sloppy then return self end
     error("TestProc:start failed, already running")
@@ -734,7 +782,12 @@ end
 
 function TestProc:API(cert)
   -- usually stratcon connects to noit
-  if cert == nil then cert = "test-stratcon" end
+  if cert == nil then
+    cert = "test-stratcon"
+    if self.api ~= nil then
+      return self.api
+    end
+  end
   local api = API:new(self:api_port(), cert)
   return api
 end
@@ -746,6 +799,7 @@ function TestProc:stop()
     kill_child(self.proc)
   end
   self.proc = nil
+  self.api:set_curl_log(nil, nil, nil)
   return self
 end
 
