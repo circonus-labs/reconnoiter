@@ -8,8 +8,9 @@
          xml:id="config.stratcond.modules">
   <title>stratcond modules</title>
   <xi:include href="modules/fq_driver.xml"/>
+  <xi:include href="modules/handoff_ingestor.xml"/>
+  <xi:include href="modules/postgres_ingestor.xml"/>
   <xi:include href="modules/rabbitmq_driver.xml"/>
   <xi:include href="modules/stomp_driver.xml"/>
-  <xi:include href="modules/postgres_ingestor.xml"/>
-  <xi:include href="modules/handoff_ingestor.xml"/>
+  <xi:include href="modules/test_ingestor.xml"/>
 </chapter>
