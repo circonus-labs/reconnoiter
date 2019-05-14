@@ -3,11 +3,9 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/custom_config.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/dns.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/external.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/fq_driver.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ganglia.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/graphite_plain.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/graphite_tls.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/handoff_ingestor.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/httptrap.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ip_acl.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/jmx.xml"/>
@@ -47,7 +45,6 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ping_icmp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/postgres.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/prometheus.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/rabbitmq_driver.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/resolver_cache.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/reverse_check.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/selfcheck.xml"/>
@@ -55,5 +52,3 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/snmptrap.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ssh2.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/statsd.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/stomp_driver.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/test_ingestor.xml"/>
