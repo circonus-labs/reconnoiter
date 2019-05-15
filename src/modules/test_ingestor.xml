@@ -2,7 +2,7 @@
   <name>test_ingestor</name>
   <description><para>A noop ingestor for the test suite.</para></description>
   <loader>C</loader>
-  <image>handoff_ingestor.so</image>
+  <image>test_ingestor.so</image>
   <moduleconfig>
   </moduleconfig>
   <checkconfig />
@@ -13,7 +13,7 @@
       <programlisting><![CDATA[
       <stratcon>
         <modules>
-          <module image="handoff_ingestor" name="handoff_ingestor" />
+          <module image="test_ingestor" name="test_ingestor" />
         </modules>
       </stratcon>
     ]]></programlisting>

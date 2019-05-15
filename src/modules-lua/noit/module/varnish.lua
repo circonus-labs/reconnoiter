@@ -37,7 +37,7 @@ function onload(image)
   image.xml_description([=[
 <module>
   <name>varnish</name>
-  <description><para>Monitor maagement metrics of a Varnish instance.</para></description>
+  <description><para>Monitor management metrics of a Varnish instance.</para></description>
   <loader>lua</loader>
   <object>noit.module.varnish</object>
   <moduleconfig />
@@ -117,4 +117,3 @@ function initiate(module, check)
   check.status(string.format("%d stats", i))
   check.good()
 end
-

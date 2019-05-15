@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>varnish</title>
-  <para>Monitor maagement metrics of a Varnish instance.</para>
+  <para>Monitor management metrics of a Varnish instance.</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
