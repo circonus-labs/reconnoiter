@@ -30,6 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
+#include <inttypes.h>
 #include <mtev_defines.h>
 
 #include <stdio.h>
@@ -64,6 +65,7 @@ static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 static mtev_log_stream_t nlyajl = NULL;
 static noit_module_t *global_self = NULL; /* used for cross traps */
+static uint64_t httptrap_count = 0;
 
 #define _YD(fmt...) mtevL(nlyajl, fmt)
 
@@ -111,6 +113,7 @@ struct rest_json_payload {
   struct value_list *last_value;
   int cnt;
   mtev_boolean immediate;
+  uint64_t current_counter;
 };
 
 #define NEW_LV(json,a) do { \
@@ -612,6 +615,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   rxc = restc->call_closure;
   rxc->check = noit_poller_lookup(rxc->check_id);
   if (!rxc->check) {
+    rxc->error = strdup("Unable to retrieve check");
     *complete = 1;
     return NULL;
   }
@@ -641,6 +645,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
     }
     if(len < 0 && errno == EAGAIN) return NULL;
     else if(len < 0) {
+      rxc->error = strdup("Unable to read incoming payload");
       *complete = 1;
       return NULL;
     }
@@ -669,7 +674,9 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t));
     memset(ccl, 0, sizeof(httptrap_closure_t));
     ccl->self = self;
-  } else {
+  }
+  else
+  {
     // Don't count the first run
     struct timeval now;
     char human_buffer[256];
@@ -690,10 +697,12 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
       }
     }
 
+    char uuid_str[37];
+    mtev_uuid_unparse_lower(check->checkid, uuid_str);
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
              check->generation, stats_count);
-    mtevL(nldeb, "httptrap(%s) [%s]\n", check->target, human_buffer);
+    mtevL(nldeb, "httptrap for %s (%s) [%s]\n", uuid_str, check->target, human_buffer);
 
     // Not sure what to do here
     noit_stats_set_available(check, (stats_count > 0) ?
@@ -729,7 +738,8 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
 static int
 rest_httptrap_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
-  int mask, complete = 0, cnt;
+  int mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
+  int complete = 0, cnt;
   struct rest_json_payload *rxc = NULL;
   const char *error = "internal error", *secret = NULL;
   mtev_http_session_ctx *ctx = restc->http_ctx;
@@ -741,6 +751,9 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   uuid_t check_id;
   mtev_http_request *req;
   mtev_hash_table *hdrs;
+  uint64_t current_counter = ck_pr_faa_64(&httptrap_count, 1);
+
+  mtevL(nldeb, "httptrap handler initiated for %s (%" PRIu64 ")\n", npats ? pats[0] : "?", current_counter);
 
   if(npats != 2) {
     error = "bad uri";
@@ -777,6 +790,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
 
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
     rxc->delimiter = DEFAULT_HTTPTRAP_DELIMITER;
+    rxc->current_counter = current_counter;
 
     /* check "delimiter" then "httptrap_delimiter" as a fallback */
     (void)mtev_hash_retr_str(check->config, "delimiter", strlen("delimiter"), &delimiter);
@@ -821,17 +835,14 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     }
   }
 
-  if (debugflag) {
-    mtevL(nldeb, "Processing JSON upload\n");
-  }
+  mtevL(nldeb, "Processing JSON upload for %s (%" PRIu64 ")\n", pats[0], rxc->current_counter);
 
   rxc = rest_get_json_upload(restc, &mask, &complete);
-  if(rxc == NULL && !complete) return mask;
-
   if(!rxc) goto error;
   if(rxc->error) goto error;
 
   cnt = rxc->cnt;
+  mtevL(nldeb, "Processed %d records for %s (%" PRIu64 ")\n", cnt, pats[0], rxc->current_counter);
 
   mtev_http_response_status_set(ctx, 200, "OK");
   mtev_http_response_header_set(ctx, "Content-Type", "application/json");
@@ -854,8 +865,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       mtev_hash_table *metrics;
       json_object *metrics_obj;
       metrics_obj = json_object_new_object();
-
-      mtevL(nldeb, "Processed %d records\n", cnt);
 
       /*Retrieve check information.*/
       check = rxc->check;
@@ -898,7 +907,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if (rxc && rxc->error)
     error = rxc->error;
-  mtevL(nldeb, "Error %s\n", error);
+  mtevL(nlerr, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
