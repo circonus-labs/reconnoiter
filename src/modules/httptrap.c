@@ -30,6 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
+#include <inttypes.h>
 #include <mtev_defines.h>
 
 #include <stdio.h>
@@ -696,11 +697,12 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
       }
     }
 
-    ccl = (httptrap_closure_t)check->closure;
+    char uuid_str[37];
+    mtev_uuid_unparse_lower(check->checkid, uuid_str);
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
              check->generation, stats_count);
-    mtevL(nldeb, "httptrap(" PRIu64 ":%s) [%s]\n", ccl->current_count, check->target, human_buffer);
+    mtevL(nldeb, "httptrap for %s (%s) [%s]\n", uuid_str, check->target, human_buffer);
 
     // Not sure what to do here
     noit_stats_set_available(check, (stats_count > 0) ?
@@ -751,7 +753,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_hash_table *hdrs;
   uint64_t current_counter = ck_pr_faa_64(&httptrap_count, 1);
 
-  mtevL(nldeb, "httptrap handler initiated for %s (" PRIu64 ")\n", npats ? pats[0] : "?", current_counter);
+  mtevL(nldeb, "httptrap handler initiated for %s (%" PRIu64 ")\n", npats ? pats[0] : "?", current_counter);
 
   if(npats != 2) {
     error = "bad uri";
@@ -833,19 +835,14 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     }
   }
 
-  mtevL(nldeb, "Processing JSON upload (" PRIu64 ")\n", rxc->current_counter);
+  mtevL(nldeb, "Processing JSON upload for %s (%" PRIu64 ")\n", pats[0], rxc->current_counter);
 
   rxc = rest_get_json_upload(restc, &mask, &complete);
-  if(rxc == NULL && !complete) {
-    mtevL(nlerr, "Error: %s, mask %d (" PRIu64 ")\n", rxc->error, mask, rxc->current_counter);
-    return mask;
-  }
-
   if(!rxc) goto error;
   if(rxc->error) goto error;
 
   cnt = rxc->cnt;
-  mtevL(nldeb, "Processed %d records (" PRIu64 ")\n", cnt, rxc->current_counter);
+  mtevL(nldeb, "Processed %d records for %s (%" PRIu64 ")\n", cnt, pats[0], rxc->current_counter);
 
   mtev_http_response_status_set(ctx, 200, "OK");
   mtev_http_response_header_set(ctx, "Content-Type", "application/json");
@@ -910,7 +907,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if (rxc && rxc->error)
     error = rxc->error;
-  mtevL(nlerr, "Error %s (" PRIu64 ")\n", error, current_counter);
+  mtevL(nlerr, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
