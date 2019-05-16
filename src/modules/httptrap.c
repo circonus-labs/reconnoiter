@@ -674,9 +674,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t));
     memset(ccl, 0, sizeof(httptrap_closure_t));
     ccl->self = self;
-  }
-  else
-  {
+  } else {
     // Don't count the first run
     struct timeval now;
     char human_buffer[256];
@@ -835,14 +833,20 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     }
   }
 
-  mtevL(nldeb, "Processing JSON upload for %s (%" PRIu64 ")\n", pats[0], rxc->current_counter);
+  mtevL(nldeb, "Processing JSON upload for %s (%" PRIu64 ")\n", pats[0], current_counter);
 
   rxc = rest_get_json_upload(restc, &mask, &complete);
+  if(rxc == NULL && !complete)
+  {
+    mtevL(nldeb, "Payload read abort with mask %d for %s (%" PRIu64 ")\n", mask, pats[0], current_counter);
+    return mask;
+  }
+
   if(!rxc) goto error;
   if(rxc->error) goto error;
 
   cnt = rxc->cnt;
-  mtevL(nldeb, "Processed %d records for %s (%" PRIu64 ")\n", cnt, pats[0], rxc->current_counter);
+  mtevL(nldeb, "Processed %d records for %s (%" PRIu64 ")\n", cnt, pats[0], current_counter);
 
   mtev_http_response_status_set(ctx, 200, "OK");
   mtev_http_response_header_set(ctx, "Content-Type", "application/json");
