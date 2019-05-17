@@ -44,6 +44,7 @@
 #include <mtev_rest.h>
 #include <mtev_hash.h>
 #include <mtev_json.h>
+#include <mtev_memory.h>
 #include <mtev_uuid.h>
 
 #include "noit_metric.h"
@@ -87,6 +88,14 @@ typedef enum {
   HTTPTRAP_VOP_ACCUMULATE
 } httptrap_vop_t;
 
+static void metric_local_free(void *vm) {
+  metric_t *m = vm;
+  if(vm) {
+    free(m->metric_name);
+    if(m->metric_type == METRIC_STRING) free(m->metric_value.s);
+  }
+}
+
 struct value_list {
   char *v;
   struct value_list *next;
@@ -95,6 +104,7 @@ struct rest_json_payload {
   noit_check_t *check;
   uuid_t check_id;
   yajl_handle parser;
+  struct timeval start_time;
   int len;
   int complete;
   char delimiter;
@@ -114,7 +124,69 @@ struct rest_json_payload {
   int cnt;
   mtev_boolean immediate;
   uint64_t current_counter;
+  mtev_hash_table *immediate_metrics;
 };
+
+static void
+rest_json_flush_immediate(struct rest_json_payload *rxc) {
+  noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free); //mtev_memory_safe_free);
+}
+
+static void 
+metric_local_track_or_log(void *vrxc, const char *name, 
+                          metric_type_t t, const void *vp, struct timeval *w) {
+  struct rest_json_payload *rxc = vrxc;
+  if(t == METRIC_GUESS) return;
+  void *vm;
+  if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm)) {
+    /* collision, just log it out */
+    rest_json_flush_immediate(rxc);
+    return;
+  }
+  //metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), metric_local_free);
+  metric_t *m = malloc(sizeof(*m));
+  memset(m, 0, sizeof(*m));
+  m->metric_name = strdup(name);
+  m->metric_type = t;
+  if(vp) {
+    if(t == METRIC_STRING) m->metric_value.s = strdup((const char *)vp);
+    else {
+      size_t vsize = 0;
+      switch(m->metric_type) {
+        case METRIC_INT32:
+          vsize = sizeof(int32_t);
+          break;
+        case METRIC_UINT32:
+          vsize = sizeof(uint32_t);
+          break;
+        case METRIC_INT64:
+          vsize = sizeof(int64_t);
+          break;
+        case METRIC_UINT64:
+          vsize = sizeof(uint64_t);
+          break;
+        case METRIC_DOUBLE:
+          vsize = sizeof(double);
+          break;
+        default:
+          break;
+      }
+      if(vsize) {
+        m->metric_value.vp = malloc(vsize);
+        memcpy(m->metric_value.vp, vp, vsize);
+      }
+    }
+  }
+  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
+  mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m);
+}
+
+static void
+metric_local_accrue(struct rest_json_payload *rxc, const char *name, metric_type_t t, void *vp) {
+  noit_metric_coerce_ex_with_timestamp(rxc->check, name, t, vp, &rxc->start_time,
+    metric_local_track_or_log, rxc, NULL);
+}
 
 #define NEW_LV(json,a) do { \
   struct value_list *nlv = malloc(sizeof(*nlv)); \
@@ -200,8 +272,7 @@ httptrap_yajl_cb_null(void *ctx) {
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, NULL);
     if(json->immediate)
-      noit_stats_log_immediate_metric(json->check,
-          json->keys[json->depth], METRIC_INT32, NULL);
+      metric_local_accrue(json, json->keys[json->depth], METRIC_INT32, NULL);
     json->cnt++;
   }
   return 1;
@@ -228,8 +299,7 @@ httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, &ival);
     if(json->immediate)
-      noit_stats_log_immediate_metric(json->check,
-          json->keys[json->depth], METRIC_INT32, &ival);
+      metric_local_accrue(json, json->keys[json->depth], METRIC_INT32, &ival);
     json->cnt++;
   }
   return 1;
@@ -281,8 +351,7 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
     if(json->immediate)
-      noit_stats_log_immediate_metric(json->check,
-          json->keys[json->depth], METRIC_GUESS, val);
+      metric_local_accrue(json, json->keys[json->depth], METRIC_GUESS, val);
     json->cnt++;
   }
   return 1;
@@ -352,8 +421,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
     if(json->immediate)
-      noit_stats_log_immediate_metric(json->check,
-          json->keys[json->depth], METRIC_GUESS, val);
+      metric_local_accrue(json, json->keys[json->depth], METRIC_GUESS, val);
     json->cnt++;
   }
   return 1;
@@ -443,11 +511,18 @@ httptrap_yajl_cb_end_map(void *ctx) {
           noit_stats_set_metric_histogram(json->check, metric_name, METRIC_GUESS, p->v);
         }
       } else {
-        noit_stats_set_metric_coerce_with_timestamp(json->check,
+        if(json->got_timestamp) {
+          noit_stats_set_metric_coerce_with_timestamp(json->check,
               metric_name,
               (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
               p->v,
-              (json->got_timestamp) ? &json->last_timestamp : NULL);
+              &json->last_timestamp);
+        } else {
+          noit_stats_set_metric_coerce_with_timestamp(json->check,
+              metric_name,
+              (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
+              p->v, NULL);
+        }
       }
       last_p = p;
       if((p->v != NULL) && (json->saw_complex_type & HT_EX_TYPE) && (IS_METRIC_TYPE_NUMERIC(json->last_type))) {
@@ -475,20 +550,18 @@ httptrap_yajl_cb_end_map(void *ctx) {
       }
     }
     if(json->immediate && last_p != NULL && json->last_type != 'h') {
+      metric_type_t t = use_computed_value ?
+                          'n' :
+                          ((json->saw_complex_type & HT_EX_TYPE) ?
+                            json->last_type :
+                            METRIC_GUESS);
+      void *value = use_computed_value ? (void *)&newval : last_p->v;
       /* histograms are never immediate */
-      if(use_computed_value) {
+      if(json->got_timestamp) {
         noit_stats_log_immediate_metric_timed(json->check,
-                metric_name,
-                'n',
-                &newval,
-                (json->got_timestamp) ? &json->last_timestamp : NULL);
-      }
-      else {
-        noit_stats_log_immediate_metric_timed(json->check,
-                metric_name,
-                (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
-                last_p->v,
-                (json->got_timestamp) ? &json->last_timestamp : NULL);
+                metric_name, t, value, &json->last_timestamp);
+      } else {
+        metric_local_accrue(json, metric_name, t, value);
       }
     }
   }
@@ -593,6 +666,11 @@ static void
 rest_json_payload_free(void *f) {
   int i;
   struct rest_json_payload *json = f;
+  if(json->immediate_metrics) {
+    rest_json_flush_immediate(json);
+  }
+  mtev_hash_destroy(json->immediate_metrics, NULL, metric_local_free); //mtev_memory_safe_free);
+  free(json->immediate_metrics);
   if(json->parser) yajl_free(json->parser);
   if(json->error) free(json->error);
   if(json->supp_err) free(json->supp_err);
@@ -622,6 +700,10 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
 
   if(!strcmp(rxc->check->module, "httptrap")) ccl = rxc->check->closure;
   rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : global_self, rxc->check);
+  if(rxc->immediate) {
+    rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
+    mtev_hash_init(rxc->immediate_metrics);
+  }
   while(!rxc->complete) {
     int len;
     len = mtev_http_session_req_consume(
@@ -787,6 +869,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     }
 
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    mtev_gettimeofday(&rxc->start_time, NULL);
     rxc->delimiter = DEFAULT_HTTPTRAP_DELIMITER;
     rxc->current_counter = current_counter;
 

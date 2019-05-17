@@ -280,8 +280,9 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
 
 void *
 noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid, 
-                              const char *check_name, int account_id, metric_t *m,
-                              const uint16_t generation,
+                              const char *check_name, int account_id, metric_t **m,
+                              const uint16_t *generation,
+                              size_t m_count,
                               size_t* out_size)
 {
   flatcc_builder_t builder, *B;
@@ -294,9 +295,11 @@ noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
   ns(MetricBatch_check_uuid_create_str(B, check_uuid));
   ns(MetricBatch_account_id_add(B, account_id));
   ns(MetricBatch_metrics_start(B));
-  ns(MetricBatch_metrics_push_start(B));
-  flatbuffer_encode_metric(B, m, generation);
-  ns(MetricBatch_metrics_push_end(B));
+  for(size_t i=0; i<m_count; i++) {
+    ns(MetricBatch_metrics_push_start(B));
+    flatbuffer_encode_metric(B, m[i], generation ? generation[i] : 0);
+    ns(MetricBatch_metrics_push_end(B));
+  }
   ns(MetricBatch_metrics_end(B));
   ns(MetricBatch_end_as_root(B));
   void *buffer = flatcc_builder_finalize_buffer(B, out_size);

@@ -85,6 +85,7 @@ static mtev_hash_table dedupe_hashes;
 typedef unsigned short caql_cnt_t;
 static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
+static uint32_t director_in_use = 1;
 
 void
 noit_metric_director_message_ref(void *m) {
@@ -104,6 +105,7 @@ noit_metric_director_message_deref(void *m) {
 
 static int
 get_my_lane() {
+  ck_pr_store_32(&director_in_use,1);
   if(my_lane.fifo == NULL) {
     int new_thread;
     my_lane.fifo = calloc(1, sizeof(ck_fifo_spsc_t));
@@ -517,6 +519,7 @@ check_duplicate(char *payload, size_t payload_len) {
 static mtev_hook_return_t
 handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_msg *m,
                   void *payload, size_t payload_len) {
+  if(ck_pr_load_32(&director_in_use) == 0) return MTEV_HOOK_CONTINUE;
   if(check_duplicate(payload, payload_len) == mtev_false) {
     handle_metric_buffer(payload, payload_len, 1, NULL);
   }
@@ -528,6 +531,7 @@ handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whenc
                 const char *debugbuf, int debugbuflen,
                 const char *line, size_t len) {
   if(!ls) return MTEV_HOOK_CONTINUE;
+  if(ck_pr_load_32(&director_in_use) == 0) return MTEV_HOOK_CONTINUE;
   const char *name = mtev_log_stream_get_name(ls);
   if(!name ||
      (strcmp(name,"metrics") && strcmp(name,"bundle") &&

@@ -83,26 +83,21 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
     case NOIT_COMPRESS_ZLIB:
       ct = MTEV_COMPRESS_GZIP;
       break;
-  case NOIT_COMPRESS_LZ4:
-    {
+    case NOIT_COMPRESS_LZ4:
       ct = MTEV_COMPRESS_LZ4F;
       break;
-    }
-  case NOIT_COMPRESS_NONE:
-    {
+    case NOIT_COMPRESS_NONE:
       ct = MTEV_COMPRESS_NONE;
       break;
-    }
-  };
+  }
 
   /* Compress */
   if(0 != mtev_compress(ct, buf_in, len_in,
-                        (unsigned char **)&compbuff, (size_t *)&dlen)) {
+                        (unsigned char **)&compbuff, &dlen)) {
     mtevL(noit_error, "Error compressing bundled metrics.\n");
     free(compbuff);
     return -1;
   }
-
 
   /* Encode */
   // Problems with the calculation?
@@ -398,6 +393,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
                                           (char *)raw_data,
                                           &ulen)) {
     mtevL(noit_error, "bundle decode: failed to decompress\n");
+    abort();
     goto bad_line;
   }
 

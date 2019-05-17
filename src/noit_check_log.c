@@ -75,7 +75,7 @@
  *  | TARGET`MODULE`NAME`lower-cased-uuid
  *
  * BINARY
- *  'BF' strlen(base64(flatbuffer payload)) base64(flatbuffer payload)
+ *  'BF' strlen(base64(lz4(flatbuffer payload))) base64(lz4(flatbuffer payload))
  *
  */
 
@@ -87,9 +87,13 @@ static mtev_log_stream_t bundle_log = NULL;
 #if defined(NOIT_CHECK_LOG_M)
 static mtev_log_stream_t metrics_log = NULL;
 #endif
+static mtev_boolean *bundle_use_flatbuffer = NULL;
+static mtev_boolean bundle_use_flatbuffer_impl = mtev_false;
 
 static int
-  noit_check_log_bundle_serialize(mtev_log_stream_t, noit_check_t *);
+  noit_check_log_bundle_serialize(mtev_log_stream_t, noit_check_t *, struct timeval *now, mtev_hash_table *);
+static int
+  noit_check_log_bundle_fb_serialize(mtev_log_stream_t, noit_check_t *, struct timeval *now, mtev_hash_table *);
 static int
   _noit_check_log_bundle_metric(mtev_log_stream_t, Metric *, metric_t *);
 
@@ -130,6 +134,34 @@ handle_extra_feeds(noit_check_t *check,
     feed_name = (char *)mtev_skiplist_data(curr);
     ls = mtev_log_stream_find(feed_name);
     if(!ls || log_f(ls, check)) {
+      noit_check_transient_remove_feed(check, feed_name);
+      /* mtev_skiplisti_remove(check->feeds, curr, free); */
+    }
+    curr = next;
+  }
+  /* We're done... we may have destroyed the last feed.
+   * that combined with transience means we should kill the check */
+  /* noit_check_transient_remove_feed(check, NULL); */
+}
+
+static void
+handle_extra_feeds_metrics(noit_check_t *check,
+                           int (*log_f)(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics),
+                           struct timeval *w, mtev_hash_table *in_metrics) {
+  mtev_log_stream_t ls;
+  mtev_skiplist_node *curr, *next;
+  const char *feed_name;
+
+  if(!check->feeds) return;
+  curr = next = mtev_skiplist_getlist(check->feeds);
+  while(curr) {
+    /* We advance next here (before we try to use curr).
+     * We may need to remove the node we're looking at and that would
+     * disturb the iterator, so advance in advance. */
+    mtev_skiplist_next(check->feeds, &next);
+    feed_name = (char *)mtev_skiplist_data(curr);
+    ls = mtev_log_stream_find(feed_name);
+    if(!ls || log_f(ls, check, w, in_metrics)) {
       noit_check_transient_remove_feed(check, feed_name);
       /* mtev_skiplisti_remove(check->feeds, curr, free); */
     }
@@ -231,7 +263,7 @@ account_id_from_name(const char *check_name)
 static int
 noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
                                                       noit_check_t *check,
-                                                      struct timeval *whence,
+                                                      const struct timeval *whence,
                                                       metric_t *m)
 {
   int rv = 0;
@@ -269,7 +301,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
    */
   int account_id = account_id_from_name(check_name);
   void *buffer = noit_fb_serialize_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id,
-                                               m, 0, &size);
+                                               &m, NULL, 1, &size);
 
   unsigned int outsize;
   char *outbuf = NULL;
@@ -360,18 +392,28 @@ static int
 _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
                        const char *uuid_str,
                        const struct timeval *whence, metric_t *m) {
-  return noit_check_log_bundle_metric_serialize(ls, check, whence, m);
+  return ((ls == bundle_log) && *bundle_use_flatbuffer) ?
+    noit_check_log_bundle_metric_flatbuffer_serialize_log(ls, check, whence, m) :
+    noit_check_log_bundle_metric_serialize(ls, check, whence, m);
 }
 static int
-_noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check) {
-  return noit_check_log_bundle_serialize(ls, check);
+_noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
+  return ((ls == bundle_log) && *bundle_use_flatbuffer) ?
+    noit_check_log_bundle_fb_serialize(ls, check, w, in_metrics) :
+    noit_check_log_bundle_serialize(ls, check, w, in_metrics);
 }
 void
 noit_check_log_metrics(noit_check_t *check) {
-  handle_extra_feeds(check, _noit_check_log_metrics);
+  handle_extra_feeds_metrics(check, _noit_check_log_metrics, NULL, NULL);
   if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_METRICS))) {
     SETUP_LOG(bundle, return);
-    _noit_check_log_metrics(bundle_log, check);
+    if(!bundle_use_flatbuffer) {
+      const char *v = mtev_log_stream_get_property(bundle_log, "flatbuffer");
+      if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) bundle_use_flatbuffer_impl = mtev_true;
+      ck_pr_barrier();
+      bundle_use_flatbuffer = &bundle_use_flatbuffer_impl;
+    }
+    _noit_check_log_metrics(bundle_log, check, NULL, NULL);
   }
 }
 #else
@@ -510,7 +552,7 @@ _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m)
 }
 
 static int
-noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
+noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
   int rv = 0;
   static char *ip_str = "ip";
   char check_name[256 * 3] = {0};
@@ -529,9 +571,16 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
 
   mtev_log_stream_set_dedup_s(ls, 0);
   c = noit_check_get_stats_current(check);
-  whence = noit_check_stats_whence(c, NULL);
+  if(w) whence = w;
+  else {
+    whence = noit_check_stats_whence(c, NULL);
+  }
 
-  const char *v;
+  const char *v, *v_mpb;
+  v_mpb = mtev_log_stream_get_property(ls, "metrics_per_bundle");
+  int metrics_per_bundle = 0;
+  if(v_mpb) metrics_per_bundle = atoi(v_mpb);
+  if(metrics_per_bundle <= 0) metrics_per_bundle = METRICS_PER_BUNDLE;
   mtev_boolean extended_id = mtev_false;
   v = mtev_log_stream_get_property(ls, "extended_id");
   if(v && !strcmp(v, "on")) extended_id = mtev_true;
@@ -548,35 +597,51 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   uuid_str[0] = '\0';
   mtev_uuid_unparse_lower(check->checkid, uuid_str);
 
-  metrics = noit_check_stats_metrics(c);
+  metrics = in_metrics ? in_metrics : noit_check_stats_metrics(c);
 
   int account_id = account_id_from_name(check_name);
-  void *B = noit_fb_start_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id);
+  size_t fb_size;
+  int current_in_batch = 0;
+  char *outbuf = NULL;
+  void *buffer = NULL;
+  unsigned int outsize;
 
+  void *B = NULL;
+  uint64_t whence_ms = (SECPART(whence) * 1000) + MSECPART(whence);
+  
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
     if(!noit_apply_filterset(check->filterset, check, m)) continue;
     if(m->logged) continue;
+
+    if(!B) B = noit_fb_start_metricbatch(whence_ms, uuid_str, check_name, account_id);
+    current_in_batch++;
     noit_fb_add_metric_to_metricbatch(B, m, 0);
+
+    if(current_in_batch >= metrics_per_bundle) {
+do_batch:
+      buffer = noit_fb_finalize_metricbatch(B, &fb_size);
+      noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, fb_size, &outbuf, &outsize);
+      mtevL(mtev_error, "BF compression: %f%%\n", 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
+      rv += mtev_log(ls, whence, __FILE__, __LINE__,
+                     "BF\t%d\t%.*s\n", (int)fb_size,
+                     (unsigned int)outsize, outbuf);
+      free(outbuf);
+      free(buffer);
+      outbuf = NULL;
+      buffer = NULL;
+      B = NULL;
+      current_in_batch = 0;
+    }
   }
+  if(current_in_batch) goto do_batch;
 
-  size_t fb_size;
-  void *buffer = noit_fb_finalize_metricbatch(B, &fb_size);
-  char *outbuf;
-  unsigned int outsize;
-  noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, fb_size, &outbuf, &outsize);
-
-  rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                "BF\t%d\t%.*s\n", (int)fb_size,
-                (unsigned int)outsize, outbuf);
-  free(outbuf);
-  free(buffer);
   return rv;
 }
 
 static int
-noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
+noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
   int rv = 0;
   static char *ip_str = "ip";
   char uuid_str[256*3+37];
@@ -604,10 +669,13 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
 
   // Get a bundle
   c = noit_check_get_stats_current(check);
-  whence = noit_check_stats_whence(c, NULL);
+  if(w) whence = w;
+  else {
+    whence = noit_check_stats_whence(c, NULL);
+  }
 
   // Just count
-  metrics = noit_check_stats_metrics(c);
+  metrics = in_metrics ? in_metrics : noit_check_stats_metrics(c);
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     n_metrics++;
   }
@@ -684,6 +752,8 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     // Compress + B64
     comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
     noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
+    mtevL(mtev_error, "B%c compression: %f%%\n", use_compression ? '1' : '2',
+          100 * ((double)size - (double)out_size)/(double)size);
     rv = mtev_log(ls, whence, __FILE__, __LINE__,
                   "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
                   use_compression ? '1' : '2',
@@ -709,13 +779,24 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
 }
 
 void
-noit_check_log_bundle(noit_check_t *check) {
-  handle_extra_feeds(check, noit_check_log_bundle_serialize);
-  if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_STATUS | NP_SUPPRESS_METRICS))) {
+noit_check_log_bundle_metrics(noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
+  handle_extra_feeds_metrics(check, noit_check_log_bundle_serialize, w, in_metrics);
+  if(!(check->flags & (NP_TRANSIENT))) {
     SETUP_LOG(bundle, return);
-    noit_check_log_bundle_serialize(bundle_log, check);
-    //noit_check_log_bundle_fb_serialize(bundle_log, check);
+    if(!bundle_use_flatbuffer) {
+      const char *v = mtev_log_stream_get_property(bundle_log, "flatbuffer");
+      if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) bundle_use_flatbuffer_impl = mtev_true;
+      ck_pr_barrier();
+      bundle_use_flatbuffer = &bundle_use_flatbuffer_impl;
+    }
+    if(*bundle_use_flatbuffer) noit_check_log_bundle_fb_serialize(bundle_log, check, w, in_metrics);
+    else noit_check_log_bundle_serialize(bundle_log, check, w, in_metrics);
   }
+}
+
+void
+noit_check_log_bundle(noit_check_t *check) {
+  noit_check_log_bundle_metrics(check, NULL, NULL);
 }
 
 void
@@ -750,6 +831,12 @@ noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
     _noit_check_log_metric(metrics_log, check, uuid_str, whence, m);
 #else
     SETUP_LOG(bundle, return);
+    if(!bundle_use_flatbuffer) {
+      const char *v = mtev_log_stream_get_property(bundle_log, "flatbuffer");
+      if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) bundle_use_flatbuffer_impl = mtev_true;
+      ck_pr_barrier();
+      bundle_use_flatbuffer = &bundle_use_flatbuffer_impl;
+    }
     _noit_check_log_metric(bundle_log, check, uuid_str, whence, m);
 #endif
     if(NOIT_CHECK_METRIC_ENABLED()) {
