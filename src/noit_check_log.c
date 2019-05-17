@@ -623,7 +623,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, st
 do_batch:
       buffer = noit_fb_finalize_metricbatch(B, &fb_size);
       noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, fb_size, &outbuf, &outsize);
-      mtevL(mtev_error, "BF compression: %f%%\n", 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
+      mtevL(mtev_debug, "BF compression: %f%%\n", 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
       rv += mtev_log(ls, whence, __FILE__, __LINE__,
                      "BF\t%d\t%.*s\n", (int)fb_size,
                      (unsigned int)outsize, outbuf);
@@ -752,7 +752,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
     // Compress + B64
     comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
     noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
-    mtevL(mtev_error, "B%c compression: %f%%\n", use_compression ? '1' : '2',
+    mtevL(mtev_debug, "B%c compression: %f%%\n", use_compression ? '1' : '2',
           100 * ((double)size - (double)out_size)/(double)size);
     rv = mtev_log(ls, whence, __FILE__, __LINE__,
                   "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
