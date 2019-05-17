@@ -85,7 +85,7 @@ static mtev_hash_table dedupe_hashes;
 typedef unsigned short caql_cnt_t;
 static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
-static uint32_t director_in_use = 1;
+static uint32_t director_in_use = 0;
 
 void
 noit_metric_director_message_ref(void *m) {
