@@ -2031,14 +2031,14 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 
-static mtev_boolean
-__mark_metric_logged(stats_t *newstate, metric_t *m) {
+mtev_boolean
+noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean create) {
   void *vm;
   if(mtev_hash_retrieve(&newstate->metrics,
       m->metric_name, strlen(m->metric_name), &vm)) {
     ((metric_t *)vm)->logged = mtev_true;
     return mtev_false;
-  } else {
+  } else if(create) {
     m->logged = mtev_true;
     mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
                         m, NULL, (void (*)(void *))mtev_memory_safe_free);
@@ -2276,6 +2276,14 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
   }
 }
 
+static void
+noit_stats_set_metric_with_timestamp_ex_f(void *vcheck,
+                      const char *name, metric_type_t type,
+                      const void *value,
+                      struct timeval *timestamp) {
+  noit_stats_set_metric_with_timestamp((noit_check_t *)vcheck, name, type, value, timestamp);
+}
+
 void
 noit_stats_set_metric(noit_check_t *check,
                       const char *name, metric_type_t type,
@@ -2303,10 +2311,12 @@ noit_stats_set_metric_histogram(noit_check_t *check,
   free(replacement);
 }
 void
-noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
+noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
                              const char *name_raw, metric_type_t t,
                              const char *v,
-                             struct timeval *timestamp) {
+                             struct timeval *timestamp,
+                             void (*f)(void *, const char *, metric_type_t, const void *v, struct timeval *),
+                             void *closure, stats_t *stats) {
   if(strlen(name_raw) > MAX_METRIC_TAGGED_NAME-1) return;
 
   char tagged_name[MAX_METRIC_TAGGED_NAME];
@@ -2314,24 +2324,22 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
     return;
 
   char *endptr;
-  stats_t *c;
-  c = noit_check_get_stats_inprogress(check);
   if(v == NULL) {
    bogus:
-    check_stats_set_metric_coerce_hook_invoke(check, c, tagged_name, t, v, mtev_false);
-    noit_stats_set_metric_with_timestamp(check, tagged_name, t, NULL, timestamp);
+    if(stats) check_stats_set_metric_coerce_hook_invoke(check, stats, tagged_name, t, v, mtev_false);
+    f(closure, tagged_name, t, NULL, timestamp);
     return;
   }
   switch(t) {
     case METRIC_STRING:
-      noit_stats_set_metric_with_timestamp(check, tagged_name, t, v, timestamp);
+      f(closure, tagged_name, t, v, timestamp);
       break;
     case METRIC_INT32:
     {
       int32_t val;
       val = strtol(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
+      f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT32:
@@ -2339,7 +2347,7 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       uint32_t val;
       val = strtoul(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
+      f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_INT64:
@@ -2347,7 +2355,7 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       int64_t val;
       val = strtoll(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
+      f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT64:
@@ -2355,7 +2363,7 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       uint64_t val;
       val = strtoull(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
+      f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_DOUBLE:
@@ -2363,24 +2371,37 @@ noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
       double val;
       val = strtod(v, &endptr);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric_with_timestamp(check, tagged_name, t, &val, timestamp);
+      f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_GUESS:
-      noit_stats_set_metric_with_timestamp(check, tagged_name, t, v, timestamp);
+      f(closure, tagged_name, t, v, timestamp);
       break;
     case METRIC_ABSENT:
       mtevAssert(0 && "ABSENT metrics may not be passed to noit_stats_set_metric_coerce");
   }
-  check_stats_set_metric_coerce_hook_invoke(check, c, tagged_name, t, v, mtev_true);
+  if(stats) check_stats_set_metric_coerce_hook_invoke(check, stats, tagged_name, t, v, mtev_true);
+}
+
+void
+noit_stats_set_metric_coerce_with_timestamp(noit_check_t *check,
+                             const char *name_raw, metric_type_t t,
+                             const char *v,
+                             struct timeval *timestamp) {
+  stats_t *stats = noit_check_get_stats_inprogress(check);
+  noit_metric_coerce_ex_with_timestamp(check, name_raw, t, v, timestamp,
+      noit_stats_set_metric_with_timestamp_ex_f, check, stats);
 }
 
 void
 noit_stats_set_metric_coerce(noit_check_t *check,
                              const char *name, metric_type_t t,
                              const char *v) {
-  noit_stats_set_metric_coerce_with_timestamp(check, name, t, v, NULL);
+  stats_t *stats = noit_check_get_stats_inprogress(check);
+  noit_metric_coerce_ex_with_timestamp(check, name, t, v, NULL,
+      noit_stats_set_metric_with_timestamp_ex_f, check, stats);
 }
+
 static void
 record_immediate_metric_with_tagset(noit_check_t *check,
                                 const char *name, metric_type_t type,
@@ -2402,7 +2423,7 @@ record_immediate_metric_with_tagset(noit_check_t *check,
     noit_check_log_metric(check, time, m);
   }
   c = noit_check_get_stats_inprogress(check);
-  if(__mark_metric_logged(c, m) == mtev_false) {
+  if(noit_stats_mark_metric_logged(c, m, mtev_true) == mtev_false) {
     mtev_memory_safe_free(m);
   }
 }

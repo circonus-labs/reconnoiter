@@ -24,6 +24,7 @@
       <log name="debug" disabled="true"/>
     </console_output>
     <feeds>
+      <outlet name="stderr"/>
       <log name="feed" type="jlog" path="/var/log/noitd.feed(stratcon)"/>
     </feeds>
     <components>
@@ -63,14 +64,14 @@
       </debug>
     </components>
     <feeds>
-      <config><extended_id>off</extended_id></config>
+      <config><extended_id>off</extended_id><flatbuffer>on</flatbuffer></config>
       <outlet name="feed"/>
       <log name="check"/>
       <log name="delete"/>
       <log name="status"/>
       <log name="metrics"/>
       <log name="bundle"/>
-      <log name="config"/>
+      <log name="config" disabled="true" />
     </feeds>
   </logs>
   <modules directory="%modulesdir%">

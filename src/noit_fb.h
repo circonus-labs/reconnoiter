@@ -43,13 +43,13 @@
 
 /*!
   \fn noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
-  \brief Create a MetricBatch flatbuffer representing a single record
+  \brief Create a MetricBatch flatbuffer representing a set of records
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
 noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
-                              const char *check_name, int account_id, metric_t *m,
-                              const uint16_t generation, size_t* out_size);
+                              const char *check_name, int account_id, metric_t **m,
+                              const uint16_t *generation, size_t batch_size, size_t* out_size);
 
 /*!
   \fn noit_fb_serialize_metric(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m, const uint16_t generation, size_t *out_size)

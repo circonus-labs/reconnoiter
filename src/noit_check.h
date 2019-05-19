@@ -338,6 +338,16 @@ API_EXPORT(mtev_boolean)
                                   size_t hist_encoded_len,
                                   uint64_t whence_s);
 
+API_EXPORT(mtev_boolean)
+  noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean create);
+
+API_EXPORT(void)
+  noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
+                                       const char *name_raw, metric_type_t t,
+                                       const char *v, struct timeval *timestamp,
+                                       void (*f)(void *, const char *, metric_type_t, const void *v, struct timeval *),
+                                       void *closure, stats_t *stats);
+
 API_EXPORT(const char *)
   noit_check_available_string(int16_t available);
 API_EXPORT(const char *)
@@ -394,6 +404,7 @@ API_EXPORT(void) noit_check_log_check(noit_check_t *check);
 API_EXPORT(void) noit_check_log_status(noit_check_t *check);
 API_EXPORT(void) noit_check_log_delete(noit_check_t *check);
 API_EXPORT(void) noit_check_log_bundle(noit_check_t *check);
+API_EXPORT(void) noit_check_log_bundle_metrics(noit_check_t *check, struct timeval *, mtev_hash_table *in_metrics);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metric(noit_check_t *check,
                                        const struct timeval *whence, metric_t *m);
