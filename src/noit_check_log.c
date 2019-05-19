@@ -266,7 +266,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
                                                       const struct timeval *whence,
                                                       metric_t *m)
 {
-  int rv = 0;
+  int rv = -1;
   char check_name[256 * 3] = {0};
   char uuid_str[UUID_STR_LEN + 1];
   int len = sizeof(check_name);
@@ -303,14 +303,16 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
   void *buffer = noit_fb_serialize_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id,
                                                &m, NULL, 1, &size);
 
+  if(buffer == NULL) return -1;
+
   unsigned int outsize;
   char *outbuf = NULL;
-  noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, size, &outbuf, &outsize);
-
-  rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                "BF\t%d\t%.*s\n", (int)size,
-                (unsigned int)outsize, outbuf);
-  free(outbuf);
+  if(noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, size, &outbuf, &outsize) == 0) {
+    rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                  "BF\t%d\t%.*s\n", (int)size,
+                  (unsigned int)outsize, outbuf);
+    free(outbuf);
+  }
   free(buffer);
   return rv;
 
@@ -321,7 +323,7 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
                                        noit_check_t *check,
                                        const struct timeval *whence,
                                        metric_t *m) {
-  int size, rv = 0;
+  int size, rv = -1;
   unsigned int out_size;
   static char *ip_str = "ip";
   noit_compression_type_t comp;
@@ -370,16 +372,17 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
 
   // Compress + B64
   comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
-  noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
-  rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
-                use_compression ? '1' : '2',
-                SECPART(whence), MSECPART(whence),
-                uuid_str, check->target, check->module, check->name, size,
-                (unsigned int)out_size, out_buf);
+  if(noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size) == 0) {
+    rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                 "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
+                  use_compression ? '1' : '2',
+                  SECPART(whence), MSECPART(whence),
+                  uuid_str, check->target, check->module, check->name, size,
+                  (unsigned int)out_size, out_buf);
+    free(out_buf);
+  }
 
   free(buf);
-  free(out_buf);
   free(bundle.metrics[0]);
   free(bundle.metrics);
   free(bundle.metadata[0]);
@@ -553,7 +556,7 @@ _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m)
 
 static int
 noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
-  int rv = 0;
+  int rv_sum = 0, rv_err = 0;
   static char *ip_str = "ip";
   char check_name[256 * 3] = {0};
   char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
@@ -622,12 +625,18 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, st
     if(current_in_batch >= metrics_per_bundle) {
 do_batch:
       buffer = noit_fb_finalize_metricbatch(B, &fb_size);
-      noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, fb_size, &outbuf, &outsize);
-      mtevL(mtev_debug, "BF compression: %f%%\n", 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
-      rv += mtev_log(ls, whence, __FILE__, __LINE__,
-                     "BF\t%d\t%.*s\n", (int)fb_size,
-                     (unsigned int)outsize, outbuf);
-      free(outbuf);
+      if(noit_check_log_bundle_compress_b64(NOIT_COMPRESS_LZ4, buffer, fb_size, &outbuf, &outsize) != 0) {
+        rv_err = -1;
+      } else {
+        int rv;
+        mtevL(mtev_debug, "BF compression: %f%%\n", 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
+        rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                      "BF\t%d\t%.*s\n", (int)fb_size,
+                      (unsigned int)outsize, outbuf);
+        if(rv < 0) rv_err =-1;
+        else rv_sum += rv;
+        free(outbuf);
+      }
       free(buffer);
       outbuf = NULL;
       buffer = NULL;
@@ -637,7 +646,7 @@ do_batch:
   }
   if(current_in_batch) goto do_batch;
 
-  return rv;
+  return rv_err ? rv_err : rv_sum;
 }
 
 static int
@@ -743,6 +752,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
   }
 
   int rv_sum = 0;
+  int rv_err = 0;
   for(i=0; i<n_bundles; i++) {
     Bundle *bundle = &bundles[i];
     size = bundle__get_packed_size(bundle);
@@ -751,18 +761,24 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
 
     // Compress + B64
     comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
-    noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
-    mtevL(mtev_debug, "B%c compression: %f%%\n", use_compression ? '1' : '2',
-          100 * ((double)size - (double)out_size)/(double)size);
-    rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                  "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
-                  use_compression ? '1' : '2',
-                  SECPART(whence), MSECPART(whence),
-                  uuid_str, check->target, check->module, check->name, size,
-                  (unsigned int)out_size, out_buf);
-
+    if(noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size) != 0) {
+      mtevL(mtev_error, "bundle compression failed\n");
+      rv_err = -1;
+    }
+    else {
+      mtevL(mtev_debug, "B%c compression: %f%%\n", use_compression ? '1' : '2',
+            100 * ((double)size - (double)out_size)/(double)size);
+      rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                    "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
+                    use_compression ? '1' : '2',
+                    SECPART(whence), MSECPART(whence),
+                    uuid_str, check->target, check->module, check->name, size,
+                    (unsigned int)out_size, out_buf);
+      if(rv < 0) rv_err = rv;
+      else if(rv_sum >= 0) rv_sum += rv;
+      free(out_buf);
+    }
     free(buf);
-    free(out_buf);
     // Free all the resources
     for (j=0; j<bundle->n_metrics; j++) {
       free(bundle->metrics[j]);
@@ -771,11 +787,9 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
     free(bundle->status);
     free(bundle->metadata[0]);
     free(bundle->metadata);
-    if(rv < 0) rv_sum = rv;
-    else if(rv_sum >= 0) rv_sum += rv;
   }
   free(bundles);
-  return rv_sum;
+  return rv_err ? rv_err : rv_sum;
 }
 
 void
