@@ -2044,6 +2044,7 @@ noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean creat
                         m, NULL, (void (*)(void *))mtev_memory_safe_free);
     return mtev_true;
   }
+  return mtev_false;
 }
 
 static size_t
