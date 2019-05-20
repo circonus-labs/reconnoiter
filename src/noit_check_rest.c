@@ -398,6 +398,52 @@ rest_show_checks(mtev_http_rest_closure_t *restc,
 }
 
 static int
+rest_show_check_owner(mtev_http_rest_closure_t *restc,
+                      int npats, char **pats) {
+  uuid_t checkid;
+  if(npats != 1 || mtev_uuid_parse(pats[0], checkid) != 0) {
+    mtev_http_response_not_found(restc->http_ctx, "application/json");
+    mtev_http_response_end(restc->http_ctx);
+  }
+  noit_check_t *check = noit_poller_lookup(checkid);
+  if(!check) {
+    mtev_http_response_not_found(restc->http_ctx, "application/json");
+    mtev_http_response_end(restc->http_ctx);
+    return 0;
+  }
+
+  mtev_cluster_node_t *owner = NULL;
+  if(!noit_should_run_check(check, &owner) && owner) {
+    const char *cn = mtev_cluster_node_get_cn(owner);
+    char url[1024];
+    struct sockaddr *addr;
+    socklen_t addrlen;
+    unsigned short port;
+    switch(mtev_cluster_node_get_addr(owner, &addr, &addrlen)) {
+      case AF_INET:
+        port = ntohs(((struct sockaddr_in *)addr)->sin_port);
+        break;
+      case AF_INET6:
+        port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+        break;
+      default:
+        port = 43191;
+    }
+    char uuid_str[UUID_STR_LEN+1];
+    mtev_uuid_unparse_lower(checkid, uuid_str);
+    snprintf(url, sizeof(url), "https://%s:%u/checks/owner/%s",
+             cn, port, uuid_str);
+    mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    mtev_http_response_standard(restc->http_ctx, 302, "NOT IT", "application/json");
+    mtev_http_response_end(restc->http_ctx);
+    return 0;
+  }
+  mtev_http_response_standard(restc->http_ctx, 204, "OK", "application/json");
+  mtev_http_response_end(restc->http_ctx);
+  return 0;
+}
+
+static int
 rest_show_check_json(mtev_http_rest_closure_t *restc,
                      uuid_t checkid) {
   noit_check_t *check;
@@ -1221,6 +1267,10 @@ noit_check_rest_init() {
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^updates$",
     rest_show_check_updates, mtev_http_rest_client_cert_auth
+  ) == 0);
+  mtevAssert(mtev_http_rest_register_auth(
+    "GET", "/checks/", "^owner/(" UUID_REGEX ")$",
+    rest_show_check_owner, mtev_http_rest_client_cert_auth
   ) == 0);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^show(\\.json)?$",

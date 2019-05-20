@@ -97,6 +97,17 @@ describe("cluster", function()
       assert.is.equal(302, code)
       assert.is.equal(false, obj.active_on_cluster_node)
     end)
+    it("is owned by one node", function()
+      local codes = {}
+      local expected_codes = {}
+      expected_codes["204"] = 1
+      expected_codes["302"] = 1
+      local code, obj = api1:json("GET", "/checks/owner/" .. check_uuid)
+      codes["" .. code] = 1
+      local code, obj = api2:json("GET", "/checks/owner/" .. check_uuid)
+      codes["" .. code] = 1
+      assert.is.same(expected_codes, codes)
+    end)
     it("moves to node2", function()
       noit1:stop()
       mtev.sleep(2)
