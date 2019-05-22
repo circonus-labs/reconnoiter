@@ -33,6 +33,7 @@
  */
 
 #include "noit_fb.h"
+#include <mtev_log.h>
 
 static void
 flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t generation)
@@ -42,6 +43,10 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
 
   ns(MetricValue_name_create_str(B, m->metric_name));
   ns(MetricValue_generation_add(B, generation));
+  if(m->whence.tv_sec || m->whence.tv_usec) {
+    uint64_t whence_ms = m->whence.tv_sec * 1000ULL + m->whence.tv_usec / 1000;
+    ns(MetricValue_timestamp_add(B, whence_ms));
+  }
 
 #define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD)                             \
   if (m->metric_value.MFIELD != NULL) {                                 \

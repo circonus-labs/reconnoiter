@@ -416,6 +416,10 @@ API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
                                               char *name, int name_len,
                                               char *uuid, int uuid_len);
 
+API_EXPORT(mtev_boolean)
+  noit_check_build_tag_extended_name(char *tgt, size_t tgtlen, const char *name,
+                                     const noit_check_t *check);
+
 API_EXPORT(char *)
   noit_console_check_opts(mtev_console_closure_t ncct,
                           mtev_console_state_stack_t *stack,

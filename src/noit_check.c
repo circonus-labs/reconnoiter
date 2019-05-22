@@ -155,8 +155,8 @@ MTEV_HOOK_IMPL(noit_stats_log_immediate_metric_timed,
 #define STATS_CURRENT 1
 #define STATS_PREVIOUS 2
 
-static mtev_boolean
-build_tag_extended_name(char *tgt, size_t tgtlen, const char *name, const noit_check_t *check) {
+mtev_boolean
+noit_check_build_tag_extended_name(char *tgt, size_t tgtlen, const char *name, const noit_check_t *check) {
   char tgt_tmp[MAX_METRIC_TAGGED_NAME];
   if(check->tagset) {
     strlcpy(tgt_tmp, name, sizeof(tgt_tmp));
@@ -2260,7 +2260,7 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
   memset(m, 0, sizeof(*m));
 
   char tagged_name[MAX_METRIC_TAGGED_NAME];
-  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
+  if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
     return;
   }
 
@@ -2299,7 +2299,7 @@ noit_stats_set_metric_histogram(noit_check_t *check,
 
   void *replacement = NULL;
   char tagged_name[MAX_METRIC_TAGGED_NAME];
-  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
+  if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
     return;
   if(type == METRIC_GUESS)
     type = noit_metric_guess_type((char *)value, &replacement);
@@ -2318,10 +2318,11 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
                              struct timeval *timestamp,
                              void (*f)(void *, const char *, metric_type_t, const void *v, struct timeval *),
                              void *closure, stats_t *stats) {
+  void *replacement = NULL;
   if(strlen(name_raw) > MAX_METRIC_TAGGED_NAME-1) return;
 
   char tagged_name[MAX_METRIC_TAGGED_NAME];
-  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
+  if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
     return;
 
   char *endptr;
@@ -2376,7 +2377,9 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
       break;
     }
     case METRIC_GUESS:
-      f(closure, tagged_name, t, v, timestamp);
+      t = noit_metric_guess_type((char *)v, &replacement);
+      f(closure, tagged_name, t, (t != METRIC_GUESS) ? replacement : v, timestamp);
+      free(replacement);
       break;
     case METRIC_ABSENT:
       mtevAssert(0 && "ABSENT metrics may not be passed to noit_stats_set_metric_coerce");
@@ -2433,7 +2436,7 @@ noit_stats_log_immediate_metric_timed(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 const void *value, const struct timeval *whence) {
   char tagged_name[MAX_METRIC_TAGGED_NAME];
-  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
+  if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
     return;
   }
 
@@ -2457,7 +2460,7 @@ noit_stats_log_immediate_histo_tv(noit_check_t *check,
                                 const char *name, const char *hist_encoded, size_t hist_encoded_len,
                                 struct timeval whence) {
   char tagged_name[MAX_METRIC_TAGGED_NAME];
-  if(build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
+  if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
     return mtev_false;
   }
 

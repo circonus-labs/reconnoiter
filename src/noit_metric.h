@@ -69,6 +69,7 @@ typedef struct {
   } metric_value;
   mtev_boolean logged;
   unsigned long accumulator; /* used to track divisor of averages */
+  struct timeval whence; /* if non-zero, specifies a time */
 } metric_t;
 
 typedef enum {

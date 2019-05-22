@@ -46,6 +46,7 @@ message Metric
   optional int32 valueI32 = 6;
   optional uint32 valueUI32 = 7;
   optional string valueStr = 8;
+  optional uint64 whence_ms = 9;
 }
 
 message Status
