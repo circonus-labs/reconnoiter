@@ -92,7 +92,7 @@ static void metric_local_free(void *vm) {
   metric_t *m = vm;
   if(vm) {
     free(m->metric_name);
-    if(m->metric_type == METRIC_STRING) free(m->metric_value.s);
+    free(m->metric_value.vp);
   }
 }
 
@@ -149,6 +149,9 @@ metric_local_track_or_log(void *vrxc, const char *name,
   memset(m, 0, sizeof(*m));
   m->metric_name = strdup(name);
   m->metric_type = t;
+  if(rxc->got_timestamp) {
+    memcpy(&m->whence, &rxc->last_timestamp, sizeof(struct timeval));
+  }
   if(vp) {
     if(t == METRIC_STRING) m->metric_value.s = strdup((const char *)vp);
     else {
@@ -555,14 +558,14 @@ httptrap_yajl_cb_end_map(void *ctx) {
                           ((json->saw_complex_type & HT_EX_TYPE) ?
                             json->last_type :
                             METRIC_GUESS);
-      void *value = use_computed_value ? (void *)&newval : last_p->v;
-      /* histograms are never immediate */
-      if(json->got_timestamp) {
-        noit_stats_log_immediate_metric_timed(json->check,
-                metric_name, t, value, &json->last_timestamp);
-      } else {
-        metric_local_accrue(json, metric_name, t, value);
+      char double_str[32];
+      void *value = last_p->v;
+      if(use_computed_value) {
+        snprintf(double_str, sizeof(double_str), "%g", newval);
+        value = double_str;
       }
+      /* metric_local_accrue will ultimately set the timestamp if one is set in `json` */
+      metric_local_accrue(json, metric_name, t, value);
     }
   }
   json->saw_complex_type = 0;
@@ -669,7 +672,7 @@ rest_json_payload_free(void *f) {
   if(json->immediate_metrics) {
     rest_json_flush_immediate(json);
   }
-  mtev_hash_destroy(json->immediate_metrics, NULL, metric_local_free); //mtev_memory_safe_free);
+  mtev_hash_destroy(json->immediate_metrics, NULL, metric_local_free);
   free(json->immediate_metrics);
   if(json->parser) yajl_free(json->parser);
   if(json->error) free(json->error);

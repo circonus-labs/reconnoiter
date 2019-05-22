@@ -38,6 +38,7 @@
 #include <mtev_b64.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
+#include <mtev_dyn_buffer.h>
 #include <mtev_conf.h>
 #include <mtev_compress.h>
 
@@ -47,6 +48,7 @@
 #include "noit_check_log_helpers.h"
 #include "flatbuffers/metric_reader.h"
 #include "flatbuffers/metric_batch_reader.h"
+#include "flatbuffers/metric_batch_verifier.h"
 #include "noit_message_decoder.h"
 
 static void *__c_allocator_alloc(void *d, size_t size) {
@@ -288,9 +290,14 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
     char scratch[64], *value_str;
     int value_size = 0;
 
+    memset(&m, 0, sizeof(m));
     m.metric_name = metric->name;
     m.metric_type = metric->metrictype;
     m.metric_value.vp = NULL;
+    if(metric->has_whence_ms) {
+      m.whence.tv_sec = metric->whence_ms / 1000;
+      m.whence.tv_usec = 1000 * (metric->whence_ms % 1000);
+    }
     scratch[0] = '\0';
     value_str = scratch;
     switch(m.metric_type) {
@@ -322,12 +329,20 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
     }
     if(value_size == 0 && m.metric_type != METRIC_STRING) continue; /* WTF, bad metric_type? */
 
-    size = 2 /* M\t */ + strlen(timestamp) + 1 /* \t */ +
+    char *ltimestamp = timestamp;
+    char mltimestamp[32];
+    if(m.whence.tv_sec || m.whence.tv_usec) {
+      snprintf(mltimestamp, sizeof(mltimestamp), "%zu.%03u", (size_t)m.whence.tv_sec,
+               (unsigned int)(m.whence.tv_usec / 1000));
+      ltimestamp = mltimestamp;
+    }
+
+    size = 2 /* M\t */ + strlen(ltimestamp) + 1 /* \t */ +
            strlen(uuid_str) + 1 /* \t */ + strlen(metric->name) +
            3 /* \t<type>\t */ + value_size + 1 /* \0 */;
     (*out)[i+has_status] = malloc(size);
     snprintf((*out)[i+has_status], size, "M\t%s\t%s\t%s\t%c\t%s",
-             timestamp, uuid_str, metric->name, m.metric_type, value_str);
+             ltimestamp, uuid_str, metric->name, m.metric_type, value_str);
   }
   goto good_line;
 
@@ -355,12 +370,13 @@ static int
 noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
 {
   unsigned int ulen;
-  int i, size, cnt = 0, has_status = 0;
+  int i, size, has_status = 0;
   const char *cp1, *cp2, *rest, *error_str = NULL;
-  char *uuid_str, *target, *module, *name, *ulen_str, *nipstr = NULL;
+  char *target, *module, *name, *ulen_str, *nipstr = NULL;
   unsigned char *raw_data = NULL;
   const char *value_str;
   size_t value_size;
+  size_t metrics_len = 0;
   char scratch[64];
 
   *out = NULL;
@@ -398,6 +414,11 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   }
 
   /* flatbuffers reader */
+  int fb_ret = ns(MetricBatch_verify_as_root(raw_data, ulen));
+  if(fb_ret != 0) {
+    mtevL(mtev_error, "Corrupt metric batch flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
+    goto bad_line;
+  }
   ns(MetricBatch_table_t) message = ns(MetricBatch_as_root(raw_data));
 
   mtevAssert(message != NULL);
@@ -407,23 +428,31 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   flatbuffers_string_t check_uuid = ns(MetricBatch_check_uuid(message));
   int account_id = ns(MetricBatch_account_id(message));
   ns(MetricValue_vec_t) metrics = ns(MetricBatch_metrics(message));
-  size_t metrics_len = ns(MetricValue_vec_len(metrics));
+  metrics_len = ns(MetricValue_vec_len(metrics));
   
   *out = calloc(sizeof(**out), metrics_len);
   if(!*out) { error_str = "memory exhaustion"; goto bad_line; }
-  
+ 
+  mtev_dyn_buffer_t uuid_str;
+  mtev_dyn_buffer_init(&uuid_str); 
   for (int i = 0; i < metrics_len; i++) {
     ns(MetricValue_table_t) m = ns(MetricValue_vec_at(metrics, i));
     flatbuffers_string_t metric_name = ns(MetricValue_name(m));
     char ts[15];
     size_t uuid_len = flatbuffers_string_len(check_name) + flatbuffers_string_len(check_uuid) + 2;
-    char *uuid_str = alloca(uuid_len);
-    snprintf(uuid_str, uuid_len, "%s`%s", check_name, check_uuid);
-    sprintf(ts, "%.03f", (double) timestamp / 1000.0);
+    uint64_t ltimestamp = ns(MetricValue_timestamp(m));
+
+    if(ltimestamp == 0) ltimestamp = timestamp;
+    snprintf(ts, sizeof(ts), "%"PRIu64".%03u", ltimestamp / 1000 , (unsigned int)(ltimestamp % 1000));
+
+    mtev_dyn_buffer_ensure(&uuid_str, uuid_len);
+    mtev_dyn_buffer_reset(&uuid_str);
+    mtev_dyn_buffer_add_printf(&uuid_str, "%s`%s", check_name, check_uuid);
     char type = 'x';
 
     value_str = scratch;
-    switch(type) {
+    scratch[0] = '\0';
+    switch(ns(MetricValue_value_type(m))) {
     case ns(MetricValueUnion_IntValue):
       {
         type = 'i';
@@ -459,6 +488,12 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
         snprintf(scratch, sizeof(scratch), "%0.6f", ns(DoubleValue_value(v)));
         break;
       }
+    case ns(MetricValueUnion_AbsentNumericValue):
+      {
+        type = 'n';
+        snprintf(scratch, sizeof(scratch), "[[null]]");
+        break;
+      }
     case ns(MetricValueUnion_StringValue):
       {
         type = 's';
@@ -466,26 +501,34 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
         value_str = ns(StringValue_value(v));
         break;
       }
+    case ns(MetricValueUnion_AbsentStringValue):
+      {
+        type = 's';
+        snprintf(scratch, sizeof(scratch), "[[null]]");
+        break;
+      }
     };
+    if(type == 'x') continue;
 
     value_size = strlen(value_str);
 
     size = 2 /* M\t */ + strlen(ts) + 1 /* \t */ +
-      flatbuffers_string_len(check_uuid) + 1 /* \t */ + flatbuffers_string_len(metric_name) +
+      mtev_dyn_buffer_used(&uuid_str) + 1 /* \t */ + flatbuffers_string_len(metric_name) +
            3 /* \t<type>\t */ + value_size + 1 /* \0 */;
     (*out)[i+has_status] = malloc(size);
-    snprintf((*out)[i], size, "M\t%s\t%s\t%s\t%c\t%s",
-             ts, uuid_str, metric_name, type, value_str);
+    snprintf((*out)[i], size, "M\t%s\t%.*s\t%s\t%c\t%s",
+             ts, (int)mtev_dyn_buffer_used(&uuid_str), mtev_dyn_buffer_data(&uuid_str),
+             metric_name, type, value_str);
   }
 
-  return cnt + has_status;
+  return metrics_len + has_status;
 
  bad_line:
   if(*out) {
     /* bad_line is not called during the loop through the values
      * so there is no need to free (*out)[i] malloc'd for each row
      */
-    free(*out);
+    for(unsigned int i=0; i<metrics_len + has_status; i++) free(out[i]);
     *out = NULL;
   }
   if(error_str) mtevL(noit_error, "bundle: bad line due to %s\n", error_str);

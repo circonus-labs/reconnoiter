@@ -75,6 +75,8 @@ typedef struct prometheus_upload
   mtev_boolean complete;
   noit_check_t *check;
   uuid_t check_id;
+  struct timeval start_time;
+  mtev_hash_table *immediate_metrics;
 } prometheus_upload_t;
 
 #define READ_CHUNK 32768
@@ -92,11 +94,21 @@ static ProtobufCAllocator __c_allocator = {
 };
 #define protobuf_c_system_allocator __c_allocator
 
+static void metric_local_free(void *vm) {
+  metric_t *m = vm;
+  if(vm) {
+    free(m->metric_name);
+    free(m->metric_value.vp);
+  }
+}
+
 static void
 free_prometheus_upload(void *pul)
 {
   prometheus_upload_t *p = (prometheus_upload_t *)pul;
   mtev_dyn_buffer_destroy(&p->data);
+  mtev_hash_destroy(p->immediate_metrics, NULL, metric_local_free);
+  free(p->immediate_metrics);
   free(p);
 }
 
@@ -253,6 +265,53 @@ metric_name_from_labels(Prometheus__Label **labels, size_t label_count)
   return strdup(final_name);
 }
 
+static void
+metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
+  if(mtev_hash_size(rxc->immediate_metrics)) {
+    noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
+    mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+  }
+}
+
+static void 
+metric_local_batch(prometheus_upload_t *rxc, const char *name, double val, struct timeval w) {
+  char cmetric[MAX_METRIC_TAGGED_NAME + 1 + sizeof(uint64_t)];
+  void *vm;
+
+  if(!noit_check_build_tag_extended_name(cmetric, MAX_METRIC_TAGGED_NAME, name, rxc->check)) {
+    return;
+  }
+  int cmetric_len = strlen(cmetric);
+  /* We will append the time stamp afer the null terminator to keep the key
+   * appropriately unique.
+   */
+  uint64_t t = w.tv_sec * 1000 + w.tv_usec / 1000;
+  memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
+  cmetric_len += 1 + sizeof(uint64_t);
+
+  if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
+    metric_local_batch_flush_immediate(rxc);
+    return;
+  }
+  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
+    /* collision, just log it out */
+    metric_local_batch_flush_immediate(rxc);
+    return;
+  }
+  //metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), metric_local_free);
+  metric_t *m = malloc(sizeof(*m));
+  memset(m, 0, sizeof(*m));
+  m->metric_name = malloc(cmetric_len);
+  memcpy(m->metric_name, cmetric, cmetric_len);
+  m->metric_type = METRIC_DOUBLE;
+  memcpy(&m->whence, &w, sizeof(struct timeval));
+  m->metric_value.vp = malloc(sizeof(double));
+  *(m->metric_value.n) = val;
+
+  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
+  mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
+}
+
 static int
 rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 {
@@ -302,6 +361,9 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
     rxc->check = check;
+    mtev_gettimeofday(&rxc->start_time, NULL);
+    rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
+    mtev_hash_init(rxc->immediate_metrics);
     memcpy(rxc->check_id, check_id, UUID_SIZE);
     restc->call_closure_free = free_prometheus_upload;
     mtev_dyn_buffer_init(&rxc->data);
@@ -363,6 +425,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     goto error;
   }
 
+  int seen = 0;
   cnt = write->n_timeseries;
   for (size_t i = 0; i < write->n_timeseries; i++) {
     Prometheus__TimeSeries *ts = write->timeseries[i];
@@ -374,14 +437,13 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       struct timeval tv;
       tv.tv_sec = (time_t)(sample->timestamp / 1000L);
       tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
-      noit_stats_log_immediate_metric_timed(rxc->check,
-                                            metric_name,
-                                            METRIC_DOUBLE,
-                                            &sample->value,
-                                            &tv);
+
+      metric_local_batch(rxc, metric_name, sample->value, tv);
+      seen++;
     }
     free(metric_name);
   }
+  metric_local_batch_flush_immediate(rxc);
   prometheus__write_request__free_unpacked(write, &protobuf_c_system_allocator);
   mtev_dyn_buffer_destroy(&uncompressed);
 

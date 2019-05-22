@@ -528,6 +528,8 @@ _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m)
   metric->metrictype = (int)m->metric_type;
 
   metric->name = m->metric_name;
+  metric->whence_ms = m->whence.tv_sec * 1000ULL + m->whence.tv_usec / 1000;
+  if(metric->whence_ms) metric->has_whence_ms = mtev_true;
   if(m->metric_value.vp != NULL) {
     switch (m->metric_type) {
       case METRIC_INT32:
@@ -629,7 +631,7 @@ do_batch:
         rv_err = -1;
       } else {
         int rv;
-        mtevL(mtev_debug, "BF compression: %f%%\n", 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
+        mtevL(mtev_debug, "BF compression batchsize %d: %f%%\n", current_in_batch, 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
         rv = mtev_log(ls, whence, __FILE__, __LINE__,
                       "BF\t%d\t%.*s\n", (int)fb_size,
                       (unsigned int)outsize, outbuf);
