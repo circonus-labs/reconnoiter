@@ -457,6 +457,7 @@ handle_metric_buffer(const char *payload, int payload_len,
         n_metrics = noit_check_log_b_to_sm((const char *)payload, payload_len,
             &metrics, has_noit);
         for(i = 0; i < n_metrics; i++) {
+          if(metrics[i] == NULL) continue;
           handle_metric_buffer(metrics[i], strlen(metrics[i]), false, src_noit);
           free(metrics[i]);
         }
