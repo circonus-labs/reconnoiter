@@ -173,6 +173,7 @@ public class jmx implements JezebelCheck {
                                 ||  type.equals("java.lang.Double")
                                 ||  type.equals("java.lang.Character")
                                 ||  type.equals("java.lang.Boolean")
+                                ||  type.equals("java.lang.Object")
                                 ||  type.equals("java.lang.Void")
                                 ||  type.startsWith("javax.management.openmbean")
                             )
