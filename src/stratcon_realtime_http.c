@@ -631,8 +631,4 @@ stratcon_realtime_http_init(const char *toplevel) {
            "^((?:" UUID_REGEX "(?:@\\d+)?)(?:/" UUID_REGEX "(?:@\\d+)?)*)$",
     rest_stream_data, mtev_http_rest_client_cert_auth
   ) == 0);
-  mtevAssert(mtev_http_rest_register_auth(
-    "GET", "/", "^(.*)$", mtev_rest_simple_file_handler,
-           mtev_http_rest_client_cert_auth
-  ) == 0);
 }

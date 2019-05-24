@@ -38,6 +38,7 @@
 #include <eventer/eventer.h>
 #include <mtev_hash.h>
 #include <mtev_hooks.h>
+#include <mtev_rest.h>
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_clustering.h"
@@ -48,6 +49,10 @@ typedef int (*dispatch_func_t)(noit_module_t *, noit_check_t *,
 
 API_EXPORT(void)
   noit_check_tools_init();
+
+API_EXPORT(int)
+  noit_rest_show_config(mtev_http_rest_closure_t *restc,
+                        int npats, char **pats);
 
 API_EXPORT(int)
   noit_check_schedule_next(noit_module_t *self,
