@@ -199,6 +199,16 @@ static int child_main() {
   stratcon_realtime_http_init(APPNAME);
   mtev_listener_init(APPNAME);
 
+  mtevAssert(mtev_http_rest_register_auth(
+    "GET", "/", "^config(/.*)?$",
+    noit_rest_show_config, mtev_http_rest_client_cert_auth
+  ) == 0);
+
+  mtevAssert(mtev_http_rest_register_auth(
+    "GET", "/", "^(.*)$", mtev_rest_simple_file_handler,
+           mtev_http_rest_client_cert_auth
+  ) == 0);
+
   mtev_dso_post_init();
   if(strict_module_load && mtev_dso_load_failures() > 0) {
     mtevL(noit_stderr, "Failed to load some modules and -M given.\n");

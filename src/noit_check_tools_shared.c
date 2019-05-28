@@ -39,6 +39,37 @@
 
 #include "noit_check_tools.h"
 
+int
+noit_rest_show_config(mtev_http_rest_closure_t *restc,
+                 int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root;
+  mtev_conf_section_t node;
+  char xpath[1024];
+
+  snprintf(xpath, sizeof(xpath), "/%s", pats ? pats[0] : "");
+  node = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+
+  if(mtev_conf_section_is_empty(node)) {
+    mtev_http_response_not_found(ctx, "text/xml");
+    mtev_http_response_end(ctx);
+  }
+  else {
+    doc = xmlNewDoc((xmlChar *)"1.0");
+    root = xmlCopyNode(mtev_conf_section_to_xmlnodeptr(node), 1);
+    xmlDocSetRootElement(doc, root);
+    mtev_http_response_ok(ctx, "text/xml");
+    mtev_http_response_xml(ctx, doc);
+    mtev_http_response_end(ctx);
+  }
+
+  if(doc) xmlFreeDoc(doc);
+  mtev_conf_release_section(node);
+
+  return 0;
+}
+
 static mtev_hash_table interpolation_operators;
 
 static int

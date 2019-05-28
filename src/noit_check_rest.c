@@ -75,9 +75,6 @@
 } while(0)
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
 
-static int
-rest_show_config(mtev_http_rest_closure_t *, int, char **);
-
 static void
 add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
                     int include_time, mtev_hash_table *supp) {
@@ -394,7 +391,7 @@ rest_show_checks(mtev_http_rest_closure_t *restc,
   if(npats == 1 && !strcmp(pats[0], ".json"))
     return rest_show_checks_json(restc, npats, pats);
 
-  return rest_show_config(restc, 1, &cpath);
+  return noit_rest_show_config(restc, 1, &cpath);
 }
 
 static int
@@ -1194,37 +1191,6 @@ rest_set_check(mtev_http_rest_closure_t *restc,
 }
 
 static int
-rest_show_config(mtev_http_rest_closure_t *restc,
-                 int npats, char **pats) {
-  mtev_http_session_ctx *ctx = restc->http_ctx;
-  xmlDocPtr doc = NULL;
-  xmlNodePtr root;
-  mtev_conf_section_t node;
-  char xpath[1024];
-
-  snprintf(xpath, sizeof(xpath), "/noit%s", pats ? pats[0] : "");
-  node = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
-
-  if(mtev_conf_section_is_empty(node)) {
-    mtev_http_response_not_found(ctx, "text/xml");
-    mtev_http_response_end(ctx);
-  }
-  else {
-    doc = xmlNewDoc((xmlChar *)"1.0");
-    root = xmlCopyNode(mtev_conf_section_to_xmlnodeptr(node), 1);
-    xmlDocSetRootElement(doc, root);
-    mtev_http_response_ok(ctx, "text/xml");
-    mtev_http_response_xml(ctx, doc);
-    mtev_http_response_end(ctx);
-  }
-
-  if(doc) xmlFreeDoc(doc);
-  mtev_conf_release_section(node);
-
-  return 0;
-}
-
-static int
 rest_show_check_updates(mtev_http_rest_closure_t *restc,
                         int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
@@ -1262,7 +1228,7 @@ void
 noit_check_rest_init() {
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
-    rest_show_config, mtev_http_rest_client_cert_auth
+    noit_rest_show_config, mtev_http_rest_client_cert_auth
   ) == 0);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^updates$",
