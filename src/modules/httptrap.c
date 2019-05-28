@@ -997,7 +997,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if (rxc && rxc->error)
     error = rxc->error;
-  mtevL(nlerr, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
+  mtevL(nldeb, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
