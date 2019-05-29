@@ -21,7 +21,7 @@
     <example>
       <title>Ingesting opentsdb data</title>
       <para>
-        <code>
+        <code><![CDATA[
           <Plugin write_tsdb>
             <Node>
               Host           "localhost"
@@ -31,7 +31,7 @@
               AlwaysAppendDS false
             </Node>
           </Plugin>
-        </code>
+        ]]></code>
       </para>
       <para>The collectd write_tsdb plugin config example above will direct metric data to the broker:4242 for ingestion</para>
 
