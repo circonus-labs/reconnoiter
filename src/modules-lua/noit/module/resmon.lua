@@ -264,7 +264,7 @@ function initiate(module, check)
     check.bad()
     check.unavailable()
 
-    if host == nil then host = check.target end
+    if host == nil or host == "" then host = check.target end
     if schema == nil then
         schema = 'http'
     end
