@@ -83,4 +83,6 @@ function process(check, output)
       end
     end
   end
+  check.available()
+  check.good()
 end
