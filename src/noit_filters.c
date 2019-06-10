@@ -102,6 +102,8 @@ typedef struct {
   char *name;
   int64_t seq;
   filterrule_t *rules;
+  uint32_t executions;
+  uint32_t denies;
 } filterset_t;
 
 #define FRF(r,a) do { \
@@ -484,6 +486,7 @@ noit_apply_filterset(const char *filterset,
     filterrule_t *r, *skipto_rule = NULL;
     mtev_boolean ret = mtev_false;
     ck_pr_inc_32(&fs->ref_cnt);
+    ck_pr_inc_32(&fs->executions);
     UNLOCKFS();
 #define MATCHES(rname, value) noit_apply_filterrule(r->rname##_ht, r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {
@@ -534,6 +537,7 @@ noit_apply_filterset(const char *filterset,
       }
     }
     filterset_free(fs);
+    if(!ret) ck_pr_inc_32(&fs->denies);
     return ret;
   }
   UNLOCKFS();
