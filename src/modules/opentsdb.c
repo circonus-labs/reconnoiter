@@ -171,12 +171,17 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
     uint64_t whence_ms = 0;
     if (strlen(opentsdb_timestamp) <= 10)
     {
-      whence_ms = strtoull(opentsdb_timestamp, &dp, 10);
+      // less than or equal to 10 digits is s -> ms
+      whence_ms = strtoull(opentsdb_timestamp, &dp, 10) * 1000;
     }
     else {
-      whence_ms = strtoull(opentsdb_timestamp, &dp, 10) * 1000;
-      if (dp && *dp == '.')
+      // more than 10 is ms
+      whence_ms = strtoull(opentsdb_timestamp, &dp, 10);
+      // more than 10 with '.' is floating point s
+      if (dp && *dp == '.') {
+        // add in s (fractional part) -> ms
         whence_ms += (int)(1000.0 * atof(dp));
+      }
     }
 
     size_t opentsdb_value_len = strlen(opentsdb_value);
