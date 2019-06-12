@@ -177,8 +177,10 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
     else {
       // more than 10 is ms
       whence_ms = strtoull(opentsdb_timestamp, &dp, 10);
-      // more than 10 with '.' is floating point s
+      // unless it is more than 10 with '.', then it is floating point s
       if (dp && *dp == '.') {
+        // s -> ms
+        whence_ms *= 1000;
         // add in s (fractional part) -> ms
         whence_ms += (int)(1000.0 * atof(dp));
       }
