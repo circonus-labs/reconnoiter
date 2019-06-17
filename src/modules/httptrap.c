@@ -732,7 +732,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
     int len;
     len = mtev_http_session_req_consume(
             restc->http_ctx, buffer,
-            MIN(content_length - rxc->len, sizeof(buffer)),
+            mtev_http_request_payload_chunked(req) ? sizeof(buffer) : MIN(content_length - rxc->len, sizeof(buffer)),
             sizeof(buffer),
             mask);
     if(len > 0) {
@@ -755,7 +755,6 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       *complete = 1;
       return NULL;
     }
-    content_length = mtev_http_request_content_length(req);
     if((mtev_http_request_payload_chunked(req) && len == 0) ||
        (rxc->len == content_length)) {
       rxc->complete = 1;
