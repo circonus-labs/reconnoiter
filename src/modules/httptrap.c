@@ -40,6 +40,7 @@
 #include <math.h>
 #include <ctype.h>
 #include <yajl/yajl_parse.h>
+#include <yajl/yajl_gen.h>
 
 #include <mtev_rest.h>
 #include <mtev_hash.h>
@@ -53,6 +54,11 @@
 #include "noit_check_tools.h"
 #include "noit_filters.h"
 #include "noit_mtev_bridge.h"
+
+extern void
+yajl_string_encode(const yajl_print_t print, void * ctx,
+                   const unsigned char * str, size_t len,
+                   int escape_solidus);
 
 #define DEFAULT_HTTPTRAP_DELIMITER '`'
 #define MAX_DEPTH 32
@@ -838,11 +844,18 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
   return mtev_false;
 }
 
+static void
+http_write_encoded(void *vctx, const char* str, size_t len) {
+  mtev_http_session_ctx *ctx = vctx;
+  mtev_http_response_append(ctx, str, len);
+}
+
 static int
 rest_httptrap_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
   int mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   int complete = 0, cnt;
+  int error_code = 500;
   struct rest_json_payload *rxc = NULL;
   const char *error = "internal error", *secret = NULL;
   mtev_http_session_ctx *ctx = restc->http_ctx;
@@ -860,10 +873,12 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
 
   if(npats != 2) {
     error = "bad uri";
+    error_code = 404;
     goto error;
   }
   if(mtev_uuid_parse(pats[0], check_id)) {
     error = "uuid parse error";
+    error_code = 404;
     goto error;
   }
 
@@ -873,10 +888,12 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     check = noit_poller_lookup(check_id);
     if(!check) {
       error = "no such check";
+      error_code = 404;
       goto error;
     }
     if(!httptrap_surrogate && strcmp(check->module, "httptrap")) {
       error = "no such httptrap check";
+      error_code = 404;
       goto error;
     }
 
@@ -888,6 +905,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
 
     if(!allowed) {
       error = "secret mismatch";
+      error_code = 403;
       goto error;
     }
 
@@ -948,8 +966,14 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     return mask;
   }
 
-  if(!rxc) goto error;
-  if(rxc->error) goto error;
+  if(!rxc) {
+    error_code = 406;
+    goto error;
+  }
+  if(rxc->error) {
+    error_code = 406;
+    goto error;
+  }
 
   cnt = rxc->cnt;
   mtevL(nldeb, "Processed %d records for %s (%" PRIu64 ")\n", cnt, pats[0], current_counter);
@@ -1014,11 +1038,12 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   return 0;
 
  error:
-  mtev_http_response_server_error(ctx, "application/json");
+  mtev_http_response_standard(ctx, error_code, "ERROR", "application/json");
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if (rxc && rxc->error)
     error = rxc->error;
   mtevL(nldeb, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
+  yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
