@@ -670,7 +670,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s",
              cn, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
-    mtev_http_response_standard(ctx, 302, "NOT IT", "text/cml");
+    mtev_http_response_standard(ctx, 302, "NOT IT", "text/xml");
   }
   else {
     mtev_http_response_ok(ctx, "text/xml");
