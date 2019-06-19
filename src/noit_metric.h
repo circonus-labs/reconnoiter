@@ -35,10 +35,17 @@
 #define _NOIT_METRIC_H
 
 #include <mtev_defines.h>
+#include <mtev_hooks.h>
 #include <mtev_uuid.h>
 
 #define MAX_METRIC_TAGGED_NAME 4096
 #define MAX_TAGS 256
+
+typedef enum {
+  NOIT_METRIC_TAGSET_CHECK = 1,
+  NOIT_METRIC_TAGSET_STREAM = 2,
+  NOIT_METRIC_TAGSET_MEASUREMENT = 3,
+} noit_metric_tagset_class_t;
 
 typedef enum {
   METRIC_ABSENT = 0,
@@ -103,6 +110,7 @@ typedef struct {
   int name_len;
   int name_len_with_tags;
   uint64_t account_id;
+  noit_metric_tagset_t check;
   noit_metric_tagset_t stream;
   noit_metric_tagset_t measurement;
   char *alloc_name;
@@ -210,5 +218,10 @@ API_EXPORT(ssize_t)
   noit_metric_parse_tags(const char *input, size_t input_len,
                          noit_metric_tagset_t *stset, noit_metric_tagset_t *mtset);
 
+
+MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
+                (noit_metric_tagset_class_t, noit_metric_tagset_t *),
+                void *, closure,
+                (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset))
 
 #endif

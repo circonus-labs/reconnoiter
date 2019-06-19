@@ -8,13 +8,15 @@ noit_check.o noit_check.lo: noit_check.c  \
   noit_config.h \
   noit_mtev_bridge.h noit_dtrace_probes.h noit_check.h \
   noit_metric.h noit_module.h \
-  noit_check_tools.h noit_clustering.h noit_check.h \
-  noit_check_tools_shared.h noit_check_resolver.h modules/histogram.h
+  noit_check_tools.h  \
+  noit_clustering.h noit_check.h noit_check_tools_shared.h \
+  noit_check_resolver.h modules/histogram.h
 
 noit_check_log.o noit_check_log.lo: noit_check_log.c  \
   noit_dtrace_probes.h \
   noit_fb.h  noit_metric.h \
-  flatbuffers/metric_batch_builder.h flatbuffers/metric_batch_reader.h \
+  flatbuffers/metric_batch_builder.h \
+  flatbuffers/metric_batch_reader.h \
   flatbuffers/flatbuffers_common_reader.h \
   flatbuffers/metric_common_reader.h \
   flatbuffers/flatbuffers_common_builder.h \
@@ -22,7 +24,7 @@ noit_check_log.o noit_check_log.lo: noit_check_log.c  \
   flatbuffers/metric_list_builder.h flatbuffers/metric_list_reader.h \
   flatbuffers/metric_reader.h flatbuffers/metric_builder.h \
   noit_mtev_bridge.h  \
-  noit_check.h  \
+  noit_check.h \
   noit_filters.h bundle.pb-c.h \
   noit_check_log_helpers.h
 
@@ -32,7 +34,8 @@ noit_check_log_helpers.o noit_check_log_helpers.lo: noit_check_log_helpers.c \
   noit_check_log_helpers.h flatbuffers/metric_reader.h \
   flatbuffers/flatbuffers_common_reader.h \
   flatbuffers/metric_common_reader.h flatbuffers/metric_batch_reader.h \
-  noit_message_decoder.h
+  flatbuffers/metric_batch_verifier.h \
+  flatbuffers/metric_common_verifier.h noit_message_decoder.h
 
 noit_check_resolver.o noit_check_resolver.lo: noit_check_resolver.c noit_config.h \
   noit_mtev_bridge.h \
@@ -50,14 +53,16 @@ noit_check_tools.o noit_check_tools.lo: noit_check_tools.c \
   noit_mtev_bridge.h noit_dtrace_probes.h noit_check_tools.h \
   noit_module.h \
   noit_check.h \
-  noit_metric.h noit_clustering.h noit_check.h \
+  noit_metric.h noit_clustering.h \
+  noit_check.h  \
   noit_check_tools_shared.h
 
 noit_check_tools_shared.o noit_check_tools_shared.lo: noit_check_tools_shared.c \
   noit_check_tools.h \
   noit_module.h \
   noit_check.h \
-  noit_metric.h noit_clustering.h noit_check.h \
+  noit_metric.h noit_clustering.h \
+  noit_check.h  \
   noit_check_tools_shared.h
 
 noit_clustering.o noit_clustering.lo: noit_clustering.c  \
@@ -67,19 +72,33 @@ noit_clustering.o noit_clustering.lo: noit_clustering.c  \
 noit_conf_checks.o noit_conf_checks.lo: noit_conf_checks.c \
   noit_filters.h noit_check.h  \
   noit_metric.h noit_conf_checks.h \
-  noit_check_tools.h noit_module.h  \
+  noit_check_tools.h  \
+  noit_module.h  \
   noit_clustering.h noit_check.h \
   noit_check_tools_shared.h
 
+noitd.o noitd.lo: noitd.c noit_config.h noit_version.h \
+  noit_clustering.h noit_check.h \
+  noit_metric.h \
+  noit_mtev_bridge.h \
+  noit_jlog_listener.h noit_check_rest.h noit_check.h noit_check_tools.h \
+  noit_module.h  \
+  noit_clustering.h \
+  noit_check_tools_shared.h  \
+  noit_livestream_listener.h noit_websocket_handler.h noit_conf_checks.h \
+  noit_filters.h noit_metric_director.h noit_message_decoder.h \
+  noit_metric.h noit_check_log_helpers.h man/noitd.usage.h
+
 noit_fb.o noit_fb.lo: noit_fb.c noit_fb.h  \
   noit_metric.h \
-  flatbuffers/metric_batch_builder.h flatbuffers/metric_batch_reader.h \
+  flatbuffers/metric_batch_builder.h \
+  flatbuffers/metric_batch_reader.h \
   flatbuffers/flatbuffers_common_reader.h \
   flatbuffers/metric_common_reader.h \
   flatbuffers/flatbuffers_common_builder.h \
   flatbuffers/metric_common_builder.h flatbuffers/metric_common_builder.h \
   flatbuffers/metric_list_builder.h flatbuffers/metric_list_reader.h \
-  flatbuffers/metric_reader.h flatbuffers/metric_builder.h
+  flatbuffers/metric_reader.h flatbuffers/metric_builder.h \
 
 noit_filters.o noit_filters.lo: noit_filters.c  \
   noit_mtev_bridge.h \
@@ -141,23 +160,22 @@ noit_websocket_handler.o noit_websocket_handler.lo: noit_websocket_handler.c \
   noit_metric.h noit_check_log_helpers.h noit_message_decoder.h \
   noit_mtev_bridge.h noit_websocket_handler.h \
 
-noitd.o noitd.lo: noitd.c noit_config.h noit_version.h \
-  noit_clustering.h noit_check.h \
-  noit_metric.h \
-  noit_mtev_bridge.h \
-  noit_jlog_listener.h noit_check_rest.h noit_check.h noit_check_tools.h \
-  noit_module.h  \
-  noit_clustering.h \
-  noit_check_tools_shared.h  \
-  noit_livestream_listener.h noit_websocket_handler.h noit_conf_checks.h \
-  noit_filters.h noit_metric_director.h noit_message_decoder.h \
-  noit_metric.h noit_check_log_helpers.h man/noitd.usage.h
-
 stratcon_datastore.o stratcon_datastore.lo: stratcon_datastore.c \
   noit_mtev_bridge.h stratcon_datastore.h stratcon_realtime_http.h \
   stratcon_ingest.h stratcon_iep.h stratcon_jlog_streamer.h \
   noit_check.h \
   noit_metric.h
+
+stratcond.o stratcond.lo: stratcond.c  \
+  noit_version.h \
+  noit_mtev_bridge.h \
+  noit_config.h noit_module.h  \
+  noit_check.h \
+  noit_metric.h noit_check_tools.h \
+  noit_clustering.h noit_check.h  \
+  noit_check_tools_shared.h stratcon_jlog_streamer.h \
+  stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
+  man/stratcond.usage.h
 
 stratcon_iep.o stratcon_iep.lo: stratcon_iep.c  \
   noit_mtev_bridge.h noit_jlog_listener.h stratcon_jlog_streamer.h \
@@ -184,14 +202,3 @@ stratcon_realtime_http.o stratcon_realtime_http.lo: stratcon_realtime_http.c \
   noit_check_log_helpers.h noit_livestream_listener.h \
   stratcon_realtime_http.h stratcon_jlog_streamer.h \
   stratcon_datastore.h
-
-stratcond.o stratcond.lo: stratcond.c  \
-  noit_version.h \
-  noit_mtev_bridge.h \
-  noit_config.h noit_module.h  \
-  noit_check.h \
-  noit_metric.h noit_check_tools.h \
-  noit_clustering.h noit_check.h  \
-  noit_check_tools_shared.h stratcon_jlog_streamer.h \
-  stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
-  man/stratcond.usage.h

@@ -33,7 +33,10 @@
 #include <mtev_str.h>
 #include <mtev_log.h>
 #include <mtev_dyn_buffer.h>
+#include <mtev_memory.h>
 #include "noit_metric_tag_search.h"
+
+#include <stdio.h>
 
 void
 noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
@@ -287,41 +290,103 @@ noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m) {
   return mtev_false;
 }
 static mtev_boolean
-noit_metric_tag_match_evaluate_against_tags(struct noit_metric_tag_match_t *match, noit_metric_tagset_t *set) {
-  for(int i=0; i<set->tag_count; i++) {
-    if(set->tags[i].total_size > set->tags[i].category_size &&
-       noit_match_str(set->tags[i].tag, set->tags[i].category_size - 1, &match->cat) &&
-       noit_match_str(set->tags[i].tag + set->tags[i].category_size,
-                      set->tags[i].total_size - set->tags[i].category_size, &match->name)) {
-      return mtev_true;
+noit_metric_tag_match_evaluate_against_tags_multi(struct noit_metric_tag_match_t *match,
+                                                  noit_metric_tagset_t **sets, int set_cnt) {
+  for(int s=0; s<set_cnt; s++) {
+    noit_metric_tagset_t *set = sets[s];
+    for(int i=0; i<set->tag_count; i++) {
+      if(set->tags[i].total_size > set->tags[i].category_size &&
+         noit_match_str(set->tags[i].tag, set->tags[i].category_size - 1, &match->cat) &&
+         noit_match_str(set->tags[i].tag + set->tags[i].category_size,
+                        set->tags[i].total_size - set->tags[i].category_size, &match->name)) {
+        return mtev_true;
+      }
     }
   }
   return mtev_false;
 }
 mtev_boolean
-noit_metric_tag_search_evaluate_against_tags(noit_metric_tag_search_ast_t *search,
-                                      noit_metric_tagset_t *set) {
+noit_metric_tag_search_evaluate_against_tags_multi(noit_metric_tag_search_ast_t *search,
+                                                   noit_metric_tagset_t **set, int set_cnt) {
   switch(search->operation) {
-    case OP_MATCH: return noit_metric_tag_match_evaluate_against_tags(&search->contents.spec, set);
+    case OP_MATCH: return noit_metric_tag_match_evaluate_against_tags_multi(&search->contents.spec, set, set_cnt);
     case OP_NOT_ARGS:
       mtevAssert(search->contents.args.cnt == 1);
-      return !noit_metric_tag_search_evaluate_against_tags(search->contents.args.node[0], set);
+      return !noit_metric_tag_search_evaluate_against_tags_multi(search->contents.args.node[0], set, set_cnt);
     case OP_AND_ARGS:
       for(int i=0; i<search->contents.args.cnt; i++) {
-        if(!noit_metric_tag_search_evaluate_against_tags(search->contents.args.node[i], set)) {
+        if(!noit_metric_tag_search_evaluate_against_tags_multi(search->contents.args.node[i], set, set_cnt)) {
           return mtev_false;
         }
       }
       return mtev_true;
     case OP_OR_ARGS:
       for(int i=0; i<search->contents.args.cnt; i++) {
-        if(noit_metric_tag_search_evaluate_against_tags(search->contents.args.node[i], set)) {
+        if(noit_metric_tag_search_evaluate_against_tags_multi(search->contents.args.node[i], set, set_cnt)) {
           return mtev_true;
         }
       }
       return mtev_false;
   }
   return mtev_false;
+}
+mtev_boolean
+noit_metric_tag_search_evaluate_against_tags(noit_metric_tag_search_ast_t *search,
+                                             noit_metric_tagset_t *set) {
+  return noit_metric_tag_search_evaluate_against_tags_multi(search, &set, 1);
+}
+
+mtev_boolean
+noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *search,
+                                                  noit_metric_id_t *id) {
+  mtev_memory_begin();
+
+#define MKTAGSETCOPY(name) \
+  noit_metric_tag_t name##_tags[MAX_TAGS]; \
+  memcpy(&name##_tags, name.tags, name.tag_count * sizeof(noit_metric_tag_t)); \
+  name.tags = name##_tags
+
+  // setup check tags
+  noit_metric_tagset_t tagset_check = id->check;
+  // Add in extra tags: __uuid
+  if ( tagset_check.tag_count > MAX_TAGS - 1 ) { return 0; }
+  MKTAGSETCOPY(tagset_check);
+  char uuid_str[13 + UUID_STR_LEN + 1];
+  strcpy(uuid_str, "__check_uuid:");
+  mtev_uuid_unparse_lower(id->id, uuid_str + 13);
+  noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 13 };
+  tagset_check.tags[tagset_check.tag_count++] = uuid_tag;
+  if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_CHECK, &tagset_check) == MTEV_HOOK_ABORT) {
+    mtev_memory_end();
+    return mtev_false;
+  }
+
+  // setup stream tags
+  noit_metric_tagset_t tagset_stream = id->stream;
+  // Add in extra tags: __name
+  if ( tagset_stream.tag_count > MAX_TAGS - 1 ) { return 0; }
+  MKTAGSETCOPY(tagset_stream);
+  char name_str[NOIT_TAG_MAX_PAIR_LEN + 1];
+  noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
+  snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);
+  tagset_stream.tags[tagset_stream.tag_count++] = name_tag;
+  if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_stream) == MTEV_HOOK_ABORT) {
+    mtev_memory_end();
+    return mtev_false;
+  }
+
+  // setup measurement tags
+  noit_metric_tagset_t tagset_measurement = id->measurement;
+  MKTAGSETCOPY(tagset_measurement);
+  if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_MEASUREMENT, &tagset_measurement) == MTEV_HOOK_ABORT) {
+    mtev_memory_end();
+    return mtev_false;
+  }
+
+  noit_metric_tagset_t *tagsets[3] = { &tagset_check, &tagset_stream, &tagset_measurement };
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 3);
+  mtev_memory_end();
+  return ok;
 }
 
 static void
