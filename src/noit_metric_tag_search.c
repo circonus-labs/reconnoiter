@@ -367,8 +367,8 @@ noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *
   if ( tagset_stream.tag_count > MAX_TAGS - 1 ) { return 0; }
   MKTAGSETCOPY(tagset_stream);
   char name_str[NOIT_TAG_MAX_PAIR_LEN + 1];
-  noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
   snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);
+  noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
   tagset_stream.tags[tagset_stream.tag_count++] = name_tag;
   if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_stream) == MTEV_HOOK_ABORT) {
     mtev_memory_end();
