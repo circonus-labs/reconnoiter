@@ -107,6 +107,14 @@ API_EXPORT(mtev_boolean)
   noit_metric_tag_search_evaluate_against_tags(noit_metric_tag_search_ast_t *search,
                                                noit_metric_tagset_t *tags);
 
+API_EXPORT(mtev_boolean)
+  noit_metric_tag_search_evaluate_against_tags_multi(noit_metric_tag_search_ast_t *search,
+                                                     noit_metric_tagset_t **tags, int ntagsets);
+
+API_EXPORT(mtev_boolean)
+  noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *search,
+                                                    noit_metric_id_t *id);
+
 API_EXPORT(char *)
   noit_metric_tag_search_unparse(noit_metric_tag_search_ast_t *);
 

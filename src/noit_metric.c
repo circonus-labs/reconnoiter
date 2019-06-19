@@ -46,6 +46,12 @@
 
 #include <stdio.h>
 
+MTEV_HOOK_IMPL(noit_metric_tagset_fixup,
+               (noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset),
+               void *, closure,
+               (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset),
+               (closure,cls,tagset))
+
 mtev_boolean
 noit_metric_as_double(metric_t *metric, double *out) {
   if(metric == NULL || metric->metric_value.vp == NULL) return mtev_false;
