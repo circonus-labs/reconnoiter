@@ -68,21 +68,25 @@ typedef struct _filterrule {
   char *skipto;
   struct _filterrule *skipto_rule;
   noit_ruletype_t type;
+  char *target_re;
   pcre *target_override;
   pcre *target;
   pcre_extra *target_e;
   mtev_hash_table *target_ht;
   int target_auto_hash_max;
+  char *module_re;
   pcre *module_override;
   pcre *module;
   pcre_extra *module_e;
   mtev_hash_table *module_ht;
   int module_auto_hash_max;
+  char *name_re;
   pcre *name_override;
   pcre *name;
   pcre_extra *name_e;
   mtev_hash_table *name_ht;
   int name_auto_hash_max;
+  char *metric_re;
   pcre *metric_override;
   pcre *metric;
   pcre_extra *metric_e;
@@ -93,6 +97,8 @@ typedef struct _filterrule {
   char *measurement_tags;
   noit_metric_tag_search_ast_t *mtsearch;
   struct _filterrule *next;
+  uint32_t executions;
+  uint32_t matches;
   struct timeval last_flush;
   struct timeval flush_interval;
 } filterrule_t;
@@ -107,6 +113,7 @@ typedef struct {
 } filterset_t;
 
 #define FRF(r,a) do { \
+  free(r->a##_re); \
   if(r->a) pcre_free(r->a); \
   if(r->a##_e) pcre_free(r->a##_e); \
   if(r->a##_ht) { \
@@ -238,8 +245,10 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       mtevL(noit_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
             set->name, #rname, longre, error ? error : "???"); \
       rule->rname##_override = fallback_no_match; \
+      asprintf(&rule->rname##_re, "/%s/ failed to compile", longre); \
     } \
     else { \
+      rule->rname##_re = strdup(longre); \
       rule->rname##_e = pcre_study(rule->rname, 0, &error); \
     } \
     free(longre); \
@@ -495,6 +504,8 @@ noit_apply_filterset(const char *filterset,
       if(skipto_rule && skipto_rule != r) continue;
       skipto_rule = NULL;
 
+      ck_pr_inc_32(&r->executions);
+
       need_target = !MATCHES(target, check->target);
       need_module = !MATCHES(module, check->module);
       need_name = !MATCHES(name, check->name);
@@ -505,33 +516,38 @@ noit_apply_filterset(const char *filterset,
           skipto_rule = r->skipto_rule;
           continue;
         }
+        ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
         break;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
 #define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && mtev_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
-#define UPDATE_FILTER_RULE(rname, value) do { \
-  if(r->flush_interval.tv_sec || r->flush_interval.tv_usec) { \
-    struct timeval reset; \
-    add_timeval(r->last_flush, r->flush_interval, &reset); \
-    if(compare_timeval(now, reset) >= 0) { \
-      mtev_hash_delete_all(r->rname##_ht, free, NULL); \
-      flushed = mtev_true; \
-    } \
-  } \
-  mtev_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL); \
-} while(0)
+#define UPDATE_FILTER_RULE(rname, value) mtev_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL)
+
+      /* flush if required */
+      if(r->flush_interval.tv_sec || r->flush_interval.tv_usec) {
+        struct timeval reset;
+        add_timeval(r->last_flush, r->flush_interval, &reset);
+        if(compare_timeval(now, reset) >= 0) {
+          mtev_hash_delete_all(r->target_ht, free, NULL);
+          mtev_hash_delete_all(r->module_ht, free, NULL);
+          mtev_hash_delete_all(r->name_ht, free, NULL);
+          mtev_hash_delete_all(r->metric_ht, free, NULL);
+          memcpy(&r->last_flush, &now, sizeof(now));
+          mtevL(noit_debug, "flushed auto_add rule %s%s%s\n", fs->name, r->ruleid ? ":" : "", r->ruleid ? r->ruleid : "");
+        }
+      }
+
       if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
-        mtev_boolean flushed = mtev_false;
         if(need_target) UPDATE_FILTER_RULE(target, check->target);
         if(need_module) UPDATE_FILTER_RULE(module, check->module);
         if(need_name) UPDATE_FILTER_RULE(name, check->name);
         if(need_metric) UPDATE_FILTER_RULE(metric, metric->metric_name);
-        if(flushed) memcpy(&r->last_flush, &now, sizeof(now));
         if(r->type == NOIT_FILTER_SKIPTO) {
           skipto_rule = r->skipto_rule;
           continue;
         }
+        ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
         break;
       }
@@ -906,12 +922,117 @@ noit_console_filter_cull(mtev_console_closure_t ncct,
   nc_printf(ncct, "Culled %d unused filtersets\n", rv);
   return 0;
 }
+
+static int
+noit_console_filter_show_running(mtev_console_closure_t ncct,
+                                 int argc, char **argv,
+                                 mtev_console_state_t *state,
+                                 void *closure) {
+  struct timeval now;
+  if(argc != 1) {
+    nc_printf(ncct, "filterset name required\n");
+    return 0;
+  }
+  char *filterset = argv[0];
+  void *vfs;
+
+  mtev_gettimeofday(&now, NULL);
+
+  LOCKFS();
+  if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
+    filterset_t *fs = (filterset_t *)vfs;
+    filterrule_t *r;
+    ck_pr_inc_32(&fs->ref_cnt);
+    UNLOCKFS();
+
+    nc_printf(ncct, "filterset name: %s\n", fs->name);
+    nc_printf(ncct, "executions: %u\n", ck_pr_load_32(&fs->executions));
+    nc_printf(ncct, "denies: %u\n", ck_pr_load_32(&fs->denies));
+    int i = 1;
+    for(r=fs->rules; r; r=r->next) {
+      if(r->type == NOIT_FILTER_SKIPTO) {
+        nc_printf(ncct, "[%d:%s] skipto %s", i, r->ruleid ? r->ruleid : "", r->skipto);
+      }
+      else {
+        nc_printf(ncct, "[%d:%s] %s", i, r->ruleid ? r->ruleid : "", (r->type == NOIT_FILTER_ACCEPT) ? "accept" : "deny");
+      }
+      nc_printf(ncct, " matched: %u/%u\n", ck_pr_load_32(&r->matches), ck_pr_load_32(&r->executions));
+
+#define DESCRIBE(rname) do { \
+  if(r->rname##_ht) { \
+    char bb[128]; \
+    struct timeval diff; \
+    sub_timeval(now, r->last_flush, &diff); \
+    if(r->last_flush.tv_sec == 0) snprintf(bb, sizeof(bb), "at boot"); \
+    else snprintf(bb, sizeof(bb), "%u.%03us ago", (unsigned)diff.tv_sec, (unsigned)diff.tv_usec/1000); \
+    if(r->rname##_auto_hash_max) { \
+      nc_printf(ncct, "  %s hash-based [%d/%d] flushed %s\n", #rname, mtev_hash_size(r->rname##_ht), r->rname##_auto_hash_max, bb); \
+    } else { \
+      nc_printf(ncct, "  %s hash-based [%d entries] flushed %s\n", #rname, mtev_hash_size(r->rname##_ht), bb); \
+    } \
+  } else if(r->rname##_re) { \
+    nc_printf(ncct, "  %s =~ %s\n", #rname, r->rname##_re); \
+  } \
+} while(0)
+
+      DESCRIBE(target);
+      DESCRIBE(module);
+      DESCRIBE(name);
+      DESCRIBE(metric);
+      if(r->stream_tags) {
+        nc_printf(ncct, "  stream tag filter: %s\n", r->stream_tags);
+      }
+      i++;
+    }
+
+    filterset_free(fs);
+  } else {
+    nc_printf(ncct, "no such filterset\n");
+  }
+  return 0;
+}
+
+static char *
+noit_console_filter_opts(mtev_console_closure_t ncct,
+                         mtev_console_state_stack_t *stack,
+                         mtev_console_state_t *dstate,
+                         int argc, char **argv, int idx) {
+  if(argc == 1) {
+    int i = 0;
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    LOCKFS();
+    while(mtev_hash_adv(filtersets, &iter)) {
+      if(!argv[0] || !strncmp(argv[0], iter.key.str, strlen(argv[0]))) {
+        if(idx == i) {
+          char *copy = strdup(iter.key.str);
+          UNLOCKFS();
+          return copy;
+        }
+        i++;
+      }
+    }
+    UNLOCKFS();
+    return NULL;
+  }
+  if(argc == 2) {
+    return mtev_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
+  }
+  return NULL;
+}
+
 static void
 register_console_filter_commands() {
   mtev_console_state_t *tl, *filterset_state, *nostate;
-  cmd_info_t *confcmd, *conf_t_cmd, *no_cmd;
+  cmd_info_t *confcmd, *conf_t_cmd, *no_cmd, *show_cmd;
 
   tl = mtev_console_state_initial();
+  show_cmd = mtev_console_state_get_cmd(tl, "show");
+  mtevAssert(show_cmd && show_cmd->dstate);
+
+  mtev_console_state_add_cmd(show_cmd->dstate,
+    NCSCMD("filterset", noit_console_filter_show_running,
+           noit_console_filter_opts, NULL, NULL));
+
   confcmd = mtev_console_state_get_cmd(tl, "configure");
   mtevAssert(confcmd && confcmd->dstate);
 
