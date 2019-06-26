@@ -40,11 +40,13 @@
 #include "noit_check.h"
 #include "noit_check_rest.h"
 
+#include "check_test.h"
 #include "check_test.xmlh"
 
 static void check_test_schedule_sweeper();
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
+static mtev_hash_table test_checks;
 
 struct check_test_closure {
   noit_check_t *check;
@@ -176,6 +178,8 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   c->flags |= NP_DISABLED; /* this is hack to know we haven't run it yet */
   if(NOIT_CHECK_SHOULD_RESOLVE(c))
     noit_check_resolve(c);
+  mtev_hash_replace(&test_checks, (char *)c->checkid, UUID_SIZE, c, NULL,
+                    (NoitHashFreeFunc)noit_poller_free_check);
 
  error:
   if(conf_hash) {
@@ -246,7 +250,8 @@ rest_test_check_result(struct check_test_closure *cl) {
     }
   }
 
-  noit_poller_free_check(cl->check);
+  // this should free the check automatically with noit_poller_free_check
+  mtev_hash_delete(&test_checks, (char *)cl->check->checkid, UUID_SIZE, NULL, NULL);
   free(cl);
 }
 
@@ -365,11 +370,21 @@ rest_test_check(mtev_http_rest_closure_t *restc,
 
 static int
 check_test_init(mtev_dso_generic_t *self) {
+  mtev_hash_init_locks(&test_checks, 32, MTEV_HASH_LOCK_MODE_MUTEX);
   mtevAssert(mtev_http_rest_register(
     "POST", "/checks/", "^test(\\.xml|\\.json)?$",
     rest_test_check
   ) == 0);
   return 0;
+}
+
+noit_check_t *
+noit_testcheck_lookup_dyn(uuid_t in) {
+  void *vcheck;
+  if(mtev_hash_retrieve(&test_checks, (char *)in, UUID_SIZE, &vcheck)) {
+    return (noit_check_t *)vcheck;
+  }
+  return NULL;
 }
 
 mtev_dso_generic_t check_test = {
@@ -384,4 +399,3 @@ mtev_dso_generic_t check_test = {
   check_test_config,
   check_test_init
 };
-
