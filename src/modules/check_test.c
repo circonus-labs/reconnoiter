@@ -374,7 +374,7 @@ check_test_init(mtev_dso_generic_t *self) {
   mtevAssert(mtev_http_rest_register(
     "POST", "/checks/", "^test(\\.xml|\\.json)?$",
     rest_test_check
-  )== 0);
+  ) == 0);
   return 0;
 }
 
