@@ -437,11 +437,8 @@ handle_metric_buffer(const char *payload, int payload_len,
 
         int rv = noit_message_decoder_parse_line(message, has_noit);
 
-        uint64_t drop_before_ms;
-        if((drop_before_ms = ck_pr_load_64(&drop_before_threshold_ms)) > 0) {
-          if(message->value.whence_ms < drop_before_ms) {
-            goto bail;
-          }
+        if(drop_before_threshold_ms && message->value.whence_ms < drop_before_threshold_ms) {
+          goto bail;
         }
 
         if(message->noit.name == NULL && noit) {
@@ -552,7 +549,7 @@ handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whenc
 }
 
 void
-noit_metric_director_dedupe(mtev_boolean d) 
+noit_metric_director_dedupe(mtev_boolean d)
 {
   dedupe = d;
 }
@@ -591,5 +588,5 @@ noit_metric_director_get_messages_distributed() {
 
 void
 noit_metric_director_drop_before(double t) {
-  ck_pr_store_64(&drop_before_threshold_ms, (uint64_t) t*1000);
+  drop_before_threshold_ms = (uint64_t) t*1000;
 }
