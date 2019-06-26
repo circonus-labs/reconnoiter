@@ -293,6 +293,10 @@ static int ping_icmp_handler(eventer_t e, int mask,
       /* This should be unreachable */
       continue;
     }
+
+    char uuid_str[37];
+    mtev_uuid_unparse_lower(payload->checkid, uuid_str);
+
     check = NULL;
     k.addr_of_check = payload->addr_of_check;
     mtev_uuid_copy(k.checkid, payload->checkid);
@@ -302,13 +306,17 @@ static int ping_icmp_handler(eventer_t e, int mask,
                        (const char *)&k, sizeof(k),
                        &vcheck);
     ck_spinlock_unlock(&ping_data->in_flight_lock);
+    char hash_uuid_str[37];
+    mtev_uuid_unparse_lower(((noit_check_t *)vcheck)->checkid, hash_uuid_str);
     check = noit_poller_lookup(k.checkid);
-    if(check != vcheck) continue;
+    if(check != vcheck) {
+      mtevLT(nldeb, now,
+             "ping_icmp response for mismatched check '%s' != '%s' (%p != %p)\n", uuid_str, hash_uuid_str, check, vcheck);
+      continue;
+    }
 
     /* make sure this check is from this generation! */
     if(!check) {
-      char uuid_str[37];
-      mtev_uuid_unparse_lower(payload->checkid, uuid_str);
       mtevLT(nldeb, now,
              "ping_icmp response for unknown check '%s'\n", uuid_str);
       continue;
@@ -322,12 +330,31 @@ static int ping_icmp_handler(eventer_t e, int mask,
 
     /* If there is no timeout_event, the check must have completed.
      * We have nothing to do. */
-    if(!data->timeout_event) continue;
+    if(!data->timeout_event) {
+      mtevLT(nldeb, now,
+             "ping_icmp response timeout/completion for check '%s'\n", uuid_str);
+      continue;
+    }
 
     /* Sanity check the payload */
-    if(payload->check_no != data->check_no) continue;
-    if(payload->check_pack_cnt != data->expected_count) continue;
-    if(payload->check_pack_no >= data->expected_count) continue;
+    if(payload->check_no != data->check_no) {
+      mtevLT(nldeb, now,
+             "ping_icmp response check number mismatch for check '%s'\n", uuid_str);
+      continue;
+    }
+    if(payload->check_pack_cnt != data->expected_count) {
+      mtevLT(nldeb, now,
+             "ping_icmp response check pack count mismatch for check '%s'\n", uuid_str);
+      continue;
+    }
+    if(payload->check_pack_no >= data->expected_count) { 
+      mtevLT(nldeb, now,
+             "ping_icmp response check pack number mismatch for check '%s'\n", uuid_str);
+      continue;
+    }
+
+    mtevLT(nldeb, now,
+           "ping_icmp response received for check '%s'\n", uuid_str);
 
     whence.tv_sec = payload->tv_sec;
     whence.tv_usec = payload->tv_usec;
