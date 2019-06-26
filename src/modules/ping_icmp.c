@@ -64,6 +64,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "check_test.h"
 
 #define PING_INTERVAL 2000 /* 2000ms = 2s */
 #define PING_COUNT    5
@@ -306,12 +307,19 @@ static int ping_icmp_handler(eventer_t e, int mask,
                        (const char *)&k, sizeof(k),
                        &vcheck);
     ck_spinlock_unlock(&ping_data->in_flight_lock);
-    char hash_uuid_str[37];
-    mtev_uuid_unparse_lower(((noit_check_t *)vcheck)->checkid, hash_uuid_str);
     check = noit_poller_lookup(k.checkid);
+    // if we don't get a match, need to also scan test checks if that module is loaded
+    if(!check) {
+      NOIT_TESTCHECK_LOOKUP(check, k.checkid);
+    }
+    if(!check) {
+      mtevLT(nldeb, now,
+             "ping_icmp response for missing check '%s'\n", uuid_str);
+      continue;
+    }
     if(check != vcheck) {
       mtevLT(nldeb, now,
-             "ping_icmp response for mismatched check '%s' != '%s' (%p != %p)\n", uuid_str, hash_uuid_str, check, vcheck);
+             "ping_icmp response for mismatched check '%s'\n", uuid_str);
       continue;
     }
 
@@ -761,4 +769,3 @@ noit_module_t ping_icmp = {
    * run in multiple threads. */
   .thread_unsafe = 1
 };
-
