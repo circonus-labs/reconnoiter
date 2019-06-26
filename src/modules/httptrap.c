@@ -967,10 +967,13 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
 
   if(!rxc) {
+    rxc = restc->call_closure;
+    mtevL(nldeb, "Payload read error: %s\n", rxc->error);
     error_code = 406;
     goto error;
   }
   if(rxc->error) {
+    mtevL(nldeb, "Payload read parse error: %s\n", rxc->error);
     error_code = 406;
     goto error;
   }
