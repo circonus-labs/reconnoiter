@@ -47,7 +47,6 @@ static void check_test_schedule_sweeper();
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 static mtev_hash_table test_checks;
-static pthread_mutex_t test_checks_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct check_test_closure {
   noit_check_t *check;
@@ -371,7 +370,7 @@ rest_test_check(mtev_http_rest_closure_t *restc,
 
 static int
 check_test_init(mtev_dso_generic_t *self) {
-  mtev_hash_init(&test_checks);
+  mtev_hash_init_locks(&test_checks, 32, MTEV_HASH_LOCK_MODE_MUTEX);
   mtevAssert(mtev_http_rest_register(
                  "POST", "/checks/", "^test(\\.xml|\\.json)?$",
                  rest_test_check) == 0);
@@ -381,12 +380,9 @@ check_test_init(mtev_dso_generic_t *self) {
 noit_check_t *
 noit_testcheck_lookup_dyn(uuid_t in) {
   void *vcheck;
-  pthread_mutex_lock(&test_checks_lock);
   if(mtev_hash_retrieve(&test_checks, (char *)in, UUID_SIZE, &vcheck)) {
-    pthread_mutex_unlock(&test_checks_lock);
     return (noit_check_t *)vcheck;
   }
-  pthread_mutex_unlock(&test_checks_lock);
   return NULL;
 }
 

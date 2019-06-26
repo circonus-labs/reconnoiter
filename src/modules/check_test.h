@@ -42,13 +42,7 @@ MTEV_RUNTIME_RESOLVE(noit_testcheck_lookup,
                      (uuid_t in),
                      (in))
 
-#define NOIT_TESTCHECK_LOOKUP(noit_check_ptr,uuid) do { \
-  if(noit_testcheck_lookup_available()) { \
-    noit_check_ptr = noit_testcheck_lookup(uuid); \
-  } \
-  else { \
-    noit_check_ptr = NULL; \
-  } \
-} while(0)
+#define NOIT_TESTCHECK_LOOKUP(uuid) \
+  (noit_testcheck_lookup_available() ? noit_testcheck_lookup(uuid) : (noit_check_t *)NULL)
 
 #endif

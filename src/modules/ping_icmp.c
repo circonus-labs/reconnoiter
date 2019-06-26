@@ -310,7 +310,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     check = noit_poller_lookup(k.checkid);
     // if we don't get a match, need to also scan test checks if that module is loaded
     if(!check) {
-      NOIT_TESTCHECK_LOOKUP(check, k.checkid);
+      check = NOIT_TESTCHECK_LOOKUP(k.checkid);
     }
     if(!check) {
       mtevLT(nldeb, now,
@@ -352,12 +352,12 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
     if(payload->check_pack_cnt != data->expected_count) {
       mtevLT(nldeb, now,
-             "ping_icmp response check pack count mismatch for check '%s'\n", uuid_str);
+             "ping_icmp response check packet count mismatch for check '%s'\n", uuid_str);
       continue;
     }
     if(payload->check_pack_no >= data->expected_count) { 
       mtevLT(nldeb, now,
-             "ping_icmp response check pack number mismatch for check '%s'\n", uuid_str);
+             "ping_icmp response check packet number mismatch for check '%s'\n", uuid_str);
       continue;
     }
 
