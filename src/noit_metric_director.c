@@ -86,6 +86,7 @@ typedef unsigned short caql_cnt_t;
 static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
 static uint32_t director_in_use = 0;
+static uint64_t drop_before_threshold_ms = 0;
 
 void
 noit_metric_director_message_ref(void *m) {
@@ -436,6 +437,10 @@ handle_metric_buffer(const char *payload, int payload_len,
 
         int rv = noit_message_decoder_parse_line(message, has_noit);
 
+        if(drop_before_threshold_ms && message->value.whence_ms < drop_before_threshold_ms) {
+          goto bail;
+        }
+
         if(message->noit.name == NULL && noit) {
           message->noit.name_len = noit->name_len;
           message->noit.name = copy + payload_len + 1;
@@ -445,6 +450,7 @@ handle_metric_buffer(const char *payload, int payload_len,
           distribute_message(message);
         }
 
+      bail:
         noit_metric_director_message_deref(message);
       }
       break;
@@ -543,7 +549,7 @@ handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whenc
 }
 
 void
-noit_metric_director_dedupe(mtev_boolean d) 
+noit_metric_director_dedupe(mtev_boolean d)
 {
   dedupe = d;
 }
@@ -553,8 +559,11 @@ void noit_metric_director_init() {
   mtevAssert(nthreads > 0);
   thread_queues = calloc(sizeof(*thread_queues),nthreads);
   check_interests = calloc(sizeof(*check_interests),nthreads);
+  /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
+
+  /* metrics can be injected into the metric director via the "metrics" log channel */
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
 
   eventer_add_in_s_us(noit_metric_director_prune_dedup, NULL, 2, 0);
@@ -577,3 +586,7 @@ noit_metric_director_get_messages_distributed() {
  return ck_pr_load_64(&number_of_messages_distributed);
 }
 
+void
+noit_metric_director_drop_before(double t) {
+  drop_before_threshold_ms = t * 1000;
+}

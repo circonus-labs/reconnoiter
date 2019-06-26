@@ -352,6 +352,13 @@ lua_noit_metric_messages_distributed(lua_State *L) {
 }
 
 static int
+lua_noit_metric_drop_before(lua_State *L) {
+  double t = luaL_checknumber(L, 1);
+  noit_metric_director_drop_before(t);
+  return 0;
+}
+
+static int
 noit_lua_tag_search_ast_free(lua_State *L) {
   noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **)
     luaL_checkudata(L, 1, "noit_metric_tag_search_ast_t");
@@ -539,6 +546,7 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_get_messages_distributed", lua_noit_metric_messages_distributed},
   { "metric_director_subscribe_all", lua_noit_metric_subscribe_all},
   { "metric_director_subscribe_account", lua_noit_metric_subscribe_account},
+  { "metric_director_drop_before", lua_noit_metric_drop_before},
   { "tag_parse", lua_noit_tag_parse},
   { "tag_tostring", lua_noit_tag_tostring},
   { "tag_search_parse", lua_noit_tag_search_parse},
