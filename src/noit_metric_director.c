@@ -588,5 +588,5 @@ noit_metric_director_get_messages_distributed() {
 
 void
 noit_metric_director_drop_before(double t) {
-  drop_before_threshold_ms = (uint64_t) t*1000;
+  drop_before_threshold_ms = t * 1000;
 }
