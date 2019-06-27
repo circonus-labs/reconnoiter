@@ -12,7 +12,7 @@
     <varlistentry>
       <term>image</term>
       <listitem>
-        <para>handoff_ingestor.so</para>
+        <para>test_ingestor.so</para>
       </listitem>
     </varlistentry>
   </variablelist>
@@ -24,7 +24,7 @@
       <programlisting>
       &lt;stratcon&gt;
         &lt;modules&gt;
-          &lt;module image="handoff_ingestor" name="handoff_ingestor" /&gt;
+          &lt;module image="test_ingestor" name="test_ingestor" /&gt;
         &lt;/modules&gt;
       &lt;/stratcon&gt;
     </programlisting>

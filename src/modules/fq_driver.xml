@@ -23,7 +23,7 @@
             <routingkey>check</routingkey>
             <username>stratcon</username>
             <password>youllneverguess</password>
-            <backlog>10000</backlog>
+            <backlog>100000</backlog>
             <heartbeat>1000</hearbeat>
           </mq>
         </iep>

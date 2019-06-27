@@ -34,7 +34,7 @@
             &lt;routingkey&gt;check&lt;/routingkey&gt;
             &lt;username&gt;stratcon&lt;/username&gt;
             &lt;password&gt;youllneverguess&lt;/password&gt;
-            &lt;backlog&gt;10000&lt;/backlog&gt;
+            &lt;backlog&gt;100000&lt;/backlog&gt;
             &lt;heartbeat&gt;1000&lt;/hearbeat&gt;
           &lt;/mq&gt;
         &lt;/iep&gt;
