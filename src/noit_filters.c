@@ -529,10 +529,10 @@ noit_apply_filterset(const char *filterset,
         struct timeval reset;
         add_timeval(r->last_flush, r->flush_interval, &reset);
         if(compare_timeval(now, reset) >= 0) {
-          mtev_hash_delete_all(r->target_ht, free, NULL);
-          mtev_hash_delete_all(r->module_ht, free, NULL);
-          mtev_hash_delete_all(r->name_ht, free, NULL);
-          mtev_hash_delete_all(r->metric_ht, free, NULL);
+          if(r->target_auto_hash_max) mtev_hash_delete_all(r->target_ht, free, NULL);
+          if(r->module_auto_hash_max) mtev_hash_delete_all(r->module_ht, free, NULL);
+          if(r->name_auto_hash_max) mtev_hash_delete_all(r->name_ht, free, NULL);
+          if(r->metric_auto_hash_max) mtev_hash_delete_all(r->metric_ht, free, NULL);
           memcpy(&r->last_flush, &now, sizeof(now));
           mtevL(noit_debug, "flushed auto_add rule %s%s%s\n", fs->name, r->ruleid ? ":" : "", r->ruleid ? r->ruleid : "");
         }
