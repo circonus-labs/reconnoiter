@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <section xmlns="http://docbook.org/ns/docbook" version="5">
-  <title>OpenTSDB</title>
-  <para>The OpenTSDB module provides a simple way to push data into reconnoiter using opentsdb format ingestion.  Simply configure the opentsdb data source to write to the provided port.</para>
+  <title>opentsdb</title>
+  <para>The opentsdb module provides a simple way to push data into reconnoiter via any compatible opentsdb data provider.  Simply configure the relay to write to the provided port.</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
@@ -42,7 +42,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>Specify the port which this check listens on.  The OpenTSDB data source should be configured to send plain text metrics to this port.</para>
+          <para>Specify the port which this check listens on.  The data provider should be configured to send plain text metrics to this port.</para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -78,14 +78,28 @@
   <section>
     <title>Examples</title>
     <example>
-      <title>Ingesting OpenTSDB data</title>
+      <title>Ingesting opentsdb data</title>
+      <para>
+        <code>
+          &lt;Plugin write_tsdb&gt;
+            &lt;Node&gt;
+              Host           "localhost"
+              Port           "4242"
+              HostTags       "datacenter=east hosttype=backend"
+              StoreRates     false
+              AlwaysAppendDS false
+            &lt;/Node&gt;
+          &lt;/Plugin&gt;
+        </code>
+      </para>
+      <para>The collectd write_tsdb plugin config example above will direct metric data to the broker:4242 for ingestion</para>
       <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;module image="opentsdb" name="opentsdb"/&gt;
         &lt;/modules&gt;
         &lt;checks&gt;
-          &lt;check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde6a3" module="opentsdb"
+          &lt;check uuid="23fd6e18-6edc-718a-d491-84d3a712ba31" module="opentsdb"
             target="127.0.0.1" period="60000" timeout="30000"&gt;
             &lt;config&gt;&lt;listen_port&gt;4242&lt;/listen_port&gt;&lt;/config&gt;
           &lt;/check&gt;

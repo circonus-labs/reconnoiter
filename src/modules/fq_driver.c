@@ -223,7 +223,7 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
   if(!mtev_conf_get_int32(conf, "heartbeat", &global_fq_ctx.heartbeat))
     global_fq_ctx.heartbeat = 2000;
   if(!mtev_conf_get_int32(conf, "backlog", &global_fq_ctx.backlog))
-    global_fq_ctx.backlog = 10000;
+    global_fq_ctx.backlog = 100000;
   if(!mtev_conf_get_int32(conf, "port", &global_fq_ctx.port))
     global_fq_ctx.port = 8765;
   (void)mtev_conf_get_string(conf, "round_robin", &round_robin);
