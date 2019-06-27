@@ -208,7 +208,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       rule->ruleid = strdup(buffer);
     }
     /* Compile any hash tables, should they exist */
-#define HT_COMPILE(rname) do { \
+#define HT_COMPILE(rname, canon) do { \
     mtev_conf_section_t *htentries; \
     int hte_cnt, hti, tablesize = 2; \
     int32_t auto_max = 0; \
@@ -223,16 +223,25 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       for(hti=0; hti<hte_cnt; hti++) { \
         if(!mtev_conf_get_string(htentries[hti], "self::node()", &htstr)) \
           mtevL(noit_error, "Error fetching text content from filter match.\n"); \
-        else \
+        else { \
+          if(canon) { \
+            char tgt[MAX_METRIC_TAGGED_NAME]; \
+            if(noit_metric_canonicalize(htstr, strlen(htstr), tgt, sizeof(tgt), mtev_true) > 0) { \
+              free(htstr); \
+              htstr = strdup(tgt); \
+            } \
+          } \
+          mtevL(noit_debug, "HT_COMPILE(%p) -> (%s)\n", rule->rname##_ht, htstr); \
           mtev_hash_replace(rule->rname##_ht, htstr, strlen(htstr), NULL, free, NULL); \
+        } \
       } \
     } \
     mtev_conf_release_sections(htentries, hte_cnt); \
 } while(0);
-    HT_COMPILE(target);
-    HT_COMPILE(module);
-    HT_COMPILE(name);
-    HT_COMPILE(metric);
+    HT_COMPILE(target, mtev_false);
+    HT_COMPILE(module, mtev_false);
+    HT_COMPILE(name, mtev_false);
+    HT_COMPILE(metric, mtev_true);
     
     /* Compile our rules */
 #define RULE_COMPILE(rname) do { \
@@ -434,9 +443,27 @@ noit_apply_filterrule_metric(filterrule_t *r,
                              const char *subj, int subj_len,
                              noit_metric_tagset_t *stset, noit_metric_tagset_t *mtset) {
   int rc, ovector[30];
+  char canonicalcheck[MAX_METRIC_TAGGED_NAME];
+  canonicalcheck[0] = '\0';
+  mtev_boolean canonical = (subj[subj_len] == '|');
   if(r->metric_ht) {
     void *vptr;
-    return mtev_hash_retrieve(r->metric_ht, subj, subj_len, &vptr);
+    if(mtev_hash_retrieve(r->metric_ht, subj, subj_len, &vptr)) {
+      mtevL(noit_debug, "HT_MATCH(%p) -> (%.*s) -> true\n", r->metric_ht, subj_len, subj);
+      return mtev_true;
+    }
+    /* it's not there, but if this wasn't a tagged metric, someone could have explicitly
+     * matched on <name>|ST[], so we should check that too. */
+    if(!canonical && subj[subj_len] == '\0') {
+      strlcat(canonicalcheck, subj, sizeof(canonicalcheck));
+      strlcat(canonicalcheck, "|ST[]", sizeof(canonicalcheck));
+      subj = canonicalcheck;
+    }
+    mtev_boolean rv = mtev_hash_retrieve(r->metric_ht, subj, strlen(subj), &vptr);
+    mtevL(noit_debug, "HT_MATCH(%p) -> (%s) -> %s\n", r->metric_ht, subj, rv ? "true" : "false");
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    while(mtev_hash_adv(r->metric_ht, &iter)) { mtevL(noit_debug, "HT_CONTENTS(%p) -> (%s)\n", r->metric_ht, iter.key.str); }
+    return rv;
   }
   if(!r->metric && !r->metric_override) return mtev_true;
   rc = pcre_exec(r->metric ? r->metric : r->metric_override, r->metric ? r->metric_e : NULL,
@@ -529,12 +556,27 @@ noit_apply_filterset(const char *filterset,
         struct timeval reset;
         add_timeval(r->last_flush, r->flush_interval, &reset);
         if(compare_timeval(now, reset) >= 0) {
-          if(r->target_auto_hash_max) mtev_hash_delete_all(r->target_ht, free, NULL);
-          if(r->module_auto_hash_max) mtev_hash_delete_all(r->module_ht, free, NULL);
-          if(r->name_auto_hash_max) mtev_hash_delete_all(r->name_ht, free, NULL);
-          if(r->metric_auto_hash_max) mtev_hash_delete_all(r->metric_ht, free, NULL);
+          mtev_boolean did_work = mtev_false;
+          if(r->target_auto_hash_max) {
+            mtev_hash_delete_all(r->target_ht, free, NULL);
+            did_work = mtev_true;
+          }
+          if(r->module_auto_hash_max) {
+            mtev_hash_delete_all(r->module_ht, free, NULL);
+            did_work = mtev_true;
+          }
+          if(r->name_auto_hash_max) {
+            mtev_hash_delete_all(r->name_ht, free, NULL);
+            did_work = mtev_true;
+          }
+          if(r->metric_auto_hash_max) {
+            mtev_hash_delete_all(r->metric_ht, free, NULL);
+            did_work = mtev_true;
+          }
           memcpy(&r->last_flush, &now, sizeof(now));
-          mtevL(noit_debug, "flushed auto_add rule %s%s%s\n", fs->name, r->ruleid ? ":" : "", r->ruleid ? r->ruleid : "");
+          if(did_work) {
+            mtevL(noit_debug, "flushed auto_add rule %s%s%s\n", fs->name, r->ruleid ? ":" : "", r->ruleid ? r->ruleid : "");
+          }
         }
       }
 
@@ -1089,7 +1131,7 @@ noit_filters_init() {
   // placed in a sub-tree which is "shattered" into a backingstore.
   char *replication_prefix;
   if(mtev_conf_get_string(MTEV_CONF_ROOT, "/noit/filtersets/@replication_prefix", &replication_prefix)) {
-    mtevL(mtev_debug, "Using filterset replication prefix: %s\n", replication_prefix);
+    mtevL(noit_debug, "Using filterset replication prefix: %s\n", replication_prefix);
     asprintf(&filtersets_replication_path, "/noit/filtersets/%s", replication_prefix);
   }
   else {

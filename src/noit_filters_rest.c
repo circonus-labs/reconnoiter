@@ -61,9 +61,8 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
   mtev_conf_section_t section = MTEV_CONF_EMPTY;
   xmlNodePtr root;
   char xpath[1024];
-  int error_code = 500;
 
-  if(npats != 2) goto error;
+  if(npats != 2) goto not_found;
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
@@ -81,11 +80,6 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
 
  not_found:
   mtev_http_response_not_found(ctx, "text/html");
-  mtev_http_response_end(ctx);
-  goto cleanup;
-
- error:
-  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
@@ -207,9 +201,8 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_conf_section_t section = MTEV_CONF_EMPTY;
   char xpath[1024];
-  int error_code = 500;
 
-  if(npats != 2) goto error;
+  if(npats != 2) goto not_found;
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
@@ -229,11 +222,6 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
 
  not_found:
   mtev_http_response_not_found(ctx, "text/html");
-  mtev_http_response_end(ctx);
-  goto cleanup;
-
- error:
-  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
@@ -274,12 +262,16 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
 
   if(npats != 2) {
     error = "invalid URI";
+    error_code = 404;
     goto error;
   }
 
   indoc = rest_get_xml_upload(restc, &mask, &complete);
   if(!complete) return mask;
-  if(indoc == NULL) FAIL("xml parse error");
+  if(indoc == NULL) {
+    error_code = 406;
+    FAIL("xml parse error");
+  }
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
@@ -302,7 +294,10 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   }
 
   parent = make_conf_path(pats[0]);
-  if(!parent) FAIL("invalid path");
+  if(!parent) {
+    error_code = 404;
+    FAIL("invalid path");
+  }
   if(!mtev_conf_section_is_empty(section)) {
     CONF_REMOVE(section);
     xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(section));
