@@ -461,7 +461,6 @@ noit_apply_filterrule_metric(filterrule_t *r,
     }
     mtev_boolean rv = mtev_hash_retrieve(r->metric_ht, subj, strlen(subj), &vptr);
     mtevL(noit_debug, "HT_MATCH(%p) -> (%s) -> %s\n", r->metric_ht, subj, rv ? "true" : "false");
-    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     return rv;
   }
   if(!r->metric && !r->metric_override) return mtev_true;
