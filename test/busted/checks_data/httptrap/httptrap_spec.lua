@@ -115,14 +115,6 @@ describe("noit", function()
       end
       assert.is.same(expected_stats, metrics)
       assert.is.same(expected_stats, xmetrics)
-
-      code, xml, stuff = api:xml("GET", "/config")
-      print(code)
-      print(stuff)
-
-      code, xml, stuff = api:xml("GET", "/config/eventer")
-      print(code)
-      print(stuff)
     end)
 
     it("supports streaming json", function()
