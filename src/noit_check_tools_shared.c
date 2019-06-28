@@ -36,6 +36,7 @@
 #include <assert.h>
 
 #include <mtev_str.h>
+#include <mtev_conf.h>
 
 #include "noit_check_tools.h"
 
@@ -48,7 +49,7 @@ noit_rest_show_config(mtev_http_rest_closure_t *restc,
   mtev_conf_section_t node;
   char xpath[1024];
 
-  snprintf(xpath, sizeof(xpath), "/%s", pats ? pats[0] : "");
+  snprintf(xpath, sizeof(xpath), "/%s", pats ? pats[0] : mtev_get_app_name());
   node = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
 
   if(mtev_conf_section_is_empty(node)) {
@@ -257,4 +258,3 @@ void
 noit_check_tools_shared_init_globals(void) {
   mtev_hash_init(&interpolation_operators);
 }
-

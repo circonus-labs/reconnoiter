@@ -322,6 +322,7 @@ noitd_init_globals(void) {
 }
 
 int main(int argc, char **argv) {
+  mtev_set_app_name("noit");
   int lock = MTEV_LOCK_OP_LOCK;
   mtev_memory_init();
   parse_clargs(argc, argv);
