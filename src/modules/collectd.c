@@ -2049,8 +2049,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       return NULL;
     }
     content_length = mtev_http_request_content_length(req);
-    if((mtev_http_request_payload_chunked(req) && len == 0) ||
-       (rxc->len == content_length)) {
+    if(len == 0 && mtev_http_request_payload_chunked(req)) {
       rxc->complete = 1;
       yajl_complete_parse(rxc->parser);
     }
