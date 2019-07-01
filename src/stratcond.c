@@ -249,7 +249,6 @@ stratcond_init_globals(void) {
 }
 
 int main(int argc, char **argv) {
-  mtev_set_app_name("stratcon");
   mtev_memory_init();
   parse_clargs(argc, argv);
   stratcond_init_globals();
