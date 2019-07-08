@@ -409,8 +409,11 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
 
   const char *encoded = encoded_tag;
   const char *encoded_end = encoded + encoded_size;
+  size_t key_len = (colon - encoded);
+  size_t value_len = (encoded_end - colon - 1);
+
   char *decoded = decoded_tag;
-  if (memcmp(encoded, "b\"", 2) == 0) {
+  if (key_len >= 2 && memcmp(encoded, "b\"", 2) == 0) {
     encoded += 2;
     const char *eend = colon - 1;
     if (*eend != '"') return 0;
@@ -431,7 +434,7 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
   if(memchr(decoded_tag, 0x1f, decoded - decoded_tag) != NULL) return 0;
   *decoded = 0x1f; //replace colon with ascii unit sep
   decoded++;
-  if (memcmp(encoded, "b\"", 2) == 0) {
+  if (value_len >= 2 && memcmp(encoded, "b\"", 2) == 0) {
     encoded += 2;
     const char *eend = encoded_end - 1;
     if (*eend != '"') return 0;
