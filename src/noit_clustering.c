@@ -431,7 +431,7 @@ fetch_xml_from_noit(CURL *curl, const char *url, struct curl_slist *connect_to) 
       mtevL(clerr, "curl stat error: %s\n", strerror(errno));
     }
   } else {
-     mtevL(cldeb, "curl error: %ld/%ld\n", code, httpcode);
+    mtevL(clerr, "Error fetching %s: %ld/%ld\n", url, code, httpcode);
   }
   close(fd);
   return doc;
