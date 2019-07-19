@@ -156,7 +156,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     } else {
       m->str = mtev_strndup(query, *endq - query);
     }
-    if(strchr(m->str, '*') || strchr(m->str, '?')) {
+    if((strchr(m->str, '*') || strchr(m->str, '?')) && !is_encoded) {
       char *previous = m->str;
       m->str = build_regex_from_expansion(m->str);
       free(previous);
