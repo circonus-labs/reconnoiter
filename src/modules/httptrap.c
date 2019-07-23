@@ -1047,7 +1047,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     error = rxc->error;
   mtevL(nldeb, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
   yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
-  mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
   return 0;
