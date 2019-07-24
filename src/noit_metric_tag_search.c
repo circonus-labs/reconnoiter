@@ -90,7 +90,8 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
   const char *query = *endq;
   const char *error;
   int erroffset;
-  int is_encoded = memcmp(query, "b\"", 2) == 0 || memcmp(query, "b/", 2) == 0;
+  int is_encoded_match = memcmp(query, "b!", 2) == 0;
+  int is_encoded = is_encoded_match || memcmp(query, "b\"", 2) == 0 || memcmp(query, "b/", 2) == 0;
   if (is_encoded) {
     (*endq)++; // skip the 'b'
     query = *endq;
@@ -126,7 +127,8 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
   else {
     not_a_regex:
     if (is_encoded) {
-      if (*query != '"') return mtev_false;
+      if (!is_encoded_match && *query != '"') return mtev_false;
+      if (is_encoded_match && *query != '!') return mtev_false;
       *endq = query + 1;
       query = *endq;
     }
@@ -156,7 +158,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     } else {
       m->str = mtev_strndup(query, *endq - query);
     }
-    if(strchr(m->str, '*') || strchr(m->str, '?')) {
+    if((strchr(m->str, '*') || strchr(m->str, '?')) && !is_encoded_match) {
       char *previous = m->str;
       m->str = build_regex_from_expansion(m->str);
       free(previous);

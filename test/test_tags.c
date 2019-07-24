@@ -453,7 +453,34 @@ void query_parsing(void) {
   printf("%s\n", unparse);
   free(unparse);
   noit_metric_tag_search_free(ast);
-  
+
+  ast = noit_metric_tag_search_parse("and(b\"cm91dGU=\":b\"L2Zvbz9iYXI9cXV1eA==\",foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(b\"cm91dGU=\":b!L2Zvbz9iYXI9cXV1eA==!,foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(b\"cGF0aA==\":b\"P2Zvby4qLmJhcj8=\",foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
+
+  ast = noit_metric_tag_search_parse("and(b\"cGF0aA==\":b!P2Zvby4qLmJhcj8=!,foo:bar)", &erroroffset);
+  test_assert(ast != NULL);
+  unparse = noit_metric_tag_search_unparse(ast);
+  printf("%s\n", unparse);
+  free(unparse);
+  noit_metric_tag_search_free(ast);
 }
 
 void loop(char *str) {
