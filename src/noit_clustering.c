@@ -373,7 +373,7 @@ static CURL *get_curl_handle() {
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "gzip");
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 120000);
     curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 131072);
     ctls = calloc(1, sizeof(*ctls));
     ctls->curl = curl;
