@@ -262,6 +262,7 @@ void test_tag_match()
   const char *tagstring = "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value";
   noit_metric_tagset_builder_add_many(&builder, tagstring, strlen(tagstring));
   char *canonical;
+  memset(&tagset, 0, sizeof(tagset));
   noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
   
   /* simple test */
@@ -504,6 +505,7 @@ int main(int argc, const char **argv)
 {
   test_tag_decode();
   test_ast_decode();
+  test_tag_match();
   metric_parsing();
   query_parsing();
   printf("\nPerformance:\n====================\n");
