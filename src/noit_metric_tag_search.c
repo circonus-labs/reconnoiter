@@ -274,7 +274,7 @@ noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m) {
   int ssubj_len = subj_len;
   if (memcmp(subj, "b\"", 2) == 0) {
     const char *start = subj + 2;
-    const char *end = memchr(start, '"', 1);
+    const char *end = memchr(start, '"', subj_len - 2);
     if (!end) return mtev_false; // not decodable, no match
     int len = mtev_b64_decode(start, end - start, (unsigned char *)decoded_tag, 
 			      sizeof(decoded_tag));
