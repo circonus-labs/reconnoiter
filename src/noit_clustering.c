@@ -859,8 +859,8 @@ void noit_mtev_cluster_init() {
   mtev_console_state_t *tl;
   cmd_info_t *showcmd;
   pthread_key_create(&curl_tls, curl_tls_free);
-  cldeb = mtev_log_stream_find("debug/cluster");
-  clerr = mtev_log_stream_find("error/cluster");
+  cldeb = mtev_log_stream_find("debug/noit/cluster");
+  clerr = mtev_log_stream_find("error/noit/cluster");
   mtev_hash_init(&peers);
 
   tl = mtev_console_state_initial();
