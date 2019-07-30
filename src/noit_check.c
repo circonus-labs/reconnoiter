@@ -73,6 +73,9 @@
 static int check_recycle_period = 60000;
 static mtev_boolean perpetual_metrics = mtev_false;
 
+static mtev_log_stream_t check_error;
+static mtev_log_stream_t check_debug;
+
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
 #define CHECKS_XPATH_BASE CHECKS_XPATH_ROOT "/" CHECKS_XPATH_PARENT
@@ -376,7 +379,7 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char 
      * target`name.  That should result in the check being disabled. */
     rv = 0;
     if(!mtev_skiplist_insert(polls_by_name, new_check)) {
-      mtevL(noit_error, "Check %s`%s disabled due to naming conflict\n",
+      mtevL(check_error, "Check %s`%s disabled due to naming conflict\n",
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
       rv = -1;
@@ -422,10 +425,10 @@ check_slots_find_smallest(int sec, struct timeval* period, int timeout) {
     period_seconds = 60;
   }
 
-  /* If a check is configured to run at times aligned with sixty seconds 
+  /* If a check is configured to run at times aligned with sixty seconds
    * and we're configured to use priority scheduling, schedule so that
    * we're guaranteed to finish before the timeout */
-  if ((priority_scheduling == mtev_true) && 
+  if ((priority_scheduling == mtev_true) &&
       (((period->tv_sec % 60) == 0) && (period->tv_usec == 0))) {
     /* Don't allow a ton of stuff to schedule in the first second in the case
      * of very long timeouts - use the first 10 seconds in this case */
@@ -576,7 +579,7 @@ noit_check_fake_last_check(noit_check_t *check,
 
   /* We need to set the last check value based on the period, but
    * we also need to store a value that is based around the one-minute
-   * time to properly increment the slots; otherwise, the slots will 
+   * time to properly increment the slots; otherwise, the slots will
    * get all messed up */
   if(!(check->flags & NP_TRANSIENT) && check->period) {
     balance_ms = check_slots_find_smallest(_now->tv_sec+1, &period, check->timeout);
@@ -756,7 +759,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   if(found)
     noit_poller_deschedule(uuid, mtev_false, mtev_true);
   if(backdated) {
-    mtevL(noit_error, "Check config seq backwards, ignored\n");
+    mtevL(check_error, "Check config seq backwards, ignored\n");
     if(found) noit_check_log_delete((noit_check_t *)vcheck);
   }
   else {
@@ -764,7 +767,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
                          moptions_used ? moptions : NULL,
                          period, timeout, oncheck[0] ? oncheck : NULL,
                          config_seq, flags, uuid, out_uuid);
-    mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
+    mtevL(check_debug, "loaded uuid: %s\n", uuid_str);
     if(deleted) noit_poller_deschedule(uuid, mtev_false, mtev_false);
   }
   for(ridx=0; ridx<reg_module_id; ridx++) {
@@ -800,7 +803,7 @@ noit_check_activate(noit_check_t *check) {
       return 1;
     }
     else
-      mtevL(noit_debug, "Skipping %s`%s, disabled.\n",
+      mtevL(check_debug, "Skipping %s`%s, disabled.\n",
             check->target, check->name);
   }
   else {
@@ -891,7 +894,7 @@ noit_poller_make_causal_map() {
       char *target = NULL;
 
       system_needs_causality = mtev_true;
-      mtevL(noit_debug, "Searching for upstream trigger on %s\n", name);
+      mtevL(check_debug, "Searching for upstream trigger on %s\n", name);
       parent = NULL;
       if(mtev_uuid_parse(check->oncheck, id) == 0) {
         target = "";
@@ -919,7 +922,7 @@ noit_poller_make_causal_map() {
         dep->check = check;
         dep->next = parent->causal_checks;
         parent->causal_checks = dep;
-        mtevL(noit_debug, "Causal map %s`%s --> %s`%s\n",
+        mtevL(check_debug, "Causal map %s`%s --> %s`%s\n",
               parent->target, parent->name, check->target, check->name);
       }
     }
@@ -972,6 +975,9 @@ noit_check_dns_ignore_list_init() {
 void
 noit_poller_init() {
   srand48((getpid() << 16) ^ time(NULL));
+
+  check_error = mtev_log_stream_find("error/noit/check");
+  check_debug = mtev_log_stream_find("debug/noit/check");
 
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
@@ -1083,13 +1089,13 @@ noit_check_watch(uuid_t in, int period) {
 
   mtev_uuid_unparse_lower(in, uuid_str);
 
-  mtevL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
+  mtevL(check_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
   if(period == 0) {
     mtev_uuid_copy(n.checkid, in);
     f = noit_poller_lookup(in);
     n.period = period;
     if(mtev_skiplist_find(watchlist, &n, NULL) == NULL) {
-      mtevL(noit_debug, "Watching %s@%d\n", uuid_str, period);
+      mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
       mtev_skiplist_insert(watchlist, f);
     }
     return f;
@@ -1125,7 +1131,7 @@ noit_check_watch(uuid_t in, int period) {
   f->period = period;
   f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
-  mtevL(noit_debug, "Watching %s@%d\n", uuid_str, period);
+  mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
   mtev_skiplist_insert(watchlist, f);
   return f;
 }
@@ -1157,27 +1163,27 @@ noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
   feedcopy = strdup(feed);
   /* No error on failure -- it's already there */
   if(mtev_skiplist_insert(check->feeds, feedcopy) == NULL) free(feedcopy);
-  mtevL(noit_debug, "check %s`%s @ %dms has %d feed(s): %s.\n",
+  mtevL(check_debug, "check %s`%s @ %dms has %d feed(s): %s.\n",
         check->target, check->name, check->period, mtev_skiplist_size(check->feeds), feed);
 }
 void
 noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
   if(!check->feeds) return;
   if(feed) {
-    mtevL(noit_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
+    mtevL(check_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
           check->target, check->name, check->period, mtev_skiplist_size(check->feeds), feed);
     mtev_skiplist_remove(check->feeds, feed, free);
   }
   if(mtev_skiplist_size(check->feeds) == 0) {
     char uuid_str[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(check->checkid, uuid_str);
-    mtevL(noit_debug, "Unwatching %s@%d\n", uuid_str, check->period);
+    mtevL(check_debug, "Unwatching %s@%d\n", uuid_str, check->period);
     mtev_skiplist_remove(watchlist, check, NULL);
     mtev_skiplist_destroy(check->feeds, free);
     free(check->feeds);
     check->feeds = NULL;
     if(check->flags & NP_TRANSIENT) {
-      mtevL(noit_debug, "check %s`%s @ %dms has no more listeners.\n",
+      mtevL(check_debug, "check %s`%s @ %dms has no more listeners.\n",
             check->target, check->name, check->period);
       check->flags |= NP_KILLED;
     }
@@ -1245,7 +1251,7 @@ noit_check_set_ip(noit_check_t *new_check,
                  new_target_ip,
                  sizeof(new_target_ip)) == NULL) {
       failed = -1;
-      mtevL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
+      mtevL(check_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
   }
   /*
@@ -1584,7 +1590,7 @@ static void
 check_recycle_bin_processor_internal() {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   struct _checker_rcb *prev = NULL, *curr = NULL;
-  mtevL(noit_debug, "Scanning checks for cluster sync\n");
+  mtevL(check_debug, "Scanning checks for cluster sync\n");
   pthread_mutex_lock(&polls_lock);
   while(mtev_hash_adv(&polls, &iter)) {
     noit_check_t *check = (noit_check_t *)iter.value.ptr;
@@ -1592,7 +1598,7 @@ check_recycle_bin_processor_internal() {
       char xpath[1024], idstr[UUID_STR_LEN+1];
       mtev_uuid_unparse_lower(check->checkid, idstr);
 
-      mtevL(noit_debug, "cluster delete of %s complete.\n", idstr);
+      mtevL(check_debug, "cluster delete of %s complete.\n", idstr);
       /* Set the config_seq to zero so it can be truly descheduled */
       check->config_seq = 0;
       noit_poller_deschedule(check->checkid, mtev_true, mtev_false);
@@ -1616,7 +1622,7 @@ check_recycle_bin_processor_internal() {
   }
   pthread_mutex_unlock(&polls_lock);
 
-  mtevL(noit_debug, "Scanning check recycle bin\n");
+  mtevL(check_debug, "Scanning check recycle bin\n");
   pthread_mutex_lock(&recycling_lock);
   curr = checker_rcb;
   while(curr) {
@@ -1635,7 +1641,7 @@ check_recycle_bin_processor_internal() {
     }
 
     if (free_check == mtev_true) {
-      mtevL(noit_debug, "0x%p: Check is ready to free.\n", check);
+      mtevL(check_debug, "0x%p: Check is ready to free.\n", check);
       noit_poller_free_check_internal(curr->checker, mtev_true);
       if(prev) prev->next = curr->next;
       else checker_rcb = curr->next;
@@ -2587,10 +2593,10 @@ noit_check_set_stats(noit_check_t *check) {
      (!current || !prev || (current->state != prev->state)))
     report_change = 1;
 
-  mtevL(noit_debug, "%s`%s <- [%s]\n", check->target, check->name,
+  mtevL(check_debug, "%s`%s <- [%s]\n", check->target, check->name,
         current ? current->status : "null");
   if(report_change) {
-    mtevL(noit_debug, "%s`%s -> [%s:%s]\n",
+    mtevL(check_debug, "%s`%s -> [%s:%s]\n",
           check->target, check->name,
           noit_check_available_string(current ? current->available : NP_UNKNOWN),
           noit_check_state_string(current ? current->state : NP_UNKNOWN));
@@ -2619,7 +2625,7 @@ noit_check_set_stats(noit_check_t *check) {
       bad_check_initiate(mod, dep->check, 1, check);
     }
     else {
-      mtevL(noit_debug, "Firing %s`%s in response to %s`%s\n",
+      mtevL(check_debug, "Firing %s`%s in response to %s`%s\n",
             dep->check->target, dep->check->name,
             check->target, check->name);
       if((dep->check->flags & NP_DISABLED) == 0)
@@ -2898,7 +2904,7 @@ noit_check_register_module(const char *name) {
   for(i=0; i<reg_module_id; i++)
     if(!strcmp(reg_module_names[i], name)) return i;
   if(reg_module_id >= MAX_MODULE_REGISTRATIONS) return -1;
-  mtevL(noit_debug, "Registered module %s as %d\n", name, i);
+  mtevL(check_debug, "Registered module %s as %d\n", name, i);
   i = reg_module_id++;
   reg_module_names[i] = strdup(name);
   mtev_conf_set_namespace(reg_module_names[i]);
@@ -3093,6 +3099,6 @@ noit_check_process_repl(xmlDocPtr doc) {
   mtev_conf_release_section(checks);
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
-    mtevL(noit_error, "local config write failed\n");
+    mtevL(check_error, "local config write failed\n");
   return i;
 }
