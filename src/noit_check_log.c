@@ -768,8 +768,10 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
       rv_err = -1;
     }
     else {
-      mtevL(mtev_debug, "B%c compression: %f%%\n", use_compression ? '1' : '2',
-            100 * ((double)size - (double)out_size)/(double)size);
+      /* Uncomment this to debug compression issues
+       * mtevL(mtev_debug, "B%c compression: %f%%\n", use_compression ? '1' : '2',
+       *     100 * ((double)size - (double)out_size)/(double)size);
+       */
       rv = mtev_log(ls, whence, __FILE__, __LINE__,
                     "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
                     use_compression ? '1' : '2',
