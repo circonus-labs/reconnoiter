@@ -54,6 +54,9 @@
 #include <pcre.h>
 #include <libxml/tree.h>
 
+static mtev_log_stream_t nf_error;
+static mtev_log_stream_t nf_debug;
+
 static mtev_hash_table *filtersets = NULL;
 static pthread_mutex_t filterset_lock;
 static pcre *fallback_no_match = NULL;
@@ -144,7 +147,7 @@ filterset_free(void *vp) {
   bool zero;
   ck_pr_dec_32_zero(&fs->ref_cnt, &zero);
   if(!zero) return;
-  mtevL(noit_debug, "Freeing filterset [%d]: %s\n", fs->ref_cnt, fs->name);
+  mtevL(nf_debug, "Freeing filterset [%d]: %s\n", fs->ref_cnt, fs->name);
   while(fs->rules) {
     r = fs->rules->next;
     filterrule_free(fs->rules);
@@ -162,7 +165,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   int64_t seq = 0;
   if(!mtev_conf_get_stringbuf(setinfo, "@name",
                               filterset_name, sizeof(filterset_name))) {
-    mtevL(noit_error,
+    mtevL(nf_error,
           "filterset with no name, skipping as it cannot be referenced.\n");
     return mtev_false;
   }
@@ -178,17 +181,17 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
    * the front of the list.  That way we can simply walk them in order
    * for the application process.
    */
-  mtevL(noit_debug, "Compiling filterset '%s'\n", set->name);
+  mtevL(nf_debug, "Compiling filterset '%s'\n", set->name);
   for(j=fcnt-1; j>=0; j--) {
     filterrule_t *rule;
     char buffer[256];
     if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
        (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny") &&
         strncmp(buffer, "skipto:", strlen("skipto:")))) {
-      mtevL(noit_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
+      mtevL(nf_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
       continue;
     }
-    mtevL(noit_debug, "Prepending %s into %s\n", buffer, set->name);
+    mtevL(nf_debug, "Prepending %s into %s\n", buffer, set->name);
     rule = calloc(1, sizeof(*rule));
     if(!strncasecmp(buffer, "skipto:", strlen("skipto:"))) {
       rule->type = NOIT_FILTER_SKIPTO;
@@ -222,7 +225,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       mtev_hash_init_size(rule->rname##_ht, tablesize); \
       for(hti=0; hti<hte_cnt; hti++) { \
         if(!mtev_conf_get_string(htentries[hti], "self::node()", &htstr)) \
-          mtevL(noit_error, "Error fetching text content from filter match.\n"); \
+          mtevL(nf_error, "Error fetching text content from filter match.\n"); \
         else { \
           if(canon) { \
             char tgt[MAX_METRIC_TAGGED_NAME]; \
@@ -231,7 +234,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
               htstr = strdup(tgt); \
             } \
           } \
-          mtevL(noit_debug, "HT_COMPILE(%p) -> (%s)\n", rule->rname##_ht, htstr); \
+          mtevL(nf_debug, "HT_COMPILE(%p) -> (%s)\n", rule->rname##_ht, htstr); \
           mtev_hash_replace(rule->rname##_ht, htstr, strlen(htstr), NULL, free, NULL); \
         } \
       } \
@@ -251,7 +254,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     int erroffset; \
     rule->rname = pcre_compile(longre, 0, &error, &erroffset, NULL); \
     if(!rule->rname) { \
-      mtevL(noit_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
+      mtevL(nf_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
             set->name, #rname, longre, error ? error : "???"); \
       rule->rname##_override = fallback_no_match; \
       asprintf(&rule->rname##_re, "/%s/ failed to compile", longre); \
@@ -270,7 +273,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     rule->rname = strdup(expr); \
     rule->search = noit_metric_tag_search_parse(rule->rname, &erroffset); \
     if(!rule->search) { \
-      mtevL(noit_error, "set '%s' rule '%s: %s' compile failed at offset %d\n", \
+      mtevL(nf_error, "set '%s' rule '%s: %s' compile failed at offset %d\n", \
             set->name, #rname, expr, erroffset); \
       rule->metric_override = fallback_no_match; \
     } \
@@ -304,7 +307,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
         }
       }
       if(!cursor->skipto_rule)
-        mtevL(noit_error, "filterset %s skipto:%s not found\n",
+        mtevL(nf_error, "filterset %s skipto:%s not found\n",
               set->name, cursor->skipto);
     }
   }
@@ -413,7 +416,7 @@ noit_filters_process_repl(xmlDocPtr doc) {
   mtev_conf_release_section(filtersets);
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
-    mtevL(noit_error, "local config write failed\n");
+    mtevL(nf_error, "local config write failed\n");
   return i;
 }
 
@@ -449,7 +452,7 @@ noit_apply_filterrule_metric(filterrule_t *r,
   if(r->metric_ht) {
     void *vptr;
     if(mtev_hash_retrieve(r->metric_ht, subj, subj_len, &vptr)) {
-      mtevL(noit_debug, "HT_MATCH(%p) -> (%.*s) -> true\n", r->metric_ht, subj_len, subj);
+      mtevL(nf_debug, "HT_MATCH(%p) -> (%.*s) -> true\n", r->metric_ht, subj_len, subj);
       return mtev_true;
     }
     /* it's not there, but if this wasn't a tagged metric, someone could have explicitly
@@ -460,7 +463,7 @@ noit_apply_filterrule_metric(filterrule_t *r,
       subj = canonicalcheck;
     }
     mtev_boolean rv = mtev_hash_retrieve(r->metric_ht, subj, strlen(subj), &vptr);
-    mtevL(noit_debug, "HT_MATCH(%p) -> (%s) -> %s\n", r->metric_ht, subj, rv ? "true" : "false");
+    mtevL(nf_debug, "HT_MATCH(%p) -> (%s) -> %s\n", r->metric_ht, subj, rv ? "true" : "false");
     return rv;
   }
   if(!r->metric && !r->metric_override) return mtev_true;
@@ -573,7 +576,7 @@ noit_apply_filterset(const char *filterset,
           }
           memcpy(&r->last_flush, &now, sizeof(now));
           if(did_work) {
-            mtevL(noit_debug, "flushed auto_add rule %s%s%s\n", fs->name, r->ruleid ? ":" : "", r->ruleid ? r->ruleid : "");
+            mtevL(nf_debug, "flushed auto_add rule %s%s%s\n", fs->name, r->ruleid ? ":" : "", r->ruleid ? r->ruleid : "");
           }
         }
       }
@@ -1114,10 +1117,14 @@ void
 noit_filters_init() {
   const char *error;
   int erroffset;
+
+  nf_error = mtev_log_stream_find("error/noit/filters");
+  nf_debug = mtev_log_stream_find("debug/noit/filters");
+
   pthread_mutex_init(&filterset_lock, NULL);
   fallback_no_match = pcre_compile("^(?=a)b", 0, &error, &erroffset, NULL);
   if(!fallback_no_match) {
-    mtevL(noit_error, "Filter initialization failed (nomatch filter)\n");
+    mtevL(nf_error, "Filter initialization failed (nomatch filter)\n");
     exit(-1);
   }
   mtev_capabilities_add_feature("filterset:hash", NULL);
@@ -1129,7 +1136,7 @@ noit_filters_init() {
   // placed in a sub-tree which is "shattered" into a backingstore.
   char *replication_prefix;
   if(mtev_conf_get_string(MTEV_CONF_ROOT, "/noit/filtersets/@replication_prefix", &replication_prefix)) {
-    mtevL(noit_debug, "Using filterset replication prefix: %s\n", replication_prefix);
+    mtevL(nf_debug, "Using filterset replication prefix: %s\n", replication_prefix);
     asprintf(&filtersets_replication_path, "/noit/filtersets/%s", replication_prefix);
   }
   else {
