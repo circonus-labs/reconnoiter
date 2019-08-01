@@ -80,6 +80,45 @@ const struct {
    },
 };
 
+const char *testtags[][2] = {
+  { "b\"Zm9vOmJhcltzdHVmZl0=\":value", "foo:bar[stuff]\037value" },
+  { "b\"Zm9vOmJhcltzdHVmZl0=\":b\"Zm9vOmJhcltzdHVmZl0=\"", "foo:bar[stuff]\037foo:bar[stuff]" },
+  { "category:b\"Zm9vOmJhcltzdHVmZl0=\"", "category\037foo:bar[stuff]" },
+  { "category:value", "category\037value" }
+};
+
+const struct {
+  const char *tagstring;
+  struct {
+    const char *query;
+    mtev_boolean match;
+  } queries[8];
+} testmatches[] = {
+  {
+    "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value",
+    {
+      { "and(foo:bar)", mtev_true },
+      { "and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", mtev_true },
+      { "and(b/c29tZS4q/:value)", mtev_true },
+      { "and(quux:value)", mtev_false },
+      { NULL, 0 }
+    }
+  }
+};
+
+const char *testqueries[] = {
+  "and(*:*)",
+  "and(foo:bar)",
+  "and(or(foo:bar,c:d),e:f)",
+  "and(a:,foo:bar)",
+  "and(a:,foo:bar)",
+  "and(b\"ZmFydHM=\":b\"\",foo:bar)",
+  "and(b\"cm91dGU=\":b\"L2Zvbz9iYXI9cXV1eA==\",foo:bar)",
+  "and(b\"cm91dGU=\":b!L2Zvbz9iYXI9cXV1eA==!,foo:bar)",
+  "and(b\"cGF0aA==\":b\"P2Zvby4qLmJhcj8=\",foo:bar)",
+  "and(b\"cGF0aA==\":b!P2Zvby4qLmJhcj8=!,foo:bar)"
+};
+
 int ntest = 0;
 int failures = 0;
 #define test_assert(a) do { \
@@ -105,40 +144,15 @@ void test_tag_decode()
 {
   char decoded[512] = {0};
   
-  /* echo -n "foo:bar[stuff]" | base64 */
-  const char *encoded = "b\"Zm9vOmJhcltzdHVmZl0=\":value";
-  int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
-					    encoded, strlen(encoded));
-  test_assert(rval > 0);
+  for(int i = 0; i < sizeof(testtags) / sizeof(*testtags); i++) {
+    const char *encoded = testtags[i][0];
+    int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
+					      encoded, strlen(encoded));
+    test_assert(rval > 0);
 
-  int eq = strncmp("foo:bar[stuff]\037value", decoded, rval);
-  test_assert(eq == 0);
-
-  encoded = "b\"Zm9vOmJhcltzdHVmZl0=\":b\"Zm9vOmJhcltzdHVmZl0=\"";
-  rval = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
-				       encoded, strlen(encoded));
-  test_assert(rval > 0);
-
-  eq = strncmp("foo:bar[stuff]\037foo:bar[stuff]", decoded, rval);
-  test_assert(eq == 0);
-
-  encoded = "category:b\"Zm9vOmJhcltzdHVmZl0=\"";
-  rval = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
-				       encoded, strlen(encoded));
-  test_assert(rval > 0);
-
-  eq = strncmp("category\037foo:bar[stuff]", decoded, rval);
-  test_assert(eq == 0);
-
-  /* normal tags should just pass through with copies */
-  encoded = "category:value";
-  rval = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
-				       encoded, strlen(encoded));
-  test_assert(rval > 0);
-
-  eq = strncmp("category\037value", decoded, rval);
-  test_assert(eq == 0);
-
+    int eq = strncmp(testtags[i][1], decoded, rval);
+    test_assert(eq == 0);
+  }
 }
 
 void test_ast_decode()
@@ -257,34 +271,28 @@ void test_tag_match()
   int erroroffset;
   noit_metric_tagset_t tagset;
   noit_metric_tagset_builder_t builder;
-  noit_metric_tagset_builder_start(&builder);
-
-  const char *tagstring = "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value";
-  noit_metric_tagset_builder_add_many(&builder, tagstring, strlen(tagstring));
+  noit_metric_tag_search_ast_t *ast;
+  mtev_boolean match;
   char *canonical;
-  memset(&tagset, 0, sizeof(tagset));
-  noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
-  
-  /* simple test */
-  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
-  mtev_boolean match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
-  test_assert(match == mtev_true);
-  noit_metric_tag_search_free(ast);
 
-  ast = noit_metric_tag_search_parse("and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", &erroroffset);
-  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
-  test_assert(match == mtev_true);
-  noit_metric_tag_search_free(ast);
+  for(int i = 0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
+    noit_metric_tagset_builder_start(&builder);
+    noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
+    memset(&tagset, 0, sizeof(tagset));
+    noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
 
-  ast = noit_metric_tag_search_parse("and(b/c29tZS4q/:value)", &erroroffset);
-  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
-  test_assert(match == mtev_true);
-  noit_metric_tag_search_free(ast);
+    for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
+      ast = noit_metric_tag_search_parse(testmatches[i].queries[j].query, &erroroffset);
+      if(ast) {
+        match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+        test_assert(match == testmatches[i].queries[j].match);
+        noit_metric_tag_search_free(ast);
+      } else {
 
-  ast = noit_metric_tag_search_parse("and(quux:value)", &erroroffset);
-  match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
-  test_assert(match == mtev_false);
-  noit_metric_tag_search_free(ast);
+      }
+    }
+    free(canonical);
+  }
 }
 
 void test_canon(const char *in, const char *expect) {
@@ -413,75 +421,21 @@ void metric_parsing(void) {
 
 void query_parsing(void) {
   int erroroffset = 0;
-  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse("and(*:*)", &erroroffset);
-  test_assert(ast != NULL);
-  char *unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
+  noit_metric_tag_search_ast_t *ast;
+  char *unparse;
 
-  ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
-  
-  ast = noit_metric_tag_search_parse("and(or(foo:bar,c:d),e:f)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
+  for(int i = 0; i < sizeof(testqueries) / sizeof(*testqueries); i++) {
+    ast = noit_metric_tag_search_parse(testqueries[i], &erroroffset);
+    test_assert(ast != NULL);
+    if(ast) {
+      unparse = noit_metric_tag_search_unparse(ast);
+      printf("%s\n", unparse);
+      free(unparse);
+      noit_metric_tag_search_free(ast);
+    } else {
 
-  ast = noit_metric_tag_search_parse("and(a:,foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
-
-  ast = noit_metric_tag_search_parse("and(a:,foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
-
-  ast = noit_metric_tag_search_parse("and(b\"ZmFydHM=\":b\"\",foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
-
-  ast = noit_metric_tag_search_parse("and(b\"cm91dGU=\":b\"L2Zvbz9iYXI9cXV1eA==\",foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
-
-  ast = noit_metric_tag_search_parse("and(b\"cm91dGU=\":b!L2Zvbz9iYXI9cXV1eA==!,foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
-
-  ast = noit_metric_tag_search_parse("and(b\"cGF0aA==\":b\"P2Zvby4qLmJhcj8=\",foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
-
-  ast = noit_metric_tag_search_parse("and(b\"cGF0aA==\":b!P2Zvby4qLmJhcj8=!,foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  unparse = noit_metric_tag_search_unparse(ast);
-  printf("%s\n", unparse);
-  free(unparse);
-  noit_metric_tag_search_free(ast);
+    }
+  }
 }
 
 void loop(char *str) {
