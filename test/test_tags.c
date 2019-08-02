@@ -103,6 +103,58 @@ const struct {
       { "and(quux:value)", mtev_false },
       { NULL, 0 }
     }
+  },
+  {
+    "b\"KGZvbyk=\":bar",
+    {
+      { "and(*:*)", mtev_true },
+      { "and(*:bar)", mtev_true },
+      { "and(foo:bar)", mtev_false },
+      { "and(b\"KGZvbyk=\":bar)", mtev_true },
+      { "and(b/XChm/:bar)", mtev_true },
+      { NULL, 0 }
+    }
+  },
+  {
+    "b\"W2Jhcl0=\":b\"Kipmb28qKg==\"",
+    {
+      { "and(b\"W2Jhcl0=\":*)", mtev_true },
+      { "and(*:b!Kipmb28qKg==!)", mtev_true },
+      { NULL, 0 }
+    }
+  },
+  {
+    "b\"Kipmb28qKg==\":b\"W2Jhcl0=\"",
+    {
+      { "and(*:b\"W2Jhcl0=\")", mtev_true },
+      { "and(b\"Kipmb28qKg==\":*)", mtev_true },
+      { NULL, 0 }
+    }
+  },
+  {
+    "b\"P2Zvbz8=\":b\"W2Jhcl0=\"",
+    {
+      { "and(*:b\"W2Jhcl0=\")", mtev_true },
+      { "and(b\"P2Yq\":*)", mtev_true },
+      { NULL, 0 }
+    }
+  },
+  {
+    "b\"Lz9oaXN0b2dyYW0vKC4rKSQp\":quux",
+    {
+      { "and(*:*)", mtev_true },
+      { "and(b!Lz9oaXN0b2dyYW0vKC4rKSQp!:quux)", mtev_true },
+      { NULL, 0 }
+    }
+  },
+  {
+    "b\"L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp\":bar",
+    {
+      { "and(*:bar)", mtev_true },
+      { "and(b\"L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp\":bar)", mtev_false },
+      { "and(b!L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp!:bar)", mtev_true },
+      { NULL, 0 }
+    }
   }
 };
 
