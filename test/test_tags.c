@@ -148,121 +148,180 @@ void test_tag_decode()
     const char *encoded = testtags[i][0];
     int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
 					      encoded, strlen(encoded));
-    test_assert(rval > 0);
+    test_assert_namef(rval > 0, "'%s' is valid tag", encoded);
 
     int eq = strncmp(testtags[i][1], decoded, rval);
-    test_assert(eq == 0);
+    test_assert_namef(eq == 0, "'%s' equals '%s'", testtags[i][1], decoded);
   }
 }
 
 void test_ast_decode()
 {
   int erroroffset;
-  noit_metric_tag_search_ast_t *ast;
+  noit_metric_tag_search_ast_t *ast, *not;
+  const char *query;
+  char *unparse;
 
   /* simple test */
-  ast = noit_metric_tag_search_parse("and(foo:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
-  noit_metric_tag_search_free(ast);
+  query = "and(foo:bar)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
 
   /* simple test with colons in value */
-  ast = noit_metric_tag_search_parse("and(foo:bar:baz)", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar:baz") == 0);
-  noit_metric_tag_search_free(ast);
-
+  query = "and(foo:bar:baz)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar:baz") == 0);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
   
   /* half / test */
-  ast = noit_metric_tag_search_parse("and(/endpoint`latency:/bar)", &erroroffset);
+  query = "and(/endpoint`latency:/bar)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
   if(ast) {
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"/endpoint`latency") == 0);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"/bar") == 0);
-  noit_metric_tag_search_free(ast);
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"/endpoint`latency") == 0);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"/bar") == 0);
+    noit_metric_tag_search_free(ast);
   }
-  else test_assert_namef(ast != NULL, "error at %d", erroroffset);
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
   
   /* simple re key test */
-  ast = noit_metric_tag_search_parse("and(/foo/:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
-  noit_metric_tag_search_free(ast);
-  
+  query = "and(/foo/:bar)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
+
   /* simple re val test */
-  ast = noit_metric_tag_search_parse("and(foo:/bar/)", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
-  test_assert(ast->contents.args.node[0]->contents.spec.name.re != NULL);
-  noit_metric_tag_search_free(ast);
+  query = "and(foo:/bar/)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+    test_assert(ast->contents.args.node[0]->contents.spec.name.re != NULL);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
   
   /* base64 fixed category */
-  ast = noit_metric_tag_search_parse("and(foo:bar,not(b\"c29tZTpzdHVmZltoZXJlXQ==\":value))", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
-  test_assert(ast->contents.args.node[1]->operation == OP_NOT_ARGS);
-  noit_metric_tag_search_ast_t *not = ast->contents.args.node[1]->contents.args.node[0];
-  test_assert(not != NULL);
-  test_assert(strcmp(not->contents.spec.cat.str,"some:stuff[here]") == 0);
-  test_assert(strcmp(not->contents.spec.name.str,"value") == 0);
-  noit_metric_tag_search_free(ast);
+  query = "and(foo:bar,not(b\"c29tZTpzdHVmZltoZXJlXQ==\":value))";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+    test_assert(ast->contents.args.node[1]->operation == OP_NOT_ARGS);
+    not = ast->contents.args.node[1]->contents.args.node[0];
+    test_assert(not != NULL);
+    test_assert(strcmp(not->contents.spec.cat.str,"some:stuff[here]") == 0);
+    test_assert(strcmp(not->contents.spec.name.str,"value") == 0);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
 
   /* base64 regex parse */
-  ast = noit_metric_tag_search_parse("and(foo:bar,not(b/c29tZS4q/:value))", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
-  test_assert(ast->contents.args.node[1]->operation == OP_NOT_ARGS);
-  not = ast->contents.args.node[1]->contents.args.node[0];
-  test_assert(not != NULL);
-  test_assert(strcmp(not->contents.spec.cat.str,"some.*") == 0);
-  test_assert(not->contents.spec.cat.re != NULL);
-  test_assert(strcmp(not->contents.spec.name.str,"value") == 0);
-  noit_metric_tag_search_free(ast);
+  query = "and(foo:bar,not(b/c29tZS4q/:value))";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str,"foo") == 0);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+    test_assert(ast->contents.args.node[1]->operation == OP_NOT_ARGS);
+    not = ast->contents.args.node[1]->contents.args.node[0];
+    test_assert(not != NULL);
+    test_assert(strcmp(not->contents.spec.cat.str,"some.*") == 0);
+    test_assert(not->contents.spec.cat.re != NULL);
+    test_assert(strcmp(not->contents.spec.name.str,"value") == 0);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
 
   /* wildcard category parse */
-  ast = noit_metric_tag_search_parse("and(*:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
-  noit_metric_tag_search_free(ast);
+  query = "and(*:bar)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
 
   /* wildcard category parse */
-  ast = noit_metric_tag_search_parse("and(f*:bar)", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
-  noit_metric_tag_search_free(ast);
+  query = "and(f*:bar)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(ast->contents.args.node[0]->contents.spec.cat.re != NULL);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.name.str,"bar") == 0);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
 
   /* wildcard value parse */
-  ast = noit_metric_tag_search_parse("and(foo:b*r)", &erroroffset);
-  test_assert(ast != NULL);
-  test_assert(ast->operation == OP_AND_ARGS);
-  test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
-  test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str, "foo") == 0);
-  test_assert(ast->contents.args.node[0]->contents.spec.name.re != NULL);
-  noit_metric_tag_search_free(ast);
+  query = "and(foo:b*r)";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(ast != NULL, "'%s' -> '%s'", query, unparse);
+    free(unparse);
+    test_assert(ast->operation == OP_AND_ARGS);
+    test_assert(ast->contents.args.node[0]->operation == OP_MATCH);
+    test_assert(strcmp(ast->contents.args.node[0]->contents.spec.cat.str, "foo") == 0);
+    test_assert(ast->contents.args.node[0]->contents.spec.name.re != NULL);
+    noit_metric_tag_search_free(ast);
+  }
+  else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
 
 }
 
@@ -277,18 +336,19 @@ void test_tag_match()
 
   for(int i = 0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
     noit_metric_tagset_builder_start(&builder);
-    noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
+    mtev_boolean tagset_add = noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
     memset(&tagset, 0, sizeof(tagset));
-    noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
+    mtev_boolean tagset_end = noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
+    test_assert_namef(tagset_add && tagset_end, "'%s' is valid tagset", testmatches[i].tagstring);
 
     for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
       ast = noit_metric_tag_search_parse(testmatches[i].queries[j].query, &erroroffset);
       if(ast) {
         match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
-        test_assert(match == testmatches[i].queries[j].match);
+        test_assert_namef(match == testmatches[i].queries[j].match, "'%s' %s", testmatches[i].queries[j].query, match ? "matches" : "doesn't match");
         noit_metric_tag_search_free(ast);
       } else {
-
+        test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, testmatches[i].queries[j].query);
       }
     }
     free(canonical);
@@ -395,17 +455,17 @@ void metric_parsing(void) {
 
   snprintf(buff, sizeof(buff), "@#lkm45lsnd:kljnmsdkflnsdf:kjnsdkfjnsdf");
   len = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), buff, strlen(buff));
-  test_assert(len > 0);
+  test_assert_namef(len > 0, "'%s' -> '%s'", buff, dbuff);
   len = noit_metric_tagset_encode_tag(ebuff, sizeof(ebuff), dbuff, len);
-  test_assert(len > 0);
-  test_assert(strcmp(buff, ebuff) == 0);
+  test_assert_namef(len > 0, "'%s' -> '%s'", dbuff, ebuff);
+  test_assert_namef(strcmp(buff, ebuff) == 0, "'%s' equals '%s'", buff, ebuff);
 
   snprintf(buff, sizeof(buff), "b\"Zm9v\":http://12.3.3.4:80/this?is=it");
   len = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), buff, strlen(buff));
-  test_assert(len > 0);
+  test_assert_namef(len > 0, "'%s' -> '%s'", buff, dbuff);
   len = noit_metric_tagset_encode_tag(ebuff, sizeof(ebuff), dbuff, len);
-  test_assert(len > 0);
-  test_assert(strcmp("foo:http://12.3.3.4:80/this?is=it", ebuff) == 0);
+  test_assert_namef(len > 0, "'%s' -> '%s'", dbuff, ebuff);
+  test_assert_namef(strcmp("foo:http://12.3.3.4:80/this?is=it", ebuff) == 0, "'%s' equals 'foo:http://12.3.3.4:80/this?is=it'", ebuff);
 
   int i;
 
@@ -426,14 +486,13 @@ void query_parsing(void) {
 
   for(int i = 0; i < sizeof(testqueries) / sizeof(*testqueries); i++) {
     ast = noit_metric_tag_search_parse(testqueries[i], &erroroffset);
-    test_assert(ast != NULL);
     if(ast) {
       unparse = noit_metric_tag_search_unparse(ast);
-      printf("%s\n", unparse);
+      test_assert_namef(ast != NULL, "'%s' -> '%s'", testqueries[i], unparse);
       free(unparse);
       noit_metric_tag_search_free(ast);
     } else {
-
+      test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, testqueries[i]);
     }
   }
 }
