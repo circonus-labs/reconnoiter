@@ -192,7 +192,6 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
       for (pair = strtok_r(semicolon, ";", &lasts); pair; pair = strtok_r(NULL, ";", &lasts)) {
         const char *equal = strchr(pair, '=');
         if (equal) {
-          size_t pair_len = strlen(pair);
           if (comma) mtev_dyn_buffer_add(&tagged_name, (uint8_t *)",", 1);
           mtev_dyn_buffer_add(&tagged_name, (uint8_t *)pair, equal - pair);
           mtev_dyn_buffer_add(&tagged_name, (uint8_t *)":", 1);
