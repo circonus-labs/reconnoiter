@@ -158,9 +158,7 @@ metric_local_track_or_log(void *vrxc, const char *name,
   if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm)) {
     /* collision, just log it out */
     rest_json_flush_immediate(rxc);
-    return;
   }
-  //metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), metric_local_free);
   metric_t *m = malloc(sizeof(*m));
   memset(m, 0, sizeof(*m));
   m->metric_name = strdup(name);

@@ -1,3 +1,9 @@
+local ffi = require("ffi")
+local libnoit = ffi.load("noit")
+ffi.cdef([=[
+int noit_check_log_b_to_sm(const char *, int, char ***, int);
+]=])
+
 describe("noit", function()
   local noit, api
   setup(function()
@@ -124,6 +130,51 @@ describe("noit", function()
                                     {"c":5}]=])
       assert.is.equal(200,code)
       assert.is.equal(5,doc.stats)
+    end)
+
+    local tkey
+    it("accepts _ts payload", function()
+      -- construct a streamed payload.
+      local payload = mtev.tojson(
+         { timetest = { _ts = 1000, _type = "n", _value = "1000" } }):tostring()
+        .. mtev.tojson(
+         { timetest = { _ts = 2000, _type = "n", _value = "2000" } }):tostring()
+        .. mtev.tojson(
+         { timetest = { _ts = 3000, _type = "n", _value = "3000" } }):tostring()
+        .. mtev.tojson(
+         { timetest = { _ts = 4000, _type = "n", _value = "4000" } }):tostring()
+      tkey = noit:watchfor(mtev.pcre('B[F12]\t'), true)
+      local code, doc, raw = api:json("POST", "/module/httptrap/" .. uuid .. "/foofoo", payload)
+      assert.is.equal(200, code)
+    end)
+    it("has matching B records", function()
+      local record = {}
+      local rparts = {}
+      local keys = {}
+      local rcnt = 0
+      for r=1,5 do
+        local out = ffi.new("char **[?]", 1)
+        local line = noit:waitfor(tkey, 2)
+        line = string.gsub(line, "^.+(B[12F]\t)", "%1")
+        local cnt = libnoit.noit_check_log_b_to_sm(line, string.len(line), out, -1)
+        for i = 1,cnt do
+          assert.is_not_nil(out[0][i-1])
+          local mrec = ffi.string(out[0][i-1]):split('\t')
+          if mrec[1] == 'M' and mrec[4] == "timetest" then
+            rcnt = rcnt+1
+            rparts[rcnt] = mrec
+            assert.is_not_nil(rparts[rcnt][4])
+            assert.is_not_nil(rparts[rcnt][5])
+            keys[rparts[rcnt][2]] = true
+          end
+        end
+      end
+      local expected = {}
+      expected["1.000"] = true
+      expected["2.000"] = true
+      expected["3.000"] = true
+      expected["4.000"] = true
+      assert.same(keys, expected)
     end)
   end)
 end)
