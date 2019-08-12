@@ -74,6 +74,7 @@ typedef enum {
 typedef struct noit_var_match_t {
   char *str;
   pcre *re;
+  pcre_extra *re_e;
 } noit_var_match_t;
 
 typedef struct noit_metric_tag_match_t {
