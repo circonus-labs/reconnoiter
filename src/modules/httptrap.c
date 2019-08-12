@@ -761,8 +761,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       *complete = 1;
       return NULL;
     }
-    if((mtev_http_request_payload_chunked(req) && len == 0) ||
-       (rxc->len == content_length)) {
+    if(len == 0 && mtev_http_request_payload_complete(req)) {
       rxc->complete = 1;
       _YD("no more data, finishing YAJL parse\n");
       yajl_complete_parse(rxc->parser);

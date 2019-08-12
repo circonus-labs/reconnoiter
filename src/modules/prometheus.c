@@ -140,8 +140,7 @@ rest_get_upload(mtev_http_rest_closure_t *restc, int *mask, int *complete)
       return NULL;
     }
     content_length = mtev_http_request_content_length(req);
-    if((mtev_http_request_payload_chunked(req) && len == 0) ||
-       (mtev_dyn_buffer_used(&rxc->data) == content_length)) {
+    if(len == 0 && mtev_http_request_payload_complete(req)) {
       rxc->complete = 1;
     }
   }
