@@ -46,7 +46,9 @@ noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
       free(node->contents.spec.cat.str);
       free(node->contents.spec.name.str);
       if(node->contents.spec.cat.re) pcre_free(node->contents.spec.cat.re);
+      if(node->contents.spec.cat.re_e) pcre_free_study(node->contents.spec.cat.re_e);
       if(node->contents.spec.name.re) pcre_free(node->contents.spec.name.re);
+      if(node->contents.spec.name.re_e) pcre_free_study(node->contents.spec.name.re_e);
       break;
     /* All ARGS */
     default:
@@ -233,11 +235,13 @@ noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
     if(out->contents.spec.cat.re)
       out->contents.spec.cat.re = pcre_compile(out->contents.spec.cat.str,
                                                0, &error, &erroffset, NULL);
+    out->contents.spec.cat.re_e = NULL;
     if(out->contents.spec.name.str)
       out->contents.spec.name.str = strdup(out->contents.spec.name.str);
     if(out->contents.spec.name.re)
       out->contents.spec.name.re = pcre_compile(out->contents.spec.name.str,
                                                0, &error, &erroffset, NULL);
+    out->contents.spec.name.re_e = NULL;
   }
   else {
     noit_metric_tag_search_ast_t **nodes = calloc(out->contents.args.cnt, sizeof(*nodes));
