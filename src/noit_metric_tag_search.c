@@ -46,9 +46,19 @@ noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
       free(node->contents.spec.cat.str);
       free(node->contents.spec.name.str);
       if(node->contents.spec.cat.re) pcre_free(node->contents.spec.cat.re);
-      if(node->contents.spec.cat.re_e) pcre_free_study(node->contents.spec.cat.re_e);
+      if(node->contents.spec.cat.re_e) 
+#ifdef PCRE_STUDY_JIT_COMPILE
+        pcre_free_study(node->contents.spec.cat.re_e);
+#else
+        pcre_free(node->contents.spec.cat.re_e);
+#endif
       if(node->contents.spec.name.re) pcre_free(node->contents.spec.name.re);
-      if(node->contents.spec.name.re_e) pcre_free_study(node->contents.spec.name.re_e);
+      if(node->contents.spec.name.re_e)
+#ifdef PCRE_STUDY_JIT_COMPILE
+        pcre_free_study(node->contents.spec.name.re_e);
+#else
+        pcre_free(node->contents.spec.name.re_e);
+#endif
       break;
     /* All ARGS */
     default:
