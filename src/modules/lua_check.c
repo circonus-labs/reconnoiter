@@ -1318,6 +1318,18 @@ noit_lua_loader_onload(mtev_image_t *self) {
   return 0;
 }
 
+static int
+noit_lua_loader_init_noop(mtev_dso_generic_t *self) {
+  (void)self;
+  return 0;
+}
+static int
+noit_lua_loader_config_noop(mtev_dso_generic_t *self, mtev_hash_table *o) {
+  (void)self;
+  (void)o;
+  return 0;
+}
+
 #include "lua.xmlh"
 mtev_dso_loader_t lua = {
   {
@@ -1331,4 +1343,17 @@ mtev_dso_loader_t lua = {
   noit_lua_loader_config,
   NULL,
   noit_lua_loader_load
+};
+
+mtev_dso_generic_t lua_check_runtime = {
+  {
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
+    .name = "lua_check_runtime",
+    .description = "Lua check loader's runtime",
+    .xml_description = lua_xml_description,
+    .onload = noit_lua_loader_onload,
+  },
+  noit_lua_loader_config_noop,
+  noit_lua_loader_init_noop
 };
