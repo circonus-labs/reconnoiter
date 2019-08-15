@@ -155,6 +155,10 @@ metric_local_track_or_log(void *vrxc, const char *name,
   struct rest_json_payload *rxc = vrxc;
   if(t == METRIC_GUESS) return;
   void *vm;
+  if(rxc->immediate_metrics == NULL) {
+    rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
+    mtev_hash_init(rxc->immediate_metrics);
+  }
   if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm)) {
     /* collision, just log it out */
     rest_json_flush_immediate(rxc);
@@ -289,7 +293,7 @@ httptrap_yajl_cb_null(void *ctx) {
     track_filtered(json, json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, NULL);
-    if(json->immediate)
+    if(json->immediate || json->got_timestamp)
       metric_local_accrue(json, json->keys[json->depth], METRIC_INT32, NULL);
     json->cnt++;
   }
@@ -317,7 +321,7 @@ httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
     track_filtered(json, json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, &ival);
-    if(json->immediate)
+    if(json->immediate || json->got_timestamp)
       metric_local_accrue(json, json->keys[json->depth], METRIC_INT32, &ival);
     json->cnt++;
   }
@@ -344,8 +348,6 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     return 1;
   }
   if(json->last_special_key == HT_EX_TS) {
-    /* For now, only look at timestamp if we're asynch */
-    if (!json->immediate) return 1;
     uint64_t ts = strtoull(numberVal, NULL, 10);
     json->last_timestamp.tv_sec = (ts / 1000);
     json->last_timestamp.tv_usec = (ts % 1000) * 1000;
@@ -370,7 +372,7 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     track_filtered(json, json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
-    if(json->immediate)
+    if(json->immediate || json->got_timestamp)
       metric_local_accrue(json, json->keys[json->depth], METRIC_GUESS, val);
     json->cnt++;
   }
@@ -441,7 +443,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     track_filtered(json, json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
-    if(json->immediate)
+    if(json->immediate || json->got_timestamp)
       metric_local_accrue(json, json->keys[json->depth], METRIC_GUESS, val);
     json->cnt++;
   }
@@ -577,7 +579,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
         m->accumulator = cnt;
       }
     }
-    if(json->immediate && last_p != NULL && json->last_type != 'h') {
+    if((json->immediate || json->got_timestamp) && last_p != NULL && json->last_type != 'h') {
       metric_type_t t = use_computed_value ?
                           'n' :
                           ((json->saw_complex_type & HT_EX_TYPE) ?
