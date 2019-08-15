@@ -265,9 +265,11 @@ end
 
 function TestConfig:make_logs_config(fd, opts)
   local logtypes =
-    { "collectd", "dns", "eventer", "external", "lua", "mysql", "ping_icmp",
-      "postgres", "selfcheck", "snmp", "ssh2", "listener", "datastore",
-      "memory", "http" }
+    { collectd = "false", dns = "false", eventer = "true",
+      external = "false", lua = "false", mysql = "false",
+      ping_icmp = "false", postgres = "false", selfcheck = "false",
+      snmp = "false", ssh2 = "false", listener = "true",
+      datastore = "false", memory = "true", http = "true" }
   -- These are disabled attrs, so they look backwards
   if opts.logs_error == nil then
     opts.logs_error = { }
@@ -287,12 +289,12 @@ function TestConfig:make_logs_config(fd, opts)
     opts.logs_debug.datastore = 'false'
   end
 
-  for i, type in ipairs(logtypes) do
+  for type, default in pairs(logtypes) do
     if opts.logs_error[type] == nil then
       opts.logs_error[type] = 'false'
     end
     if opts.logs_debug[type] == nil then
-      opts.logs_debug[type] = 'false'
+      opts.logs_debug[type] = default
     end
   end
 
