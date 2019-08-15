@@ -336,8 +336,12 @@ noit_metric_tagset_is_taggable_value(const char *val, size_t len)
     noit_metric_tagset_is_taggable_part(val, len, noit_metric_tagset_is_taggable_value_char);
 }
 
-ssize_t
-noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len)
+static inline ssize_t
+noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
+                                 const char *decoded_tag, size_t decoded_len,
+                                 mtev_boolean for_search,
+                                 noit_metric_encode_type_t left,
+                                 noit_metric_encode_type_t right)
 {
   char scratch[NOIT_TAG_MAX_PAIR_LEN+1];
   if(max_len > sizeof(scratch)) return -1;
@@ -350,15 +354,21 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
   if(sepcnt == 0) {
     return -1;
   }
+
+  /* non-search encoding always uses "... ALWAYS */
+  if(!for_search) left = right = '"';
+
   int first_part_needs_b64 = 0;
+  if(for_search && (left == NOIT_METRIC_ENCODE_EXACT || decoded_tag[0] == '/')) first_part_needs_b64++;
   for(i=0;i<sepcnt;i++)
     first_part_needs_b64 += !noit_metric_tagset_is_taggable_key_char(decoded_tag[i]);
   int first_part_len = sepcnt;
   if(first_part_needs_b64) first_part_len = mtev_b64_encode_len(first_part_len) + 3;
  
   int second_part_needs_b64 = 0; 
+  if(for_search && (right == NOIT_METRIC_ENCODE_EXACT || decoded_tag[sepcnt+1] == '/')) second_part_needs_b64++;
   for(i=sepcnt+1;i<decoded_len;i++)
-	second_part_needs_b64 += !noit_metric_tagset_is_taggable_value_char(decoded_tag[i]);
+    second_part_needs_b64 += !noit_metric_tagset_is_taggable_value_char(decoded_tag[i]);
   int second_part_len = decoded_len - sepcnt - 1;
   if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
 
@@ -368,14 +378,14 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
   char *cp = scratch;
   if(first_part_needs_b64) {
     *cp++ = 'b';
-    *cp++ = '"';
+    *cp++ = left;
     int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt,
                               cp, sizeof(scratch) - (cp - scratch));
     if(len <= 0) {
       return -1;
     }
     cp += len;
-    *cp++ = '"';
+    *cp++ = left;
   } else {
     memcpy(cp, decoded_tag, sepcnt);
     cp += sepcnt;
@@ -383,14 +393,14 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
   *cp++ = ':';
   if(second_part_needs_b64) {
     *cp++ = 'b';
-    *cp++ = '"';
+    *cp++ = right;
     int len = mtev_b64_encode((unsigned char *)decoded_tag + sepcnt + 1,
                               decoded_len - sepcnt - 1, cp, sizeof(scratch) - (cp - scratch));
     if(len <= 0) {
       return -1;
     }
     cp += len;
-    *cp++ = '"';
+    *cp++ = right;
   } else {
     memcpy(cp, decoded_tag + sepcnt + 1, decoded_len - sepcnt - 1);
     cp += decoded_len - sepcnt - 1;
@@ -400,6 +410,16 @@ noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *dec
     encoded_tag[cp-scratch] = '\0';
   }
   return cp - scratch;
+}
+ssize_t
+noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len)
+{
+  return noit_metric_tagset_encode_tag_ex(encoded_tag, max_len, decoded_tag, decoded_len, mtev_false, NOIT_METRIC_ENCODE_DEFAULT, NOIT_METRIC_ENCODE_DEFAULT);
+}
+ssize_t
+noit_metric_tagset_encode_tag_for_search(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len, noit_metric_encode_type_t left, noit_metric_encode_type_t right)
+{
+  return noit_metric_tagset_encode_tag_ex(encoded_tag, max_len, decoded_tag, decoded_len, mtev_true, left, right);
 }
 ssize_t
 noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *encoded_tag, size_t encoded_size)

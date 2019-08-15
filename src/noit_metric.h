@@ -58,6 +58,12 @@ typedef enum {
   METRIC_STRING = 's'
 } metric_type_t;
 
+typedef enum {
+  NOIT_METRIC_ENCODE_DEFAULT = '"',
+  NOIT_METRIC_ENCODE_EXACT = '!',
+  NOIT_METRIC_ENCODE_REGEX = '/'
+} noit_metric_encode_type_t;
+
 #define IS_METRIC_TYPE_NUMERIC(t) \
   ((t) == METRIC_INT32 || (t) == METRIC_UINT32 || \
    (t) == METRIC_INT64 || (t) == METRIC_UINT64 || (t) == METRIC_DOUBLE)
@@ -175,6 +181,11 @@ API_EXPORT(mtev_boolean)
 API_EXPORT(ssize_t)
   noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, 
                                 const char *decoded_tag, size_t decoded_len);
+API_EXPORT(ssize_t)
+  noit_metric_tagset_encode_tag_for_search(char *encoded_tag, size_t max_len, 
+                                           const char *decoded_tag, size_t decoded_len,
+                                           noit_metric_encode_type_t left,
+                                           noit_metric_encode_type_t right);
 API_EXPORT(ssize_t)
   noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, 
                                 const char *encoded_tag, size_t encoded_size);
