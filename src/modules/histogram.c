@@ -128,8 +128,8 @@ debug_print_hist(histogram_t *ht) {
 
 void
 noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *whence,
-          const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
-          mtev_boolean live_feed, mtev_boolean validate) {
+          mtev_boolean explicit_time, const char *metric_name, const char *hist_encode,
+          ssize_t hist_encode_len, mtev_boolean live_feed, mtev_boolean validate) {
   mtev_boolean extended_id = mtev_false;
   char uuid_str[256*3+37];
   const char *v;
@@ -161,7 +161,8 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
   }
   mtev_uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str));
 
-  unsigned long ms_cluster_jitter = noit_cluster_self_index() + 1;
+  unsigned long ms_cluster_jitter = 0
+  if(!explicit_time) ms_cluster_jitter = noit_cluster_self_index() + 1;
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000) + ms_cluster_jitter)
@@ -198,10 +199,10 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
 }
 
 void
-noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
+noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence, mtev_boolean explicit_time,
           const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
           mtev_boolean live_feed) {
-  noit_log_histo_encoded_function_validate(check,whence,metric_name,hist_encode,hist_encode_len,live_feed,mtev_true);
+  noit_log_histo_encoded_function_validate(check,whence,explicit_time,metric_name,hist_encode,hist_encode_len,live_feed,mtev_true);
 }
 
 static void
@@ -242,7 +243,7 @@ log_histo(noit_check_t *check, uint64_t whence_s,
 
 
 
-  noit_log_histo_encoded_function_validate(check, &whence, metric_name, hist_encode, enc_est, live_feed, mtev_false);
+  noit_log_histo_encoded_function_validate(check, &whence, mtev_false, metric_name, hist_encode, enc_est, live_feed, mtev_false);
 
  cleanup:
   if(hist_serial) free(hist_serial);

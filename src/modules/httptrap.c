@@ -353,6 +353,7 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     json->last_timestamp.tv_usec = (ts % 1000) * 1000;
     json->saw_complex_type |= HT_EX_TS;
     json->got_timestamp = mtev_true;
+    _YD("[%3d] cb_number { _ts: %zu }\n", json->depth, ts);
     return 1;
   }
   if(rv) return 1;
@@ -388,8 +389,6 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     _YD("[%3d] cb_string [BAD]\n", json->depth);
     return 0;
   }
-  if(json->last_special_key == HT_EX_TS) /* handle ts */
-    return 1;
   if(json->last_special_key == HT_EX_TAGS) /* handle tag */
     return 1;
   rv = set_array_key(json);
@@ -416,6 +415,15 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     NEW_LV(json, str);
     _YD("[%3d] cb_string { _value: %s }\n", json->depth, str);
     json->saw_complex_type |= HT_EX_VALUE;
+    return 1;
+  }
+  else if(json->last_special_key == HT_EX_TS) {
+    uint64_t ts = strtoull(stringVal, NULL, 10);
+    json->last_timestamp.tv_sec = (ts / 1000);
+    json->last_timestamp.tv_usec = (ts % 1000) * 1000;
+    json->saw_complex_type |= HT_EX_TS;
+    json->got_timestamp = mtev_true;
+    _YD("[%3d] cb_string { _ts: %zu }\n", json->depth, ts);
     return 1;
   }
   else if(json->last_special_key == HT_EX_FLAGS) {
