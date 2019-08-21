@@ -161,7 +161,7 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
   }
   mtev_uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str));
 
-  unsigned long ms_cluster_jitter = 0
+  unsigned long ms_cluster_jitter = 0;
   if(!explicit_time) ms_cluster_jitter = noit_cluster_self_index() + 1;
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
