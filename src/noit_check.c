@@ -2471,7 +2471,7 @@ noit_stats_log_immediate_histo_tv(noit_check_t *check,
   }
 
   if (noit_log_histo_encoded_available()) {
-    noit_log_histo_encoded(check, &whence, tagged_name, hist_encoded, hist_encoded_len, mtev_false);
+    noit_log_histo_encoded(check, &whence, mtev_true, tagged_name, hist_encoded, hist_encoded_len, mtev_false);
   } else {
     return mtev_false;
   }
