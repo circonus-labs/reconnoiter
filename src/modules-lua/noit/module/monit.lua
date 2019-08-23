@@ -757,12 +757,12 @@ function initiate(module, check)
     end 
 
     local expected_certificate_name = host or ''
-    local output = ''
+    local output_tbl = {''}
 
     -- callbacks from the HttpClient
     local callbacks = { }
     local hdrs_in = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     callbacks.headers = function (t) hdrs_in = t end
     
     -- setup SSL info
@@ -849,6 +849,7 @@ function initiate(module, check)
     client:get_response(read_limit)
 
     -- parse the xml doc
+    local output = table.concat(output_tbl, "")
     local doc = mtev.parsexml(output)
     if doc == nil then
         check.status("xml parse error")

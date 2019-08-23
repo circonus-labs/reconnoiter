@@ -551,12 +551,12 @@ function initiate(module, check)
         fields_to_check[ind] = val:gsub("^%s*(.-)%s*$", "%1")
     end
 
-    local output = ''
+    local output_tbl = {''}
 
     -- callbacks from the HttpClient
     local callbacks = { }
     local hdrs_in = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     callbacks.headers = function (t) hdrs_in = t end
    
     -- perform the request
@@ -603,6 +603,7 @@ function initiate(module, check)
           client:get_response(1024000)
 
           -- parse the xml doc
+          local output = table.concat(output_tbl, "")
           local doc = mtev.parsexml(output)
           if doc ~= nil then
             if classname == 'PullClassList' then
@@ -611,7 +612,6 @@ function initiate(module, check)
               metrics = metrics + xml_to_metrics(check, doc, classname, fields_to_check)
             end
           end
-          output = ''
         end
       end
     end

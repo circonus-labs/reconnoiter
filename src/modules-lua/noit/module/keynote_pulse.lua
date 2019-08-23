@@ -189,12 +189,12 @@ function initiate(module, check)
 
     uri = uri .. 'dps/xmlpost?delta_time=300&service=TRANSACTION&meta_data=true&agreement_id=' .. config.agreement_id
 
-    local output = ''
+    local output_tbl = {''}
 
     -- callbacks from the HttpClient
     local callbacks = { }
     local hdrs_in = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     callbacks.headers = function (t) hdrs_in = t end
    
     -- perform the request
@@ -212,6 +212,7 @@ function initiate(module, check)
 
     client:do_request("GET", uri, headers)
     client:get_response()
+    local output = table.concat(output_tbl, "")
     next_allowed_run[check.checkid] = mtev.timeval.seconds(mtev.timeval.now()) + 60
     xml_to_metrics(check, mtev.parsexml(output))
 end

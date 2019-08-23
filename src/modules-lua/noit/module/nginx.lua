@@ -125,11 +125,9 @@ function initiate(module, check)
   check.bad()
   check.unavailable()
 
-  local output = ''
+  local output_tbl = {''}
   local callbacks = {}
-  callbacks.consume = function (str)
-    output = output .. (str or '') 
-  end
+  callbacks.consume = function (str) table.insert(output_tbl, str) end
 
   if host == nil then host = check.target end
   if schema == nil then
@@ -189,6 +187,7 @@ function initiate(module, check)
 
   local endtime = mtev.timeval.now()
 
+  local output = table.concat(output_tbl, "")
   local active, accepted, handled, requests, reading, writing, waiting = string.match(output, "^Active connections: (%d*) %D*(%d*)%s-(%d*)%s-(%d*)%s-Reading: (%d*) Writing: (%d*) Waiting: (%d*)")
   check.metric("active", active)
   check.metric("accepted", accepted)

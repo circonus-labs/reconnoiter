@@ -351,7 +351,7 @@ function initiate(module, check)
         include_body = true
     end
 
-    local output = ''
+    local output_tbl = {''}
     local connecttime, firstbytetime
     local next_location
     local cookies = { }
@@ -364,7 +364,7 @@ function initiate(module, check)
             firstbytetime = mtev.timeval.now()
             setfirstbyte = 0
         end
-        output = output .. (str or '')
+        table.insert(output_tbl, str)
     end
     callbacks.headers = function (hdrs, setcookies)
         next_location = hdrs.location
@@ -413,6 +413,7 @@ function initiate(module, check)
         for k,v in pairs(headers) do
             headers_firstpass[k] = v
         end
+        output_tbl = {''}
         client:do_request(method, uri, headers_firstpass, nil, http_version)
         client:get_response(read_limit)
         if client.code ~= 401 or
@@ -459,6 +460,7 @@ function initiate(module, check)
             check.status(err or "unknown error in HTTP connect")
             return
         end
+        output_tbl = {''}
         optclient:do_request(method, uri, headers, payload, http_version)
         local status, err = pcall(function() optclient:get_response(read_limit) end)
         if not status then
@@ -517,6 +519,7 @@ function initiate(module, check)
     local endtime = mtev.timeval.now()
     check.available()
 
+    local output = table.concat(output_tbl, "")
     local status = ''
     -- setup the code
     check.metric_string("code", client.code)

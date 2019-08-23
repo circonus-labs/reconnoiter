@@ -233,7 +233,7 @@ function AWSClient:perform(target, cache_table)
     end_time = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time+300)
   end
   local uri = ""
-  local output = ''
+  local output_tbl = {''}
   local period = granularity * 60
   local namespace_table = default_cloudwatch_values[namespace]
 
@@ -251,7 +251,7 @@ function AWSClient:perform(target, cache_table)
                         MetricName = metric,
                         Namespace = namespace }
   
-    output = ''
+    output_tbl = {''}
     local stat_table = statistics
     if (get_default == 1) then
       stat_table = default_cloudwatch_values["default"]
@@ -318,7 +318,7 @@ function AWSClient:perform(target, cache_table)
     
     -- callbacks from the HttpClient
     local callbacks = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     local client = HttpClient:new(callbacks)
     local rv, err = client:connect(target, port, use_ssl)
     if rv ~= 0 then return rv, err end
@@ -335,6 +335,7 @@ function AWSClient:perform(target, cache_table)
     client:get_response()
 
     -- parse the xml doc
+    local output = table.concat(output_tbl, "")
     local doc = mtev.parsexml(output)
     if doc ~= nil then
       local root = doc:root()

@@ -191,7 +191,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
     local end_date = os.date("%Y-%m-%d", os.time()+172800)
 
     local url = baseurl
-    local output = ''
+    local output_tbl = {''}
 
     local urlencode = function (t)
         local localescape = function (s)
@@ -212,7 +212,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
 
     -- callbacks from the HttpClient
     local callbacks = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     local client = HttpClient:new(callbacks)
     local rv, err = client:connect(target, port, use_ssl)
 
@@ -237,6 +237,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
         client:do_request("POST", "/accounts/ClientLogin", headers, urlencode(auth_post_data))
         client:get_response()
         local line
+        local output = table.concat(output_tbl, "")
         for line in string.gmatch(output, "([^\r\n]+)") do
             if line:find("^Auth=") ~= nil then
                 gdata_auth = 'GoogleLogin ' .. line
@@ -244,7 +245,6 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
                 gdata_auth = 'CaptchaRequired'
             end
         end
-        output = ''
 
         if gdata_auth == 'CaptchaRequired' then
             return -1, 'Captcha Required for ' .. username
@@ -262,8 +262,10 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
             client_secret = client_secret,
             grant_type    = 'refresh_token'
         }
+        output_tbl = {''}
         client:do_request("POST", "/o/oauth2/token", headers, urlencode(auth_post_data))
         client:get_response()
+        local output = table.concat(output_tbl, "")
         local jsondoc = mtev.parsejson(output)
         local data = jsondoc:document()
         local err = ''
@@ -280,7 +282,6 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
         if err ~= '' then
             return -1, err
         end
-        output = ''
         url = url .. "&access_token=" .. new_auth_token
     elseif oauth_version == "1.0" then
         local oauth_timestamp = os.time()
@@ -327,10 +328,12 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
 
     local json = generate_json(view_id, start_date, end_date, self.params.metrics)
 
+    output_tbl = {''}
     client:do_request("POST", uri, headers, json)
     client:get_response()
 
     local metrics = 0
+    local output = table.concat(output_tbl, "")
     local jsondoc = mtev.parsejson(output)
     local jsondata = jsondoc:document()
 

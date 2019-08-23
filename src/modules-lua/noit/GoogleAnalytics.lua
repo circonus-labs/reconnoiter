@@ -162,7 +162,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
                 '&start-date=' .. start_date .. '&end-date=' .. end_date ..
                 '&metrics=' .. metrics
 
-    local output = ''
+    local output_tbl = {''}
 
     local urlencode = function (t)
         local localescape = function (s)
@@ -183,7 +183,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
 
     -- callbacks from the HttpClient
     local callbacks = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     local client = HttpClient:new(callbacks)
     local rv, err = client:connect(target, port, use_ssl)
   
@@ -204,6 +204,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
                           urlencode(auth_post_data))
         client:get_response()
         local line
+        local output = table.concat(output_tbl, "")
         for line in string.gmatch(output, "([^\r\n]+)") do
             if line:find("^Auth=") ~= nil then
                 gdata_auth = 'GoogleLogin ' .. line
@@ -211,7 +212,6 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
                 gdata_auth = 'CaptchaRequired'
             end
         end
-        output = ''
 
         if gdata_auth == 'CaptchaRequired' then
             return -1, 'Captcha Required for ' .. username
@@ -229,12 +229,13 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
                 grant_type    = 'refresh_token' }
         client:do_request("POST", "/o/oauth2/token", headers, urlencode(auth_post_data))
         client:get_response()
+        local output = table.concat(output_tbl, "")
         jsondoc = mtev.parsejson(output)
         local data = jsondoc:document()
         for k, v in pairs(data) do
             if k == "access_token" then new_auth_token = v end
         end
-        output = ''
+
         url = url .. "&access_token=" .. new_auth_token
     elseif oauth_version == "1.0" then
         local oauth_timestamp = os.time()
@@ -265,6 +266,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
 
     -- perform the request
     headers = {}
+    output_tbl = {''}
     local gdata_version = "2"
     headers.Host = host
     headers['GData-Version'] = gdata_version
@@ -272,6 +274,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
     client:do_request("GET", uri, headers)
     client:get_response()
     -- parse the xml doc
+    local output = table.concat(output_tbl, "")
     local doc = mtev.parsexml(output)
     if doc == nil then
         mtev.log("debug", "bad xml: %s\n\n", output)
