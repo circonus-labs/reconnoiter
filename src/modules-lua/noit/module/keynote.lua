@@ -171,12 +171,12 @@ function initiate(module, check)
       uri = uri .. '&transpagelist=' .. transpagelist
     end
 
-    local output = ''
+    local output_tbl = {''}
 
     -- callbacks from the HttpClient
     local callbacks = { }
     local hdrs_in = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     callbacks.headers = function (t) hdrs_in = t end
    
     -- perform the request
@@ -193,6 +193,7 @@ function initiate(module, check)
 
     client:do_request("GET", uri, headers)
     client:get_response()
+    local output = table.concat(output_tbl, "")
     json_to_metrics(check, mtev.parsejson(output))
 end
 

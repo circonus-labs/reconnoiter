@@ -183,11 +183,11 @@ function initiate(module, check)
         error(schema .. " not supported")
     end
 
-    local output = ''
+    local output_tbl = {''}
 
     -- callbacks from the HttpClient
     local callbacks = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     local client = HttpClient:new(callbacks)
     local rv, err = client:connect(host, port, use_ssl)
    
@@ -205,6 +205,7 @@ function initiate(module, check)
     client:get_response()
 
     -- parse the xml doc
+    local output = table.concat(output_tbl, "")
     local doc = mtev.parsexml(output)
     if doc == nil then
         mtev.log("debug", "bad xml: %s\n", output)
