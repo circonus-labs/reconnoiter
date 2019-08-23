@@ -280,12 +280,12 @@ function initiate(module, check)
         error(schema .. " not supported")
     end 
 
-    local output = ''
+    local output_tbl = {''}
 
     -- callbacks from the HttpClient
     local callbacks = { }
     local hdrs_in = { }
-    callbacks.consume = function (str) output = output .. str end
+    callbacks.consume = function (str) table.insert(output_tbl, str) end
     callbacks.headers = function (t) hdrs_in = t end
 
     -- setup SSL info
@@ -347,7 +347,7 @@ function initiate(module, check)
 
         -- not success.. clear what callbacks created
         hdrs_in = {}
-        output = ''
+        output = {''}
 
         if client.code ~= 401 or
            client.headers["www-authenticate"] == nil then
@@ -391,6 +391,8 @@ function initiate(module, check)
     local elapsedtime = mtev.timeval.now() - starttime
     local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32("duration", math.floor(seconds * 1000 + 0.5))
+
+    local output = table.concat(output_tbl, "")
 
     if helper and helper.fix_output then output = helper.fix_output(output) end
 
