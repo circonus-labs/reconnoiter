@@ -45,6 +45,7 @@
 #include <mtev_conf_private.h>
 #include <mtev_json.h>
 #include <mtev_uuid.h>
+#include <mtev_memory.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
@@ -85,6 +86,7 @@ add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const c
   void *data;
   xmlNodePtr tmp;
 
+  mtev_memory_begin();
   mets = noit_check_stats_metrics(c);
   while(mtev_hash_next(mets, &iter, &k, &klen, &data)) {
     char buff[256];
@@ -118,6 +120,7 @@ add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const c
              f->tv_sec + (f->tv_usec / 1000000.0));
     xmlSetProp(metrics, (xmlChar *)"timestamp", (xmlChar *)timestr);
   }
+  mtev_memory_end();
 }
 xmlNodePtr
 noit_check_state_as_xml(noit_check_t *check, int full) {
@@ -201,6 +204,7 @@ stats_to_json(noit_check_t *check, stats_t *c, const char *name, mtev_hash_table
 
   noit_check_stats_populate_json_hook_invoke(doc, check, c, name);
 
+  mtev_memory_begin();
   metrics = noit_check_stats_metrics(c);
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     char buff[256];
@@ -224,6 +228,7 @@ stats_to_json(noit_check_t *check, stats_t *c, const char *name, mtev_hash_table
     }
     json_object_object_add(doc, m->metric_name, metric);
   }
+  mtev_memory_end();
   return doc;
 }
 

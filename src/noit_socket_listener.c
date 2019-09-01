@@ -43,6 +43,7 @@
 #include <mtev_uuid.h>
 #include <mtev_b64.h>
 #include <mtev_dyn_buffer.h>
+#include <mtev_memory.h>
 #include <ck_pr.h>
 
 #include "noit_metric.h"
@@ -99,12 +100,14 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
 
     /* We just want to set the number of metrics here to the number
      * of metrics in the stats_t struct */
+    mtev_memory_begin();
     if (s) {
       mtev_hash_table *metrics = noit_check_stats_metrics(s);
       if (metrics) {
         stats_count = mtev_hash_size(metrics);
       }
     }
+    mtev_memory_end();
 
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,

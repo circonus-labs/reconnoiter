@@ -47,6 +47,7 @@
 #include <mtev_console.h>
 #include <mtev_hash.h>
 #include <mtev_log.h>
+#include <mtev_memory.h>
 #include <mtev_uuid.h>
 
 #include "noit_filters.h"
@@ -623,6 +624,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
         nc_printf(ncct, " feeds: %d\n", check->feeds ? mtev_skiplist_size(check->feeds) : 0);
       }
 
+      mtev_memory_begin();
       c = noit_check_get_stats_inprogress(check);
       metrics = noit_check_stats_metrics(c);
       if(mtev_hash_size(metrics) > 0) {
@@ -641,6 +643,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
         nc_printf(ncct, " metrics (previous):\n");
         nc_print_stat_metrics(ncct, check, c);
       }
+      mtev_memory_end();
     }
   }
  out:
