@@ -33,6 +33,7 @@
 
 #include <mtev_defines.h>
 
+#include <mtev_memory.h>
 #include <mtev_uuid.h>
 #include <netinet/in.h>
 
@@ -505,12 +506,14 @@ _noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check) {
 
   c = noit_check_get_stats_current(check);
   whence = noit_check_stats_whence(c, NULL);
+  mtev_memory_begin();
   while(mtev_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
     srv = _noit_check_log_metric(ls, check, uuid_str, &c->whence, m);
     if(srv) rv = srv;
   }
+  mtev_memory_end();
   return rv;
 }
 void
@@ -613,7 +616,9 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, st
 
   void *B = NULL;
   uint64_t whence_ms = (SECPART(whence) * 1000) + MSECPART(whence);
-  
+ 
+  mtev_memory_begin(); 
+
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
@@ -647,6 +652,8 @@ do_batch:
     }
   }
   if(current_in_batch) goto do_batch;
+
+  mtev_memory_end(); 
 
   return rv_err ? rv_err : rv_sum;
 }
@@ -687,6 +694,8 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
 
   // Just count
   metrics = in_metrics ? in_metrics : noit_check_stats_metrics(c);
+
+  mtev_memory_begin();
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     n_metrics++;
   }
@@ -752,6 +761,8 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
       bundle->n_metrics = b_i + 1;
     }
   }
+
+  mtev_memory_end();
 
   int rv_sum = 0;
   int rv_err = 0;
