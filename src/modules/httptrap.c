@@ -96,11 +96,12 @@ typedef enum {
 } httptrap_vop_t;
 
 static void metric_local_free(void *vm) {
-  metric_t *m = vm;
   if(vm) {
+    metric_t *m = vm;
     free(m->metric_name);
     free(m->metric_value.vp);
   }
+  free(vm);
 }
 
 struct value_list {
@@ -146,7 +147,7 @@ track_filtered(struct rest_json_payload *json, const char *name) {
 static void
 rest_json_flush_immediate(struct rest_json_payload *rxc) {
   noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
-  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free); //mtev_memory_safe_free);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
 }
 
 static void 
