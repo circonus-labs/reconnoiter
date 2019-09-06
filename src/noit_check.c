@@ -2262,13 +2262,13 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
                       const void *value,
                       struct timeval *timestamp) {
   stats_t *c;
-  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
-  memset(m, 0, sizeof(*m));
-
   char tagged_name[MAX_METRIC_TAGGED_NAME];
   if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
     return;
   }
+
+  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
+  memset(m, 0, sizeof(*m));
 
   if(noit_stats_populate_metric_with_tagset(m, tagged_name, type, value)) {
     mtev_memory_safe_free(m);
