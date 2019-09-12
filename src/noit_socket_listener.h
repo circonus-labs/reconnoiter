@@ -69,6 +69,7 @@ typedef struct listener_closure_s {
   mtev_log_stream_t nlerr;
   mtev_log_stream_t nldeb;
   char nlname[16];
+  mtev_hash_table *immediate_metrics;
   void (*payload_handler)(noit_check_t *check, char *buffer, size_t len);
 } listener_closure_t;
 
@@ -106,6 +107,8 @@ count_records(char *buffer)
 
 void listener_closure_ref(listener_closure_t *lc);
 int listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause);
+void listener_metric_track_or_log(void *vrxc, const char *name, 
+                                  metric_type_t t, const void *vp, struct timeval *w);
 int listener_handler(eventer_t e, int mask, void *closure, struct timeval *now);
 int listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now);
 int listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now);

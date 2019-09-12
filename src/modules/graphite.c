@@ -209,11 +209,12 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     struct timeval tv;
     tv.tv_sec = (time_t)(whence_ms / 1000L);
     tv.tv_usec = (suseconds_t)((whence_ms % 1000L) * 1000);
-    noit_stats_log_immediate_metric_timed(check,
-                                          (const char *)mtev_dyn_buffer_data(&tagged_name),
-                                          METRIC_DOUBLE,
-                                          &metric_value,
-                                          &tv);
+    noit_metric_coerce_ex_with_timestamp(check,
+                                         (const char *)mtev_dyn_buffer_data(&tagged_name),
+                                         METRIC_DOUBLE,
+                                         (void *)&metric_value,
+                                         &tv,
+                                         listener_metric_track_or_log, check->closure, NULL);
     mtev_dyn_buffer_destroy(&tagged_name);
   }
 }
