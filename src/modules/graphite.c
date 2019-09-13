@@ -278,6 +278,16 @@ static int noit_graphite_initiate_check(noit_module_t *self,
               strerror(errno));
         return -1;
       }
+      socklen_t reuse = 1;
+      if (setsockopt(ccl->ipv4_listen_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+        mtevL(noit_error, "graphite listener(IPv4) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+      }
+#ifdef SO_REUSEPORT
+      reuse = 1;
+      if (setsockopt(ccl->ipv4_listen_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+        mtevL(noit_error, "graphite listener(IPv4) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+      }
+#endif
       memset(&skaddr, 0, sizeof(skaddr));
       skaddr.sin_family = AF_INET;
       skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -314,6 +324,16 @@ static int noit_graphite_initiate_check(noit_module_t *self,
               strerror(errno));
       }
       else {
+        socklen_t reuse = 1;
+        if (setsockopt(ccl->ipv6_listen_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+          mtevL(noit_error, "graphite listener(IPv6) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+        }
+#ifdef SO_REUSEPORT
+        reuse = 1;
+        if (setsockopt(ccl->ipv6_listen_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+          mtevL(noit_error, "graphite listener(IPv4) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+        }
+#endif
         struct sockaddr_in6 skaddr6;
         struct in6_addr in6addr_any;
         sockaddr_len = sizeof(skaddr6);

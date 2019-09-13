@@ -395,6 +395,16 @@ static int noit_ganglia_init(noit_module_t *self) {
   skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
   skaddr.sin_port = htons(port);
 
+  socklen_t reuse = 1;
+  if(setsockopt(conf->ipv4_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+    mtevL(noit_error, "ganglia listener(IPv4) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+  }
+#ifdef SO_REUSEPORT
+  reuse = 1;
+  if(setsockopt(conf->ipv4_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+    mtevL(noit_error, "ganglia listener(IPv4) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+  }
+#endif
   if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sizeof(skaddr))) {
     close(conf->ipv4_fd);
     mtevL(noit_error, "ganglia: ipv4 binding failed: %s\n", strerror(errno));
@@ -448,6 +458,16 @@ static int noit_ganglia_init(noit_module_t *self) {
 
   /* ipv6 binding */
   if(conf->ipv6_fd > 0) {
+    socklen_t reuse = 1;
+    if(setsockopt(conf->ipv6_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+      mtevL(noit_error, "ganglia listener(IPv6) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+    }
+#ifdef SO_REUSEPORT
+    reuse = 1;
+    if(setsockopt(conf->ipv6_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+      mtevL(noit_error, "ganglia listener(IPv6) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+    }
+#endif
     memset(&skaddr6, 0, sizeof(skaddr6));
     skaddr6.sin6_family = AF_INET6;
     skaddr6.sin6_addr = in6addr_any;

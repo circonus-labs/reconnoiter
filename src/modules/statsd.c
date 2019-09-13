@@ -400,6 +400,16 @@ static int noit_statsd_init(noit_module_t *self) {
       return -1;
     }
   }
+  socklen_t reuse = 1;
+  if(setsockopt(conf->ipv4_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+    mtevL(nlerr, "statsd listener(IPv4) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+  }
+#ifdef SO_REUSEPORT
+  reuse = 1;
+  if(setsockopt(conf->ipv4_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+    mtevL(nlerr, "statsd listener(IPv4) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+  }
+#endif
   memset(&skaddr, 0, sizeof(skaddr));
   skaddr.sin_family = AF_INET;
   skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -441,6 +451,16 @@ static int noit_statsd_init(noit_module_t *self) {
       skaddr6.sin6_addr = in6addr_any;
       skaddr6.sin6_port = htons(conf->port);
 
+      socklen_t reuse = 1;
+      if(setsockopt(conf->ipv6_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+        mtevL(nlerr, "statsd listener(IPv6) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+      }
+#ifdef SO_REUSEPORT
+      reuse = 1;
+      if(setsockopt(conf->ipv6_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+        mtevL(nlerr, "statsd listener(IPv6) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+      }
+#endif
       if(bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
         mtevL(noit_error, "bind(IPv6) failed[%d]: %s\n",
               conf->port, strerror(errno));
