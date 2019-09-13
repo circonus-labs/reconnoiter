@@ -28,6 +28,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
+#define FLUSH_SIZE 100
+
 #include <mtev_defines.h>
 
 #include <stdio.h>
@@ -56,6 +58,15 @@
 static mtev_log_stream_t nldeb = NULL;
 static mtev_log_stream_t nlerr = NULL;
 
+static void metric_local_free(void *vm) {
+  if(vm) {
+    metric_t *m = vm;
+    free(m->metric_name);
+    free(m->metric_value.vp);
+  }
+  free(vm);
+}
+
 void
 listener_closure_ref(listener_closure_t *lc)
 {
@@ -70,6 +81,7 @@ listener_closure_deref(listener_closure_t *lc)
   if(!zero) return;
 
   mtev_dyn_buffer_destroy(&lc->buffer);
+  mtev_hash_delete_all(lc->immediate_metrics, NULL, metric_local_free);
   /* no need to free `lc` here as the noit cleanup code will
    * free the check's closure for us */
   free(lc);
@@ -128,6 +140,69 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
   return 0;
 }
 
+void
+listener_flush_immediate(listener_closure_t *rxc) {
+  struct timeval now;
+  mtev_gettimeofday(&now, NULL);
+  noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+}
+
+void 
+listener_metric_track_or_log(void *vrxc, const char *name, 
+                             metric_type_t t, const void *vp, struct timeval *w) {
+  listener_closure_t *rxc = vrxc;
+  if(t == METRIC_GUESS) return;
+  void *vm;
+  if(rxc->immediate_metrics == NULL) {
+    rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
+    mtev_hash_init(rxc->immediate_metrics);
+  }
+  if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm) ||
+     mtev_hash_size(rxc->immediate_metrics) > FLUSH_SIZE) {
+    /* collision, just log it out */
+    listener_flush_immediate(rxc);
+  }
+  metric_t *m = calloc(1, sizeof(*m));
+  memset(m, 0, sizeof(*m));
+  m->metric_name = strdup(name);
+  m->metric_type = t;
+  if(w) {
+    memcpy(&m->whence, w, sizeof(struct timeval));
+  }
+  if(vp) {
+    if(t == METRIC_STRING) m->metric_value.s = strdup((const char *)vp);
+    else {
+      size_t vsize = 0;
+      switch(m->metric_type) {
+        case METRIC_INT32:
+          vsize = sizeof(int32_t);
+          break;
+        case METRIC_UINT32:
+          vsize = sizeof(uint32_t);
+          break;
+        case METRIC_INT64:
+          vsize = sizeof(int64_t);
+          break;
+        case METRIC_UINT64:
+          vsize = sizeof(uint64_t);
+          break;
+        case METRIC_DOUBLE:
+          vsize = sizeof(double);
+          break;
+        default:
+          break;
+      }
+      if(vsize) {
+        m->metric_value.vp = malloc(vsize);
+        memcpy(m->metric_value.vp, vp, vsize);
+      }
+    }
+  }
+  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
+  mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m);
+}
+
 int
 listener_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 {
@@ -144,6 +219,7 @@ socket_close:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fde(e);
     eventer_close(e, &newmask);
+    listener_flush_immediate(self);
     ck_spinlock_unlock(&self->use_lock);
     listener_closure_deref(self);
     return 0;
@@ -192,6 +268,7 @@ socket_close:
         free(leftovers);
       }
       if (records_this_loop >= rows_per_cycle) {
+        listener_flush_immediate(self);
         ck_spinlock_unlock(&self->use_lock);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
