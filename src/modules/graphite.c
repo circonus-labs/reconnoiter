@@ -205,16 +205,15 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     }
     mtev_dyn_buffer_add(&tagged_name, (uint8_t*)"\0", 1);
 
-    mtevL(nldeb, "Reformatted graphite name: %s\n", mtev_dyn_buffer_data(&tagged_name));
+    mtevL(nldeb, "Reformatted graphite name: %s = %g\n", mtev_dyn_buffer_data(&tagged_name), metric_value);
     struct timeval tv;
     tv.tv_sec = (time_t)(whence_ms / 1000L);
     tv.tv_usec = (suseconds_t)((whence_ms % 1000L) * 1000);
-    noit_metric_coerce_ex_with_timestamp(check,
-                                         (const char *)mtev_dyn_buffer_data(&tagged_name),
-                                         METRIC_DOUBLE,
-                                         (void *)&metric_value,
-                                         &tv,
-                                         listener_metric_track_or_log, check->closure, NULL);
+    listener_metric_track_or_log(check->closure,
+                                 (const char *)mtev_dyn_buffer_data(&tagged_name),
+                                 METRIC_DOUBLE,
+                                 (void *)&metric_value,
+                                 &tv);
     mtev_dyn_buffer_destroy(&tagged_name);
   }
 }
