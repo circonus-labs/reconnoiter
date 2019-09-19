@@ -438,7 +438,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   for (int i = 0; i < metrics_len; i++) {
     ns(MetricValue_table_t) m = ns(MetricValue_vec_at(metrics, i));
     flatbuffers_string_t metric_name = ns(MetricValue_name(m));
-    char ts[15];
+    char ts[22];
     size_t uuid_len = flatbuffers_string_len(check_name) + flatbuffers_string_len(check_uuid) + 2;
     uint64_t ltimestamp = ns(MetricValue_timestamp(m));
 

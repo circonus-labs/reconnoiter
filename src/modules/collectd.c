@@ -67,7 +67,7 @@ typedef struct collectd_closure_s {
   char *username;
   char *secret;
   int security_level;
-  EVP_CIPHER_CTX ctx; 
+  EVP_CIPHER_CTX *ctx; 
   int stats_count;
   int ntfy_count;
 } collectd_closure_t;
@@ -436,17 +436,27 @@ static EVP_CIPHER_CTX* network_get_aes256_cypher (collectd_closure_t *ccl, /* {{
   else
   {
     EVP_CIPHER_CTX *ctx_ptr;
-    EVP_MD_CTX ctx_md;
+    EVP_MD_CTX *ctx_md;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    EVP_MD_CTX ctx_md_stack;
+    ctx_md = &ctx_md_stack;
+#else
+    ctx_md = EVP_MD_CTX_new();
+#endif
     unsigned char password_hash[32];
     unsigned int length = 0;
     int success;
 
-    ctx_ptr = &ccl->ctx;
+    ctx_ptr = ccl->ctx;
 
-    EVP_DigestInit(&ctx_md, EVP_sha256());
-    EVP_DigestUpdate(&ctx_md, ccl->secret, strlen(ccl->secret));
-    EVP_DigestFinal(&ctx_md, password_hash, &length); 
-    EVP_MD_CTX_cleanup(&ctx_md);
+    EVP_DigestInit(ctx_md, EVP_sha256());
+    EVP_DigestUpdate(ctx_md, ccl->secret, strlen(ccl->secret));
+    EVP_DigestFinal(ctx_md, password_hash, &length); 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    EVP_MD_CTX_cleanup(ctx_md);
+#else
+    EVP_MD_CTX_free(ctx_md);
+#endif
 
     mtevAssert(length <= 32);
 
@@ -834,7 +844,13 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   unsigned int hash_length;
 
   EVP_CIPHER_CTX *ctx;
-  EVP_MD_CTX ctx_md;
+  EVP_MD_CTX *ctx_md;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_MD_CTX ctx_md_stack;
+  ctx_md = &ctx_md_stack;
+#else
+  ctx_md = EVP_MD_CTX_new();
+#endif
   int err;
 
   /* Make sure at least the header if available. */
@@ -929,9 +945,14 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
 
   /* Check hash sum */
   memset (hash, 0, sizeof (hash));
-  EVP_DigestInit(&ctx_md, EVP_sha1());
-  EVP_DigestUpdate(&ctx_md, buffer + buffer_offset, payload_len);
-  EVP_DigestFinal(&ctx_md, hash, &hash_length);
+  EVP_DigestInit(ctx_md, EVP_sha1());
+  EVP_DigestUpdate(ctx_md, buffer + buffer_offset, payload_len);
+  EVP_DigestFinal(ctx_md, hash, &hash_length);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_MD_CTX_cleanup(ctx_md);
+#else
+  EVP_MD_CTX_free(ctx_md);
+#endif
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
     mtevL(nlerr, "collectd: Decryption failed: Checksum mismatch.\n");
@@ -1358,7 +1379,9 @@ collectd_submit_internal(noit_module_t *self, noit_check_t *check,
   noit_stats_set_whence(check, &now);
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
-    memset(ccl, 0, sizeof(collectd_closure_t));
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    ccl->ctx = EVP_CIPHER_CTX_new();
+#endif
   } else {
     // Don't count the first run
     char human_buffer[256];
@@ -1415,7 +1438,9 @@ push_packet_at_check(noit_check_t *check, void *closure) {
   if (check->closure == NULL) {
     // TODO: Verify if it could somehow retrieve data before the check closure exists 
     ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
-    memset(ccl, 0, sizeof(collectd_closure_t));
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    ccl->ctx = EVP_CIPHER_CTX_new();
+#endif
   } else {
     ccl = (collectd_closure_t*)check->closure;
   }
@@ -1676,7 +1701,9 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
   immediate = noit_collects_check_aynsch(global_collectd, check);
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t));
-    memset(ccl, 0, sizeof(collectd_closure_t));
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    ccl->ctx = EVP_CIPHER_CTX_new();
+#endif
   }
   else {
     ccl = check->closure;
@@ -1713,7 +1740,7 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
 
 void cd_object_process(struct rest_json_payload *rxc) {
   int i, cnt;
-  char metric_name[512];
+  char metric_name[MAX_METRIC_TAGGED_NAME];
 
   /* First validate the object */
   if(!(*rxc->o->host && *rxc->o->plugin && *rxc->o->type)) return;

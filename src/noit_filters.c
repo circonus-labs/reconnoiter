@@ -257,7 +257,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       mtevL(nf_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
             set->name, #rname, longre, error ? error : "???"); \
       rule->rname##_override = fallback_no_match; \
-      asprintf(&rule->rname##_re, "/%s/ failed to compile", longre); \
+      mtevAssert(asprintf(&rule->rname##_re, "/%s/ failed to compile", longre)); \
     } \
     else { \
       rule->rname##_re = strdup(longre); \
@@ -1137,7 +1137,7 @@ noit_filters_init() {
   char *replication_prefix;
   if(mtev_conf_get_string(MTEV_CONF_ROOT, "/noit/filtersets/@replication_prefix", &replication_prefix)) {
     mtevL(nf_debug, "Using filterset replication prefix: %s\n", replication_prefix);
-    asprintf(&filtersets_replication_path, "/noit/filtersets/%s", replication_prefix);
+    mtevAssert(asprintf(&filtersets_replication_path, "/noit/filtersets/%s", replication_prefix));
   }
   else {
     filtersets_replication_path = "/noit/filtersets";

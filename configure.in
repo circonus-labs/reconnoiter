@@ -174,7 +174,8 @@ case $host in
 *-*-linux*)
 	CAP_PLATFORM="linux"
 	LDFLAGS="$LDFLAGS -Wl,-E"
-	CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE -D_BSD_SOURCE"
+	SAVE_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE -D_BSD_SOURCE -Werror"
 	PICFLAGS="-fpic"
 	MODULELD="$CC -shared"
 	SHLD="$CC -shared"
@@ -182,6 +183,16 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	WHOLE_ARCHIVE="-Wl,--whole-archive"
 	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
+        AC_MSG_CHECKING([if we should use _DEFAULT_SOURCE])
+	AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+			#include <string.h>
+		])], [
+			CPPFLAGS="$SAVE_CPPFLAGS -D_SVID_SOURCE -D_BSD_SOURCE"
+			AC_MSG_RESULT([no])
+		], [
+			CPPFLAGS="$SAVE_CPPFLAGS -D_DEFAULT_SOURCE"
+			AC_MSG_RESULT([yes])
+		])
 	;;
 *-*-freebsd*)
 	CAP_PLATFORM="freebsd"

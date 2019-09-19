@@ -406,7 +406,7 @@ static int ping_icmp_init(noit_module_t *self) {
   struct protoent *proto;
   ping_icmp_data_t *data;
 
-  RAND_pseudo_bytes((unsigned char *)&random_num, sizeof(uintptr_t));
+  RAND_bytes((unsigned char *)&random_num, sizeof(uintptr_t));
 
   data = malloc(sizeof(*data));
   data->in_flight = calloc(1, sizeof(*data->in_flight));
