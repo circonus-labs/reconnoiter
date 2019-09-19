@@ -326,7 +326,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
 
   /* setup subscription to noit_livestream */
   uint32_t next = ck_pr_faa_32(&ls_counter, 1) + 1;
-  asprintf(&handler_data->feed, "websocket_livestream/%u", next);
+  mtevAssert(asprintf(&handler_data->feed, "websocket_livestream/%u", next));
   handler_data->log_stream = mtev_log_stream_new(handler_data->feed, "noit_websocket_livestream", handler_data->feed,
                                                  handler_data, NULL);
 
