@@ -261,6 +261,7 @@ static int child_main() {
   mtev_console_conf_init();
   mtev_capabilities_listener_init();
   noit_build_version(noit_version, sizeof(noit_version));
+  mtev_set_app_version(noit_version);
   mtev_capabilities_add_feature("noit", noit_version);
   mtev_http_rest_init();
   mtev_reverse_socket_init(reverse_prefix, reverse_prefix_cns);

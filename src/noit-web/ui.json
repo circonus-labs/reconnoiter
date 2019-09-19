@@ -1,0 +1,36 @@
+{
+  "scripts": [
+    "/js/noit.js"
+  ],
+  "tabs": [
+    {
+      "name": "Overview",
+      "id": "stateview",
+      "url": "/overview.html",
+      "active": true
+    },
+    {
+      "name": "Cluster",
+      "id": "cluster",
+      "url": "/cluster.html"
+    },
+    {
+      "name": "Checks",
+      "id": "checksview",
+      "url": "/checks.html"
+    },
+    {
+      "name": "Clients",
+      "id": "http",
+      "url": "/http.html",
+      "condition": "mtev.http_observer_loaded",
+      "callback": "mtev.driveHTTPObserver"
+    },
+    {
+      "name": "Internals",
+      "id": "internals",
+      "url": "/internals.html",
+      "callback": "mtev.driveInternalsTab"
+    }
+  ]
+}

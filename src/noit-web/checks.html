@@ -1,0 +1,60 @@
+          <div class="input-group">
+           <span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
+           <input type="text" class="form-control" placeholder="Search" id="check-search">
+          </div>
+          <table class="table table-condensed">
+            <thead>
+              <tr><th><span class="tag tag-none">running</span></th><th>UUID</th><th>Name</th><th>Module</th><th>Target</th><th>IP</th><th>Frequency</th><th>Flags</th></tr>
+            </thead>
+            <tbody id="check-table">
+            </tbody>
+          </table>
+
+<div id="templates" style="display:none">
+  <div id="checktemplate" class="well well-lg">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card card-default check-details-main">
+          <div class="card-header">Check Details</div>
+          <div class="card-block">
+            <dl class="dl-horizontal">
+              <dt>ID</dt><dd class="check-detail-uuid"></dd>
+              <dt>Target</dt><dd class="check-detail-target"></dd>
+              <dt>Name</dt><dd class="check-detail-name"></dd>
+              <dt>Module</dt><dd class="check-detail-module"></dd>
+              <dt>IP</dt><dd class="check-detail-target-ip"></dd>
+              <dt>Period</dt><dd class="check-detail-period"></dd>
+              <dt>Timeout</dt><dd class="check-detail-timeout"></dd>
+              <dt>Filterset</dt><dd class="check-detail-filterset"></dd>
+              <dt>Last run</dt><dd><span class="auto-date check-detail-last-run"></span> (<span class="auto-age check-detail-last-run"></span>)</dd>
+              <dt>Next run</dt><dd class="auto-date check-detail-next-run"></dd>
+              <dt>Status</dt><dd>
+                <span class="check-detail-available"></span>&nbsp;<span class="check-detail-state"></span></dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card card-default">
+          <div class="card-header">Check Config</div>
+          <div class="card-block">
+            <dl class="dl-horizontal check-config-container">
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card card-default">
+      <div class="card-header">Metrics</div>
+      <div class="card-block">
+        <table class="table table-condensed check-metrics">
+          <thead>
+            <tr><th>Name</th><th>Type</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

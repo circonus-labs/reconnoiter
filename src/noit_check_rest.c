@@ -460,6 +460,8 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
 
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_http_request *req = mtev_http_session_request(ctx);
+  const char *redirect_s = mtev_http_request_querystring(req, "redirect");
+  mtev_boolean redirect = !redirect_s || strcmp(redirect_s, "0");
   const char *metrics = mtev_http_request_querystring(req, "metrics");
   int full = 1;
   if(metrics && strtoll(metrics, NULL, 10) == 0) full = -1;
@@ -487,7 +489,7 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s.json",
              cn, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
-    mtev_http_response_standard(ctx, 302, "NOT IT", "application/json");
+    mtev_http_response_standard(ctx, redirect ? 302 : 200, "NOT IT", "application/json");
   }
   else {
     mtev_http_response_ok(restc->http_ctx, "application/json");
@@ -550,6 +552,8 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   xmlDocSetRootElement(doc, root);
 
   mtev_http_request *req = mtev_http_session_request(ctx);
+  const char *redirect_s = mtev_http_request_querystring(req, "redirect");
+  mtev_boolean redirect = !redirect_s || strcmp(redirect_s, "0");
   const char *metrics = mtev_http_request_querystring(req, "metrics");
 
 #define MYATTR(section,a,n,b) _mtev_conf_get_string(section, &(n), "@" #a, &(b))
@@ -675,7 +679,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s",
              cn, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
-    mtev_http_response_standard(ctx, 302, "NOT IT", "text/xml");
+    mtev_http_response_standard(ctx, redirect ? 302 : 200, "NOT IT", "text/xml");
   }
   else {
     mtev_http_response_ok(ctx, "text/xml");

@@ -1,4 +1,5 @@
-var hist = CirconusHistogram({ minbarwidth: 5, width: 600, height: 200, yaxis: true, xaxis: true, hudlegend: true });
+if(window.noit === undefined) {
+  
 var stop_ui = false;
 var local_skew = 0;
 var check_search = "";
@@ -15,6 +16,11 @@ function refresh_capa() {
       local_skew = (+new Date()) - (parseFloat(capa.current_time) + lat_ms);
 
     $("#noit-version").text(capa.version);
+
+    var ver_parts = capa.features.noit.version.split(".")
+    var branch = ver_parts.shift();
+    mtev.SetVersionFromStats({ version: { _value: ver_parts.join(".") }, branch: { _value: branch } });
+
     var features = []
     for (var feature in capa.features) features.push(feature);
     $("#noit-feature-list").text(features.join(", "));
@@ -63,7 +69,6 @@ function refresh_capa() {
     $("#noit-services").append($sul);
   });
 }
-refresh_capa();
 
 function pretty_mb(mb) {
   var d = function(a) { return '<span class="text-muted">'+a+'</span>'; };
@@ -108,15 +113,11 @@ function nice_time(s) {
   return time;
 }
 
-function $badge(n) {
-  return $("<span class=\"tag tag-pill tag-default\"/>").text(n);
-}
 function $modalButton(n, id) {
   return $('<button type="button" class="tag tag-primary" data-toggle="modal" data-target="#' + id + '"/>').html(n);
 }
 function $label(n, type) {
-  if(!type) type = "default";
-  return $("<span class=\"tag tag-"+type+"\"/>").text(n);
+  return mtev.$badge(n,type);
 }
 function $nice_type(t) {
   if(t == "s") t = "string";
@@ -152,146 +153,6 @@ function $flags(which, flag) {
   }
   return $d;
 }
-var active_histogram = null;
-function displayHistogram(name, data, subname) {
-  var d = {}
-  if (data && data._value && Array.isArray(data._value)) {
-    for(var i=0;i<data._value.length;i++) {
-      var bin = data._value[i]
-      var eidx = bin.indexOf('=');
-      if(eidx > 0) {
-        d[bin.substring(2,eidx-1)] = parseInt(bin.substring(eidx+1));
-      }
-    }
-  }
-  $("span#histogram-name").text(name + " " + subname);
-  $("#modal-histogram").empty();
-  hist.render("#modal-histogram", d);
-}
-function $hist_button(name, stats, subname) {
-  if(stats.hasOwnProperty(name)) {
-    var $perf = $modalButton(" ", "histModal").on('click', function() {
-      var v = stats[name];
-      if(subname) v = v[subname];
-      displayHistogram(name, v, subname || "");
-    });
-    $perf.addClass("glyphicon");
-    $perf.addClass("glyphicon-stats");
-    return $perf;
-  }
-  return null;
-}
-function mk_jobq_row(jobq,detail) {
-  var $tr = $("<tr/>");
-  $tr.append($("<td/>").html($badge(detail.backlog+detail.inflight)));
-  var $cb = $("<span/>").text(jobq);
-  $tr.append($("<td/>").html($cb));
-  var $conc = $("<td class=\"text-center\"/>");
-  if(detail.desired_concurrency == 0)
-    $conc.text("N/A");
-  else if(detail.concurrency == detail.desired_concurrency)
-    $conc.text(detail.concurrency);
-  else
-    $conc.html(detail.concurrency + " &rarr; " + detail.desired_concurrency);
-  $tr.append($conc);
-  $tr.append($("<td class=\"text-right\"/>").append($badge(detail.total_jobs)));
-  $cb = $("<small/>").text(parseFloat(detail.avg_wait_ms).toFixed(3) + "ms");
-  var $perf, $td;
-  $td = $("<td class=\"text-right\"/>");
-  $perf = $hist_button(jobq, eventer_stats.jobq, "wait");
-  if($perf) $td.append($perf);
-  $td.append($cb);
-  $tr.append($td);
-  $tr.append($("<td class=\"text-left\"/>").append($badge(detail.backlog)));
-  $cb = $("<small/>").text(parseFloat(detail.avg_run_ms).toFixed(3) + "ms");
-  $perf = $hist_button(jobq, eventer_stats.jobq, "latency");
-  $td = $("<td class=\"text-right\"/>");
-  if($perf) $td.append($perf);
-  $td.append($cb);
-  $tr.append($td);
-  $tr.append($("<td class=\"text-left\"/>").append($badge(detail.inflight)));
-  return $tr;
-}
-function mk_timer_row(event) {
-  var $tr = $("<tr/>");
-  var $cb = $("<span/>").text(event.callback);
-  var $perf = $hist_button(event.callback, eventer_stats.callbacks);
-  var $td = $("<td/>");
-  if ($perf !== null) { $td.append($perf); }
-  $td.append($cb)
-  $tr.append($td);
-  $tr.append($("<td/>").text(new Date(event.whence)));
-  return $tr;
-}
-function mk_socket_row(event) {
-  var $tr = $("<tr/>");
-  var mask = [];
-  if(event.mask & 1) mask.push("R");
-  if(event.mask & 2) mask.push("W");
-  if(event.mask & 4) mask.push("E");
-  $tr.append($("<td/>").html(event.fd + "&nbsp").append($badge(mask.join("|")).addClass('pull-right')));
-  $tr.append($("<td/>").html('<small>'+event.impl+'</small>'));
-  var $td = $("<td/>");
-  var $cb = $("<span/>").text(event.callback);
-  var $perf = $hist_button(event.callback, eventer_stats.callbacks);
-  if ($perf !== null) { $td.append($perf); }
-  $td.append($cb);
-  $tr.append($td);
-  $tr.append($("<td/>").text(event.local ? event.local.address+":"+event.local.port : "-"));
-  $tr.append($("<td/>").text(event.remote ? event.remote.address+":"+event.remote.port : "-"));
-  return $tr;
-}
-
-function update_eventer(uri, id, mkrow) {
-  return function(force) {
-    if(stop_ui) return;
-    var $table = $("div#"+id+" table" + (force ? "" : ":visible"));
-    if($table.length == 0) return;
-    var st = jQuery.ajax(uri);
-    st.done(function( events ) {
-      var $tbody = $("<tbody/>");
-      if(events.hasOwnProperty('length')) {
-        events.forEach(function(event) {
-          $tbody.append(mkrow(event));
-        });
-      } else {
-        var keys = [];
-        for(var name in events) keys.push(name);
-        keys.sort().forEach(function(name) {
-          $tbody.append(mkrow(name, events[name]));
-        });
-      }
-      $table.find("tbody").replaceWith($tbody);
-    });
-  };
-}
-
-function startInternals() {
-  setInterval(update_eventer(noit_api_base + "eventer/sockets.json",
-                             "eventer-sockets", mk_socket_row),
-              5000);
-  $('#eventer-sockets').on('shown.bs.collapse', function () {
-    update_eventer(noit_api_base + "eventer/sockets.json",
-                   "eventer-sockets", mk_socket_row)();
-  });
-  update_eventer(noit_api_base + "eventer/sockets.json",
-                 "eventer-sockets", mk_socket_row)(true);
-  
-  setInterval(update_eventer(noit_api_base + "eventer/timers.json",
-                             "eventer-timers", mk_timer_row),
-              5000);
-  $('#eventer-timers').on('shown.bs.collapse', function () {
-    update_eventer(noit_api_base + "eventer/timers.json",
-                   "eventer-timers", mk_timer_row)();
-  });
-  setInterval(update_eventer(noit_api_base + "eventer/jobq.json",
-                             "eventer-jobq", mk_jobq_row),
-              5000);
-  $('#eventer-jobq').on('shown.bs.collapse', function () {
-    update_eventer(noit_api_base + "eventer/jobq.json",
-                   "eventer-jobq", mk_jobq_row)();
-  });
-}
 
 function check_refresh(check) {
   return function() {
@@ -300,7 +161,7 @@ function check_refresh(check) {
       clearInterval(check.intervalId);
       return;
     }
-    var st = $.ajax(noit_api_base + "checks/show/" + check.id + ".json");
+    var st = $.ajax(noit_api_base + "checks/show/" + check.id + ".json?redirect=0");
     st.done(function(x) {
       var $c = $("tr#check-details-"+check.id + " td div");
       $c.find(".check-detail-uuid").text(check.id);
@@ -372,7 +233,7 @@ function start_check_details(x) {
   var check = x.data;
   var f = check_refresh(check);
   f();
-  check.intervalId = setInterval(f, 1000);
+  check.intervalId = setInterval(f, 10000);
 }
 
 function refresh_checks() {
@@ -441,119 +302,69 @@ function refresh_checks() {
     $tbody.find("> tr:not(.current-check)").remove();
   });
 }
-$("#checksview tbody").on('click', function(x) {
-  var id = x.target.parentNode.id;
-  if(!id) return;
-  var uuid = /^check-(.+)/.exec(id);
-  if(!uuid) return;
-  var tohide = $("tr.check-details.in:not(.collapse)")
-  if(tohide.length) {
-    tohide.collapse('hide');
-    if(tohide.attr("id") == "check-details-"+uuid[1]) return;
-    tohide.one('hidden.bs.collapse', function() {
-      $("tr#" + id + " + tr").collapse('toggle');
-    });
-  }
-  else {
-    $("tr#" + id + " + tr").collapse('toggle');
-  }
-})
-$("#check-refresh").on('click', refresh_checks);
-refresh_checks();
-setInterval(refresh_checks, 10000);
-setInterval(function(){
-  $(".auto-age").each(function(idx) {
-    var date = $(this).data("date");
-    var odate = $(this).data("date-rendered");
-    $(this).data("date-rendered", date);
-    if(typeof(date) === 'undefined') {
-      $(this).text("");
-      return;
-    }
-    var age = ((+new Date()) - local_skew) - date;
-    if(date == 0) $(this).text("never");
-    else $(this).html(nice_time(Math.floor(0 - age/1000)));
-  });
-  $(".auto-date").each(function(idx) {
-    var date = $(this).data("date");
-    var odate = $(this).data("date-rendered");
-    if(odate == date) return;
-    $(this).data("date-rendered", date);
-    if(typeof(date) === 'undefined') $this.text("");
-    else if(date == 0) $(this).html("never");
-    else $(this).html(nice_date(date));
-  });
-}, 1000);
 
-$("input#check-search").on('input', function(x) {
-  check_search = x.target.value;
-  $("tbody#check-table > tr:not(.check-details)").each(function() {
-    if(check_search === "") $(this).show();
+function updateCluster(r) {
+  mtev.updateCluster(r, "noit");
+}
+
+function noit_startup() {
+  refresh_capa();
+  $("#checksview tbody").on('click', function(x) {
+    var id = x.target.parentNode.id;
+    if(!id) return;
+    var uuid = /^check-(.+)/.exec(id);
+    if(!uuid) return;
+    var tohide = $("tr.check-details.in:not(.collapse)")
+    if(tohide.length) {
+      tohide.collapse('hide');
+      if(tohide.attr("id") == "check-details-"+uuid[1]) return;
+      tohide.one('hidden.bs.collapse', function() {
+        $("tr#" + id + " + tr").collapse('toggle');
+      });
+    }
     else {
-      var text = $(this).find("> td").text();
-      if( $(this).find("+ tr").hasClass("in") ) $(this).show();
-      else if(text.indexOf(check_search) >= 0) $(this).show();
-      else $(this).hide();
+      $("tr#" + id + " + tr").collapse('toggle');
     }
-  });
-});
+  })
 
-var last_log_idx;
-function refresh_logs(force) {
-  if(stop_ui) return;
-  var qs = "";
-  var $c = $("#main-log-window");
-  if(typeof(last_log_idx) !== 'undefined')
-    qs = "?since=" + last_log_idx;
-  else
-    qs = "?last=100";
-  $.ajax(noit_api_base + "eventer/logs/internal.json" + qs).done(function (logs) {
-    var atend = force || Math.abs(($c[0].scrollTop + $c[0].clientHeight - $c[0].scrollHeight));
-    for(var i in logs) {
-      var log = logs[i];
-      $row = $("<div class=\"row\"/>");
-      $row.append($("<div class=\"col-md-2 text-muted\"/>").text(nice_date(log.whence)));
-      $row.append($("<div class=\"col-md-10\"/>").text(log.line));
-      $c.append($row);
-      if(log.idx < last_log_idx) refresh_capa();
-      last_log_idx = log.idx;
-      if(atend < 20) {
-        $c[0].scrollTop = $c[0].scrollHeight;
-        $c[0].scrollLeft = 0;
+  $("#check-refresh").on('click', refresh_checks);
+  refresh_checks();
+  setInterval(refresh_checks, 10000);
+
+  jQuery.ajax(noit_api_base + "cluster/noit.json").done(updateCluster);
+
+  setInterval(function(){
+    if($("#cluster").hasClass("active")) {
+      jQuery.ajax(noit_api_base + "cluster/noit.json").done(updateCluster);
+    }
+    $(".auto-age").each(function(idx) {
+      mtev.auto_age_element($(this));
+    });
+    $(".auto-date").each(function(idx) {
+      var date = $(this).data("date");
+      var odate = $(this).data("date-rendered");
+      if(odate == date) return;
+      $(this).data("date-rendered", date);
+      if(typeof(date) === 'undefined') $this.text("");
+      else if(date == 0) $(this).html("never");
+      else $(this).html(nice_date(date));
+    });
+  }, 1000);
+  
+  $("input#check-search").on('input', function(x) {
+    check_search = x.target.value;
+    $("tbody#check-table > tr:not(.check-details)").each(function() {
+      if(check_search === "") $(this).show();
+      else {
+        var text = $(this).find("> td").text();
+        if( $(this).find("+ tr").hasClass("in") ) $(this).show();
+        else if(text.indexOf(check_search) >= 0) $(this).show();
+        else $(this).hide();
       }
-    }
-    var rows = $c.find("> div");
-    var cnt = 0;
-    for(var i = rows.length ; i > 1000; i--) 
-      rows[cnt++].remove();
+    });
   });
 }
-refresh_logs(1);
-setInterval(refresh_logs, 1000);
 
-var eventer_stats = { callbacks: {}, jobq: {}};
-function refresh_stats(cb) {
-  if(stop_ui) return;
-  $.ajax(noit_api_base + "mtev/stats.json").done(function (stats) {
-    eventer_stats = stats.mtev.eventer;
-    if(cb) cb();
-  });
+if(mtev.loaded) noit_startup();
+else $(document).bind("mtev-loaded", noit_startup);
 }
-refresh_stats(startInternals)
-setInterval(refresh_stats, 5000);
-
-
-$(document).ready(function() {
-  $('.navbar-nav a.nav-link').click(function (e) {
-    $(this).tab('show');
-    var scrollmem = $('body').scrollTop();
-    window.location.hash = this.hash;
-    $('html,body').scrollTop(scrollmem);
-  });
-
-  var hash = window.location.hash.substring(1);
-  if(!hash) return;
-  var nav = hash.split(/:/);
-
-  if(nav[0]) $('ul.nav a[href="#' + nav[0] + '"]').tab('show');
-});

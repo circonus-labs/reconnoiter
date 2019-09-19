@@ -195,6 +195,7 @@ static int child_main() {
   mtev_stats_rest_init();
   mtev_heap_profiler_rest_init();
   noit_build_version(stratcon_version, sizeof(stratcon_version));
+  mtev_set_app_version(stratcon_version);
   mtev_capabilities_add_feature("stratcon", stratcon_version);
   stratcon_realtime_http_init(APPNAME);
   mtev_listener_init(APPNAME);
