@@ -1,0 +1,51 @@
+  <div class="panel-group" id="eventer">
+      <div class="card" id="clusterinfo">
+        <div class="card-header">
+          <h4 class="card-title">Cluster</h4>
+          <p class="mb-0 cluster-legend">
+            <span class="glyphicon glyphicon-star" aria-hidden="true"></span> this node,<br/>
+            <span class="glyphicon glyphicon-hand-right" aria-hidden="true"></span> leader,<br/>
+            <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> down node.
+          </p>
+        </div>
+        <div class="row">
+          <div class="col-12 col-md-3">
+            <div class="card-block br-md-1">
+            <dl class="row">
+              <dt class="col-4">name</dt>
+              <dd class="col-8 text-right"><span data-handler="cluster-inject" data="clusters.noit.name">noit</span></dd>
+            </dl>
+            <dl class="row">
+              <dt class="col-4">port</dt>
+              <dd class="col-8 text-right"><span data-handler="cluster-inject" data="clusters.noit.port">-</span></dd>
+            </dl>
+            <dl class="row">
+              <dt class="col-4">seq</dt>
+              <dd class="col-8 text-right"><span data-handler="cluster-inject" data="clusters.noit.seq">-</span></dd>
+            </dl>
+            <dl class="row">
+              <dt class="col-4">period</dt>
+              <dd class="col-8 text-right"><span data-handler="cluster-inject" data="clusters.noit.period" data-format="nice-time-ms">-</span></dd>
+            </dl>
+            <dl class="row">
+              <dt class="col-4">timeout</dt>
+              <dd class="col-8 text-right"><span data-handler="cluster-inject" data="clusters.noit.timeout" data-format="nice-time-ms">-</span></dd>
+            </dl>
+            <dl class="row">
+              <dt class="col-4">maturity</dt>
+              <dd class="col-8 text-right"><span data-handler="cluster-inject" data="clusters.noit.maturity" data-format="nice-time-ms">-</span></dd>
+            </dl>
+            </div>
+          </div>
+          <div class="col-12 col-md-9">
+            <table class="table" id="cluster-noit">
+              <thead>
+                <tr><th colspan=2></th><th class="text-center">Name</th><th class="hidden-lg-down">ID</th><th>Address</th><th>Boot Time</th><th>Last Contact</th></tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+  </div>

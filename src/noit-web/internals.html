@@ -1,0 +1,111 @@
+          <div class="panel-group" id="eventer">
+            <div class="card card-default">
+              <div class="card-header">
+                <h4 class="card-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-logs">
+                    Logs
+                  </a>
+                </h4>
+              </div>
+              <div id="eventer-logs" class="panel-collapse">
+                <div class="panel-body">
+                  <div id="main-log-window"><div></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="card card-default">
+              <div class="card-header">
+                <span style="float:right"><label class="checkbox-inline"><input id="eventer-jobq-hider" type="checkbox" checked data-toggle="toggle" data-size="small" data-onstyle="primary" data-offstyle="primary"></label></span>
+                <h4 class="card-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-jobq">
+                    Job Queues
+                  </a>
+                </h4>
+              </div>
+              <div id="eventer-jobq" class="panel-collapse collapse in">
+                <div class="panel-body">
+                  <table class="table table-condensed">
+                    <thead>
+                      <tr><th></th><th>Queue</th><th class="text-center">Concurrency</th><th class="text-right">Processed</th><th colspan=2 class="text-center">Waiting</th><th colspan=2 class="text-center">Running</th></tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="card card-default">
+              <div class="card-header">
+                <h4 class="card-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-sockets">
+                    Sockets
+                  </a>
+                </h4>
+              </div>
+              <div id="eventer-sockets" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <table class="table table-condensed">
+                    <thead>
+                      <tr><th>FD</th><th>Opset</th><th>Callback</th><th>Local</th><th>Remote</th></tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="card card-default">
+              <div class="card-header">
+                <h4 class="card-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-timers">
+                    Timers
+                  </a>
+                </h4>
+              </div>
+              <div id="eventer-timers" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <table class="table table-condensed">
+                    <thead>
+                      <tr><th>Callback</th><th>When</th></tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-group" id="internal-performance">
+            <div class="card card-default">
+              <div class="card-header">
+                <h4 class="card-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#internal-performance" href="#internal-stats">
+                    Stats
+                  </a>
+                </h4>
+              </div>
+              <div id="internal-stats" class="panel-collapse collapse">
+                <form onsubmit="return false;">
+                <div class="input-group input-group-sm mb-3">
+                  <input type="text" class="form-control" placeholder="Filter (regexp)" aria-label="Filter (regexp)" id="stats-filter">
+                </div>
+                </form>
+                <div class="panel-body">
+                  <table class="table table-condensed">
+                    <thead>
+                      <tr><th>Metric Name</th><th>Value</th></tr>
+                    </thead>
+                    <tbody class="d-none">
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+                  <div class="hidden">
+                    <table>
+                      <tr id="internal-stat-template">
+                        <td><span class="stat-name"></span></td>
+                        <td><span class="stat-value"></span></td>
+                      </tr>
+                    </table>
+                  </div>

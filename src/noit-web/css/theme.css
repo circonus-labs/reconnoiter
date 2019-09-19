@@ -1,41 +1,22 @@
-body {
-  padding-top: 75px;
-  padding-bottom: 30px;
+nav.navbar-fixed-top::after {
+  font-size: 1.4em;
+  font-weight: bold;
+  content: "broker";
+  position: fixed;
+  z-index: 1000;
+  top: 10px;
+  left: 88px;
+}
+
+@media (min-width: 768px) {
+  .br-md-1 {
+    border-right: 1px solid #ccc;
+  }
 }
 
 .table td, .table th {
   padding: 0.3rem;
 }
-
-.card-title {
-  margin-bottom:0;
-}
-
-a.navbar-brand {
-  margin-top: 5px;
-  margin-left: 55px;
-}
-a.nav-link {
-  margin-top: 5px;
-}
-nav.navbar {
-  background: transparent url(../i/product-logo-rev2.png) no-repeat scroll left top;
-  background-size: 50px 50px;
-  background-position: 15px 3px;
-  background-color: white;
-  border-bottom: 1px solid #999;
-}
-
-.theme-dropdown .dropdown-menu {
-  display: block;
-  position: static;
-  margin-bottom: 20px;
-}
-
-.theme-showcase > p > .btn {
-  margin: 5px 0;
-}
-
 .check-details dl {
 overflow: hidden;
 }
@@ -82,16 +63,6 @@ tr.check-details.collapse.in {
 .label-none {
   background-color: #fff;
 }
-
-div#main-log-window {
-  height: 10em;
-  overflow-y: scroll;
-}
-div#main-log-window div.row{
-  font-family: monospace, serif;
-  font-size: 0.8em;
-}
-
 div#stateview div.row div.card-block > div {
   margin-left: 1em;
 }
@@ -112,71 +83,4 @@ ul.noit-proto-cmd > li:after {
 }
 ul.noit-proto-cmd > li:last-child:after {
   content: ""
-}
-
-#eventer table tbody button.tag {
-  margin-right:0.5em;
-}
-
-/* histogram stuff */
-
-div#modal-histogram {
-  width:600px;
-  position:relative;
-}
-
-svg {
-  font: 10px sans-serif;
-}
-
-.hidden {
-  display:none;
-}
-rect.bin {
-  fill: steelblue;
-}
-rect.bin-less {
-  fill: green;
-}
-rect.bin-select {
-  fill: grey;
-  fill-opacity: 0.8;
-}
-rect.bin-select {
-  fill: grey;
-  fill-opacity: 0.8;
-}
-rect.qbar {
-  fill: url(#lightstripeflip);
-  fill-opacity: 0.7;
-}
-rect.iqr0-25, rect.iqr25-50 {
-  fill: url(#lightstripe);
-}
-rect.iqr0-25, rect.iqr75-100 {
-  fill-opacity: 0.4;
-}
-line.qbar {
-  stroke: green;
-  stroke-width: 0.5px;
-}
-line.iqr50 {
-  stroke: green;
-  stroke-width: 1px;
-}
-div.tooltip {
-  position: absolute;
-  text-align: center;
-  padding: 2px 8px;
-  font: 11px sans-serif;
-  background: lightsteelblue;
-  border: 0px;
-  border-radius: 4px;
-  pointer-events: none;
-}
-
-.axis path, .axis line {
-  fill: none;
-  stroke: #000;
-  shape-rendering: crispEdges;
 }

@@ -1,0 +1,54 @@
+<div class="tab-pane active in" id="http">
+    <div class="card card-default">
+      <div class="card-header">
+        <span id="http-client-refresh"><label class="checkbox-inline"><input type="checkbox" checked data-toggle="toggle" data-size="small" data-onstyle="primary" data-offstyle="primary"></label></span>
+        <h4 class="card-title">
+          Clients
+        </h4>
+      </div>
+        <div class="panel-body">
+          <form onsubmit="return false;">
+            <div class="input-group input-group-sm mb-3">
+              <input type="text" class="form-control" placeholder="Filter (valueregexp or fieldregexp:valueregexp) " aria-label="Filter (valueregexp or fieldregexp:valueregexp)" id="http-client-filter">
+            </div>
+          </form>
+          <div class="table-responsive">
+          <table id="http-client-table" class="table table-sm">
+            <thead>
+              <tr>
+                <th scope="col">&nbsp;</th>
+                <th scope="col">Start</th>
+                <th class="http-client-long" scope="col">Resource</th>
+                <th scope="col">Remote</th>
+                <th scope="col" colspan=3>Upload</th>
+                <th scope="col" colspan=3>Response</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+          </div>
+        </div>
+        <div style="display:none;">
+          <table>
+            <tr id="http-client-row-template" class="in-progress">
+              <td>
+                <button type="button" class="btn btn-sm btn-secondary http-client-info">
+                  <span class="glyphicon glyphicon-info-sign"></span>
+                </button>
+                <div class="http-client-modal-popup d-none">
+                  <pre data-format="{full_json}"></pre>
+                </div>
+              </div>
+              <td><span data-format="{request_start_ms}" data-format-formatter="mtev.nice_timeofday"></span></td>
+              <td class="http-client-long"><span data-format="{method} {uri}"></span><span class="http-client-qs" data-format="{querystring}"></span> <span data-format="{protocol}"></span></td>
+              <td><span data-format="{remote_address}"></span></span></td>
+              <td style="text-align:right;padding-right:0;"><span class="http-client-read-start" data-format="{read_start_offset_ns}" data-format-formatter="mtev.http_observer_nice_duration_ns"></span></td><td><span class="http-client-read-complete" data-format="{read_complete_offset_ns}" data-format-formatter="mtev.http_observer_nice_duration_ns"></span></td><td>&nbsp;<span data-format="{received_bytes}" data-format-formatter="mtev.http_observer_nice_bytes"></span></td>
+              <td style="text-align:right;padding-right:0;"><span class="http-client-response-start" data-format="{response_start_offset_ns}" data-format-formatter="mtev.http_observer_nice_duration_ns"></span></td><td><span class="http-client-response-complete" data-format="{response_complete_offset_ns}" data-format-formatter="mtev.http_observer_nice_duration_ns"></span></td><td>&nbsp;<span data-format="{sent_bytes}" data-format-formatter="mtev.http_observer_nice_bytes"></span></td>
+              <td><span data-format="{status:-}"></span></td>
+            </tr>
+          </table>
+        </div>
+    </div>
+</div>
