@@ -229,7 +229,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
                                           struct json_object *o,
                                           const char *prefix) {
   int count = 0;
-  char keybuff[256];
+  char keybuff[MAX_METRIC_TAGGED_NAME];
 #define MKKEY(fmt, arg) do { \
   if(prefix) snprintf(keybuff, sizeof(keybuff), "%s`" fmt, prefix, arg); \
   else snprintf(keybuff, sizeof(keybuff), fmt, arg); \
