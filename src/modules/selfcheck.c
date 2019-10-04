@@ -126,7 +126,7 @@ static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
   return 1;
 }
 static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
-  char buff[128];
+  char buff[256];
   uint64_t u64;
   int64_t s64;
   int32_t s32;
