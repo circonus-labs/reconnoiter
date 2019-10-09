@@ -496,11 +496,13 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
    */
   if(h && h->timeout) {
     eventer_t e = eventer_remove(h->timeout);
-    h->timeout = NULL;
-    if(e) eventer_free(e);
-    if (dns_module_dns_ctx_release(h, mtev_false)) {
-      /* acquire happened on timeout assigment */
-      return;
+    if(e) {
+      h->timeout = NULL;
+      eventer_free(e);
+      if (dns_module_dns_ctx_release(h, mtev_false)) {
+        /* acquire happened on timeout assigment */
+        return;
+      }
     }
   }
 
@@ -513,7 +515,6 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
 
   /* if(timeout < 0) no timeout is required at this time */
   if(timeout >= 0) {
-    mtevAssert(h->timeout == NULL);
     h->timeout = eventer_in_s_us(dns_module_invoke_timeouts, h, timeout, 0);
     eventer_set_owner(h->timeout, eventer_get_owner(h->e));
     dns_module_dns_ctx_acquire(h);
