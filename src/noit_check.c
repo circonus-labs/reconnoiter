@@ -2069,6 +2069,8 @@ noit_metric_sizes(metric_type_t type, const void *value) {
       int len = lf ? lf - (const char *)value + 1 : strlen((char*)value) + 1;
       return ((len >= text_size_limit) ? text_size_limit+1 : len);
     }
+    case METRIC_HISTOGRAM:
+    case METRIC_HISTOGRAM_CUMULATIVE:
     case METRIC_ABSENT:
     case METRIC_GUESS:
       break;
@@ -2387,8 +2389,10 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
       f(closure, tagged_name, t, (t != METRIC_GUESS) ? replacement : v, timestamp);
       free(replacement);
       break;
+    case METRIC_HISTOGRAM:
+    case METRIC_HISTOGRAM_CUMULATIVE:
     case METRIC_ABSENT:
-      mtevAssert(0 && "ABSENT metrics may not be passed to noit_stats_set_metric_coerce");
+      mtevAssert(0 && "bad metric type passed to noit_stats_set_metric_coerce");
   }
   if(stats) check_stats_set_metric_coerce_hook_invoke(check, stats, tagged_name, t, v, mtev_true);
 }

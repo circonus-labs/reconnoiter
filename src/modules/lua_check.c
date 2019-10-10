@@ -492,6 +492,8 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
       __n = luaL_optnumber(L, 2, 0);
       set(check, metric_name, metric_type, &__n, &whence);
       break;
+    case METRIC_HISTOGRAM:
+    case METRIC_HISTOGRAM_CUMULATIVE:
     case METRIC_ABSENT:
       luaL_error(L, "illegal metric type: %d", metric_type);
   }
