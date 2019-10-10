@@ -148,7 +148,6 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
   if(metrics_log) {
     v = mtev_log_stream_get_property(metrics_log, "extended_id");
     if(v && !strcmp(v, "on")) extended_id = mtev_true;
-    mtev_log_stream_set_dedup_s(metrics_log, 0);
   }
   uuid_str[0] = '\0';
   if(extended_id) {
@@ -190,7 +189,6 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
   if(!noit_apply_filterset(check->filterset, check, &m_onstack)) return;
   if(!live_feed) {
     SETUP_LOG(metrics, return);
-    mtev_log_stream_set_dedup_s(metrics_log, 0);
     mtev_log(metrics_log, whence, __FILE__, __LINE__,
              "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
              SECPART(whence), MSECPART(whence),

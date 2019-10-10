@@ -564,7 +564,6 @@ noit_conf_write_log() {
 
   SETUP_LOG(config, return -1);
   if(!N_L_S_ON(config_log)) return 0;
-  mtev_log_stream_set_dedup_s(config_log, 0);
 
   v = mtev_log_stream_get_property(config_log, "notify_only");
   if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) notify_only = mtev_true;
