@@ -55,7 +55,9 @@ typedef enum {
   METRIC_INT64 = 'l',
   METRIC_UINT64 = 'L',
   METRIC_DOUBLE = 'n',
-  METRIC_STRING = 's'
+  METRIC_STRING = 's',
+  METRIC_HISTOGRAM = 'h',
+  METRIC_HISTOGRAM_CUMULATIVE = 'H'
 } metric_type_t;
 
 typedef enum {
