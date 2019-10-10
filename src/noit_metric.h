@@ -47,7 +47,8 @@ typedef enum {
   NOIT_METRIC_TAGSET_MEASUREMENT = 3,
 } noit_metric_tagset_class_t;
 
-typedef enum {
+typedef enum
+{
   METRIC_ABSENT = 0,
   METRIC_GUESS = '0',
   METRIC_INT32 = 'i',
@@ -55,8 +56,11 @@ typedef enum {
   METRIC_INT64 = 'l',
   METRIC_UINT64 = 'L',
   METRIC_DOUBLE = 'n',
-  METRIC_STRING = 's'
-} metric_type_t;
+  METRIC_STRING = 's',
+  METRIC_GAUGE_HISTOGRAM = 'h',
+  METRIC_CUMULATIVE_HISTOGRAM = 'H'
+}
+metric_type_t;
 
 typedef enum {
   NOIT_METRIC_ENCODE_DEFAULT = '"',
