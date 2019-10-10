@@ -261,11 +261,10 @@ socket_close:
       self->payload_handler(check, (char *)mtev_dyn_buffer_data(&self->buffer), used_size);
       if (total_size > used_size) {
         end_ptr++;
-        char *leftovers = (char*)malloc(total_size - used_size - 1);
-        memcpy(leftovers, end_ptr, total_size - used_size - 1);
+        memmove(mtev_dyn_buffer_data(&self->buffer), end_ptr, total_size - used_size - 1);
         mtev_dyn_buffer_reset(&self->buffer);
-        mtev_dyn_buffer_add(&self->buffer, (uint8_t *)leftovers, total_size - used_size - 1);
-        free(leftovers);
+        mtev_dyn_buffer_advance(&self->buffer, total_size - used_size - 1);
+        *mtev_dyn_buffer_write_pointer(&self->buffer) = '\0';
       }
       if (records_this_loop >= rows_per_cycle) {
         listener_flush_immediate(self);
