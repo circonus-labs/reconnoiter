@@ -398,7 +398,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     if(*stringVal == 'L' || *stringVal == 'l' ||
         *stringVal == 'I' || *stringVal == 'i' ||
         *stringVal == 'n' || *stringVal == 's' ||
-        *stringVal == 'h') {
+        *stringVal == 'h' || *stringVal == 'H') {
       json->last_type = *stringVal;
       json->saw_complex_type |= HT_EX_TYPE;
       _YD("[%3d] cb_string { _type: %c }\n", json->depth, *stringVal);
@@ -419,7 +419,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     return 1;
   }
   else if(json->last_special_key == HT_EX_TS) {
-    uint64_t ts = strtoull(stringVal, NULL, 10);
+    uint64_t ts = strtoull((const char *)stringVal, NULL, 10);
     json->last_timestamp.tv_sec = (ts / 1000);
     json->last_timestamp.tv_usec = (ts % 1000) * 1000;
     json->saw_complex_type |= HT_EX_TS;
@@ -535,16 +535,18 @@ httptrap_yajl_cb_end_map(void *ctx) {
     }
 
     for(p=json->last_value;p;p=p->next) {
-      if(json->last_type == 'h') {
+      if(json->last_type == 'h' || json->last_type == 'H') {
+        metric_type_t hist_type = json->last_type == 'H' ? METRIC_HISTOGRAM_CUMULATIVE : METRIC_HISTOGRAM;
         if(json->saw_complex_type & HT_EX_TS) {
           if(p == json->last_value && p->next == NULL) {
             /* There can be exactly one, it should be base64 encoded */
             track_filtered(json, metric_name);
-            noit_stats_log_immediate_histo_tv(json->check, metric_name, p->v, strlen(p->v), json->last_timestamp);
+            noit_stats_log_immediate_histo_tv(json->check, metric_name, p->v, strlen(p->v),
+                                              hist_type == METRIC_HISTOGRAM_CUMULATIVE, json->last_timestamp);
           }
         } else {
           track_filtered(json, metric_name);
-          noit_stats_set_metric_histogram(json->check, metric_name, METRIC_GUESS, p->v);
+          noit_stats_set_metric_histogram(json->check, metric_name, hist_type, p->v);
         }
       } else {
         if(json->got_timestamp) {
@@ -588,7 +590,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
         m->accumulator = cnt;
       }
     }
-    if((json->immediate || json->got_timestamp) && last_p != NULL && json->last_type != 'h') {
+    if((json->immediate || json->got_timestamp) && last_p != NULL && json->last_type != 'h' && json->last_type != 'H') {
       metric_type_t t = use_computed_value ?
                           'n' :
                           ((json->saw_complex_type & HT_EX_TYPE) ?

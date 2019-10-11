@@ -107,6 +107,7 @@ histogram_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
 typedef struct histotier {
   histogram_t **secs;
   histogram_t *last_aggr;
+  mtev_boolean cumulative;
   uint8_t cadence;
   uint8_t last_sec_off;
   uint64_t last_period;
@@ -129,7 +130,7 @@ debug_print_hist(histogram_t *ht) {
 void
 noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *whence,
           mtev_boolean explicit_time, const char *metric_name, const char *hist_encode,
-          ssize_t hist_encode_len, mtev_boolean live_feed, mtev_boolean validate) {
+          ssize_t hist_encode_len, mtev_boolean cumulative, mtev_boolean live_feed, mtev_boolean validate) {
   mtev_boolean extended_id = mtev_false;
   char uuid_str[256*3+37];
   const char *v;
@@ -175,7 +176,8 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
       mtev_skiplist_next(check->feeds, &next);
       if(!ls ||
          mtev_log(ls, whence, __FILE__, __LINE__,
-           "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
+           "H%d\t%lu.%03lu\t%s\t%s\t%.*s\n",
+           cumulative ? 2 : 1,
            SECPART(whence), MSECPART(whence),
            uuid_str, metric_name, (int)hist_encode_len, hist_encode))
         noit_check_transient_remove_feed(check, feed_name);
@@ -190,7 +192,8 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
   if(!live_feed) {
     SETUP_LOG(metrics, return);
     mtev_log(metrics_log, whence, __FILE__, __LINE__,
-             "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
+             "H%d\t%lu.%03lu\t%s\t%s\t%.*s\n",
+             cumulative ? 2 : 1,
              SECPART(whence), MSECPART(whence),
              uuid_str, metric_name, (int)hist_encode_len, hist_encode);
   }
@@ -198,14 +201,17 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
 
 void
 noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence, mtev_boolean explicit_time,
-          const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
+          const char *metric_name, const char *hist_encode, ssize_t hist_encode_len, mtev_boolean cumulative,
           mtev_boolean live_feed) {
-  noit_log_histo_encoded_function_validate(check,whence,explicit_time,metric_name,hist_encode,hist_encode_len,live_feed,mtev_true);
+  noit_log_histo_encoded_function_validate(check,whence,explicit_time,metric_name,
+                                           hist_encode,hist_encode_len,cumulative,
+                                           live_feed,mtev_true);
 }
 
 static void
 log_histo(noit_check_t *check, uint64_t whence_s,
           const char *metric_name, histogram_t *h,
+          mtev_boolean cumulative,
           mtev_boolean live_feed) {
   char *hist_serial = NULL;
   char *hist_encode = NULL;
@@ -241,7 +247,7 @@ log_histo(noit_check_t *check, uint64_t whence_s,
 
 
 
-  noit_log_histo_encoded_function_validate(check, &whence, mtev_false, metric_name, hist_encode, enc_est, live_feed, mtev_false);
+  noit_log_histo_encoded_function_validate(check, &whence, mtev_false, metric_name, hist_encode, enc_est, cumulative, live_feed, mtev_false);
 
  cleanup:
   if(hist_serial) free(hist_serial);
@@ -253,15 +259,16 @@ sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *
   histogram_t *tgt = NULL;
   uint64_t aligned_seconds = ht->last_period * ht->cadence;
   int cidx;
-  /* find the first histogram to use as an aggregation target */
-  for(cidx=0; cidx<ht->cadence; cidx++) {
+  /* find the last histogram to use as an aggregation target */
+  for(cidx=ht->cadence-1; cidx>=0; cidx--) {
     if(NULL != (tgt = ht->secs[cidx])) {
       ht->secs[cidx] = NULL;
       break;
     }
   }
   if(tgt != NULL) {
-    hist_accumulate(tgt, (const histogram_t * const *)ht->secs, ht->cadence);
+    if(ht->cumulative == mtev_false)
+      hist_accumulate(tgt, (const histogram_t * const *)ht->secs, ht->cadence);
     for(cidx=0;cidx<ht->cadence;cidx++) {
       hist_free(ht->secs[cidx]);
       ht->secs[cidx] = NULL;
@@ -270,7 +277,7 @@ sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *
 
   /* push this out to the log streams */
   if(conf->histogram)
-    log_histo(check, aligned_seconds, name, tgt, mtev_false);
+    log_histo(check, aligned_seconds, name, tgt, ht->cumulative, mtev_false);
   debug_print_hist(tgt);
 
   /* drop the tgt, it's ours */
@@ -279,12 +286,13 @@ sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *
 }
 
 static void
-update_histotier(histotier *ht, uint64_t s,
+update_histotier(histotier *ht, mtev_boolean cumulative, uint64_t s,
                  struct histogram_config *conf, noit_check_t *check,
                  const char *name, double val, uint64_t cnt) {
   uint64_t this_period = s/ht->cadence;
   uint8_t sec_off = s%ht->cadence;
   noit_check_metric_count_add(cnt);
+  if(cumulative) ht->cumulative = mtev_true;
   if((sec_off != ht->last_sec_off || check->flags & NP_TRANSIENT) &&
      check->feeds) {
     uint64_t last_sec_off = ht->last_sec_off;
@@ -307,14 +315,18 @@ update_histotier(histotier *ht, uint64_t s,
     if(ht->secs[last_sec_off] && hist_num_buckets(ht->secs[last_sec_off])
         && conf->histogram)
       log_histo(check, last_period * (uint64_t)ht->cadence + last_sec_off, name,
-          ht->secs[last_sec_off], mtev_true);
+          ht->secs[last_sec_off], ht->cumulative, mtev_true);
   }
   if(this_period > ht->last_period) {
     sweep_roll_n_log(conf, check, ht, name);
+    ht->cumulative = mtev_false;
   }
   if(cnt > 0) {
     if(ht->secs[sec_off] == NULL)
       ht->secs[sec_off] = hist_alloc();
+    if(ht->cumulative) {
+      hist_remove(ht->secs[sec_off], val, UINT64_MAX);
+    }
     hist_insert(ht->secs[sec_off], val, cnt);
   }
   ht->last_period = this_period;
@@ -356,7 +368,7 @@ extract_Hformat_metric(const char *v, uint64_t *p_cnt, double *p_bucket) {
   return 0;
 }
 static mtev_hook_return_t
-histogram_metric(void *closure, noit_check_t *check, metric_t *m) {
+histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, metric_t *m) {
   void *vht;
   histotier *ht;
   mtev_hash_table *metrics;
@@ -383,7 +395,7 @@ histogram_metric(void *closure, noit_check_t *check, metric_t *m) {
   }
   else ht = vht;
   if(m->metric_value.vp != NULL) {
-#define UPDATE_HISTOTIER(a) update_histotier(ht, time(NULL), conf, check, m->metric_name, *m->metric_value.a, 1)
+#define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, *m->metric_value.a, 1)
     switch(m->metric_type) {
       case METRIC_UINT64:
         UPDATE_HISTOTIER(L); break;
@@ -399,7 +411,7 @@ histogram_metric(void *closure, noit_check_t *check, metric_t *m) {
         uint64_t cnt;
         double bucket;
         if(extract_Hformat_metric(m->metric_value.s, &cnt, &bucket) == 0 && cnt > 0) {
-          update_histotier(ht, time(NULL), conf, check, m->metric_name, bucket, cnt);
+          update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, bucket, cnt);
         }
       } break;
       default: /*noop*/
@@ -420,7 +432,7 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
   if(!track || strcmp(track, "add"))
     return MTEV_HOOK_CONTINUE;
 
-  histogram_metric(closure, check, m);
+  histogram_metric(closure, check, m->metric_type == METRIC_HISTOGRAM_CUMULATIVE, m);
   return MTEV_HOOK_DONE;
 }
 
@@ -457,7 +469,7 @@ histogram_metric_hformat(void *closure,
     double bucket;
     uint64_t cnt;
     if(extract_Hformat_metric(v, &cnt, &bucket) == 0 && cnt > 0) {
-      update_histotier(ht, time(NULL), conf, check, metric_name, bucket, cnt);
+      update_histotier(ht, (type == METRIC_HISTOGRAM_CUMULATIVE), time(NULL), conf, check, metric_name, bucket, cnt);
     }
   }
 }
@@ -577,7 +589,7 @@ heartbeat_all_metrics(struct histogram_config *conf,
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     int has_data = 0;
     histotier *ht = data;
-    update_histotier(ht, s, conf, check, k, 0, 0);
+    update_histotier(ht, mtev_false, s, conf, check, k, 0, 0);
 
     /* if there's no data, drop the histogram */
     for(int i=0; i<ht->cadence; i++) if(ht->secs[i]) has_data++;

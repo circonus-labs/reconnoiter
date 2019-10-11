@@ -515,7 +515,7 @@ noit_lua_set_metric_histogram(lua_State *L) {
     lua_pushboolean(L, 1);
     return 1;
   }
-  noit_stats_set_metric_histogram(check, metric_name, METRIC_GUESS, (void *)lua_tostring(L,2));
+  noit_stats_set_metric_histogram(check, metric_name, METRIC_HISTOGRAM, (void *)lua_tostring(L,2));
   lua_pushboolean(L, 1);
   return 1;
 }
@@ -528,7 +528,7 @@ noit_lua_set_histo_metric(lua_State *L) {
   const char *hist_encoded;
   uint64_t whence_s;
 
-  if(lua_gettop(L) != 3) luaL_error(L, "need 3 arguments: <metric_name> <encoded_histo> <whence_s>");
+  if(lua_gettop(L) != 3 && lua_gettop(L) != 4) luaL_error(L, "need arguments: <metric_name> <encoded_histo> <whence_s> [cumulative]");
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
   if(!lua_isstring(L, 2)) luaL_error(L, "argument #2 must be a string");
@@ -541,9 +541,11 @@ noit_lua_set_histo_metric(lua_State *L) {
 
   hist_encoded = lua_tolstring(L, 2, &hist_encoded_len);
   whence_s = lua_tointeger(L, 3);
+  mtev_boolean cumulative = mtev_false;
+  if(lua_gettop(L) == 4) cumulative = lua_toboolean(L,4);
 
   if(noit_stats_log_immediate_histo(check, metric_name, hist_encoded,
-      hist_encoded_len, whence_s) == mtev_false) {
+      hist_encoded_len, cumulative, whence_s) == mtev_false) {
     return luaL_error(L,
         "Unable to invoke noit_log_histo_encoded! Did you load the histogram module?!");
   }

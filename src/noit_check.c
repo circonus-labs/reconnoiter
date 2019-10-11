@@ -131,10 +131,10 @@ MTEV_HOOK_IMPL(check_deleted,
   (closure,check))
 
 MTEV_HOOK_IMPL(check_stats_set_metric_histogram,
-  (noit_check_t *check, metric_t *m),
+  (noit_check_t *check, mtev_boolean cumulative, metric_t *m),
   void *, closure,
-  (void *closure, noit_check_t *check, metric_t *m),
-  (closure, check, m));
+  (void *closure, noit_check_t *check, mtev_boolean cumulative, metric_t *m),
+  (closure, check, cumulative, m));
 
 MTEV_HOOK_IMPL(noit_check_stats_populate_json,
   (struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
@@ -2309,14 +2309,13 @@ noit_stats_set_metric_histogram(noit_check_t *check,
   char tagged_name[MAX_METRIC_TAGGED_NAME];
   if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
     return;
-  if(type == METRIC_GUESS)
-    type = noit_metric_guess_type((char *)value, &replacement);
-  if(type == METRIC_GUESS) return;
+  metric_type_t gtype = noit_metric_guess_type((char *)value, &replacement);
+  if(gtype == METRIC_GUESS) return;
 
   metric_t m_onstack = { .metric_name = tagged_name,
-                         .metric_type = type,
+                         .metric_type = gtype,
                          .metric_value = { .vp = replacement ? replacement : value } };
-  check_stats_set_metric_histogram_hook_invoke(check, &m_onstack);
+  check_stats_set_metric_histogram_hook_invoke(check, type == METRIC_HISTOGRAM_CUMULATIVE, &m_onstack);
   free(replacement);
 }
 void
@@ -2468,14 +2467,14 @@ noit_stats_log_immediate_metric(noit_check_t *check,
 mtev_boolean
 noit_stats_log_immediate_histo_tv(noit_check_t *check,
                                 const char *name, const char *hist_encoded, size_t hist_encoded_len,
-                                struct timeval whence) {
+                                mtev_boolean cumulative, struct timeval whence) {
   char tagged_name[MAX_METRIC_TAGGED_NAME];
   if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
     return mtev_false;
   }
 
   if (noit_log_histo_encoded_available()) {
-    noit_log_histo_encoded(check, &whence, mtev_true, tagged_name, hist_encoded, hist_encoded_len, mtev_false);
+    noit_log_histo_encoded(check, &whence, mtev_true, tagged_name, hist_encoded, hist_encoded_len, cumulative, mtev_false);
   } else {
     return mtev_false;
   }
@@ -2489,11 +2488,11 @@ noit_stats_log_immediate_histo_tv(noit_check_t *check,
 mtev_boolean
 noit_stats_log_immediate_histo(noit_check_t *check,
                                 const char *name, const char *hist_encoded, size_t hist_encoded_len,
-                                uint64_t whence_s) {
+                                mtev_boolean cumulative, uint64_t whence_s) {
   struct timeval whence;
   whence.tv_sec = whence_s;
   whence.tv_usec = 0;
-  return noit_stats_log_immediate_histo_tv(check,name,hist_encoded,hist_encoded_len,whence);
+  return noit_stats_log_immediate_histo_tv(check,name,hist_encoded,hist_encoded_len,cumulative,whence);
 }
 
 void

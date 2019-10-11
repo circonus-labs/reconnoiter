@@ -402,7 +402,8 @@ function initiate(module, check)
     end
 
     local jsondoc = nil
-    if string.find(hdrs_in["content-type"] or '', 'json') ~= nil or
+    if string.find(module.name(), 'json') or
+       string.find(hdrs_in["content-type"] or '', 'json') ~= nil or
        string.find(hdrs_in["content-type"] or '', 'javascript') ~= nil then
       services = check.metric_json(output)
       if(services >= 0) then

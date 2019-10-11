@@ -41,8 +41,9 @@
 MTEV_RUNTIME_RESOLVE(noit_log_histo_encoded, noit_log_histo_encoded_function, void,
                      (noit_check_t *check, struct timeval *whence, mtev_boolean explicit_time,
                          const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
-                         mtev_boolean live_feed),
-                     (check, whence, explicit_time, metric_name, hist_encode, hist_encode_len, live_feed))
+                         mtev_boolean cumulative, mtev_boolean live_feed),
+                     (check, whence, explicit_time, metric_name, hist_encode, hist_encode_len,
+                      cumulative, live_feed))
 MTEV_RUNTIME_AVAIL(noit_log_histo_encoded, noit_log_histo_encoded_function)
 
 #endif
