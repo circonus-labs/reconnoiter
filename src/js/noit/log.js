@@ -157,7 +157,8 @@ function fixup_id(info) {
     'M': [ 'agent', 'time', 'id', 'metric_name', 'metric_type', 'value' ],
     'B1': [ 'agent', 'time', 'id', 'target', 'module', 'name', 'raw_len', 'data' ],
     'B2': [ 'agent', 'time', 'id', 'target', 'module', 'name', 'raw_len', 'data' ],
-    'H1': [ 'agent', 'time', 'id', 'metric_name', 'serialized_histogram' ]
+    'H1': [ 'agent', 'time', 'id', 'metric_name', 'serialized_histogram' ],
+    'H2': [ 'agent', 'time', 'id', 'metric_name', 'serialized_histogram' ]
   };
   var postprocs = {
     'B1': make_b_parser(b64_decode, decompress, read_protobuf),
