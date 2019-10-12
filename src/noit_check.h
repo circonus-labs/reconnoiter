@@ -330,12 +330,14 @@ API_EXPORT(mtev_boolean)
   noit_stats_log_immediate_histo_tv(noit_check_t *check, const char *name,
                                     const char *hist_encoded,
                                     size_t hist_encoded_len,
+                                    mtev_boolean cumulative,
                                     struct timeval whence);
 
 API_EXPORT(mtev_boolean)
   noit_stats_log_immediate_histo(noit_check_t *check, const char *name,
                                   const char *hist_encoded,
                                   size_t hist_encoded_len,
+                                  mtev_boolean cumulative,
                                   uint64_t whence_s);
 
 API_EXPORT(mtev_boolean)
@@ -501,9 +503,9 @@ MTEV_HOOK_PROTO(check_deleted,
                 (void *closure, noit_check_t *check));
 
 MTEV_HOOK_PROTO(check_stats_set_metric_histogram,
-                (noit_check_t *check, metric_t *m),
+                (noit_check_t *check, mtev_boolean cumulative, metric_t *m),
                 void *, closure,
-                (void *closure, noit_check_t *check, metric_t *m));
+                (void *closure, noit_check_t *check, mtev_boolean cumulative, metric_t *m));
 
 MTEV_HOOK_PROTO(noit_check_stats_populate_json,
                 (struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),

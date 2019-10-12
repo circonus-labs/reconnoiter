@@ -44,6 +44,7 @@ table HistogramBucket {
 
 table Histogram {
        buckets: [HistogramBucket] (id: 0);
+       cumulative:bool (id:1);
 }
 
 union MetricValueUnion { IntValue, UintValue, LongValue, UlongValue, DoubleValue, StringValue, Histogram, AbsentNumericValue, AbsentStringValue, AbsentHistogramValue }

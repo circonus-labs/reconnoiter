@@ -84,6 +84,10 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
       ns(MetricValue_value_AbsentStringValue_add(B, x));
     }
     break;
+  case METRIC_HISTOGRAM:
+  case METRIC_HISTOGRAM_CUMULATIVE:
+    /* This will need to be filled in once histograms are included in the metric_t */
+    break;
   case METRIC_ABSENT:
   case METRIC_GUESS:
     break;
