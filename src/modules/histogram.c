@@ -368,7 +368,7 @@ extract_Hformat_metric(const char *v, uint64_t *p_cnt, double *p_bucket) {
   return 0;
 }
 static mtev_hook_return_t
-histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, metric_t *m) {
+histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, metric_t *m, uint64_t count) {
   void *vht;
   histotier *ht;
   mtev_hash_table *metrics;
@@ -395,7 +395,7 @@ histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, me
   }
   else ht = vht;
   if(m->metric_value.vp != NULL) {
-#define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, *m->metric_value.a, 1)
+#define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, *m->metric_value.a, count)
     switch(m->metric_type) {
       case METRIC_UINT64:
         UPDATE_HISTOTIER(L); break;
@@ -432,7 +432,7 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
   if(!track || strcmp(track, "add"))
     return MTEV_HOOK_CONTINUE;
 
-  histogram_metric(closure, check, m->metric_type == METRIC_HISTOGRAM_CUMULATIVE, m);
+  histogram_metric(closure, check, m->metric_type == METRIC_HISTOGRAM_CUMULATIVE, m, 1);
   return MTEV_HOOK_DONE;
 }
 

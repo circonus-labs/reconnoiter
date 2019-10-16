@@ -131,10 +131,10 @@ MTEV_HOOK_IMPL(check_deleted,
   (closure,check))
 
 MTEV_HOOK_IMPL(check_stats_set_metric_histogram,
-  (noit_check_t *check, mtev_boolean cumulative, metric_t *m),
+  (noit_check_t *check, mtev_boolean cumulative, metric_t *m, uint64_t count),
   void *, closure,
-  (void *closure, noit_check_t *check, mtev_boolean cumulative, metric_t *m),
-  (closure, check, cumulative, m));
+  (void *closure, noit_check_t *check, mtev_boolean cumulative, metric_t *m, uint64_t count),
+  (closure, check, cumulative, m, count));
 
 MTEV_HOOK_IMPL(noit_check_stats_populate_json,
   (struct mtev_json_object *doc, noit_check_t *check, stats_t *s, const char *name),
@@ -2302,20 +2302,23 @@ noit_stats_set_metric(noit_check_t *check,
 
 void
 noit_stats_set_metric_histogram(noit_check_t *check,
-                                const char *name_raw, metric_type_t type, void *value) {
+                                const char *name_raw, mtev_boolean cumulative,
+                                metric_type_t type, void *value, uint64_t count) {
+  if(count == 0) return;
   if(!check_stats_set_metric_histogram_hook_exists()) return;
 
   void *replacement = NULL;
   char tagged_name[MAX_METRIC_TAGGED_NAME];
   if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name_raw, check) <= 0)
     return;
-  metric_type_t gtype = noit_metric_guess_type((char *)value, &replacement);
+  metric_type_t gtype = type;
+  if(gtype == METRIC_GUESS) gtype = noit_metric_guess_type((char *)value, &replacement);
   if(gtype == METRIC_GUESS) return;
 
   metric_t m_onstack = { .metric_name = tagged_name,
                          .metric_type = gtype,
                          .metric_value = { .vp = replacement ? replacement : value } };
-  check_stats_set_metric_histogram_hook_invoke(check, type == METRIC_HISTOGRAM_CUMULATIVE, &m_onstack);
+  check_stats_set_metric_histogram_hook_invoke(check, cumulative, &m_onstack, count);
   free(replacement);
 }
 void

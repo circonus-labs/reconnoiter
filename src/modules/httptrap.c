@@ -546,7 +546,8 @@ httptrap_yajl_cb_end_map(void *ctx) {
           }
         } else {
           track_filtered(json, metric_name);
-          noit_stats_set_metric_histogram(json->check, metric_name, hist_type, p->v);
+          noit_stats_set_metric_histogram(json->check, metric_name,
+                                          hist_type == METRIC_HISTOGRAM_CUMULATIVE, METRIC_GUESS, p->v, 1);
         }
       } else {
         if(json->got_timestamp) {
