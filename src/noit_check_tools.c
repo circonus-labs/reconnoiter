@@ -302,13 +302,12 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
             struct json_object *item = json_object_array_get_idx(has_value, i);
             if (item) {
               if(*type_str == 'h' || *type_str == 'H') {
-                metric_type_t hist_type = (*type_str == 'H') ? METRIC_HISTOGRAM_CUMULATIVE : METRIC_HISTOGRAM;
                 const char *value_str = NULL;
                 if(json_object_is_type(item, json_type_string))
                   value_str = json_object_get_string(item);
                 else if(!json_object_is_type(item, json_type_null))
                   value_str = json_object_to_json_string(item);
-                if(value_str) noit_stats_set_metric_histogram(check, prefix, hist_type, (void *)value_str);
+                if(value_str) noit_stats_set_metric_histogram(check, prefix, (*type_str == 'H'), METRIC_GUESS, (void *)value_str, 1);
               }
               else {
                 COERCE_JSON_OBJECT(*type_str, item);
@@ -322,13 +321,12 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
         }
         else {
           if(*type_str == 'h' || *type_str == 'H') {
-            metric_type_t hist_type = (*type_str == 'H') ? METRIC_HISTOGRAM_CUMULATIVE : METRIC_HISTOGRAM;
             const char *value_str = NULL;
             if(json_object_is_type(has_value, json_type_string))
               value_str = json_object_get_string(has_value);
             else if(!json_object_is_type(has_value, json_type_null))
               value_str = json_object_to_json_string(has_value);
-            if(value_str) noit_stats_set_metric_histogram(check, prefix, hist_type, (void *)value_str);
+            if(value_str) noit_stats_set_metric_histogram(check, prefix, (*type_str == 'H'), METRIC_GUESS, (void *)value_str, 1);
           }
           else {
             COERCE_JSON_OBJECT(*type_str, has_value);

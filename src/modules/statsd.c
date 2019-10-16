@@ -126,7 +126,7 @@ static void
 update_check(noit_check_t *check, const char *key, char type,
              double diff, double sample) {
   uint32_t one = 1, cnt = 1;
-  char buff[256];
+  char buff[MAX_METRIC_TAGGED_NAME];
   statsd_closure_t *ccl;
   stats_t *inprogress;
   metric_t *m;
@@ -135,45 +135,29 @@ update_check(noit_check_t *check, const char *key, char type,
   if (check->closure == NULL) return;
   ccl = check->closure;
 
-  inprogress = noit_check_get_stats_inprogress(check);
-  /* First key counts */
-  snprintf(buff, sizeof(buff), "%s`count", key);
-  m = noit_stats_get_metric(check, inprogress, buff);
-  if(!m) ccl->stats_count++;
-  if(m && m->metric_type == METRIC_UINT32 && m->metric_value.I != NULL) {
-    (*m->metric_value.I)++;
-    cnt = *m->metric_value.I;
-    check_stats_set_metric_hook_invoke(check, inprogress, m);
+  switch(type) {
+    case 'c':
+      snprintf(buff, sizeof(buff), "%s.count", key);
+      break;
+    case 'g':
+      snprintf(buff, sizeof(buff), "%s.gauge", key);
+      break;
+    case 'm':
+      snprintf(buff, sizeof(buff), "%s.timing", key);
+      break;
+    default:
+      strlcpy(buff, key, sizeof(buff));
+      break;
   }
-  else
-    noit_stats_set_metric(check, buff, METRIC_UINT32, &one);
-
-  /* Next the actual data */
   if(type == 'c') {
-    double v = diff * (1.0 / sample) / (check->period / 1000.0);
-    snprintf(buff, sizeof(buff), "%s`rate", key);
-    m = noit_stats_get_metric(check, inprogress, buff);
-    if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
-      (*m->metric_value.n) += v;
-      check_stats_set_metric_hook_invoke(check, inprogress, m);
-    }
-    else
-      noit_stats_set_metric(check, buff, METRIC_DOUBLE, &v);
-  }
-
-  snprintf(buff, sizeof(buff), "%s`%s", key,
-           (type == 'c') ? "counter" : (type == 'g') ? "gauge" : "timing");
-  m = noit_stats_get_metric(check, inprogress, buff);
-  if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
-    if(type == 'c') (*m->metric_value.n) += (diff * (1.0/sample));
-    else {
-      double new_avg = ((double)(cnt - 1) * (*m->metric_value.n) + diff) / (double)cnt;
-      (*m->metric_value.n) = new_avg;
-    }
-    check_stats_set_metric_hook_invoke(check, inprogress, m);
-  }
-  else
+    uint64_t count = diff / sample;
+    double bin = 0;
+    noit_stats_set_metric_histogram(check, buff, mtev_false, METRIC_DOUBLE, &bin, count);
+  } else if(type == 'm') {
+    noit_stats_set_metric_histogram(check, buff, mtev_false, METRIC_DOUBLE, &diff, (uint64_t)(1.0/sample));
+  } else {
     noit_stats_set_metric(check, buff, METRIC_DOUBLE, &diff);
+  }
 }
 
 static void

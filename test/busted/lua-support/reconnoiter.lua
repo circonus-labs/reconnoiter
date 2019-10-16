@@ -157,9 +157,6 @@ local all_noit_modules = {
   selfcheck = { image = 'selfcheck' },
   ping_icmp = { image = 'ping_icmp' },
   snmp = { image = 'snmp' },
-  ssh2 = { image = 'ssh2' },
-  mysql = { image = 'mysql' },
-  postgres = { image = 'postgres' },
   test_abort = { image = 'test_abort' },
   varnish = { loader = 'lua', object = 'noit.module.varnish' },
   http = { loader = 'lua', object = 'noit.module.http' },
@@ -376,7 +373,16 @@ function TestConfig:make_modules_config(fd, opts)
     if module.object ~= nil then
       mtev.write(fd, " object=\"" .. module.object .. "\"")
     end
-    mtev.write(fd, " name=\"" .. k .. "\"/>\n")
+    mtev.write(fd, " name=\"" .. k .. "\">\n")
+    if module.config ~= nil then
+      mtev.write(fd, "      <config>\n")
+      for name, value in pairs(module.config) do
+        mtev.write(fd, "        <" .. name .. ">" .. value ..
+                         "</" .. name .. ">\n")
+      end
+      mtev.write(fd, "      </config>\n")
+    end
+    mtev.write(fd, "</module>\n")
   end
   mtev.write(fd, "</modules>\n")
 end

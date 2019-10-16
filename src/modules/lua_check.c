@@ -515,7 +515,7 @@ noit_lua_set_metric_histogram(lua_State *L) {
     lua_pushboolean(L, 1);
     return 1;
   }
-  noit_stats_set_metric_histogram(check, metric_name, METRIC_HISTOGRAM, (void *)lua_tostring(L,2));
+  noit_stats_set_metric_histogram(check, metric_name, mtev_false, METRIC_GUESS, (void *)lua_tostring(L,2), 1);
   lua_pushboolean(L, 1);
   return 1;
 }

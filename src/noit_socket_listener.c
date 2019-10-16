@@ -253,9 +253,9 @@ socket_close:
     num_records = count_records((char *)mtev_dyn_buffer_data(&self->buffer));
     if (num_records > 0) {
       records_this_loop += num_records;
-      char *end_ptr = strrchr((char *)mtev_dyn_buffer_data(&self->buffer), '\n');
-      *end_ptr = '\0';
       size_t total_size = mtev_dyn_buffer_used(&self->buffer);
+      char *end_ptr = memrchr((char *)mtev_dyn_buffer_data(&self->buffer), '\n', total_size);
+      *end_ptr = '\0';
       size_t used_size = end_ptr - (char *)mtev_dyn_buffer_data(&self->buffer);
 
       self->payload_handler(check, (char *)mtev_dyn_buffer_data(&self->buffer), used_size);
