@@ -51,9 +51,9 @@ static mtev_hash_table acls;
 
 static void
 free_btrie(void *vb) {
-  btrie *acl = vb;
+  mtev_btrie *acl = vb;
   if(acl) {
-    mtev_drop_tree(acl, NULL);
+    mtev_btrie_drop_tree(acl, NULL);
     free(acl);
   }
 }
@@ -74,7 +74,7 @@ ip_acl_onload(mtev_image_t *self) {
     if(mtev_conf_get_string(acl_c[i], "@name", &name)) {
       rule_c = mtev_conf_get_sections(acl_c[i], "rule", &rcnt);
       if(rule_c) {
-        btrie *acl = calloc(1, sizeof(*acl));
+        mtev_btrie *acl = calloc(1, sizeof(*acl));
         for(j=0; j<rcnt; j++) {
           int mask = -1;
           char dirstr[16] = "unspecified";
@@ -98,12 +98,12 @@ ip_acl_onload(mtev_image_t *self) {
           }
           else if(inet_pton(AF_INET, target, &a) == 1) {
             if(mask == -1) mask = 32;
-            mtev_add_route_ipv4(acl, &a.addr4, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
+            mtev_btrie_add_route_ipv4(acl, &a.addr4, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
             arcnt++;
           }
           else if(inet_pton(AF_INET6, target, &a) == 1) {
             if(mask == -1) mask = 128;
-            mtev_add_route_ipv6(acl, &a.addr6, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
+            mtev_btrie_add_route_ipv6(acl, &a.addr6, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
             arcnt++;
           }
         }
@@ -140,14 +140,14 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
       void *dir = NULL;
       unsigned char mask;
       if(mtev_hash_retrieve(&acls, k, strlen(k), &data)) {
-        btrie *acl = data;
+        mtev_btrie *acl = data;
         if(check->target_family == AF_INET) {
-          dir = mtev_find_bpm_route_ipv4(acl, &check->target_addr.addr, &mask);
+          dir = mtev_btrie_find_bpm_route_ipv4(acl, &check->target_addr.addr, &mask);
           if(dir == DENY_PTR) goto prevent;
           else if(dir == ALLOW_PTR) return MTEV_HOOK_CONTINUE;
         }
         else if(check->target_family == AF_INET6) {
-          dir = mtev_find_bpm_route_ipv6(acl, &check->target_addr.addr6, &mask);
+          dir = mtev_btrie_find_bpm_route_ipv6(acl, &check->target_addr.addr6, &mask);
           if(dir == DENY_PTR) goto prevent;
           else if(dir == ALLOW_PTR) return MTEV_HOOK_CONTINUE;
         }
