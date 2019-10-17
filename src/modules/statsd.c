@@ -137,13 +137,13 @@ update_check(noit_check_t *check, const char *key, char type,
 
   switch(type) {
     case 'c':
-      snprintf(buff, sizeof(buff), "%s.count", key);
+      snprintf(buff, sizeof(buff), "%s|ST[statsd_type:count]", key);
       break;
     case 'g':
-      snprintf(buff, sizeof(buff), "%s.gauge", key);
+      snprintf(buff, sizeof(buff), "%s|ST[statsd_type:gauge]", key);
       break;
     case 'm':
-      snprintf(buff, sizeof(buff), "%s.timing", key);
+      snprintf(buff, sizeof(buff), "%s|ST[statsd_type:timing]", key);
       break;
     default:
       strlcpy(buff, key, sizeof(buff));
@@ -168,11 +168,12 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
   endptr = payload + len - 1;
   while(ecp != NULL && ecp < endptr) {
     int i, idx = 0, last_space = 0;
-    char key[256], *value;
+    char key[MAX_METRIC_TAGGED_NAME], *value;
     const char *type = NULL;
     ecp = memchr(ecp, '\n', len - (ecp - payload));
     if(ecp) *ecp++ = '\0';
-    while(idx < sizeof(key) - 2 && *cp != '\0' && *cp != ':') {
+    mtev_boolean tags = mtev_false;
+    while(idx < sizeof(key) - 6 /* |ST[]\0 */ && *cp != '\0' && *cp != ':') {
       if(isspace(*cp)) {
         if(!last_space) key[idx++] = '_';
         cp++;
@@ -183,12 +184,26 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
       else if((*cp >= 'a' && *cp <= 'z') ||
               (*cp >= 'A' && *cp <= 'Z') ||
               (*cp >= '0' && *cp <= '9') ||
+              (*cp == '=' && !tags) ||
               *cp == '`' || *cp == '.' || *cp == '_' || *cp == '-') {
         key[idx++] = *cp;
+      } else if(tags && *cp == '=') {
+        key[idx++] = ':';
+      } else if(*cp == ';' || *cp == ',') {
+        if(!tags) {
+          key[idx++] = '|';
+          key[idx++] = 'S';
+          key[idx++] = 'T';
+          key[idx++] = '[';
+          tags = mtev_true;
+        } else {
+          key[idx++] = ',';
+        }
       }
       last_space = 0;
       cp++;
     }
+    if(tags) key[idx++] = ']';
     key[idx] = '\0';
 
     while((NULL != cp) && NULL != (value = strchr(cp, ':'))) {
