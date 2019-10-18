@@ -254,7 +254,11 @@ socket_close:
     if (num_records > 0) {
       records_this_loop += num_records;
       size_t total_size = mtev_dyn_buffer_used(&self->buffer);
+#ifdef _GNU_SOURCE
       char *end_ptr = memrchr((char *)mtev_dyn_buffer_data(&self->buffer), '\n', total_size);
+#else
+      char *end_ptr = strrchr((char *)mtev_dyn_buffer_data(&self->buffer), '\n');
+#endif
       *end_ptr = '\0';
       size_t used_size = end_ptr - (char *)mtev_dyn_buffer_data(&self->buffer);
 
