@@ -21,7 +21,10 @@ describe("noit", function()
 
   describe("bad cert", function()
     it("is denied", function()
-      local code = badapi:raw("GET", "/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc.json")
+      local code = -1
+      pcall(function()
+        code = badapi:raw("GET", "/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc.json")
+      end)
       assert.is.equal(-1, code)
     end)
   end)

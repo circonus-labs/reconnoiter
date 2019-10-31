@@ -62,7 +62,7 @@ describe("noit", function()
     local uuid = mtev.uuid()
     local code, doc, raw = api:raw("PUT", "/filters/set/" .. uuid, filter)
     assert.message(raw).is.equal(200, code)
-    code, obj, raw = api:json("POST", "/checks/test.json", check_xml("foo", "tags", uuid, { }))
+    code, obj, raw = api:json("POST", "/checks/test.json", check_xml("localhost", "tags", uuid, { }))
     assert.message(raw).is.equal(200, code)
     for k,v in pairs(obj.metrics.current) do
       assert.message(name .. " key " .. k .. " is in expected set").is_not_nil(expected[k])
@@ -123,7 +123,7 @@ describe("noit", function()
         [=[<?xml version="1.0" encoding="utf8"?>
         <check>
           <attributes>
-            <target>none</target>
+            <target>localhost</target>
             <period>100</period>
             <timeout>50</timeout>
             <name>]=] .. check_uuid .. [=[</name>
