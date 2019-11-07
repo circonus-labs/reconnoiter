@@ -104,6 +104,7 @@ static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 static int in_cksum(u_short *addr, int len);
 static uintptr_t random_num;
+static uint32_t packets_per_cycle = 10;
 
 
 typedef struct  {
@@ -114,6 +115,11 @@ typedef struct  {
 } ping_icmp_data_t;
 
 static int ping_icmp_config(noit_module_t *self, mtev_hash_table *options) {
+  const char *packets_per_cycle_s = mtev_hash_dict_get(options, "packets_per_cycle");
+  if(packets_per_cycle_s) {
+    packets_per_cycle = atoi(packets_per_cycle_s);
+    if(packets_per_cycle == 0) packets_per_cycle = 1;
+  }
   return 0;
 }
 static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
@@ -228,7 +234,8 @@ static int ping_icmp_handler(eventer_t e, int mask,
   if(family != AF_INET && family != AF_INET6) return EVENTER_READ;
 
   ping_data = noit_module_get_userdata(self);
-  while(1) {
+  uint32_t packets_remaining = packets_per_cycle;
+  while(packets_remaining--) {
     struct ping_session_key k;
     int inlen;
     uint8_t iphlen = 0;
