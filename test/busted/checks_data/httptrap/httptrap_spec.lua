@@ -152,7 +152,7 @@ describe("noit", function()
       local rparts = {}
       local keys = {}
       local rcnt = 0
-      for r=1,5 do
+      for r=1,10 do
         local out = ffi.new("char **[?]", 1)
         local line = noit:waitfor(tkey, 2)
         line = string.gsub(line, "^.+(B[12F]\t)", "%1")
