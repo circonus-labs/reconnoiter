@@ -103,7 +103,10 @@ describe("noit", function()
         code, xml, stuff = api:xml("GET", "/checks/show/" .. uuid)
         for node in xml:xpath("//metrics/metric") do
           if xmetrics[node:attr("name")] == nil then
-            xmetrics[node:attr("name")] = { _type = node:attr("type"), _value = node:contents() }
+            local val = node:contents()
+            if val ~= nil and val ~= '' then
+              xmetrics[node:attr("name")] = { _type = node:attr("type"), _value = node:contents() }
+            end
           end
         end
         assert.is.equal(200, code)
