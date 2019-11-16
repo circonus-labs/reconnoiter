@@ -110,7 +110,9 @@ describe("noit", function()
         for i, key in ipairs({ 'previous', 'current', 'inprogress' }) do
           if doc.metrics[key] ~= nil then
             for k,v in pairs(doc.metrics[key]) do
-              metrics[k] = v
+              if v._value ~= nil and v._value ~= '' then
+                metrics[k] = v
+              end
             end
           end
         end
