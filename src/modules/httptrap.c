@@ -748,11 +748,8 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   }
   while(!rxc->complete) {
     int len;
-    len = mtev_http_session_req_consume(
-            restc->http_ctx, buffer,
-            mtev_http_request_payload_chunked(req) ? sizeof(buffer) : MIN(content_length - rxc->len, sizeof(buffer)),
-            sizeof(buffer),
-            mask);
+    len = mtev_http_session_req_consume(restc->http_ctx, buffer,
+                                        sizeof(buffer), sizeof(buffer), mask);
     if(len > 0) {
       yajl_status status;
       _YD("inbound payload chunk (%d bytes) continuing YAJL parse\n", len);
