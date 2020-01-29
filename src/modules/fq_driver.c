@@ -315,7 +315,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
           routingkey = replace;
         }
         else {
-          snprintf(replace, sizeof(replace), "%s.simple.%s", driver->routingkey, uuid_str);
+          snprintf(replace, sizeof(replace), "%s.simple%s", driver->routingkey, uuid_str);
           routingkey = replace;
         }
       }

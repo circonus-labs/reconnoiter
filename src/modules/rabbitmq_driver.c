@@ -59,7 +59,7 @@ struct amqp_driver {
   pthread_t owner;
   amqp_connection_state_t connection;
   char exchange[128];
-  char routingkey[256];
+  char routingkey[128];
   char username[80];
   char password[80];
   char vhost[256];
@@ -338,7 +338,7 @@ noit_rabbimq_submit(iep_thread_driver_t *dr,
           routingkey = replace;
         }
         else {
-          snprintf(replace, sizeof(replace), "%s.simple.%s", driver->routingkey, uuid_str);
+          snprintf(replace, sizeof(replace), "%s.simple%s", driver->routingkey, uuid_str);
           routingkey = replace;
         }
       }
