@@ -119,7 +119,7 @@ NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_metric.h noit_message_decoder.h noit_socket_listener.h
 
 STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_ingest.h \
-	stratcon_jlog_streamer.h stratcon_realtime_http.h
+	stratcon_jlog_streamer.h stratcon_realtime_http.h stratcon_iep_hooks.h
 
 ENABLE_LUA=@ENABLE_LUA@
 LUALIBS=@LUALIBS@
