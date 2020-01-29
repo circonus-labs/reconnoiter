@@ -151,6 +151,7 @@ local all_noit_loaders = function()
 end
 local all_noit_generics = {
   histogram = { image = 'histogram' },
+  reverse_check = { image = 'reverse_check' },
   lua_web = { image = 'lua_mtev' }
 }
 local all_noit_modules = {

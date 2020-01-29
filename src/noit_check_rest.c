@@ -300,6 +300,22 @@ noit_check_state_as_json(noit_check_t *check, int full) {
       json_object_object_add(config, k, json_object_new_string(data));
     json_object_object_add(doc, "config", config);
 
+    struct mtev_json_object *module_configs = MJ_OBJ();
+    int reg_module_id = noit_check_registered_module_cnt();
+    for(int ridx=0; ridx<reg_module_id; ridx++) {
+      const char *reg_module_name = noit_check_registered_module(ridx);
+      mtevL(mtev_error, "trying namespace %s\n", reg_module_name);
+      configh = noit_check_get_module_config(check, ridx);
+      if(configh == NULL) continue;
+      struct mtev_json_object *module_config = MJ_OBJ();
+      memset(&iter, 0, sizeof(iter));
+      while(mtev_hash_next(configh, &iter, &k, &klen, &data)) {
+        MJ_KV(module_config, k, MJ_STR((const char *)data));
+      }
+      MJ_KV(module_configs, reg_module_name, module_config);
+    }
+    MJ_KV(doc, "module_config", module_configs);
+
     /* status */
     status = json_object_new_object();
     switch(noit_check_stats_available(c, NULL)) {
@@ -905,6 +921,7 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
       xmlSetProp(config, (xmlChar *)"inherit", inherit->children->content);
     for(n = c->children; n; n = n->next) {
       xmlNsPtr targetns = NULL;
+      if(n->type != XML_ELEMENT_NODE) continue;
       xmlChar *v = xmlNodeGetContent(n);
       if(n->ns) {
         targetns = xmlSearchNs(parent->doc, xmlDocGetRootElement(parent->doc),

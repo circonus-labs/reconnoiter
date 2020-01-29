@@ -563,6 +563,20 @@ noit_console_show_check(mtev_console_closure_t ncct,
     mtev_hash_destroy(config, free, free);
     free(config);
 
+    int reg_module_id = noit_check_registered_module_cnt();
+    for(int ridx=0; ridx<reg_module_id; ridx++) {
+      const char *reg_module_name = noit_check_registered_module(ridx);
+      mtevL(mtev_error, "trying namespace %s\n", reg_module_name);
+      config = mtev_conf_get_namespaced_hash(section, "config", reg_module_name);
+      if(config == NULL) continue;
+      memset(&iter, 0, sizeof(iter));
+      while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
+        nc_printf(ncct, " config[%s]::%s: %s\n", reg_module_name, k, (const char *)data);
+      }
+      mtev_hash_destroy(config, free, free);
+      free(config);
+    }
+
     check = noit_poller_lookup(checkid);
     if(!check) {
       nc_printf(ncct, " ERROR: not in running system\n");

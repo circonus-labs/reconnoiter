@@ -54,16 +54,6 @@ reverse_check_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
 
-static mtev_hook_return_t
-reverse_check_hook_impl(void *closure, noit_check_t *check) {
-  mtev_hash_table *config;
-  config = noit_check_get_module_config(check, reverse_check_module_id);
-  if(config && mtev_hash_size(config)) {
-    mtev_hash_merge_as_dict(check->config, config);
-  }
-  return MTEV_HOOK_CONTINUE;
-}
-
 mtev_reverse_acl_decision_t
 reverse_check_allow(const char *id, mtev_acceptor_closure_t *ac) {
   mtev_hash_table *config;
@@ -101,7 +91,6 @@ reverse_check_post_init(void *unused) {
 static int
 reverse_check_init(mtev_dso_generic_t *self) {
   dso_post_init_hook_register("reverse_check", reverse_check_post_init, NULL);
-  check_config_fixup_hook_register("reverse_check", reverse_check_hook_impl, NULL);
   return 0;
 }
 

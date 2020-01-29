@@ -32,7 +32,10 @@ describe("cluster", function()
     <filterset>allowall</filterset>
     <module>]=] .. module .. [=[</module>
   </attributes>
-  <config><secret>none</secret></config>
+  <config xmlns:reverse="noit://module/reverse">
+    <secret>none</secret>
+    <reverse:secret_key>welp</reverse:secret_key>
+  </config>
 </check>]=])
   end
   function put_cluster(api, nodes, idx)
@@ -54,7 +57,7 @@ describe("cluster", function()
 
   describe("selfchecks", function()
     it("on node1", function()
-      local code, o = make_check(api1, "selfcheck", "selfcheck", uuid1, 1)
+      local code, o, raw = make_check(api1, "selfcheck", "selfcheck", uuid1, 1)
       assert.is.equal(200, code)
     end)
     it("on node2", function()
@@ -92,11 +95,13 @@ describe("cluster", function()
       local code, obj = api1:json("GET", "/checks/show/" .. check_uuid .. ".json")
       assert.is.equal(200, code)
       assert.is.equal(true, obj.active_on_cluster_node)
+      assert.is_equal("welp", obj.module_config.reverse.secret_key)
     end)
     it("is inactive on node2", function()
       local code, obj = api2:json("GET", "/checks/show/" .. check_uuid .. ".json")
       assert.is.equal(302, code)
       assert.is.equal(false, obj.active_on_cluster_node)
+      assert.is_equal("welp", obj.module_config.reverse.secret_key)
     end)
     it("is owned by one node", function()
       local codes = {}
