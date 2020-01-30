@@ -40,8 +40,10 @@
 #include <eventer/eventer.h>
 #include <mtev_log.h>
 #include <mtev_conf.h>
+#include <mtev_hooks.h>
 
 #include "stratcon_iep.h"
+#include "stratcon_iep_hooks.h"
 #include "fq_driver.xmlh"
 
 static mtev_log_stream_t nlerr = NULL;
@@ -90,21 +92,10 @@ static struct fq_driver global_fq_ctx;
 
 #define BUMPSTAT(i,a) ck_pr_inc_64(&global_fq_ctx.stats[i].a)
 
-/* This is very specific to an internal implementation somewhere...
- * and thus unlikely to be useful unless people name their checks:
- * c_<accountid>_<checknumber>::<rest of name>
- * This code should likley be made generic, perhaps with named
- * pcre captures.  However, I'm worried about performance.
- * For now, leave it and understand it is limited usefulness.
- */
 static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
-                                  int *account_id, int *check_id, char *dst,
-                                  char *formatted, char **metric) {
+                                  char *dst, char *formatted, char **metric) {
   int i = 0;
   const char *atab = payload, *u = NULL, *metric_start = NULL, *metric_end = NULL;
-
-  if(account_id) *account_id = 0;
-  if(check_id) *check_id = 0;
 
 #define advance_past_tab do { \
   atab = memchr(atab, '\t', payloadlen - (atab - payload)); \
@@ -124,25 +115,6 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
   /* Tab -> metric_name */
   atab--;
   if(atab - u < UUID_STR_LEN) return 0;
-  if(atab - u > UUID_STR_LEN) {
-    const char *f = NULL;
-    f = memchr(u, '`', payloadlen - (u - payload));
-    if(f) {
-      f = memchr(f+1, '`', payloadlen - (f + 1 - payload));
-      if(f) {
-        f++;
-        if(memcmp(f, "c_", 2) == 0) {
-          f += 2;
-          if(account_id) *account_id = atoi(f);
-          f = memchr(f, '_', payloadlen - (f - payload));
-          if(f) {
-            f++;
-            if(check_id) *check_id = atoi(f);
-          }
-        }
-      }
-    }
-  }
   u = atab - UUID_STR_LEN;
   memcpy(formatted, u, UUID_STR_LEN);
   formatted[UUID_STR_LEN] = 0;
@@ -315,6 +287,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
   bool is_bundle = false, is_metric = false, send = false;
   fq_msg *msg;
   char *metric = NULL;
+  char replace[256];
 
   if(*payload == 'M' ||
      *payload == 'S' ||
@@ -330,24 +303,21 @@ noit_fq_submit(iep_thread_driver_t *dr,
       is_metric = true;
     }
 
-    if(extract_uuid_from_jlog(payload, payloadlen,
-                              &account_id, &check_id, uuid_str,
-                              uuid_formatted_str, &metric)) {
-      if(mtev_hash_retrieve(&suppress_account_id, (const char *)&account_id, sizeof(int), NULL) ||
-         mtev_hash_retrieve(&suppress_check_id, (const char *)&check_id, sizeof(int), NULL) ||
-         mtev_hash_retrieve(&suppress_check_uuid, uuid_str, UUID_STR_LEN, NULL)) {
+    if(extract_uuid_from_jlog(payload, payloadlen, uuid_str, uuid_formatted_str, &metric)) {
+      if(mtev_hash_retrieve(&suppress_check_uuid, uuid_str, UUID_STR_LEN, NULL)) {
         free(metric);
         return 0;
       }
 
       if(*routingkey) {
-        char *replace = NULL;
-        int newlen = strlen(driver->routingkey) + 1 + sizeof(uuid_str) + 2 * 32;
-        replace = alloca(newlen);
-        snprintf(replace, newlen, "%s.%x.%x.%d.%d%s", driver->routingkey,
-                 account_id%16, (account_id/16)%16, account_id,
-                 check_id, uuid_str);
-        routingkey = replace;
+        if(iep_routingkey_update_hook_invoke(payload, payloadlen, driver->routingkey,
+                                             replace, sizeof(replace)) == MTEV_HOOK_DONE) {
+          routingkey = replace;
+        }
+        else {
+          snprintf(replace, sizeof(replace), "%s.simple%s", driver->routingkey, uuid_str);
+          routingkey = replace;
+        }
       }
     }
 

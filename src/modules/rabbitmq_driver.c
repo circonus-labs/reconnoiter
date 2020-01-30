@@ -40,6 +40,7 @@
 #include <mtev_log.h>
 #include <stratcon_iep.h>
 #include <mtev_conf.h>
+#include <stratcon_iep_hooks.h>
 
 #include "librabbitmq/amqp.h"
 #include "librabbitmq/amqp_framing.h"
@@ -58,7 +59,7 @@ struct amqp_driver {
   pthread_t owner;
   amqp_connection_state_t connection;
   char exchange[128];
-  char routingkey[256];
+  char routingkey[128];
   char username[80];
   char password[80];
   char vhost[256];
@@ -275,20 +276,10 @@ static int noit_rabbimq_connect(iep_thread_driver_t *dr) {
   return 1;
 }
 
-/* This is very specific to an internal implementation somewhere...
- * and thus unlikely to be useful unless people name their checks:
- * c_<accountid>_<checknumber>::<rest of name>
- * This code should likley be made generic, perhaps with named
- * pcre captures.  However, I'm worried about performance.
- * For now, leave it and understand it is limited usefulness.
- */
 static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
-                                  int *account_id, int *check_id, char *dst) {
+                                  char *dst) {
   int i = 0;
   const char *atab = payload, *u = NULL;
-
-  if(account_id) *account_id = 0;
-  if(check_id) *check_id = 0;
 
 #define advance_past_tab do { \
   atab = memchr(atab, '\t', payloadlen - (atab - payload)); \
@@ -308,25 +299,6 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
   /* Tab -> metric_name */
   atab--;
   if(atab - u < UUID_STR_LEN) return 0;
-  if(atab - u > UUID_STR_LEN) {
-    const char *f;
-    f = memchr(u, '`', payloadlen - (u - payload));
-    if(f) {
-      f = memchr(f+1, '`', payloadlen - (f + 1 - payload));
-      if(f) {
-        f++;
-        if(memcmp(f, "c_", 2) == 0) {
-          f += 2;
-          if(account_id) *account_id = atoi(f);
-          f = memchr(f, '_', payloadlen - (f - payload));
-          if(f) {
-            f++;
-            if(check_id) *check_id = atoi(f);
-          }
-        }
-      }
-    }
-  }
   u = atab - UUID_STR_LEN;
   while(i<32 && u < atab) {
     if((*u >= 'a' && *u <= 'f') ||
@@ -348,6 +320,7 @@ noit_rabbimq_submit(iep_thread_driver_t *dr,
   amqp_bytes_t body;
   struct amqp_driver *driver = (struct amqp_driver *)dr;
   const char *routingkey = driver->routingkey;
+  char replace[256];
 
   body.len = payloadlen;
   body.bytes = (char *)payload;
@@ -358,17 +331,16 @@ noit_rabbimq_submit(iep_thread_driver_t *dr,
      (*payload == 'F' && payload[1] == '1') ||
      (*payload == 'B' && (payload[1] == '1' || payload[1] == '2'))) {
     char uuid_str[32 * 2 + 1];
-    int account_id, check_id;
-    if(extract_uuid_from_jlog(payload, payloadlen,
-                              &account_id, &check_id, uuid_str)) {
+    if(extract_uuid_from_jlog(payload, payloadlen, uuid_str)) {
       if(*routingkey) {
-        char *replace;
-        int newlen = strlen(driver->routingkey) + 1 + sizeof(uuid_str) + 2 * 32;
-        replace = alloca(newlen);
-        snprintf(replace, newlen, "%s.%x.%x.%d.%d%s", driver->routingkey,
-                 account_id%16, (account_id/16)%16, account_id,
-                 check_id, uuid_str);
-        routingkey = replace;
+        if(iep_routingkey_update_hook_invoke(payload, payloadlen, driver->routingkey,
+                                             replace, sizeof(replace)) == MTEV_HOOK_DONE) {
+          routingkey = replace;
+        }
+        else {
+          snprintf(replace, sizeof(replace), "%s.simple%s", driver->routingkey, uuid_str);
+          routingkey = replace;
+        }
       }
     }
   }
