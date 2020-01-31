@@ -60,6 +60,15 @@
 #include "stratcon_realtime_http.h"
 #include "stratcon_iep.h"
 #include "noit_check.h"
+#include "stratcon_iep_hooks.h"
+
+MTEV_HOOK_IMPL(iep_routingkey_update,
+               (const char *payload, size_t payload_len, const char *prefix,
+                char *routingkey, size_t routingkey_len),
+               void *, closure,
+               (void *closure, const char *payload, size_t payload_len, const char *prefix,
+                char *routingkey, size_t routingkey_len),
+               (closure,payload,payload_len,prefix,routingkey,routingkey_len))
 
 static void
 stratcon_ingest_sweep_journals_int(const char *base,
