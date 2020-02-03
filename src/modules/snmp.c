@@ -258,7 +258,7 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
                        vars->name, vars->name_length, vars);
 
       /* find the oid to which this is the response */
-      oid_idx = nresults; /* our check->stats.inprogress idx is the most likely */
+      oid_idx = MIN(nresults,info->noids-1); /* our check->stats.inprogress idx is the most likely */
       if(info->oids[oid_idx].oidlen != vars->name_length ||
          memcmp(info->oids[oid_idx].oid, vars->name,
                 vars->name_length * sizeof(oid))) {
@@ -358,6 +358,8 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
       info->nresults++;
     }
   }
+  mtevL(nldeb, "snmp: %s asked %d, saw %d, results: %d\n", check->name, info->noids,
+        info->noids_seen, info->nresults);
   return (info->noids_seen == info->noids) ? 1 : 0;
 }
 
