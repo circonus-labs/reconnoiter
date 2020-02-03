@@ -128,8 +128,6 @@ update_check(noit_check_t *check, const char *key, char type,
   uint32_t one = 1, cnt = 1;
   char buff[MAX_METRIC_TAGGED_NAME];
   statsd_closure_t *ccl;
-  stats_t *inprogress;
-  metric_t *m;
 
   if (sample == 0.0) return; /* would be a div-by-zero */
   if (check->closure == NULL) return;
@@ -299,6 +297,8 @@ statsd_handler(eventer_t e, int mask, void *closure,
     if(*ip)
       nchecks = noit_poller_lookup_by_ip_module(ip, self->hdr.name,
                                                 checks, MAX_CHECKS-1);
+    nchecks += noit_poller_lookup_by_ip_module("0.0.0.0", self->hdr.name,
+                                               checks+nchecks, MAX_CHECKS-1-nchecks);
     mtevL(nldeb, "statsd(%d bytes) from '%s' -> %d checks%s\n", (int)len,
           ip, (int)nchecks, parent ? " + a parent" : "");
     if(parent) checks[nchecks++] = parent;
