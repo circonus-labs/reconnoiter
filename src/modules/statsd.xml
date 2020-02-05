@@ -16,6 +16,12 @@
                required="optional"
                allowed="^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$">A specific check to which all statsd data will be delegated.</parameter>
   </moduleconfig>
+  <checkconfig>
+    <parameter name="legacy"
+               required="optional"
+               default="false"
+               allowed="^(true|false)$">If true, no tags are added and counters are tracked as numeric measurements instead of histograms.</parameter>
+  </checkconfig>
   <examples>
     <example>
       <title>A sample statsd configuration.</title>

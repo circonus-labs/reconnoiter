@@ -98,6 +98,37 @@
     </variablelist>
   </section>
   <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>legacy</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>false</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^(true|false)$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>If true, no tags are added and counters are tracked as numeric measurements instead of histograms.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
     <title>Examples</title>
     <example>
       <title>A sample statsd configuration.</title>

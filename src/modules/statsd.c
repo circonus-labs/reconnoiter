@@ -123,7 +123,7 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
 }
 
 static void
-update_check(noit_check_t *check, const char *key, char type,
+update_check(noit_check_t *check, bool legacy, const char *key, char type,
              double diff, double sample) {
   uint32_t one = 1, cnt = 1;
   char buff[MAX_METRIC_TAGGED_NAME];
@@ -133,24 +133,48 @@ update_check(noit_check_t *check, const char *key, char type,
   if (check->closure == NULL) return;
   ccl = check->closure;
 
-  switch(type) {
-    case 'c':
-      snprintf(buff, sizeof(buff), "%s|ST[statsd_type:count]", key);
-      break;
-    case 'g':
-      snprintf(buff, sizeof(buff), "%s|ST[statsd_type:gauge]", key);
-      break;
-    case 'm':
-      snprintf(buff, sizeof(buff), "%s|ST[statsd_type:timing]", key);
-      break;
-    default:
-      strlcpy(buff, key, sizeof(buff));
-      break;
+  if(legacy) {
+    strlcpy(buff, key, sizeof(buff));
+  } else {
+    switch(type) {
+      case 'c':
+        snprintf(buff, sizeof(buff), "%s|ST[statsd_type:count]", key);
+        break;
+      case 'g':
+        snprintf(buff, sizeof(buff), "%s|ST[statsd_type:gauge]", key);
+        break;
+      case 'm':
+        snprintf(buff, sizeof(buff), "%s|ST[statsd_type:timing]", key);
+        break;
+      default:
+        strlcpy(buff, key, sizeof(buff));
+        break;
+    }
   }
   if(type == 'c') {
-    uint64_t count = diff / sample;
-    double bin = 0;
-    noit_stats_set_metric_histogram(check, buff, mtev_false, METRIC_DOUBLE, &bin, count);
+    if(legacy) {
+      /* legacy needs to extract the pervious value and accumulate upon it */
+      double count = diff / sample;
+      metric_t *m = NULL;
+      void *vm;
+      mtev_hash_table *t = NULL;
+      stats_t *s = noit_check_get_stats_inprogress(check);
+      if(s) t = noit_check_stats_metrics(s);
+      if(t && mtev_hash_retrieve(t, buff, strlen(buff), &vm)) m = vm; 
+      if(!m) {
+        s = noit_check_get_stats_current(check);
+        if(s) t = noit_check_stats_metrics(s);
+        if(t && mtev_hash_retrieve(t, buff, strlen(buff), &vm)) m = vm; 
+      }
+      if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n) {
+        count += *(m->metric_value.n);
+      }
+      noit_stats_set_metric(check, buff, METRIC_DOUBLE, &count);
+    } else {
+      uint64_t count = diff / sample;
+      double bin = 0;
+      noit_stats_set_metric_histogram(check, buff, mtev_false, METRIC_DOUBLE, &bin, count);
+    }
   } else if(type == 'm') {
     noit_stats_set_metric_histogram(check, buff, mtev_false, METRIC_DOUBLE, &diff, (uint64_t)(1.0/sample));
   } else {
@@ -159,7 +183,7 @@ update_check(noit_check_t *check, const char *key, char type,
 }
 
 static void
-statsd_handle_payload(noit_check_t **checks, int nchecks,
+statsd_handle_payload(noit_check_t **checks, bool *check_legacy, int nchecks,
                       char *payload, int len) {
   char *cp, *ecp, *endptr;
   cp = ecp = payload;
@@ -239,7 +263,7 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
         case 'c':
         case 'm':
           for(i=0;i<nchecks;i++)
-            update_check(checks[i], key, *type, diff, sampleRate);
+            update_check(checks[i], check_legacy[i], key, *type, diff, sampleRate);
           break;
         default:
           break;
@@ -265,6 +289,7 @@ statsd_handler(eventer_t e, int mask, void *closure,
   packets_per_cycle = MAX(conf->packets_per_cycle, 1);
   for( ; packets_per_cycle > 0; packets_per_cycle--) {
     noit_check_t *checks[MAX_CHECKS];
+    bool legacy[MAX_CHECKS] = { false };
     int nchecks = 0;
     char ip[INET6_ADDRSTRLEN];
     union {
@@ -302,8 +327,13 @@ statsd_handler(eventer_t e, int mask, void *closure,
     mtevL(nldeb, "statsd(%d bytes) from '%s' -> %d checks%s\n", (int)len,
           ip, (int)nchecks, parent ? " + a parent" : "");
     if(parent) checks[nchecks++] = parent;
-    if(nchecks)
-      statsd_handle_payload(checks, nchecks, conf->payload, len);
+    if(nchecks) {
+      for(int i=0; i<nchecks; i++) {
+        const char *lstr = mtev_hash_dict_get(checks[i]->config, "legacy");
+        legacy[i] = lstr && !strcmp(lstr, "true");
+      }
+      statsd_handle_payload(checks, legacy, nchecks, conf->payload, len);
+    }
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
