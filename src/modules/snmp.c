@@ -245,7 +245,7 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
 
     /* manipulate the information ourselves */
     for(vars = pdu->variables; vars; vars = vars->next_variable) {
-      char *sp;
+      char *sp = NULL;
       int nresults = 0;
       int oid_idx;
       double float_conv;
@@ -254,8 +254,63 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
       char *endptr;
       char varbuff[256];
 
-      snprint_variable(varbuff, sizeof(varbuff),
-                       vars->name, vars->name_length, vars);
+      switch(vars->type) {
+        case ASN_INTEGER:
+        case ASN_GAUGE:
+          if(vars->val.integer) {
+            snprintf(varbuff, sizeof(varbuff), "%ld", *(vars->val.integer));
+            sp = varbuff;
+          }
+          break;
+        case ASN_TIMETICKS:
+        case ASN_COUNTER:
+          if(vars->val.integer) {
+            snprintf(varbuff, sizeof(varbuff), "%lu", *(vars->val.integer));
+            sp = varbuff;
+          }
+          break;
+#ifdef ASN_OPAQUE_I64
+        case ASN_OPAQUE_I64:
+#endif
+        case ASN_INTEGER64:
+          printI64(varbuff, vars->val.counter64);
+          if(vars->val.counter64) sp = varbuff;
+          break;
+#ifdef ASN_OPAQUE_U64
+        case ASN_OPAQUE_U64:
+#endif
+#ifdef ASN_OPAQUE_COUNTER64
+        case ASN_OPAQUE_COUNTER64:
+#endif
+        case ASN_COUNTER64:
+          printU64(varbuff, vars->val.counter64);
+          if(vars->val.counter64) sp = varbuff;
+          break;
+#ifdef ASN_OPAQUE_FLOAT
+        case ASN_OPAQUE_FLOAT:
+#endif
+        case ASN_FLOAT:
+          if(vars->val.floatVal) {
+            snprintf(varbuff, sizeof(varbuff), "%f", *(vars->val.floatVal));
+            sp = varbuff;
+          }
+          break;
+#ifdef ASN_OPAQUE_DOUBLE
+        case ASN_OPAQUE_DOUBLE:
+#endif
+        case ASN_DOUBLE:
+          if(vars->val.doubleVal) {
+            snprintf(varbuff, sizeof(varbuff), "%f", *(vars->val.doubleVal));
+            sp = varbuff;
+          }
+          break;
+        default:
+          snprint_value(varbuff, sizeof(varbuff),
+                        vars->name, vars->name_length, vars);
+          sp = strchr(varbuff, ' ');
+          if(sp) sp++;
+          break;
+      }
 
       /* find the oid to which this is the response */
       oid_idx = MIN(nresults,info->noids-1); /* our check->stats.inprogress idx is the most likely */
@@ -281,10 +336,14 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
         info->noids_seen++;
       }
 
-#define SETM(a,b) noit_stats_set_metric(check, info->oids[oid_idx].confname, a, b)
+#define SETM(a,b) do { \
+  mtevL(nldeb, "snmp[%s] %s -> %s %s\n", check->name, info->oids[oid_idx].oidname, \
+        info->oids[oid_idx].confname, varbuff); \
+  noit_stats_set_metric(check, info->oids[oid_idx].confname, a, b); \
+} while(0)
       if(info->oids[oid_idx].type_should_override) {
-        sp = strchr(varbuff, ' ');
-        if(sp) sp++;
+        mtevL(nldeb, "snmp[%s] %s -coerce-> %s %s\n", check->name, info->oids[oid_idx].oidname,
+              info->oids[oid_idx].confname, sp);
         noit_stats_set_metric_coerce(check, info->oids[oid_idx].confname,
                                      info->oids[oid_idx].type_override,
                                      sp);
@@ -1087,7 +1146,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
           case METRIC_INT32: case METRIC_UINT32:
           case METRIC_INT64: case METRIC_UINT64:
           case METRIC_DOUBLE: case METRIC_STRING:
-            info->oids[i].type_override = *type_override;
+            info->oids[i].type_override = type_enum_fake;
             info->oids[i].type_should_override = mtev_true;
           default: break;
         }
