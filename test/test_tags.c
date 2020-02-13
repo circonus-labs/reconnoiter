@@ -92,15 +92,21 @@ const struct {
   struct {
     const char *query;
     mtev_boolean match;
-  } queries[8];
+  } queries[12];
 } testmatches[] = {
   {
-    "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value",
+    "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value,empty:",
     {
       { "and(foo:bar)", mtev_true },
       { "and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", mtev_true },
       { "and(b/c29tZS4q/:value)", mtev_true },
       { "and(quux:value)", mtev_false },
+      { "and(empty:/^$/)", mtev_true },
+      { "and(empty:)", mtev_true },
+      { "and(empty)", mtev_true },
+      { "not(empty:/^$/)", mtev_false },
+      { "not(empty:)", mtev_false },
+      { "not(empty)", mtev_false },
       { NULL, 0 }
     }
   },
