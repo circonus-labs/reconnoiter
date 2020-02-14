@@ -311,7 +311,7 @@ noit_metric_tag_match_evaluate_against_tags_multi(struct noit_metric_tag_match_t
   for(int s=0; s<set_cnt; s++) {
     noit_metric_tagset_t *set = sets[s];
     for(int i=0; i<set->tag_count; i++) {
-      if(set->tags[i].total_size > set->tags[i].category_size &&
+      if(set->tags[i].total_size >= set->tags[i].category_size &&
          noit_match_str(set->tags[i].tag, set->tags[i].category_size - 1, &match->cat) &&
          noit_match_str(set->tags[i].tag + set->tags[i].category_size,
                         set->tags[i].total_size - set->tags[i].category_size, &match->name)) {
