@@ -466,10 +466,11 @@ noit_apply_filterrule_metric(filterrule_t *r,
     mtevL(nf_debug, "HT_MATCH(%p) -> (%s) -> %s\n", r->metric_ht, subj, rv ? "true" : "false");
     return rv;
   }
-  if(!r->metric && !r->metric_override) return mtev_true;
-  rc = pcre_exec(r->metric ? r->metric : r->metric_override, r->metric ? r->metric_e : NULL,
-                 subj, subj_len, 0, 0, ovector, 30);
-  if(rc < 0) return mtev_false;
+  if(r->metric || r->metric_override) {
+    rc = pcre_exec(r->metric ? r->metric : r->metric_override, r->metric ? r->metric_e : NULL,
+                   subj, subj_len, 0, 0, ovector, 30);
+    if(rc < 0) return mtev_false;
+  }
   if(r->stsearch) {
     if(!noit_metric_tag_search_evaluate_against_tags(r->stsearch, stset)) {
       return mtev_false;

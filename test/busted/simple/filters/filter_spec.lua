@@ -92,6 +92,16 @@ describe("noit", function()
       filter_test("metric and tags", "[13579]$", "and(env:prod,not(type:foo))", expect)
     end)
 
+    it("filters tags correctly with stream expressions without metric", function()
+      local expect = {}
+      expect["metric1|ST[env:prod,type:foo]"] = { _filtered = true, _type = "i", _value = "1"}
+      expect["metric2|ST[env:dev,type:foo]"] = { _filtered = true, _type = "i", _value = "1" }
+      expect["metric3|ST[env:prod,type:debug]"] = { _type = "i", _value = "1" }
+      expect["metric4|ST[env:staging]"] = { _filtered = true, _type = "i", _value = "1" }
+      expect["metric5"] = { _filtered = true, _type = "i", _value = "1" }
+      filter_test("metric and tags", {}, "and(env:prod,not(type:foo))", expect)
+    end)
+
     it("filters tags correctly with stream expressions", function()
       local expect = {}
       expect["metric1|ST[env:prod,type:foo]"] = { _type = "i", _value = "1"}
