@@ -59,6 +59,8 @@
 #include "mtev_json.h"
 #include "external_proc.h"
 
+#define UOM_SIZE 128
+
 typedef enum {
   EXTERNAL_ERROR_NONE = 0,
   EXTERNAL_ERROR_TIMEOUT = 1,
@@ -253,7 +255,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
     int metric_count = 0;
     while((rc = pcre_exec(ci->matcher, NULL, output, len, startoffset, 0,
                           ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
-      char metric[128];
+      char metric[MAX_METRIC_TAGGED_NAME];
       char value[128];
       startoffset = ovector[1];
       mtevL(data->nldeb, "matched at offset %d\n", rc);
@@ -265,14 +267,14 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
         if (ci->type == EXTERNAL_NAGIOS_TYPE) {
           /* We only care about metrics after the pipe - get check status from the
            * pre-pipe data, then only match on post-pipe data */
-          char uom[128];
-          char metric_name[256];
+          char uom[UOM_SIZE];
+          char metric_name[MAX_METRIC_TAGGED_NAME];
           if(pcre_copy_named_substring(ci->matcher, output, ovector, rc,
                                        "uom", uom, sizeof(uom)) > 0) {
-            snprintf(metric_name, 255, "%s_%s", metric, uom);
+            snprintf(metric_name, MAX_METRIC_TAGGED_NAME, "%s_%s", metric, uom);
           }
           else {
-            snprintf(metric_name, 255, "%s", metric);
+            snprintf(metric_name, MAX_METRIC_TAGGED_NAME, "%s", metric);
           }
           noit_stats_set_metric(check, metric_name, METRIC_GUESS, value);
           metric_count++;

@@ -356,7 +356,7 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
   _noit_check_log_bundle_metric(ls, bundle.metrics[0], m);
 
   if(NOIT_CHECK_METRIC_ENABLED()) {
-    char buff[256];
+    char buff[MAX_METRIC_TAGGED_NAME];
     noit_stats_snprint_metric(buff, sizeof(buff), m);
     NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
                       m->metric_name, m->metric_type, buff);
@@ -743,7 +743,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
       metric__init(bundle->metrics[b_i]);
       _noit_check_log_bundle_metric(ls, bundle->metrics[b_i], m);
       if(NOIT_CHECK_METRIC_ENABLED()) {
-        char buff[256];
+        char buff[MAX_METRIC_TAGGED_NAME];
         noit_stats_snprint_metric(buff, sizeof(buff), m);
         NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
                           m->metric_name, m->metric_type, buff);
@@ -859,7 +859,7 @@ noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
     _noit_check_log_metric(bundle_log, check, uuid_str, whence, m);
 #endif
     if(NOIT_CHECK_METRIC_ENABLED()) {
-      char buff[256];
+      char buff[MAX_METRIC_TAGGED_NAME];
       noit_stats_snprint_metric(buff, sizeof(buff), m);
       NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
                         m->metric_name, m->metric_type, buff);

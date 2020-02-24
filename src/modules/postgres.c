@@ -119,7 +119,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
         int64_t lv, *plv;
         double dv, *pdv;
         char *sv;
-        char mname[128];
+        char mname[MAX_METRIC_TAGGED_NAME];
   
         snprintf(mname, sizeof(mname), "%s`%s",
                  PQgetvalue(ci->result, i, 0), PQfname(ci->result, j));

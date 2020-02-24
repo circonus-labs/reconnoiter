@@ -742,7 +742,7 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
     int i, len;
     uint64_t u64;
     double doubleVal;
-    char metric_name[128], buff[128], *cp;
+    char metric_name[MAX_METRIC_TAGGED_NAME], buff[MAX_METRIC_TAGGED_NAME], *cp;
     if(var->name_length <= reconnoiter_metric_prefix_oid_len) return -1;
     len = var->name[reconnoiter_metric_prefix_oid_len];
     if(var->name_length != (reconnoiter_metric_prefix_oid_len + 1 + len) ||
