@@ -160,7 +160,7 @@ mtev_boolean
 noit_filter_compile_add(mtev_conf_section_t setinfo) {
   mtev_conf_section_t *rules;
   int j, fcnt;
-  char filterset_name[256];
+  char filterset_name[MAX_METRIC_TAGGED_NAME];
   filterset_t *set;
   int64_t seq = 0;
   if(!mtev_conf_get_stringbuf(setinfo, "@name",
@@ -184,7 +184,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   mtevL(nf_debug, "Compiling filterset '%s'\n", set->name);
   for(j=fcnt-1; j>=0; j--) {
     filterrule_t *rule;
-    char buffer[256];
+    char buffer[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
        (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny") &&
         strncmp(buffer, "skipto:", strlen("skipto:")))) {
@@ -392,11 +392,11 @@ noit_filters_process_repl(xmlDocPtr doc) {
   for(child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
 
-    char filterset_name[256];
+    char filterset_name[MAX_METRIC_TAGGED_NAME];
     mtevAssert(mtev_conf_get_stringbuf(mtev_conf_section_from_xmlnodeptr(child), "@name",
                                        filterset_name, sizeof(filterset_name)));
     if(noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(child))) {
-      char xpath[1024];
+      char xpath[MAX_METRIC_TAGGED_NAME];
       snprintf(xpath, sizeof(xpath), "/noit/filtersets//filterset[@name=\"%s\"]",
                filterset_name);
       mtev_conf_section_t oldsection = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
@@ -648,7 +648,7 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   }
   rules = mtev_conf_get_sections(fsnode, "rule", &rulecnt);
   for(i=0; i<rulecnt; i++) {
-    char val[256];
+    char val[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[i], "@type", val, sizeof(val)))
       val[0] = '\0';
     nc_printf(ncct, "Rule %d [%s]:\n", i+1, val);

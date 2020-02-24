@@ -509,7 +509,7 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
   out_q = alloca(sizeof(double) * conf->n_quantiles);
 
   while(mtev_hash_next(metrics, &iter, &metric_name, &klen, &data)) {
-    char mname[1024];
+    char mname[MAX_METRIC_TAGGED_NAME];
     histotier *ht = data;
     if(ht->last_aggr == NULL) continue;
     if(conf->mean) {

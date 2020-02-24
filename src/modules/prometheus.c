@@ -220,10 +220,10 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
 static char *
 metric_name_from_labels(Prometheus__Label **labels, size_t label_count)
 {
-  char final_name[4096] = {0};
+  char final_name[MAX_METRIC_TAGGED_NAME] = {0};
   char *name = final_name;
-  char buffer[4096] = {0};
-  char encode_buffer[512] = {0};
+  char buffer[MAX_METRIC_TAGGED_NAME] = {0};
+  char encode_buffer[MAX_METRIC_TAGGED_NAME] = {0};
   char *b = buffer;
   size_t tag_count = 0;
   for (size_t i = 0; i < label_count; i++) {

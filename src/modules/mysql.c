@@ -108,7 +108,7 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
         int64_t lv, *plv;
         double dv, *pdv;
         char *sv;
-        char mname[128];
+        char mname[MAX_METRIC_TAGGED_NAME];
   
         snprintf(mname, sizeof(mname), "%s`%s", row[0], cdesc[j].name);
         coltype = cdesc[j].type;
