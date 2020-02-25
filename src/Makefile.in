@@ -409,7 +409,10 @@ install-libs:    noitlibs
 
 install-noitd:	install-libs install-noitd-nolibs
 
-install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits noit.env
+install-jezebel:	java-bits
+	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
+
+install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits noit.env install-jezebel
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/noit-web
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 noit_b2sm $(DESTDIR)$(bindir)/noit_b2sm
@@ -421,7 +424,6 @@ install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits noit.env
 	(cd modules && $(MAKE) install-modules DESTDIR=$(DESTDIR))
 	(cd modules-lua && $(MAKE) install DESTDIR=$(DESTDIR))
 	(cd noit-web && tar cf - .) | (cd $(DESTDIR)$(datadir)/noit-web && tar xf -)
-	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
 
 install-stratcond:	java-bits install-libs install-stratcond-nolibs
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-iep DESTDIR=$(DESTDIR))
