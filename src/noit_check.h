@@ -50,6 +50,7 @@
 #include <libxml/tree.h>
 
 #include "noit_metric.h"
+#include "noit_lmdb_tools.h"
 
 /*
  * Checks:
@@ -169,6 +170,7 @@ API_EXPORT(void) noit_check_end(noit_check_t *);
 
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(uint64_t) noit_check_completion_count();
+API_EXPORT(noit_lmdb_instance_t *)noit_check_get_lmdb_instance();
 API_EXPORT(uint64_t) noit_check_metric_count();
 API_EXPORT(void) noit_check_metric_count_add(int);
 API_EXPORT(int) noit_poller_check_count();

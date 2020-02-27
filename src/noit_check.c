@@ -68,7 +68,6 @@
 #include "noit_module.h"
 #include "noit_check_tools.h"
 #include "noit_check_resolver.h"
-#include "noit_lmdb_tools.h"
 #include "modules/histogram.h"
 
 static int check_recycle_period = 60000;
@@ -315,7 +314,6 @@ static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
 static mtev_boolean priority_scheduling = mtev_false;
 static int priority_dead_zone_seconds = 3;
-static mtev_boolean use_lmdb = mtev_false;
 static noit_lmdb_instance_t *lmdb_instance = NULL;
 
 static noit_check_t *
@@ -401,6 +399,10 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char 
   }
   pthread_mutex_unlock(&polls_lock);
   return rv;
+}
+
+noit_lmdb_instance_t *noit_check_get_lmdb_instance() {
+  return lmdb_instance;
 }
 
 uint64_t noit_check_metric_count() {
@@ -987,6 +989,8 @@ noit_poller_init() {
 
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
+
+  mtev_boolean use_lmdb = mtev_false;
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@use_lmdb", &use_lmdb);
   if (use_lmdb == mtev_true) {
     char *lmdb_path = NULL;
