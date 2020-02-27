@@ -314,6 +314,8 @@ static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
 static mtev_boolean priority_scheduling = mtev_false;
 static int priority_dead_zone_seconds = 3;
+static mtev_boolean use_lmdb = mtev_false;
+static char *lmdb_path = NULL;
 
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
@@ -984,6 +986,18 @@ noit_poller_init() {
 
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@use_lmdb", &use_lmdb);
+  if (use_lmdb == mtev_true) {
+    char *tmp = NULL;
+    if (!mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@lmdb_path", &lmdb_path)) {
+      mtevFatal(mtev_error, "noit_check: use_lmdb specified, but no path provided\n");
+    }
+    mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@backingstore", &tmp);
+    if (tmp) {
+      free(tmp);
+      mtevFatal(mtev_error, "noit_check: cannot use both lmdb and xml backingstore\n");
+    }
+  }
 
   noit_check_resolver_init();
   noit_check_tools_init();
