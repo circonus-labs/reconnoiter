@@ -31,6 +31,7 @@
 #include "noit_lmdb_tools.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
