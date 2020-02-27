@@ -33,10 +33,30 @@
 #include <string.h>
 #include <errno.h>
 
+#include "mtev_log.h"
+#include "mtev_mkdir.h"
+
+static mtev_boolean
+lmdb_instance_mkdir(const char *path)
+{
+  char to_make[PATH_MAX];
+  size_t copy_len = strlen(path);
+  memset(to_make, 0, PATH_MAX);
+  memcpy(to_make, path, MIN(copy_len, PATH_MAX));
+  strlcat(to_make, "/dummy", sizeof(to_make));
+  if (mkdir_for_file(to_make, 0777)) {
+    mtevL(mtev_error, "mkdir %s: %s\n", to_make, strerror(errno));
+    return mtev_false;
+  }
+  return mtev_true;
+}
+
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
 {
   int rc;
   MDB_env *env;
+
+  mtevAssert(lmdb_instance_mkdir(path));
 
   rc = mdb_env_create(&env);
   if (rc != 0) {
@@ -44,7 +64,6 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     return NULL;
   }
 
-  /* let lots of threads read us */
   rc = mdb_env_set_maxreaders(env, 1024);
   if (rc != 0) {
     errno = rc;
@@ -67,7 +86,7 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     mdb_env_close(env);
     return NULL;
   }
-  rc = mdb_dbi_open(txn, NULL, MDB_CREATE, &dbi);
+  rc = mdb_open(txn, NULL, MDB_CREATE, &dbi);
   if (rc != 0) {
     mdb_txn_abort(txn);
     mdb_env_close(env);

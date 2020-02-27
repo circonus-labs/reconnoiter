@@ -68,6 +68,7 @@
 #include "noit_module.h"
 #include "noit_check_tools.h"
 #include "noit_check_resolver.h"
+#include "noit_lmdb_tools.h"
 #include "modules/histogram.h"
 
 static int check_recycle_period = 60000;
@@ -315,7 +316,7 @@ static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
 static mtev_boolean priority_scheduling = mtev_false;
 static int priority_dead_zone_seconds = 3;
 static mtev_boolean use_lmdb = mtev_false;
-static char *lmdb_path = NULL;
+static noit_lmdb_instance_t *lmdb_instance = NULL;
 
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
@@ -988,15 +989,24 @@ noit_poller_init() {
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@use_lmdb", &use_lmdb);
   if (use_lmdb == mtev_true) {
-    char *tmp = NULL;
+    char *lmdb_path = NULL;
     if (!mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@lmdb_path", &lmdb_path)) {
       mtevFatal(mtev_error, "noit_check: use_lmdb specified, but no path provided\n");
     }
-    mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@backingstore", &tmp);
-    if (tmp) {
-      free(tmp);
+    lmdb_instance = noit_lmdb_tools_open_instance(lmdb_path);
+    if (!lmdb_instance) {
+      mtevFatal(mtev_error, "noit_check: couldn't create lmdb instance - %s\n", strerror(errno));
+    }
+    free(lmdb_path);
+    /* TODO: Uncomment before merging to master - the if 0 is for debug purposes */
+#if 0
+    char *backingstore_path = NULL;
+    mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@backingstore", &backingstore_path);
+    if (backingstore_path) {
+      free(backingstore_path);
       mtevFatal(mtev_error, "noit_check: cannot use both lmdb and xml backingstore\n");
     }
+#endif
   }
 
   noit_check_resolver_init();
