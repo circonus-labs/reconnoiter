@@ -28,7 +28,7 @@ MTEV_MODULES_DIR=@MTEV_MODULES_DIR@
 
 CC=@CC@
 SHLD=@SHLD@
-CPPFLAGS=@CPPFLAGS@
+CPPFLAGS=-I. @CPPFLAGS@
 CFLAGS=@CFLAGS@ -DHIDE_EVENTER_ABI
 COPT=-O5
 SHCFLAGS=@SHCFLAGS@
@@ -196,7 +196,7 @@ make-man:
 
 make-modules:
 	$(Q)for dir in $(MODDIR) ; do \
-		(cd $$dir && $(MAKE) -s) ; \
+		(cd $$dir && $(MAKE) V=$(V)) ; \
 	done
 
 java-bits:

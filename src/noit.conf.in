@@ -88,6 +88,7 @@
     <module image="prometheus" name="prometheus"/>
     <module image="graphite" name="graphite_tls"/>
     <module image="graphite" name="graphite_plain"/>
+    <module image="graphite" name="graphite_pickle"/>
     <module image="statsd" name="statsd"/>
     <module image="collectd" name="collectd"/>
     <module image="ganglia" name="ganglia"/>

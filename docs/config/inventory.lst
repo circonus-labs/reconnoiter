@@ -1,9 +1,11 @@
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/broker.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/check_test.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/collectd.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/custom_config.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/dns.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/external.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ganglia.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/graphite_pickle.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/graphite_plain.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/graphite_tls.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/httptrap.xml"/>
@@ -19,6 +21,7 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.dhcp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.ec_console.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.googleanalytics.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.googleanalytics4.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.haproxy.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.http.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.imap.xml"/>
@@ -34,8 +37,10 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.ntp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.pop3.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.redis.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.consul.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.elasticsearch.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.elemental-transcoder.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.promtext.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.sparkpost.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.smtp.xml"/>

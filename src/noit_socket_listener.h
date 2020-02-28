@@ -59,7 +59,7 @@ typedef struct listener_closure_s {
   noit_module_t *self;
   noit_check_t *check;
   mtev_boolean shutdown;
-  ck_spinlock_t use_lock;
+  pthread_mutex_t use_lock;
   int port;
   int rows_per_cycle;
   int ipv4_listen_fd;
@@ -71,6 +71,7 @@ typedef struct listener_closure_s {
   char nlname[16];
   mtev_hash_table *immediate_metrics;
   void (*payload_handler)(noit_check_t *check, char *buffer, size_t len);
+  int (*count_records)(char *buffer, size_t inlen, size_t *usedlen);
 } listener_closure_t;
 
 #define READ_CHUNK 32768
@@ -91,20 +92,10 @@ count_integral_digits(const char *str, size_t len, mtev_boolean can_be_signed)
   return rval;
 }
 
-/* Count endlines to determine how many full records we
- * have */
-static inline int
-count_records(char *buffer)
-{
-  char *iter = buffer;
-  int count = 0;
-  while ((iter = strchr(iter, '\n')) != 0) {
-    count++;
-    iter++;
-  }
-  return count;
-}
-
+listener_closure_t *listener_closure_alloc(const char *name, noit_module_t *mod, noit_check_t *check,
+                                           mtev_log_stream_t deb, mtev_log_stream_t err,
+                                           void (*)(noit_check_t *check, char *buffer, size_t len),
+                                           int (*)(char *buffer, size_t inlen, size_t *usedlen));
 void listener_closure_ref(listener_closure_t *lc);
 int listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause);
 void listener_metric_track_or_log(void *vrxc, const char *name, 

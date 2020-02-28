@@ -553,7 +553,8 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip)
 }
 
 int
-noit_conf_write_log() {
+noit_conf_write_log(void *unused) {
+  (void)unused;
   static uint32_t last_write_gen = 0;
   static mtev_log_stream_t config_log = NULL;
   struct timeval __now;

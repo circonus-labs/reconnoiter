@@ -262,17 +262,9 @@ noit_opentsdb_initiate_check(noit_module_t *self,
   {
 
     listener_closure_t *ccl;
-    ccl = check->closure = (void *)calloc(1, sizeof(listener_closure_t));
-    listener_closure_ref(ccl);
-    ccl->self = self;
-    ccl->check = check;
-    ccl->ipv4_listen_fd = -1;
-    ccl->ipv6_listen_fd = -1;
-    ccl->nldeb = nldeb;
-    ccl->nlerr = nlerr;
-    strcpy(ccl->nlname, "opentsdb");
-    ccl->payload_handler = opentsdb_handle_payload;
-    ck_spinlock_init(&ccl->use_lock);
+    ccl = check->closure =
+      listener_closure_alloc("opentsdb", self, check, nldeb, nlerr,
+                             opentsdb_handle_payload, NULL);
 
     unsigned short port = 4242;
     int rows_per_cycle = 100;
