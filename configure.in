@@ -367,8 +367,30 @@ AC_SUBST(PGCFLAGS)
 LIBS=$old_LIBS
 CFLAGS=$old_CFLAGS
 
-AC_CHECK_HEADERS(gcrypt.h)
+AC_MSG_CHECKING([can link pickletools])
+AC_LANG_PUSH([C++])
+old_LIBS=$LIBS
+LIBS="$LIBS -lptools"
+AC_TRY_LINK([
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wmismatched-tags"
+	#pragma GCC diagnostic ignored "-Wdeprecated-register"
+	#pragma GCC diagnostic ignored "-Wshift-negative-value"
+	#pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
+	#include "pickleloader.h"
+	#pragma GCC diagnostic pop
+	],
+	[
+	Val result;
+	PickleLoader pl("",0);
+	pl.loads(result);
+	],
+        [ AC_MSG_RESULT([works]) ],
+        [ AC_MSG_ERROR([failed]) ])
+LIBS="$old_LIBS"
+AC_LANG_POP([C++])
 
+AC_CHECK_HEADERS(gcrypt.h)
 AC_CHECK_HEADERS(mysql.h mysql/mysql.h)
 
 MYSQL_MODULE="no"
