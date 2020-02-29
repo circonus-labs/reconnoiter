@@ -28,7 +28,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-extern "C" {
 #include <mtev_defines.h>
 
 #include <stdio.h>
@@ -46,6 +45,7 @@ extern "C" {
 #include <mtev_dyn_buffer.h>
 #include <ck_pr.h>
 
+extern "C" {
 #include "noit_metric.h"
 #include "noit_module.h"
 #include "noit_check.h"
@@ -60,7 +60,9 @@ extern "C" {
 #pragma GCC diagnostic ignored "-Wmismatched-tags"
 #pragma GCC diagnostic ignored "-Wdeprecated-register"
 #endif
+#if defined(__clang__) || __GNUC__ >= 6
 #pragma GCC diagnostic ignored "-Wshift-negative-value"
+#endif
 #pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
 #include "pickleloader.h"
 #pragma GCC diagnostic pop
@@ -503,6 +505,11 @@ static int noit_graphite_init(noit_module_t *self)
   return 0;
 }
 
+extern "C" {
+
+/* libmtev <= 1.9.12 defined these as char * instead of const char */
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
 /* This is here for legacy */
 noit_module_t graphite = {
   {
@@ -518,8 +525,6 @@ noit_module_t graphite = {
   noit_graphite_initiate_check,
   noit_listener_cleanup
 };
-
-extern "C" {
 
 #include "graphite_tls.xmlh"
 noit_module_t graphite_tls = {
