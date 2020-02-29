@@ -167,7 +167,7 @@ noit_lua_module_set_description(lua_State *L) {
   module = lua_touserdata(L, lua_upvalueindex(1));
   if(lua_gettop(L) == 1) {
     if(pthread_equal(pthread_self(), loader_main_thread)) {
-      if(module->hdr.description) free(module->hdr.description);
+      free((void *)module->hdr.description);
       module->hdr.description = strdup(lua_tostring(L, 1));
     }
   }
@@ -182,7 +182,7 @@ noit_lua_module_set_name(lua_State *L) {
   module = lua_touserdata(L, lua_upvalueindex(1));
   if(lua_gettop(L) == 1) {
     if(pthread_equal(pthread_self(), loader_main_thread)) {
-      if(module->hdr.name) free(module->hdr.name);
+      free((void *)module->hdr.name);
       module->hdr.name = strdup(lua_tostring(L, 1));
     }
   }
@@ -197,7 +197,7 @@ noit_lua_module_set_xml_description(lua_State *L) {
   module = lua_touserdata(L, lua_upvalueindex(1));
   if(lua_gettop(L) == 1) {
     if(pthread_equal(pthread_self(), loader_main_thread)) {
-      if(module->hdr.xml_description) free(module->hdr.xml_description);
+      free((void *)module->hdr.xml_description);
       module->hdr.xml_description = strdup(lua_tostring(L, 1));
     }
   }
@@ -1232,8 +1232,8 @@ noit_lua_loader_load(mtev_dso_loader_t *loader,
   if(L == NULL) {
    load_failed:
     if(L) lua_close(L);
-    free(m->hdr.name);
-    free(m->hdr.description);
+    free((void *)m->hdr.name);
+    free((void *)m->hdr.description);
     mtev_lua_lmc_free(lmc);
     /* FIXME: We leak the opaque_handler in the module here... */
     free(m);

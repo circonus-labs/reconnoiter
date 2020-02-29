@@ -56,8 +56,10 @@ extern "C" {
 }
 
 #pragma GCC diagnostic push
+#if defined(__clang__)
 #pragma GCC diagnostic ignored "-Wmismatched-tags"
 #pragma GCC diagnostic ignored "-Wdeprecated-register"
+#endif
 #pragma GCC diagnostic ignored "-Wshift-negative-value"
 #pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
 #include "pickleloader.h"

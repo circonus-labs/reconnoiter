@@ -79,10 +79,9 @@ if test "x$GCC" = "xyes" ; then
 else
 	DEPFLAGS="-xM1"
 fi
+C99FLAG="-std=c99"
 CFLAGS="$CFLAGS `mtev-config --cflags`"
 CFLAGS=$(echo $CFLAGS | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
-FOO=$(echo $CFLAGS | [sed -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
-CXXFLAGS="$CXXFLAGS $FOO"
 CPPFLAGS="$CPPFLAGS `mtev-config --cppflags` -DOC_NEW_STYLE_INCLUDES -DOC_FACTOR_INTO_H_AND_CC"
 MODULELD=`mtev-config --moduleld`
 MODULECC=`mtev-config --cc`
@@ -542,7 +541,6 @@ docdir="docs"
 mansubdir="man"
 AC_SUBST(docdir)
 AC_SUBST(mansubdir)
-SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(SHCFLAGS)
 AC_SUBST(LD)
 AC_SUBST(SHLDFLAGS)
@@ -610,6 +608,18 @@ else
 		CFLAGS="$CFLAGS -Werror"
 	fi
 fi
+
+FOO=$(echo $CFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
+CXXFLAGS="$CXXFLAGS $FOO -std=c++11"
+AC_SUBST(CXXFLAGS)
+
+FOO=$(echo $SHCFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
+SHCXXFLAGS="$SHCXXFLAGS $FOO -std=c++11"
+AC_SUBST(SHCXXFLAGS)
+
+FOO=$(echo $MODULESHCFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
+MODULESHCXXFLAGS="$MODULESHCXXFLAGS $FOO -std=c++11"
+AC_SUBST(MODULESHCXXFLAGS)
 
 LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g; s#-mt##g; s#-errwarn=%all##g;"`
 AC_SUBST(LUACFLAGS)

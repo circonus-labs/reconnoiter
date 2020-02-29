@@ -296,7 +296,6 @@ noit_fq_submit(iep_thread_driver_t *dr,
      (*payload == 'F' && payload[1] == '1') ||
      (*payload == 'B' && (payload[1] == '1' || payload[1] == '2'))) {
     char uuid_str[32 * 2 + 1];
-    int account_id, check_id;
 
     if (*payload == 'B') is_bundle = true;
     else if ((*payload == 'H') || (*payload == 'M')) {

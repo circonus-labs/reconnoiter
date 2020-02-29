@@ -125,13 +125,10 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
 static void
 update_check(noit_check_t *check, const char *key, char type,
              double diff, double sample) {
-  uint32_t one = 1, cnt = 1;
   char buff[MAX_METRIC_TAGGED_NAME];
-  statsd_closure_t *ccl;
 
   if (sample == 0.0) return; /* would be a div-by-zero */
   if (check->closure == NULL) return;
-  ccl = check->closure;
 
   switch(type) {
     case 'c':

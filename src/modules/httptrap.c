@@ -728,10 +728,8 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   struct rest_json_payload *rxc;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
   httptrap_closure_t *ccl = NULL;
-  int content_length;
   char buffer[32768];
 
-  content_length = mtev_http_request_content_length(req);
   rxc = restc->call_closure;
   rxc->check = noit_poller_lookup(rxc->check_id);
   if (!rxc->check) {

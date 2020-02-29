@@ -765,7 +765,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   /* Count the args */
   i = 1;
   while(1) {
-    char argname[10];
+    char argname[14];
     snprintf(argname, sizeof(argname), "arg%d", i);
     if(mtev_hash_retr_str(check->config, argname, strlen(argname),
                           &value) == 0) break;
@@ -781,7 +781,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
 
   i = 0;
   while(1) {
-    char argname[10];
+    char argname[14];
     snprintf(argname, sizeof(argname), "arg%d", i);
     if(mtev_hash_retr_str(check->config, argname, strlen(argname),
                           &value) == 0) {
