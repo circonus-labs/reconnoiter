@@ -153,11 +153,11 @@ histogram.@MODULEEXT@:	histogram.lo
 
 stomp_driver.lo:	stomp_driver.c stomp_driver.xmlh
 	@echo "- compiling $<"
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ @APRCPPFLAGS@ -c $< -o $@
 
 libstomp.lo:	libstomp.c
 	@echo "- compiling $<"
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
+	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ @APRCPPFLAGS@ -c $< -o $@
 
 stomp_driver.@MODULEEXT@:	stomp_driver.lo libstomp.lo
 	@echo "- linking $@"
@@ -330,7 +330,7 @@ distclean:	clean
 	rm -f Makefile
 
 Makefile.dep:
-	$(CC) -I.. $(CPPFLAGS) $(CFLAGS) @APRCFLAGS@ \
+	$(CC) -I.. $(CPPFLAGS) $(CFLAGS) @APRCFLAGS@ @APRCPPFLAGS@ \
 		$(DEPFLAGS) -c *.c | sed -e 's/\.o:/\.lo:/' > Makefile.dep
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 

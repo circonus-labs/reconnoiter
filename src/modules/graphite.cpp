@@ -28,6 +28,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
+/* Older libxml headers don't behave when included from within an extern "C"
+ * block, but we need to include the mtev headers like that.
+ */
+#include <libxml/tree.h>
+
+extern "C" {
+
 #include <mtev_defines.h>
 
 #include <stdio.h>
@@ -45,7 +52,6 @@
 #include <mtev_dyn_buffer.h>
 #include <ck_pr.h>
 
-extern "C" {
 #include "noit_metric.h"
 #include "noit_module.h"
 #include "noit_check.h"
@@ -63,7 +69,9 @@ extern "C" {
 #if defined(__clang__) || __GNUC__ >= 6
 #pragma GCC diagnostic ignored "-Wshift-negative-value"
 #endif
+#if defined(__clang__) || __GNUC__ >= 5
 #pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
+#endif
 #include "pickleloader.h"
 #pragma GCC diagnostic pop
 

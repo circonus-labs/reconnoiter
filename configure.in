@@ -2,6 +2,10 @@ AC_INIT([reconnoiter], [], [] [https://github.com/circonus-labs/reconnoiter])
 AC_CONFIG_SRCDIR([src/noitd.c])
 AC_CONFIG_AUX_DIR([.])
 
+dedup_args() {
+	echo "$*" | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' '
+}
+
 node=`hostname | cut -f1 -d '.' | tr '[A-Z]' '[a-z]'`
 if test -f ".configure.$node"; then
 	echo "***********************************************************"
@@ -59,19 +63,16 @@ AC_PATH_PROG(CTFMERGE, ctfmerge)
 AC_PATH_PROG(LUA, luajit)
 AC_CHECK_PROG(FLATCC_CHECK,flatcc,yes)
 if test x"$FLATCC_CHECK" != x"yes" ; then
-  AC_MSG_ERROR([*** flatcc is required for building. ***])
+	AC_MSG_ERROR([*** flatcc is required for building. ***])
 else
-  AC_PATH_PROG(FLATCC, flatcc)
+	AC_PATH_PROG(FLATCC, flatcc)
 fi
 if test -z "$ac_cv_path_LUA"; then
 	AC_PATH_PROG(LUA, lua)
 fi
-AC_SUBST(PERL)
 
 ENABLE_LUA=$enable_lua
-AC_SUBST(ENABLE_LUA)
 MAKE_CTESTS=1
-AC_SUBST(MAKE_CTESTS)
 
 MAPFLAGS=""
 if test "x$GCC" = "xyes" ; then
@@ -81,12 +82,16 @@ else
 fi
 C99FLAG="-std=c99"
 CFLAGS="$CFLAGS `mtev-config --cflags`"
-CFLAGS=$(echo $CFLAGS | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
-CPPFLAGS="$CPPFLAGS `mtev-config --cppflags` -DOC_NEW_STYLE_INCLUDES -DOC_FACTOR_INTO_H_AND_CC"
+WRONG_CFLAGS=$(echo $CFLAGS | [gawk '/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
+CFLAGS=$(echo $CFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
+CFLAGS=$(dedup_args $CFLAGS)
+CPPFLAGS="$CPPFLAGS $WRONG_CFLAGS `mtev-config --cppflags` -DOC_NEW_STYLE_INCLUDES -DOC_FACTOR_INTO_H_AND_CC"
+CPPFLAGS=$(dedup_args $CPPFLAGS)
 MODULELD=`mtev-config --moduleld`
 MODULECC=`mtev-config --cc`
 MODULESHCFLAGS=`mtev-config --shcflags`
 MODULESHCFLAGS="$MODULESHCFLAGS -g -Wall -Werror"
+MODULESHCFLAGS=$(echo $MODULESHCFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
 MODULESHLDFLAGS=`mtev-config --shldflags`
 MODULEEXT=`mtev-config --moduleext`
 MODULES_DIR=`mtev-config --modules-dir`
@@ -94,6 +99,7 @@ NOIT_SYSCONFDIR=`mtev-config --sysconfdir`
 SHLD=`mtev-config --shld`
 SHCFLAGS=`mtev-config --shcflags`
 SHCFLAGS="$SHCFLAGS -g -Wall -Werror"
+SHCFLAGS=$(echo $SHCFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
 SHLDFLAGS="`mtev-config --shldflags` $LDFLAGS"
 LD=`mtev-config --shld`
 LDFLAGS="$LDFLAGS `mtev-config --ldflags`"
@@ -104,21 +110,18 @@ LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
 
 MTEV_MODULES_DIR=`mtev-config --modules-dir 2>/dev/null`
 if test "$?" -ne "0" ; then
-    AC_MSG_ERROR([*** mtev-config not found ***])
+	AC_MSG_ERROR([*** mtev-config not found ***])
 fi
-AC_SUBST(MTEV_MODULES_DIR)
 
 MTEV_LIBDIR=`mtev-config --libdir 2>/dev/null`
 if test "$?" -ne "0" ; then
-    AC_MSG_ERROR([*** mtev-config not found ***])
+	AC_MSG_ERROR([*** mtev-config not found ***])
 fi
-AC_SUBST(MTEV_LIBDIR)
 
 MTEV_INCLUDEDIR=`mtev-config --includedir 2>/dev/null`
 if test "$?" -ne "0" ; then
-    AC_MSG_ERROR([*** mtev-config not found ***])
+	AC_MSG_ERROR([*** mtev-config not found ***])
 fi
-AC_SUBST(MTEV_INCLUDEDIR)
 
 case $host in
 *-*-darwin*)
@@ -150,32 +153,13 @@ case $host in
 *)
 	;;
 esac
-AC_SUBST(DOTSO)
-AC_SUBST(DOTDYLIB)
-AC_SUBST(LD_LIBNOIT_VERSION)
-AC_SUBST(MDB_MODS)
 AC_DEFINE_UNQUOTED(CAP_PLATFORM, "$CAP_PLATFORM", [capabilities platform])
 if test "x$CAP_SUPPORTED" = "x1" ; then
 	AC_DEFINE(CAP_SUPPORTED, [1], [capabilities supported])
 fi
-AC_SUBST(DTRACE)
-AC_SUBST(DTRACE_ENABLED)
 if test "x$DTRACE_ENABLED" = "x1" ; then
 	AC_DEFINE(DTRACE_ENABLED, [1], [DTrace enabled])
 fi
-AC_SUBST(DTRACEOBJ)
-AC_SUBST(DTRACEHDR)
-AC_SUBST(DTRACEFLAGS)
-AC_SUBST(CLINKFLAGS)
-AC_SUBST(SHLD)
-AC_SUBST(RLDFLAG)
-AC_SUBST(DEPFLAGS)
-AC_SUBST(MODULELD)
-AC_SUBST(MODULECC)
-AC_SUBST(MODULEEXT)
-AC_SUBST(WHOLE_ARCHIVE)
-AC_SUBST(NOWHOLE_ARCHIVE)
-AC_SUBST(MAPFLAGS)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
 AC_MSG_CHECKING([enable build/install of the Java IEP and Jezebel bits])
 
@@ -193,8 +177,6 @@ if test -z "$ac_cv_path_MAVEN" ; then
 else
 	RIEMANN_IEP_ENABLE="yes"
 fi
-AC_SUBST(INSTALL_IEP)
-AC_SUBST(SKIP_IEP)
 
 JEZEBEL_JAR_ENABLE="no"
 RECONNOITER_JAR_ENABLE="no"
@@ -213,7 +195,6 @@ else
 		AC_MSG_RESULT([too old: $JVERSION]);
 	fi
 fi
-AC_SUBST(JAVAPARTS)
 
 # Checks for data types
 AC_CHECK_SIZEOF(char, 1)
@@ -232,7 +213,6 @@ elif test "x$ENABLE_LUA" = "xlua52"; then
 	AC_MSG_ERROR(*** liblua52 required ***)
 fi
 LUALIBS="$LUALIBS $LIBS"
-AC_SUBST(LUALIBS)
 LIBS=$OLD_LIBS
 
 AC_CHECK_HEADER(mtev_config.h, [], [AC_MSG_ERROR(*** libmtev (headers) required ***)])
@@ -252,7 +232,7 @@ AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
 AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
 AC_CHECK_LIB(m, sqrt, , )
 AC_CHECK_LIB(rt, sem_init, , [
-  AC_CHECK_LIB(rt, clock_gettime, , )
+	AC_CHECK_LIB(rt, clock_gettime, , )
 ])
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
@@ -275,15 +255,20 @@ AC_CHECK_LIB(pcre, pcre_compile, ,
 	]
 )
 AC_CHECK_LIB(circllhist, hist_alloc, ,
-  [
-    AC_MSG_ERROR([libcircllhist not found, but required])
-  ]
+	[
+		AC_MSG_ERROR([libcircllhist not found, but required])
+	]
 )
 
 AC_MSG_CHECKING([libxml2 cflags])
 XML2CFLAGS=`xml2-config --cflags`
-CFLAGS="$CFLAGS $XML2CFLAGS"
+XML2CPPFLAGS=$(echo "$XML2CFLAGS" | [gawk '/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
+XML2CFLAGS=$(echo "$XML2CFLAGS" | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
+CFLAGS=$(dedup_args "$CFLAGS $XML2CFLAGS")
+CPPFLAGS=$(dedup_args "$CPPFLAGS $XML2CPPFLAGS")
 AC_MSG_RESULT([$XML2CFLAGS])
+AC_MSG_CHECKING([libxml2 cppflags])
+AC_MSG_RESULT([$XML2CPPFLAGS])
 
 AC_MSG_CHECKING([libxml2 libs])
 XML2LIBS=`xml2-config --libs`
@@ -294,8 +279,13 @@ AC_CHECK_FUNC(xmlParseDocument, , [AC_MSG_ERROR(*** libxml2 is required ***)])
 
 AC_MSG_CHECKING([libxslt cflags])
 XSLTCFLAGS=`xslt-config --cflags`
-CFLAGS="$CFLAGS $XSLTCFLAGS"
+XSLTCPPFLAGS=$(echo "$XSLTCFLAGS" | [gawk '/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
+XSLTCFLAGS=$(echo "$XSLTCFLAGS" | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
+CFLAGS=$(dedup_args "$CFLAGS $XSLTCFLAGS")
+CPPFLAGS=$(dedup_args "$CPPFLAGS $XSLTCPPFLAGS")
 AC_MSG_RESULT([$XSLTCFLAGS])
+AC_MSG_CHECKING([libxslt cppflags])
+AC_MSG_RESULT([$XSLTCPPFLAGS])
 
 AC_MSG_CHECKING([libxslt libs])
 XSLTLIBS=`xslt-config --libs`
@@ -310,7 +300,6 @@ AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
 	[AC_MSG_ERROR(libprotobuf-c required)])
 AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
 LIBNOIT_LIBS=$LIBS
-AC_SUBST(LIBNOIT_LIBS)
 LIBS="$old_LIBS"
 
 old_LIBS="$LIBS"
@@ -321,7 +310,6 @@ AC_CHECK_LIB(yajl, yajl_version,
 	],
 	[ AC_MSG_ERROR([libyajl is required for collectd and httptrap modules]) ])
 LIBS=$old_LIBS
-AC_SUBST(YAJLLIBS)
 
 old_LIBS="$LIBS"
 old_CFLAGS="$CFLAGS"
@@ -329,11 +317,10 @@ AC_CHECK_LIB(pq, PQconnectdb,
 	[
 		LIBS="$LIBS -lpq"
 		PGLIBS="$LIBS"
-		AC_SUBST(PGLIBS)
+                AC_MSG_RESULT([yes])
 	],
 	[
 		AC_MSG_WARN([libpq is highly recommended and needed for the test suite])
-		AC_SUBST(PGLIBS)
 	]
 )
 
@@ -352,30 +339,36 @@ AC_TRY_LINK([
 	[
 		BUILD_MODULES="$BUILD_MODULES postgres.$MODULEEXT"
 		BUILD_SMODULES="$BUILD_SMODULES postgres_ingestor.$MODULEEXT"
-		AC_SUBST(PGCFLAGS)
 		POSTGRES_MODULE="yes"
 		POSTGRES_INGESTOR_MODULE="yes"
-  ],
+		AC_MSG_RESULT([yes])
+	],
 	[
-		AC_SUBST(PGCFLAGS)
 		AC_MSG_WARN([Cannot compile/link against libpq])
 	]
 )
 PGCFLAGS=$CFLAGS
-AC_SUBST(PGCFLAGS)
 LIBS=$old_LIBS
 CFLAGS=$old_CFLAGS
 
-AC_MSG_CHECKING([can link pickletools])
 AC_LANG_PUSH([C++])
 old_LIBS=$LIBS
+AC_CHECK_LIB(resolv, inet_net_pton)
+AC_CHECK_LIB(socket, getaddrinfo)
+AC_MSG_CHECKING([can link pickletools])
 LIBS="$LIBS -lptools"
 AC_TRY_LINK([
 	#pragma GCC diagnostic push
+	#if defined(__clang__)
 	#pragma GCC diagnostic ignored "-Wmismatched-tags"
 	#pragma GCC diagnostic ignored "-Wdeprecated-register"
+	#endif
+	#if defined(__clang__) || __GNUC__ >= 6
 	#pragma GCC diagnostic ignored "-Wshift-negative-value"
+	#endif
+	#if defined(__clang__) || __GNUC__ >= 5
 	#pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
+	#endif
 	#include "pickleloader.h"
 	#pragma GCC diagnostic pop
 	],
@@ -384,8 +377,9 @@ AC_TRY_LINK([
 	PickleLoader pl("",0);
 	pl.loads(result);
 	],
-        [ AC_MSG_RESULT([works]) ],
-        [ AC_MSG_ERROR([failed]) ])
+	[ AC_MSG_RESULT([works]) ],
+	[ AC_MSG_ERROR([failed]) ])
+PTOOLSLIBS="$LIBS"
 LIBS="$old_LIBS"
 AC_LANG_POP([C++])
 
@@ -395,8 +389,6 @@ AC_CHECK_HEADERS(mysql.h mysql/mysql.h)
 MYSQL_MODULE="no"
 if test "$ac_cv_header_mysql_h" = "no" -a "$ac_cv_header_mysql_mysql_h" = "no" ; then
 	AC_MSG_WARN([No libmysqlclient, skipping mysql module])
-	AC_SUBST(MYCFLAGS)
-	AC_SUBST(MYLIBS)
 else
 	LIBS=$old_LIBS
 	CFLAGS=$old_CFLAGS
@@ -415,14 +407,10 @@ else
 			BUILD_MODULES="$BUILD_MODULES mysql.$MODULEEXT"
 			MYCFLAGS="$CFLAGS"
 			MYLIBS="$LIBS"
-			AC_SUBST(MYCFLAGS)
-			AC_SUBST(MYLIBS)
 			MYSQL_MODULE="yes"
 		],
 		[
 			AC_MSG_WARN([No libmysqlclient, skipping mysql module])
-			AC_SUBST(MYCFLAGS)
-			AC_SUBST(MYLIBS)
 		]
 	)
 	
@@ -453,7 +441,7 @@ AC_CHECK_LIB(netsnmp-c, snmp_sess_open_C1,
 		SNMP_MODULE="yes"
 		LIBNETSNMP="netsnmp-c"
 	],
-  [
+	[
 		AC_CHECK_LIB(netsnmp, snmp_sess_open,
 			[
 				HAS_NETSNMP="yes"
@@ -488,8 +476,6 @@ else
 	AC_DEFINE(HAVE_NETSNMP, [1], [libnetsnmp])
 fi
 
-AC_SUBST(LIBNETSNMP)
-
 # Should we build ssh2 checks?
 SSH2_MODULE="no"
 SAVELIBS="$LIBS"
@@ -513,17 +499,18 @@ AS_IF([test "x$with_module_stomp" != "xno"],
 		BUILD_SMODULES="$BUILD_SMODULES stomp_driver.$MODULEEXT"
 		STOMP_DRIVER_MODULE="yes"
 	fi
-	AC_SUBST(APRPREFIX)
 	AC_MSG_RESULT([$APRPREFIX])
 	
 	AC_MSG_CHECKING([libapr cflags])
-	APRCFLAGS="`apr-1-config --cflags --cppflags --includes`"
-	AC_SUBST(APRCFLAGS)
+	APRCFLAGS="`apr-1-config --cflags`"
 	AC_MSG_RESULT([$APRCFLAGS])
 	
+	AC_MSG_CHECKING([libapr cppflags])
+	APRCPPFLAGS="`apr-1-config --cppflags --includes`"
+	AC_MSG_RESULT([$APRCPPFLAGS])
+
 	AC_MSG_CHECKING([libapr libs])
 	APRLIBS="`apr-1-config --link-ld --ldflags --libs`"
-	AC_SUBST(APRLIBS)
 	AC_MSG_RESULT([$APRLIBS])
 	],
 	[STOMP_DRIVER_MODULE=no])
@@ -534,16 +521,8 @@ AC_CHECK_FUNCS(ssetugid strlcpy openpty inet_pton inet_ntop getopt \
 
 BUILD_MODULES="$BUILD_MODULES $LUA_MODULE"
 
-AC_SUBST(BUILD_MODULES)
-AC_SUBST(BUILD_SMODULES)
-
 docdir="docs"
 mansubdir="man"
-AC_SUBST(docdir)
-AC_SUBST(mansubdir)
-AC_SUBST(SHCFLAGS)
-AC_SUBST(LD)
-AC_SUBST(SHLDFLAGS)
 
 SUBPREFIX="$prefix"
 if test "x$prefix" = "xNONE"; then
@@ -559,7 +538,6 @@ fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 AC_MSG_RESULT([$fullpath/noit])
 AC_DEFINE_UNQUOTED(MODULES_DIR, "${fullpath}/noit", [modules directory])
 MODULES_DIR=${fullpath}/noit
-AC_SUBST(MODULES_DIR)
 
 AC_MSG_CHECKING([Resolving lib path...])
 fullpath=$libdir
@@ -584,7 +562,6 @@ done
 fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 JAVA_LIB_DIR=$fullpath
 AC_MSG_RESULT([$fullpath])
-AC_SUBST(JAVA_LIB_DIR)
 
 AC_MSG_CHECKING([Resolving sysconfdir path...])
 fullpath=$sysconfdir
@@ -596,7 +573,6 @@ fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 AC_MSG_RESULT([$fullpath])
 AC_DEFINE_UNQUOTED(ETC_DIR, "${fullpath}", [config directory])
 ETC_DIR=${fullpath}
-AC_SUBST(ETC_DIR)
 
 if test -n "`$CC -V 2>&1 | grep 'Sun C'`"; then
 	if test "$enable_string" != "no"; then
@@ -609,20 +585,81 @@ else
 	fi
 fi
 
+CPPFLAGS=$(dedup_args "$CPPFLAGS")
+CFLAGS=$(dedup_args "$CFLAGS")
+SHCFLAGS=$(dedup_args $SHCFLAGS)
+MODULESHCFLAGS=$(dedup_args $MODULESHCFLAGS)
+
 FOO=$(echo $CFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
 CXXFLAGS="$CXXFLAGS $FOO -std=c++11"
-AC_SUBST(CXXFLAGS)
+CXXFLAGS=$(dedup_args $CXXFLAGS)
 
 FOO=$(echo $SHCFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
 SHCXXFLAGS="$SHCXXFLAGS $FOO -std=c++11"
-AC_SUBST(SHCXXFLAGS)
+SHCXXFLAGS=$(dedup_args $SHCXXFLAGS)
 
 FOO=$(echo $MODULESHCFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
 MODULESHCXXFLAGS="$MODULESHCXXFLAGS $FOO -std=c++11"
-AC_SUBST(MODULESHCXXFLAGS)
+MODULESHCXXFLAGS=$(dedup_args $MODULESHCXXFLAGS)
 
 LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g; s#-mt##g; s#-errwarn=%all##g;"`
+
+
+AC_SUBST(ENABLE_LUA)
+AC_SUBST(MAKE_CTESTS)
+AC_SUBST(MTEV_MODULES_DIR)
+AC_SUBST(MTEV_LIBDIR)
+AC_SUBST(MTEV_INCLUDEDIR)
+AC_SUBST(DOTSO)
+AC_SUBST(DOTDYLIB)
+AC_SUBST(LD_LIBNOIT_VERSION)
+AC_SUBST(MDB_MODS)
+AC_SUBST(DTRACE)
+AC_SUBST(DTRACE_ENABLED)
+AC_SUBST(DTRACEOBJ)
+AC_SUBST(DTRACEHDR)
+AC_SUBST(DTRACEFLAGS)
+AC_SUBST(CLINKFLAGS)
+AC_SUBST(SHLD)
+AC_SUBST(RLDFLAG)
+AC_SUBST(DEPFLAGS)
+AC_SUBST(MODULELD)
+AC_SUBST(MODULECC)
+AC_SUBST(MODULEEXT)
+AC_SUBST(WHOLE_ARCHIVE)
+AC_SUBST(NOWHOLE_ARCHIVE)
+AC_SUBST(MAPFLAGS)
+AC_SUBST(INSTALL_IEP)
+AC_SUBST(SKIP_IEP)
+AC_SUBST(JAVAPARTS)
+AC_SUBST(LUALIBS)
+AC_SUBST(LIBNOIT_LIBS)
+AC_SUBST(YAJLLIBS)
+AC_SUBST(PGLIBS)
+AC_SUBST(PGCFLAGS)
+AC_SUBST(PTOOLSLIBS)
+AC_SUBST(MYCFLAGS)
+AC_SUBST(MYLIBS)
+AC_SUBST(LIBNETSNMP)
+AC_SUBST(APRPREFIX)
+AC_SUBST(APRCFLAGS)
+AC_SUBST(APRCPPFLAGS)
+AC_SUBST(APRLIBS)
+AC_SUBST(BUILD_MODULES)
+AC_SUBST(BUILD_SMODULES)
+AC_SUBST(docdir)
+AC_SUBST(mansubdir)
+AC_SUBST(SHCFLAGS)
+AC_SUBST(LD)
+AC_SUBST(SHLDFLAGS)
+AC_SUBST(MODULES_DIR)
+AC_SUBST(JAVA_LIB_DIR)
+AC_SUBST(ETC_DIR)
+AC_SUBST(CXXFLAGS)
+AC_SUBST(SHCXXFLAGS)
+AC_SUBST(MODULESHCXXFLAGS)
 AC_SUBST(LUACFLAGS)
+AC_SUBST(PERL)
 
 UNAME_V=`uname -v`
 UNAME_R=`uname -r`
@@ -656,6 +693,23 @@ AC_MSG_RESULT([
 
 === Compile-time Configuration ===
   Lua Implementation: $ENABLE_LUA
+
+  == Compilers ==
+  CC:                 $CC
+  CXX:                $CXX
+  CPPFLAGS:           $CPPFLAGS
+  CFLAGS:             $CFLAGS
+  CXXFLAGS:           $CXXFLAGS
+  LD:                 $LD
+  SHLD:               $SHLD
+
+  MODULECC:           $MODULECC
+  SHCFLAGS:           $SHCFLAGS
+  MODULESHCFLAGS:     $MODULESHCFLAGS
+  MODULESHCXXFLAGS:   $MODULESHCXXFLAGS
+
+  MODULELD:           $MODULELD
+  MODULESHLDFLAGS:    $MODULESHLDFLAGS
 
   == optional noit modules ==
   Postgres module:    $POSTGRES_MODULE
