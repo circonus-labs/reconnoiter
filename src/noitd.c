@@ -320,7 +320,7 @@ noitd_init_globals(void) {
 }
 
 int main(int argc, char **argv) {
-  int lock = MTEV_LOCK_OP_LOCK;
+  mtev_lock_op_t lock = MTEV_LOCK_OP_LOCK;
   mtev_memory_init();
   parse_clargs(argc, argv);
   if(!config_file) config_file = strdup(ETC_DIR "/" APPNAME ".conf");

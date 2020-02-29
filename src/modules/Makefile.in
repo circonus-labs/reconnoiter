@@ -10,15 +10,21 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 
 CC=@CC@
+CXX=@CXX@
 LD=@LD@
 LN_S=@LN_S@
 CPPFLAGS=-I.. @CPPFLAGS@
 CFLAGS=@CFLAGS@
+CXXFLAGS=@CFLAGS@
 DEPFLAGS=@DEPFLAGS@
 PGCFLAGS=@PGCFLAGS@
 MYCFLAGS=@MYCFLAGS@
 SHCFLAGS=@SHCFLAGS@
+SHCXXFLAGS=@SHCFLAGS@
 MODULELD=@MODULELD@
+MODULECC=@MODULECC@
+MODULECXX=@CXX@
+MODULESHCXXFLAGS=-fPIC $(CXXFLAGS) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -std=c++11
 MODULEEXT=@MODULEEXT@
 LDFLAGS=@LDFLAGS@
 SHLDFLAGS=@SHLDFLAGS@
@@ -221,9 +227,9 @@ prometheus.lo:	prometheus.xmlh
 
 graphite.@MODULEEXT@:	graphite.lo
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ graphite.lo
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ graphite.lo -lptools
 
-graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite.c
+graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite_pickle.xmlh graphite.cpp
 
 opentsdb.@MODULEEXT@:	opentsdb.lo
 	@echo "- linking $@"
@@ -277,9 +283,13 @@ test_abort.@MODULEEXT@:	test_abort.lo
 
 snmp.lo:	snmp.xmlh snmptrap.xmlh
 
+
+.cpp.lo:
+	@echo "- compiling $<"
+	$(Q)$(MODULECXX) $(CPPFLAGS) $(MODULESHCXXFLAGS) -c $< -o $@
 .c.lo:
 	@echo "- compiling $<"
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+	$(Q)$(MODULECC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 
 alldocs:
 	@echo "- buiding module docs"

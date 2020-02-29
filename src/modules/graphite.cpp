@@ -28,6 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
+extern "C" {
 #include <mtev_defines.h>
 
 #include <stdio.h>
@@ -52,10 +53,148 @@
 #include "noit_mtev_bridge.h"
 #include "prometheus.pb-c.h"
 #include "noit_socket_listener.h"
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmismatched-tags"
+#pragma GCC diagnostic ignored "-Wdeprecated-register"
+#pragma GCC diagnostic ignored "-Wshift-negative-value"
+#pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
+#include "pickleloader.h"
+#pragma GCC diagnostic pop
 
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
+static void
+graphite_to_noit_tags(const char *graphite_metric_name, size_t metric_name_len, mtev_dyn_buffer_t *out) {
+  char copy[MAX_METRIC_TAGGED_NAME];
+  if(metric_name_len > sizeof(copy)) return;
+  const char *semicolon = (const char *)memchr(graphite_metric_name, ';', metric_name_len);
+  if (semicolon) {
+    mtev_dyn_buffer_add(out, (uint8_t *)graphite_metric_name, semicolon - graphite_metric_name);
+    mtev_dyn_buffer_add(out, (uint8_t *)"|ST[", 4);
+
+    /* look for K=V pairs */
+    char *pair, *lasts;
+    bool comma = false;
+    memcpy(copy, semicolon, metric_name_len - (semicolon-graphite_metric_name));
+    copy[metric_name_len - (semicolon-graphite_metric_name)] = '\0';
+    for (pair = strtok_r(copy, ";", &lasts); pair; pair = strtok_r(NULL, ";", &lasts)) {
+      const char *equal = strchr(pair, '=');
+      if (equal) {
+        if (comma) mtev_dyn_buffer_add(out, (uint8_t *)",", 1);
+        mtev_dyn_buffer_add(out, (uint8_t *)pair, equal - pair);
+        mtev_dyn_buffer_add(out, (uint8_t *)":", 1);
+        mtev_dyn_buffer_add_printf(out, "%s", equal + 1);
+        comma = true;
+      }
+    }
+    mtev_dyn_buffer_add(out, (uint8_t *)"]", 1);
+  } else {
+    mtev_dyn_buffer_add(out, (uint8_t *)graphite_metric_name, metric_name_len);
+  }
+  mtev_dyn_buffer_add(out, (uint8_t*)"\0", 1);
+}
+
+static int
+graphite_count_pickle(char *buff, size_t inlen, size_t *usable) {
+  int count = 0;
+  char *cp = buff;
+  uint32_t nlen;
+  *usable = 0;
+  while(inlen >= sizeof(uint32_t)) {
+    memcpy(&nlen, cp, sizeof(uint32_t));
+    inlen -= sizeof(uint32_t);
+    cp += sizeof(uint32_t);
+    uint32_t plen = ntohl(nlen);
+    if(plen > inlen) break;
+    cp += plen;
+    inlen -= plen;
+    *usable = (cp - buff);
+    count++;
+  }
+  mtevL(nlerr, "pickle says %d records\n", count);
+  return count;
+}
+static void
+graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
+{
+  while(len > sizeof(uint32_t)) {
+    uint32_t plen;
+    memcpy(&plen, buffer, sizeof(uint32_t));
+    plen = ntohl(plen);
+    if(len < plen) {
+      mtevL(nlerr, "Short pickle data\n");
+      return;
+    }
+    try {
+      Val result;
+      PickleLoader pl((const char *)buffer+sizeof(uint32_t), len - sizeof(uint32_t));
+      pl.loads(result);
+
+      Arr &a = result;
+      size_t num_records = result.entries();
+
+      for(size_t i=0; i<num_records; i++) {
+        Val d = a(i);
+        Tup &t = d;
+        Str s = t(0);
+        size_t slen = strlen(s.data());
+        Tup &v = t(1);
+
+        /* allow for any length name + tags in the broker */
+        mtev_dyn_buffer_t tagged_name;
+        mtev_dyn_buffer_init(&tagged_name);
+
+        /* http://graphite.readthedocs.io/en/latest/tags.html
+         *
+         * Re-format incoming name string into our tag format for parsing */
+        graphite_to_noit_tags(s.data(), slen, &tagged_name);
+        mtevL(mtev_error, "%.*s -> %s\n", (int)slen, s.data(), mtev_dyn_buffer_data(&tagged_name));
+
+        struct timeval tv;
+        tv.tv_sec = (time_t)floor((double)v(0));
+        tv.tv_usec = (suseconds_t)(fmod(double(v(0)), 1.0) * 1000000);
+
+        union {
+          double nval;
+          uint64_t Lval;
+          int64_t lval;
+        } val;
+
+        metric_type_t val_type;
+        switch(v(1).tag) {
+          case 'd':
+            val_type = METRIC_DOUBLE;
+            val.nval = v(1);
+            mtevL(nldeb, "Reformatted graphite name: %s -> %g\n", mtev_dyn_buffer_data(&tagged_name), val.nval);
+            break;
+          default:
+            if(islower(v(1).tag)) {
+              val_type = METRIC_INT64;
+              val.lval = v(1);
+              mtevL(nldeb, "Reformatted graphite name: %s -> %zd\n", mtev_dyn_buffer_data(&tagged_name), val.lval);
+            } else {
+              val_type = METRIC_UINT64;
+              val.Lval = v(1);
+              mtevL(nldeb, "Reformatted graphite name: %s -> %zu\n", mtev_dyn_buffer_data(&tagged_name), val.Lval);
+            }
+        }
+
+        listener_metric_track_or_log(check->closure,
+                                     (const char *)mtev_dyn_buffer_data(&tagged_name),
+                                     val_type, (void *)&val,
+                                     &tv);
+        mtev_dyn_buffer_destroy(&tagged_name);
+      }
+    }
+    catch(...) {
+    }
+    buffer += plen;
+    len -= plen;
+  }
+}
 static void
 graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
 {
@@ -181,29 +320,7 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
     /* http://graphite.readthedocs.io/en/latest/tags.html
      * 
      * Re-format incoming name string into our tag format for parsing */
-    char *semicolon = strchr(graphite_metric_name, ';');
-    if (semicolon) {
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)graphite_metric_name, semicolon - graphite_metric_name);
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"|ST[", 4);
-
-      /* look for K=V pairs */
-      char *pair, *lasts;
-      bool comma = false;
-      for (pair = strtok_r(semicolon, ";", &lasts); pair; pair = strtok_r(NULL, ";", &lasts)) {
-        const char *equal = strchr(pair, '=');
-        if (equal) {
-          if (comma) mtev_dyn_buffer_add(&tagged_name, (uint8_t *)",", 1);
-          mtev_dyn_buffer_add(&tagged_name, (uint8_t *)pair, equal - pair);
-          mtev_dyn_buffer_add(&tagged_name, (uint8_t *)":", 1);
-          mtev_dyn_buffer_add_printf(&tagged_name, "%s", equal + 1);
-          comma = true;
-        }
-      }
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)"]", 1);
-    } else {
-      mtev_dyn_buffer_add(&tagged_name, (uint8_t *)graphite_metric_name, metric_name_len);
-    }
-    mtev_dyn_buffer_add(&tagged_name, (uint8_t*)"\0", 1);
+    graphite_to_noit_tags(graphite_metric_name, metric_name_len, &tagged_name);
 
     mtevL(nldeb, "Reformatted graphite name: %s = %g\n", mtev_dyn_buffer_data(&tagged_name), metric_value);
     struct timeval tv;
@@ -223,21 +340,15 @@ static int noit_graphite_initiate_check(noit_module_t *self,
                                         int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
   if (check->closure == NULL) {
-
+    bool use_pickle = strstr(check->module, "pickle") ? true : false;
     listener_closure_t *ccl;
-    ccl = check->closure = (void *)calloc(1, sizeof(listener_closure_t));
-    listener_closure_ref(ccl);
-    ccl->self = self;
-    ccl->check = check;
-    ccl->ipv4_listen_fd = -1;
-    ccl->ipv6_listen_fd = -1;
-    ccl->nldeb = nldeb;
-    ccl->nlerr = nlerr;
-    strcpy(ccl->nlname, "graphite");
-    ccl->payload_handler = graphite_handle_payload;
-    ck_spinlock_init(&ccl->use_lock);
-
-    unsigned short port = 2003;
+    ccl =
+      listener_closure_alloc(use_pickle ? "graphite_pickle" : "graphite", self, check,
+                             nldeb, nlerr,
+                             use_pickle ? graphite_handle_pickle : graphite_handle_payload,
+                             use_pickle ? graphite_count_pickle : NULL);
+    check->closure = ccl;
+    unsigned short port = use_pickle ? 2004 : 2003;
     int rows_per_cycle = 100;
     struct sockaddr_in skaddr;
     int sockaddr_len;
@@ -406,6 +517,8 @@ noit_module_t graphite = {
   noit_listener_cleanup
 };
 
+extern "C" {
+
 #include "graphite_tls.xmlh"
 noit_module_t graphite_tls = {
   {
@@ -437,3 +550,21 @@ noit_module_t graphite_plain = {
   noit_graphite_initiate_check,
   noit_listener_cleanup
 };
+
+#include "graphite_pickle.xmlh"
+noit_module_t graphite_pickle = {
+  {
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "graphite_pickle",
+    .description = "graphite_pickle(carbon) collection",
+    .xml_description = graphite_pickle_xml_description,
+    .onload = noit_graphite_onload
+  },
+  noit_listener_config,
+  noit_graphite_init,
+  noit_graphite_initiate_check,
+  noit_listener_cleanup
+};
+
+}

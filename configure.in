@@ -35,6 +35,7 @@ if (test "$enable_lua" != "LuaJIT" && \
 fi
 
 AC_PROG_CC
+AC_PROG_CXX
 AC_C_INLINE
 AC_C_BIGENDIAN
 AC_PROG_CPP
@@ -74,17 +75,30 @@ AC_SUBST(MAKE_CTESTS)
 
 MAPFLAGS=""
 if test "x$GCC" = "xyes" ; then
-	C99FLAG="-std=c99"
-	CFLAGS="$CFLAGS -g $C99FLAG"
 	DEPFLAGS="-MM"
 else
-	C99FLAG="-xc99=all"
-	CFLAGS="$CFLAGS -g $C99FLAG"
 	DEPFLAGS="-xM1"
 fi
-SHLDFLAGS="$LDFLAGS"
+CFLAGS="$CFLAGS `mtev-config --cflags`"
+CFLAGS=$(echo $CFLAGS | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
+FOO=$(echo $CFLAGS | [sed -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
+CXXFLAGS="$CXXFLAGS $FOO"
+CPPFLAGS="$CPPFLAGS `mtev-config --cppflags` -DOC_NEW_STYLE_INCLUDES -DOC_FACTOR_INTO_H_AND_CC"
+MODULELD=`mtev-config --moduleld`
+MODULECC=`mtev-config --cc`
+MODULESHCFLAGS=`mtev-config --shcflags`
+MODULESHCFLAGS="$MODULESHCFLAGS -g -Wall -Werror"
+MODULESHLDFLAGS=`mtev-config --shldflags`
+MODULEEXT=`mtev-config --moduleext`
+MODULES_DIR=`mtev-config --modules-dir`
+NOIT_SYSCONFDIR=`mtev-config --sysconfdir`
+SHLD=`mtev-config --shld`
+SHCFLAGS=`mtev-config --shcflags`
+SHCFLAGS="$SHCFLAGS -g -Wall -Werror"
+SHLDFLAGS="`mtev-config --shldflags` $LDFLAGS"
+LD=`mtev-config --shld`
+LDFLAGS="$LDFLAGS `mtev-config --ldflags`"
 
-CPPFLAGS='-I$(top_srcdir)/src'" $CPPFLAGS -D_REENTRANT -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200112L "
 DTRACEHDR=dtrace_probes.h
 DOTSO=.so
 LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
@@ -114,18 +128,8 @@ case $host in
 	DOTDYLIB=dylib
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
-	PICFLAGS="-fPIC"
-	CPPFLAGS="$CPPFLAGS -D_DARWIN_C_SOURCE -DMAC_OS_X_VERSION_MIN_REQUIRED=MAC_OS_X_VERSION_10_6 -Wno-deprecated-declarations"
-	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
-	SHLD="$CC -dynamiclib -single_module -undefined dynamic_lookup -fPIC"
-  DOTDYLIB=.dylib
+	DOTDYLIB=.dylib
 	LD_LIBNOIT_VERSION='-current_version $(LIBNOIT_VERSION) -install_name $(libdir)/libnoit.$(LIBNOIT_VERSION).dylib'
-	MODULEEXT=bundle
-	# This is needed for luajit on Mac OS X
-	if test "x$ENABLE_LUA" = "xLuaJIT"; then
-		LDFLAGS="$LDFLAGS -pagezero_size 10000 -image_base 100000000"
-		SHLDFLAGS="$SHLDFLAGS -image_base 100000000"
-	fi
 	;;
 *-*-solaris*)
 	CAP_PLATFORM="illumos"
@@ -133,81 +137,18 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
-	CFLAGS="$CFLAGS"
-	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
 	MDB_MODS=
-	if test "x$GCC" != "xyes" ; then
-		CFLAGS="$CFLAGS -mt"
-		PICFLAGS="-Kpic"
-		MODULELD="$CC -G"
-		SHLD="$CC -G"
-	else
-		# Foul and disgusting unwinding issues require libgcc_s
-		LUALIBS="-lgcc_s"
-		if test -n "`echo $CFLAGS | grep m64`" ; then
-			DTRACEFLAGS=-64
-			MAPFLAGS="-Wl,-M -Wl,map64bit"
-		fi
-		PICFLAGS="-fPIC"
-		MODULELD="$CC -shared"
-		SHLD="$CC -shared"
-		CLINKFLAGS="-shared-libgcc"
-	fi
 	MODULEEXT=so
-	RLDFLAG="-R"
 	WHOLE_ARCHIVE="-Wl,-z -Wl,allextract"
 	NOWHOLE_ARCHIVE="-Wl,-z -Wl,defaultextract"
 	;;
-*-*-openbsd*)
-	CAP_PLATFORM="openbsd"
-	PICFLAGS="-fpic"
-	LDFLAGS="$LDFLAGS -Wl,-E"
-	MODULELD="$CC -shared"
-	SHLD="$CC -shared"
-	MODULEEXT=so
-	LDFLAGS="$LDFLAGS -L/usr/local/lib"
-	CFLAGS="$CFLAGS -I/usr/local/include"
-	RLDFLAG="-Wl,--rpath="
-	WHOLE_ARCHIVE="-Wl,--whole-archive"
-	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
-	;;
 *-*-linux*)
 	CAP_PLATFORM="linux"
-	LDFLAGS="$LDFLAGS -Wl,-E"
-	SAVE_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE -D_BSD_SOURCE -Werror"
-	PICFLAGS="-fpic"
-	MODULELD="$CC -shared"
-	SHLD="$CC -shared"
-	MODULEEXT=so
-	RLDFLAG="-Wl,--rpath="
-	WHOLE_ARCHIVE="-Wl,--whole-archive"
-	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
-        AC_MSG_CHECKING([if we should use _DEFAULT_SOURCE])
-	AC_COMPILE_IFELSE([AC_LANG_SOURCE([
-			#include <string.h>
-		])], [
-			CPPFLAGS="$SAVE_CPPFLAGS -D_SVID_SOURCE -D_BSD_SOURCE"
-			AC_MSG_RESULT([no])
-		], [
-			CPPFLAGS="$SAVE_CPPFLAGS -D_DEFAULT_SOURCE"
-			AC_MSG_RESULT([yes])
-		])
 	;;
 *-*-freebsd*)
 	CAP_PLATFORM="freebsd"
-	PICFLAGS="-fpic"
-	MODULELD="$CC -shared"
-	LDFLAGS="$LDFLAGS -export-dynamic -L/usr/local/lib"
-	CFLAGS="$CFLAGS -DCOMPAT_43TTY -I/usr/local/include"
-	MODULEEXT=so
-	RLDFLAG="-Wl,--rpath="
 	;;
 *)
-	PICFLAGS="-fpic"
-	MODULELD="$CC -shared"
-	MODULEEXT=so
-	RLDFLAG="-Wl,--rpath="
 	;;
 esac
 AC_SUBST(DOTSO)
@@ -231,6 +172,7 @@ AC_SUBST(SHLD)
 AC_SUBST(RLDFLAG)
 AC_SUBST(DEPFLAGS)
 AC_SUBST(MODULELD)
+AC_SUBST(MODULECC)
 AC_SUBST(MODULEEXT)
 AC_SUBST(WHOLE_ARCHIVE)
 AC_SUBST(NOWHOLE_ARCHIVE)
@@ -425,8 +367,30 @@ AC_SUBST(PGCFLAGS)
 LIBS=$old_LIBS
 CFLAGS=$old_CFLAGS
 
-AC_CHECK_HEADERS(gcrypt.h)
+AC_MSG_CHECKING([can link pickletools])
+AC_LANG_PUSH([C++])
+old_LIBS=$LIBS
+LIBS="$LIBS -lptools"
+AC_TRY_LINK([
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wmismatched-tags"
+	#pragma GCC diagnostic ignored "-Wdeprecated-register"
+	#pragma GCC diagnostic ignored "-Wshift-negative-value"
+	#pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
+	#include "pickleloader.h"
+	#pragma GCC diagnostic pop
+	],
+	[
+	Val result;
+	PickleLoader pl("",0);
+	pl.loads(result);
+	],
+        [ AC_MSG_RESULT([works]) ],
+        [ AC_MSG_ERROR([failed]) ])
+LIBS="$old_LIBS"
+AC_LANG_POP([C++])
 
+AC_CHECK_HEADERS(gcrypt.h)
 AC_CHECK_HEADERS(mysql.h mysql/mysql.h)
 
 MYSQL_MODULE="no"
