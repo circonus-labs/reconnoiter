@@ -22,7 +22,7 @@ function initiate(modules, check)
   elseif check.target == '192.168.19.12' then
     target_type = 'ipv4'
   else
-    check.status("target " .. check.config.target .. " unsupported")
+    check.status("target " .. (check.target or "???") .. " unsupported")
     return
   end
 
