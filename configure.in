@@ -139,6 +139,9 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
+	DTRACEFLAGS=-64
+	MAPFLAGS="-Wl,-M -Wl,map64bit"
+	CLINKFLAGS="-shared-libgcc"
 	MDB_MODS=
 	MODULEEXT=so
 	WHOLE_ARCHIVE="-Wl,-z -Wl,allextract"
@@ -702,6 +705,8 @@ AC_MSG_RESULT([
   CXXFLAGS:           $CXXFLAGS
   LD:                 $LD
   SHLD:               $SHLD
+  CLINKFLAGS:         $CLINKFLAGS
+  MAPFLAGS:           $MAPFLAGS
 
   MODULECC:           $MODULECC
   SHCFLAGS:           $SHCFLAGS
