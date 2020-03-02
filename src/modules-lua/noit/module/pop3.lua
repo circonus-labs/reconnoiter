@@ -170,8 +170,7 @@ function initiate(module, check)
     return
   end
 
-  local ca_chain = 
-     mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
+  local ca_chain = noit.default_ca_chain()
 
   if config.ca_chain ~= nil and config.ca_chain ~= '' then
     ca_chain = config.ca_chain

@@ -73,12 +73,11 @@ API_EXPORT(int)
 API_EXPORT(void)
   noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs);
 
-static inline int
+static inline unsigned int
 noit_check_uuid_to_integer(uuid_t uuid)
 {
-  unsigned char *x = (unsigned char *)uuid;
-  int *y = (int *) x;
-  return *y;
+  const int *x = (const int *)uuid;
+  return x[0] ^ x[1] ^ x[2] ^ x[3];
 }
 
 API_EXPORT(pthread_t)
