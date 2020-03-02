@@ -376,8 +376,7 @@ function initiate(module, check)
     callbacks.connected = function () connecttime = mtev.timeval.now() end
 
     -- setup SSL info
-    local default_ca_chain =
-        mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
+    local default_ca_chain = noit.default_ca_chain()
     callbacks.certfile = function () return config.certificate_file end
     callbacks.keyfile = function () return config.key_file end
     callbacks.cachain = function ()

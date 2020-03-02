@@ -357,8 +357,7 @@ function initiate(module, check)
   local sasl_plain = mk_saslplain(e, check)
 
   -- setup SSL info
-  local default_ca_chain =
-      mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
+  local default_ca_chain = noit.default_ca_chain()
   local certfile = config.certificate_file or nil
   local keyfile = config.key_file or nil
   local cachain = config.ca_chain or default_ca_chain
