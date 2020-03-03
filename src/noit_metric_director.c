@@ -38,6 +38,8 @@
 #include <mtev_fq.h>
 #include <mtev_hooks.h>
 #include <mtev_uuid.h>
+#include <mtev_stats.h>
+#include <mtev_time.h>
 
 #include <openssl/md5.h>
 
@@ -87,6 +89,14 @@ static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
 static uint32_t director_in_use = 0;
 static uint64_t drop_before_threshold_ms = 0;
+
+static stats_ns_t *stats_ns;
+static stats_handle_t *stats_msg_delay;
+static stats_handle_t *stats_msg_seen;
+static stats_handle_t *stats_msg_dropped;
+static stats_handle_t *stats_msg_distributed;
+static stats_handle_t *stats_msg_queued;
+static stats_handle_t *stats_msg_delivered;
 
 void
 noit_metric_director_message_ref(void *m) {
@@ -190,8 +200,11 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
   ck_pr_inc_64(&number_of_messages_received);
 
   int i;
+  mtev_boolean msg_distributed = mtev_false;
   for(i = 0; i < nthreads; i++) {
     if(interests[i] > 0) {
+      msg_distributed = mtev_true;
+      stats_add64(stats_msg_queued, 1);
       ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
       ck_fifo_spsc_entry_t *fifo_entry;
       ck_fifo_spsc_enqueue_lock(fifo);
@@ -204,6 +217,10 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       ck_pr_inc_64(&number_of_messages_distributed);
     }
   }
+  if (msg_distributed) {
+    stats_add64(stats_msg_distributed, 1);
+  }
+
 }
 
 static void
@@ -393,6 +410,9 @@ noit_metric_message_t *noit_metric_director_lane_next() {
     dmflush_observe(DMFLUSH_UNFLAG((dmflush_t *)msg));
     goto again;
   }
+  if (msg) {
+    stats_add64(stats_msg_delivered, 1);
+  }
   return msg;
 }
 static noit_noit_t *
@@ -435,9 +455,12 @@ handle_metric_buffer(const char *payload, int payload_len,
         message->original_message_len = payload_len;
         noit_metric_director_message_ref(message);
 
+        stats_add64(stats_msg_seen, 1);
         int rv = noit_message_decoder_parse_line(message, has_noit);
 
+        stats_set_hist_intscale(stats_msg_delay, mtev_now_ms() - message->value.whence_ms, -3, 1);
         if(drop_before_threshold_ms && message->value.whence_ms < drop_before_threshold_ms) {
+          stats_add64(stats_msg_dropped, 1);
           goto bail;
         }
 
@@ -555,6 +578,21 @@ noit_metric_director_dedupe(mtev_boolean d)
 }
 
 void noit_metric_director_init() {
+  mtev_stats_init();
+  stats_ns = mtev_stats_ns(mtev_stats_ns(NULL, "noit"), "metric_director");
+  /* total count of messages read from fq */
+  stats_msg_seen = stats_register_fanout(stats_ns, "seen", STATS_TYPE_COUNTER, 16);
+  /* count of messages dropped due to drop_before_threshold */
+  stats_msg_dropped = stats_register_fanout(stats_ns, "dropped", STATS_TYPE_COUNTER, 16);
+  /* count of messages distributed to at least one lane */
+  stats_msg_distributed = stats_register_fanout(stats_ns, "distributed", STATS_TYPE_COUNTER, 16);
+  /* count of messages queued for delivery */
+  stats_msg_queued = stats_register_fanout(stats_ns, "queued", STATS_TYPE_COUNTER, 16);
+  /* count of messages delivered */
+  stats_msg_delivered = stats_register_fanout(stats_ns, "delivered", STATS_TYPE_COUNTER, 16);
+  /* histogram of delay timings */
+  stats_msg_delay = stats_register_fanout(stats_ns, "delay", STATS_TYPE_HISTOGRAM, 16);
+
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
   thread_queues = calloc(sizeof(*thread_queues),nthreads);
