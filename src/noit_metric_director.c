@@ -77,9 +77,6 @@ static __thread struct {
   ck_fifo_spsc_t *fifo;
 } my_lane;
 
-static uint64_t number_of_messages_received = 0;
-static uint64_t number_of_messages_distributed = 0;
-
 static int nthreads;
 static volatile void **thread_queues;
 static mtev_hash_table id_level;
@@ -197,8 +194,6 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
 
 static void
 distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *message) {
-  ck_pr_inc_64(&number_of_messages_received);
-
   int i;
   mtev_boolean msg_distributed = mtev_false;
   for(i = 0; i < nthreads; i++) {
@@ -213,8 +208,6 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       noit_metric_director_message_ref(message);
       ck_fifo_spsc_enqueue(fifo, fifo_entry, message);
       ck_fifo_spsc_enqueue_unlock(fifo);
-
-      ck_pr_inc_64(&number_of_messages_distributed);
     }
   }
   if (msg_distributed) {
@@ -612,16 +605,6 @@ void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&dedupe_hashes, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   eventer_name_callback("noit_metric_director_prune_dedup",
                         noit_metric_director_prune_dedup);
-}
-
-int64_t
-noit_metric_director_get_messages_received() {
-  return ck_pr_load_64(&number_of_messages_received);
-}
-
-int64_t
-noit_metric_director_get_messages_distributed() {
- return ck_pr_load_64(&number_of_messages_distributed);
 }
 
 void
