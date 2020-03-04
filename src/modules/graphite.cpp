@@ -126,7 +126,7 @@ graphite_count_pickle(char *buff, size_t inlen, size_t *usable) {
     *usable = (cp - buff);
     count++;
   }
-  mtevL(nlerr, "pickle says %d records\n", count);
+  mtevL(nldeb, "pickle says %d records\n", count);
   return count;
 }
 static void
@@ -137,7 +137,7 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
     memcpy(&plen, buffer, sizeof(uint32_t));
     plen = ntohl(plen);
     if(len < plen) {
-      mtevL(nlerr, "Short pickle data\n");
+      mtevL(nldeb, "Short pickle data\n");
       return;
     }
     try {
@@ -163,7 +163,7 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
          *
          * Re-format incoming name string into our tag format for parsing */
         graphite_to_noit_tags(s.data(), slen, &tagged_name);
-        mtevL(mtev_error, "%.*s -> %s\n", (int)slen, s.data(), mtev_dyn_buffer_data(&tagged_name));
+        mtevL(nldeb, "%.*s -> %s\n", (int)slen, s.data(), mtev_dyn_buffer_data(&tagged_name));
 
         struct timeval tv;
         tv.tv_sec = (time_t)floor((double)v(0));
