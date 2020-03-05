@@ -573,7 +573,6 @@ noit_metric_director_dedupe(mtev_boolean d)
 void noit_metric_director_init() {
   mtev_stats_init();
   stats_ns = mtev_stats_ns(mtev_stats_ns(NULL, "noit"), "metric_director");
-  stats_ns_add_tag(stats_ns, "service", "noit");
   stats_ns_add_tag(stats_ns, "topic", "messages");
   stats_ns_add_tag(stats_ns, "level", "metric_director");
   /* total count of messages read from fq */
