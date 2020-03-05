@@ -1057,6 +1057,43 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+static void
+rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module) {
+  xmlNodePtr a = NULL;
+  for(a = attr->children; a; a = a->next) {
+    if(!strcmp((char *)a->name, "target"))
+      *target = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "name"))
+      *name = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "module"))
+      *module = (char *)xmlNodeGetContent(a);
+  }
+}
+
+static int
+rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr)
+{
+  char *target = NULL, *name = NULL, *module = NULL;
+  noit_check_t *check = noit_poller_lookup(checkid);
+  mtev_boolean exists = mtev_false;
+  if(check)
+    exists = mtev_true;
+  rest_check_get_attrs(attr, &target, &name, &module);
+  if (exists) {
+    mtevL(mtev_error, "exists: %s, %s, %s\n", target, name, module);
+  }
+  mtev_boolean in_db = mtev_false;
+  /* First, check to see if this is already in the db.... TODO */
+  if (!in_db) {
+    exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
+  }
+  else {
+    exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
+  }
+
+  return 0;
+}
+
 static int
 rest_set_check(mtev_http_rest_closure_t *restc,
                int npats, char **pats) {
@@ -1081,6 +1118,14 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) goto error;
 
   if(mtev_uuid_parse(pats[1], checkid)) goto error;
+
+  /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
+   * do XML - this is on for test purposes now */
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  if(instance) {
+    rest_set_check_lmdb(checkid, attr);
+  }
+
   check = noit_poller_lookup(checkid);
   if(check)
     exists = mtev_true;
@@ -1101,16 +1146,9 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       char *target = NULL, *name = NULL, *module = NULL;
       noit_module_t *m = NULL;
       noit_check_t *check = NULL;
-      xmlNodePtr a, newcheck = NULL;
+      xmlNodePtr newcheck = NULL;
       /* make sure this isn't a dup */
-      for(a = attr->children; a; a = a->next) {
-        if(!strcmp((char *)a->name, "target"))
-          target = (char *)xmlNodeGetContent(a);
-        if(!strcmp((char *)a->name, "name"))
-          name = (char *)xmlNodeGetContent(a);
-        if(!strcmp((char *)a->name, "module"))
-          module = (char *)xmlNodeGetContent(a);
-      }
+      rest_check_get_attrs(attr, &target, &name, &module);
       exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
       if(check) old_seq = check->config_seq;
       if(module) m = noit_module_lookup(module);
