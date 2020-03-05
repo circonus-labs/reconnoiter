@@ -573,6 +573,9 @@ noit_metric_director_dedupe(mtev_boolean d)
 void noit_metric_director_init() {
   mtev_stats_init();
   stats_ns = mtev_stats_ns(mtev_stats_ns(NULL, "noit"), "metric_director");
+  stats_ns_add_tag(stats_ns, "service", "noit");
+  stats_ns_add_tag(stats_ns, "topic", "messages");
+  stats_ns_add_tag(stats_ns, "level", "metric_director");
   /* total count of messages read from fq */
   stats_msg_seen = stats_register_fanout(stats_ns, "seen", STATS_TYPE_COUNTER, 16);
   /* count of messages dropped due to drop_before_threshold */
