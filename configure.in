@@ -3,7 +3,7 @@ AC_CONFIG_SRCDIR([src/noitd.c])
 AC_CONFIG_AUX_DIR([.])
 
 dedup_args() {
-	echo "$*" | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' '
+	echo "$*" | tr '\n' ' ' |  [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' '
 }
 
 node=`hostname | cut -f1 -d '.' | tr '[A-Z]' '[a-z]'`
@@ -39,6 +39,7 @@ if (test "$enable_lua" != "LuaJIT" && \
 fi
 
 AC_PROG_CC
+AX_CHECK_COMPILE_FLAG(-fexceptions, [ CFLAGS="$CFLAGS -fexceptions" ])
 AC_PROG_CXX
 AC_C_INLINE
 AC_C_BIGENDIAN
@@ -84,13 +85,11 @@ C99FLAG="-std=c99"
 CFLAGS="$CFLAGS `mtev-config --cflags`"
 WRONG_CFLAGS=$(echo $CFLAGS | [gawk '/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
 CFLAGS=$(echo $CFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
-CFLAGS=$(dedup_args $CFLAGS)
 CPPFLAGS="$CPPFLAGS $WRONG_CFLAGS `mtev-config --cppflags` -DOC_NEW_STYLE_INCLUDES -DOC_FACTOR_INTO_H_AND_CC"
-CPPFLAGS=$(dedup_args $CPPFLAGS)
 MODULELD=`mtev-config --moduleld`
 MODULECC=`mtev-config --cc`
 MODULESHCFLAGS=`mtev-config --shcflags`
-MODULESHCFLAGS="$MODULESHCFLAGS -g -Wall -Werror"
+MODULESHCFLAGS="$MODULESHCFLAGS $CFLAGS"
 MODULESHCFLAGS=$(echo $MODULESHCFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
 MODULESHLDFLAGS=`mtev-config --shldflags`
 MODULEEXT=`mtev-config --moduleext`
@@ -98,7 +97,7 @@ MODULES_DIR=`mtev-config --modules-dir`
 NOIT_SYSCONFDIR=`mtev-config --sysconfdir`
 SHLD=`mtev-config --shld`
 SHCFLAGS=`mtev-config --shcflags`
-SHCFLAGS="$SHCFLAGS -g -Wall -Werror"
+SHCFLAGS="$SHCFLAGS $CFLAGS"
 SHCFLAGS=$(echo $SHCFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
 SHLDFLAGS="`mtev-config --shldflags` $LDFLAGS"
 LD=`mtev-config --shld`
@@ -590,7 +589,9 @@ fi
 
 CPPFLAGS=$(dedup_args "$CPPFLAGS")
 CFLAGS=$(dedup_args "$CFLAGS")
+AC_MSG_RESULT([SHCFLAGS $SHCFLAGS])
 SHCFLAGS=$(dedup_args $SHCFLAGS)
+AC_MSG_RESULT([SHCFLAGS $SHCFLAGS])
 MODULESHCFLAGS=$(dedup_args $MODULESHCFLAGS)
 
 FOO=$(echo $CFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')

@@ -140,9 +140,10 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
       mtevL(nldeb, "Short pickle data\n");
       return;
     }
+    buffer += sizeof(uint32_t);
     try {
       Val result;
-      PickleLoader pl((const char *)buffer+sizeof(uint32_t), len - sizeof(uint32_t));
+      PickleLoader pl((const char *)buffer, plen);
       pl.loads(result);
 
       Arr &a = result;
@@ -202,6 +203,7 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
       }
     }
     catch(...) {
+      mtevL(nlerr, "graphite pickle decoding failed over %u bytes\n", plen);
     }
     buffer += plen;
     len -= plen;
