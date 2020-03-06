@@ -129,17 +129,20 @@ graphite_count_pickle(char *buff, size_t inlen, size_t *usable) {
   mtevL(nldeb, "pickle says %d records\n", count);
   return count;
 }
-static void
+static int
 graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
 {
-  while(len > sizeof(uint32_t)) {
+  int rv = 0;
+  listener_closure_t *ccl = (listener_closure_t *)check->closure;
+  while(rv >= 0 && len > sizeof(uint32_t)) {
     uint32_t plen;
     memcpy(&plen, buffer, sizeof(uint32_t));
     plen = ntohl(plen);
     if(len < plen) {
       mtevL(nldeb, "Short pickle data\n");
-      return;
+      return -1;
     }
+    rv++;
     buffer += sizeof(uint32_t);
     len -= sizeof(uint32_t);
     try {
@@ -205,12 +208,14 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
     }
     catch(...) {
       mtevL(nlerr, "graphite pickle decoding failed over %u bytes\n", plen);
+      rv = -1;
     }
     buffer += plen;
     len -= plen;
   }
+  return rv;
 }
-static void
+static int
 graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
 {
   char record[4096];
@@ -219,8 +224,10 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
   const size_t c_length = len;
   ptrdiff_t length = c_length;
   ptrdiff_t d = 0;
+  int rv = 0;
 
   for (s = buffer; length && *s; s = e + 1) {
+    rv++;
 
     /* Find end of line. */
     e = (char *)memchr(s, '\n', length);
@@ -348,6 +355,7 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
                                  &tv);
     mtev_dyn_buffer_destroy(&tagged_name);
   }
+  return rv;
 }
 
 static int noit_graphite_initiate_check(noit_module_t *self,

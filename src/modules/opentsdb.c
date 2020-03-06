@@ -56,7 +56,7 @@
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
-static void
+static int
 opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
 {
   char record[4096];
@@ -65,8 +65,10 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
   const size_t c_length = len;
   ptrdiff_t length = c_length;
   ptrdiff_t d = 0;
+  int rv = 0;
 
   for (s = buffer; length && *s; s = e + 1) {
+    rv++;
 
     /* Find end of line. */
     e = (char *)memchr(s, '\n', length);
@@ -251,6 +253,7 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
                                           &tv);
     mtev_dyn_buffer_destroy(&tagged_name);
   }
+  return rv;
 }
 
 static int

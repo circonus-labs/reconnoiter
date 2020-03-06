@@ -88,7 +88,7 @@ count_records(char *buffer, size_t inlen, size_t *usedlen)
 listener_closure_t *
 listener_closure_alloc(const char *name, noit_module_t *mod, noit_check_t *check,
                        mtev_log_stream_t deb, mtev_log_stream_t err,
-                       void (*handler)(noit_check_t *, char *, size_t),
+                       int (*handler)(noit_check_t *, char *, size_t),
                        int (*count)(char *, size_t, size_t *))
 {
   listener_closure_t *lc = calloc(1, sizeof(*lc));
@@ -295,10 +295,12 @@ socket_close:
     num_records = self->count_records((char *)mtev_dyn_buffer_data(&self->buffer),
                                       mtev_dyn_buffer_used(&self->buffer),
                                       &used_size);
+    if (num_records < 0) goto socket_close;
     if (num_records > 0) {
       records_this_loop += num_records;
       size_t total_size = mtev_dyn_buffer_used(&self->buffer);
-      self->payload_handler(check, (char *)mtev_dyn_buffer_data(&self->buffer), used_size);
+      if(self->payload_handler(check, (char *)mtev_dyn_buffer_data(&self->buffer), used_size) < 0)
+        goto socket_close;
       if (total_size > used_size) {
         void *end_ptr = mtev_dyn_buffer_data(&self->buffer) + used_size;
         memmove(mtev_dyn_buffer_data(&self->buffer), end_ptr, total_size - used_size);
