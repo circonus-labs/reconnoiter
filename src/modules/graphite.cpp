@@ -201,7 +201,7 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
             }
         }
 
-        listener_metric_track_or_log(check->closure,
+        listener_metric_track_or_log(ccl,
                                      (const char *)mtev_dyn_buffer_data(&tagged_name),
                                      val_type, (void *)&val,
                                      &tv);
@@ -510,16 +510,22 @@ static int noit_graphite_onload(mtev_image_t *self) {
   return 0;
 }
 
+static int graphite_handler(eventer_t e, int m, void *c, struct timeval *t) {
+  return listener_handler(e,m,c,t);
+}
+static int graphite_listener(eventer_t e, int m, void *c, struct timeval *t) {
+  return listener_listen_handler(e,m,c,t);
+}
 static int noit_graphite_init(noit_module_t *self) 
 {
   if(!strcmp(self->hdr.name, "graphite_tls")) {
     eventer_name_callback_ext("graphite/graphite_listener", listener_mtev_listener,
                               listener_describe_mtev_callback, self);
   }
-  eventer_name_callback_ext("graphite/graphite_handler", listener_handler,
+  eventer_name_callback_ext("graphite/graphite_handler", graphite_handler,
                             listener_describe_callback, self);
-  eventer_name_callback_ext("graphite/graphite_listen_handler", listener_listen_handler,
-                            listener_describe_callback, self);
+  eventer_name_callback_ext("graphite/graphite_listener", graphite_listener,
+                            listener_listen_describe_callback, self);
 
   return 0;
 }
