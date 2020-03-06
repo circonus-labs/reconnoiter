@@ -940,6 +940,9 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
   else xmlAddChild(check, config);
   CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(config));
 }
+static void
+configure_lmdb_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePtr c, int64_t *seq) {
+}
 static xmlNodePtr
 make_conf_path(char *path) {
   mtev_conf_section_t section;
@@ -1070,25 +1073,72 @@ rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module)
   }
 }
 
+static void
+rest_check_free_attrs(char *target, char *name, char *module) {
+  if (target) {
+    xmlFree(target);
+  }
+  if (name) {
+    xmlFree(name);
+  }
+  if (module) {
+    xmlFree(module);
+  }
+}
+
 static int
 rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr)
 {
-  char *target = NULL, *name = NULL, *module = NULL;
   noit_check_t *check = noit_poller_lookup(checkid);
   mtev_boolean exists = mtev_false;
   if(check)
     exists = mtev_true;
-  rest_check_get_attrs(attr, &target, &name, &module);
-  if (exists) {
-    mtevL(mtev_error, "exists: %s, %s, %s\n", target, name, module);
-  }
   mtev_boolean in_db = mtev_false;
   /* First, check to see if this is already in the db.... TODO */
   if (!in_db) {
+    if (exists) {
+      return -1;
+    }
+    xmlNodePtr config, parent;
+    int64_t seq;
+    uint64_t old_seq = 0;
+    char *target = NULL, *name = NULL, *module = NULL;
+    noit_module_t *m = NULL;
+    noit_check_t *check = NULL;
+    xmlNodePtr newcheck = NULL;
+    /* make sure this isn't a dup */
+    rest_check_get_attrs(attr, &target, &name, &module);
     exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
+    if(check) {
+      old_seq = check->config_seq;
+    }
+    if(module) {
+      m = noit_module_lookup(module);
+    }
+    rest_check_free_attrs(target, name, module);
+    if(exists) {
+      return -1;
+    }
+    if(!m) {
+      return -1;
+    }
+    /* create a check here */
+#if 0
+    newcheck = xmlNewNode(NULL, (xmlChar *)"check");
+    xmlSetProp(newcheck, (xmlChar *)"uuid", (xmlChar *)pats[1]);
+    parent = make_conf_path(pats[0]);
+    if(!parent) {
+      return -1;
+    }
+    configure_lmdb_check(parent, newcheck, attr, config, &seq);
+    if(old_seq >= seq && seq != 0) {
+      return -1;
+    }
+    xmlAddChild(parent, newcheck);
+    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(newcheck));
+#endif
   }
   else {
-    exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
   }
 
   return 0;
@@ -1152,9 +1202,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
       if(check) old_seq = check->config_seq;
       if(module) m = noit_module_lookup(module);
-      if(target) xmlFree(target);
-      if(name) xmlFree(name);
-      if(module) xmlFree(module);
+      rest_check_free_attrs(target, name, module);
       if(exists) FAILC(409, "target`name already registered");
       if(!m) FAILC(412, "module does not exist");
       /* create a check here */
@@ -1173,7 +1221,6 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     uint64_t old_seq = 0;
     int module_change;
     char *target = NULL, *name = NULL, *module = NULL;
-    xmlNodePtr a;
     noit_check_t *ocheck;
     if(!check)
       FAIL("internal check error");
@@ -1188,19 +1235,11 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     uuid_conf = NULL;
 
     /* make sure this isn't a dup */
-    for(a = attr->children; a; a = a->next) {
-      if(!strcmp((char *)a->name, "target"))
-        target = (char *)xmlNodeGetContent(a);
-      if(!strcmp((char *)a->name, "name"))
-        name = (char *)xmlNodeGetContent(a);
-      if(!strcmp((char *)a->name, "module"))
-        module = (char *)xmlNodeGetContent(a);
-    }
+    rest_check_get_attrs(attr, &target, &name, &module);
+
     ocheck = noit_poller_lookup_by_name(target, name);
     module_change = strcmp(check->module, module);
-    xmlFree(target);
-    xmlFree(name);
-    xmlFree(module);
+    rest_check_free_attrs(target, name, module);
     if(ocheck && ocheck != check) FAILC(409, "new target`name would collide");
     if(module_change) FAILC(400, "cannot change module");
     parent = make_conf_path(pats[0]);
