@@ -373,7 +373,6 @@ listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
     listener_closure_ref(self);
     listener_instance_t *inst = listener_instance_alloc();
     inst->parent = self;
-    mtevL(mtev_error, "listener_handler (%p)\n", inst);
     newe = eventer_alloc_fd(listener_handler, inst, fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
 
