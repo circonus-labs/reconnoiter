@@ -785,11 +785,13 @@ noit_poller_process_checks(const char *xpath) {
   int i, cnt = 0;
   mtev_conf_section_t *sec;
   __config_load_generation++;
-  sec = mtev_conf_get_sections(MTEV_CONF_ROOT, xpath, &cnt);
+  mtevL(mtev_error, "processing checks\n");
+  sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
   for(i=0; i<cnt; i++) {
     noit_poller_process_check_conf(sec[i]);
   }
-  mtev_conf_release_sections(sec, cnt);
+  mtev_conf_release_sections_read(sec, cnt);
+  mtevL(mtev_error, "processed %d checks\n", cnt);
 }
 
 int
@@ -951,7 +953,7 @@ noit_check_dns_ignore_list_init() {
   int cnt;
 
   noit_check_dns_ignore_tld("onion", "true");
-  dns = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/dns/extension", &cnt);
+  dns = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "/noit/dns/extension", &cnt);
   if(dns) {
     int i = 0;
     for (i = 0; i < cnt; i++) {
@@ -970,7 +972,7 @@ noit_check_dns_ignore_list_init() {
       free(ignore);
     }
   }
-  mtev_conf_release_sections(dns, cnt);
+  mtev_conf_release_sections_read(dns, cnt);
 }
 void
 noit_poller_init() {
@@ -1103,7 +1105,7 @@ noit_check_watch(uuid_t in, int period) {
 
   /* Find the check */
   snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
-  check_node = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  check_node = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
   mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
   mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
   if(!mtev_conf_section_is_empty(check_node)) {
@@ -1114,7 +1116,7 @@ noit_check_watch(uuid_t in, int period) {
                       "ancestor-or-self::node()/@transient_period_granularity",
                       &granularity_pi);
   }
-  mtev_conf_release_section(check_node);
+  mtev_conf_release_section_read(check_node);
 
   /* apply the bounds */
   period /= granularity_pi;
@@ -1930,10 +1932,10 @@ noit_check_path(noit_check_t *check) {
   int path_str_len;
 
   noit_check_xpath_check(xpath, sizeof(xpath), check);
-  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  section = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
 
   if(mtev_conf_section_is_empty(section)) {
-    mtev_conf_release_section(section);
+    mtev_conf_release_section_read(section);
     return NULL;
   }
 
@@ -1952,7 +1954,7 @@ noit_check_path(noit_check_t *check) {
   memcpy(path_str, path->string, path_str_len);
   mtev_prepend_str_free(path);
   path_str[path_str_len] = '\0';
-  mtev_conf_release_section(section);
+  mtev_conf_release_section_read(section);
   return path_str;
 }
 

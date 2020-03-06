@@ -77,13 +77,13 @@ noit_jlog_listener_init() {
   mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_TEMP_FEED,
                                  noit_jlog_handler);
-  node = mtev_conf_get_section(MTEV_CONF_ROOT, "//logs");
+  node = mtev_conf_get_section_read(MTEV_CONF_ROOT, "//logs");
   if (!mtev_conf_section_is_empty(node)) {
     mtev_conf_get_int32(node, "//jlog/max_msg_batch_lines", &MAX_ROWS_AT_ONCE);
     mtev_conf_get_int32(node, "//jlog/default_mseconds_between_batches", &DEFAULT_MSECONDS_BETWEEN_BATCHES);
     mtev_conf_get_int32(node, "//jlog/default_transient_mseconds_between_batches", &DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES);
   }
-  mtev_conf_release_section(node);
+  mtev_conf_release_section_read(node);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^feed$",
     rest_show_feed, mtev_http_rest_client_cert_auth

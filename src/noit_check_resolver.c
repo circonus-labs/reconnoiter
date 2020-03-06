@@ -717,7 +717,7 @@ void noit_check_resolver_init() {
   }
 
   /* Optional servers */
-  servers = mtev_conf_get_sections(MTEV_CONF_ROOT, "//resolver//server", &cnt);
+  servers = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "//resolver//server", &cnt);
   if(cnt) {
     int i;
     char server[128];
@@ -734,8 +734,8 @@ void noit_check_resolver_init() {
       }
     }
   }
-  mtev_conf_release_sections(servers, cnt);
-  searchdomains = mtev_conf_get_sections(MTEV_CONF_ROOT, "//resolver//search", &cnt);
+  mtev_conf_release_sections_read(servers, cnt);
+  searchdomains = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "//resolver//search", &cnt);
   if(cnt) {
     int i;
     char search[128];
@@ -753,7 +753,7 @@ void noit_check_resolver_init() {
       }
     }
   }
-  mtev_conf_release_sections(searchdomains, cnt);
+  mtev_conf_release_sections_read(searchdomains, cnt);
 
   if(mtev_conf_get_int32(MTEV_CONF_ROOT, "//resolver/@ndots", &cnt))
     dns_set_opt(dns_ctx, DNS_OPT_NDOTS, cnt);

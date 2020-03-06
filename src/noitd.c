@@ -217,7 +217,7 @@ static int child_main() {
   if(xpath) {
     int cnt, i;
     mtev_conf_section_t *parts = NULL;
-    parts = mtev_conf_get_sections(MTEV_CONF_ROOT, xpath, &cnt);
+    parts = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
     if(cnt == 0) exit(2);
     for(i=0; i<cnt; i++) {
       const char *sup = "";
@@ -225,7 +225,7 @@ static int child_main() {
       fprintf(stdout, "%d%s: ", i, sup); fflush(stdout);
       mtev_conf_write_section(parts[i], 1);
     }
-    mtev_conf_release_sections(parts, cnt);
+    mtev_conf_release_sections_read(parts, cnt);
     exit(0);
   }
 

@@ -178,7 +178,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   assert(seq>=0);
   set->seq = seq;
 
-  rules = mtev_conf_get_sections(setinfo, "rule", &fcnt);
+  rules = mtev_conf_get_sections_read(setinfo, "rule", &fcnt);
   /* Here we will work through the list backwards pushing the rules on
    * the front of the list.  That way we can simply walk them in order
    * for the application process.
@@ -218,7 +218,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     int hte_cnt, hti, tablesize = 2; \
     int32_t auto_max = 0; \
     char *htstr; \
-    htentries = mtev_conf_get_sections(rules[j], #rname, &hte_cnt); \
+    htentries = mtev_conf_get_sections_read(rules[j], #rname, &hte_cnt); \
     mtev_conf_get_int32(rules[j], "@" #rname "_auto_add", &auto_max); \
     if(hte_cnt || auto_max > 0) { \
       rule->rname##_auto_hash_max = auto_max; \
@@ -241,7 +241,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
         } \
       } \
     } \
-    mtev_conf_release_sections(htentries, hte_cnt); \
+    mtev_conf_release_sections_read(htentries, hte_cnt); \
 } while(0);
     HT_COMPILE(target, mtev_false);
     HT_COMPILE(module, mtev_false);
@@ -313,7 +313,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
               set->name, cursor->skipto);
     }
   }
-  mtev_conf_release_sections(rules, fcnt);
+  mtev_conf_release_sections_read(rules, fcnt);
   mtev_boolean used_new_one = mtev_false;
   void *vset;
   LOCKFS();
@@ -376,12 +376,12 @@ noit_filters_from_conf() {
   mtev_conf_section_t *sets;
   int i, cnt;
 
-  sets = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/filtersets//filterset", &cnt);
+  sets = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "/noit/filtersets//filterset", &cnt);
   for(i=0; i<cnt; i++) {
     mtev_watchdog_child_heartbeat();
     noit_filter_compile_add(sets[i]);
   }
-  mtev_conf_release_sections(sets, cnt);
+  mtev_conf_release_sections_read(sets, cnt);
 }
 
 int
@@ -642,13 +642,13 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   snprintf(xpath, sizeof(xpath), "/%s",
            info->path);
-  fsnode = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  fsnode = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
   if(mtev_conf_section_is_empty(fsnode)) {
     nc_printf(ncct, "internal error\n");
     mtev_conf_release_section(fsnode);
     return -1;
   }
-  rules = mtev_conf_get_sections(fsnode, "rule", &rulecnt);
+  rules = mtev_conf_get_sections_read(fsnode, "rule", &rulecnt);
   for(i=0; i<rulecnt; i++) {
     char val[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[i], "@type", val, sizeof(val)))
@@ -658,7 +658,7 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   char *vstr; \
   mtev_conf_section_t *ht; \
   int cnt; \
-  ht = mtev_conf_get_sections(rules[i], #a, &cnt); \
+  ht = mtev_conf_get_sections_read(rules[i], #a, &cnt); \
   if(ht && cnt) { \
     nc_printf(ncct, "\t%s: hash match of %d items\n", #a, cnt); \
   } \

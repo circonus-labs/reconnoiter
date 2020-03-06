@@ -57,13 +57,18 @@
 #define FAIL(a) do { error = (a); goto error; } while(0)
 #define FAILC(c, a) do { error_code = (c); error = (a); goto error; } while(0)
 
-#define NCINIT \
+#define NCINIT_RD \
+  const mtev_boolean nc_lock_ro = mtev_true; \
+  mtev_boolean nc__locked = mtev_false; \
+  mtev_conf_section_t nc__lock
+#define NCINIT_WR \
+  const mtev_boolean nc_lock_ro = mtev_false; \
   mtev_boolean nc__locked = mtev_false; \
   mtev_conf_section_t nc__lock
 #define NCLOCK \
   nc__locked = mtev_true; \
-  nc__lock = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
-#define NCUNLOCK if(nc__locked) mtev_conf_release_section(nc__lock)
+  nc__lock = (nc_lock_ro) ? mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit") :mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
+#define NCUNLOCK if(nc__locked) nc_lock_ro ? mtev_conf_release_section_read(nc__lock) : mtev_conf_release_section(nc__lock)
 
 #define NS_NODE_CONTENT(parent, ns, k, v, followup) do { \
   xmlNodePtr tmp; \
@@ -519,7 +524,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   int klen;
   void *data;
   mtev_hash_table *configh;
-  NCINIT;
+  NCINIT_RD;
 
   if(npats != 2 && npats != 3) goto error;
 
@@ -750,7 +755,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
   *a = *c = NULL;
   root = xmlDocGetRootElement(doc);
   /* Make sure any present namespaces are in the master document already */
-  toplevel = mtev_conf_get_section(MTEV_CONF_ROOT, "/*");
+  toplevel = mtev_conf_get_section_read(MTEV_CONF_ROOT, "/*");
   master_config_root = mtev_conf_section_to_xmlnodeptr(toplevel);
   if(!master_config_root) {
     *error = "no document";
@@ -858,12 +863,12 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
     else goto out;
   }
   if(name && module && target && period && timeout && filterset) {
-    mtev_conf_release_section(toplevel);
+    mtev_conf_release_section_read(toplevel);
     return 1;
   }
   *error = "insufficient information";
  out:
-  mtev_conf_release_section(toplevel);
+  mtev_conf_release_section_read(toplevel);
   return 0;
 }
 static void
@@ -980,7 +985,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
-  NCINIT;
+  NCINIT_WR;
 
   if(npats != 2) goto error;
 
@@ -1065,7 +1070,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
-  NCINIT;
+  NCINIT_WR;
 
   if(npats != 2) goto error;
 

@@ -159,9 +159,9 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
       const char *name;
       mtev_conf_section_t checks;
       name = noit_check_registered_module(i);
-      checks = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/checks");
+      checks = mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit/checks");
       if(name) moptions[i] = mtev_conf_get_namespaced_hash(checks, "config", name);
-      mtev_conf_release_section(checks);
+      mtev_conf_release_section_read(checks);
     }
   }
   if(!m->initiate_check) {

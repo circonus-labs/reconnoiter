@@ -65,14 +65,14 @@ ip_acl_onload(mtev_image_t *self) {
   ip_acl_module_id = noit_check_register_module("ip_acl");
   if(ip_acl_module_id < 0) return -1;
 
-  acl_c = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/acls//acl", &cnt);
+  acl_c = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "/noit/acls//acl", &cnt);
   for(i=0; i<cnt; i++) {
     char *name;
     int j, rcnt, arcnt = 0;
     mtev_conf_section_t *rule_c;
     if(mtev_conf_env_off(acl_c[i], NULL)) continue;
     if(mtev_conf_get_string(acl_c[i], "@name", &name)) {
-      rule_c = mtev_conf_get_sections(acl_c[i], "rule", &rcnt);
+      rule_c = mtev_conf_get_sections_read(acl_c[i], "rule", &rcnt);
       if(rule_c) {
         mtev_btrie *acl = calloc(1, sizeof(*acl));
         for(j=0; j<rcnt; j++) {
@@ -110,10 +110,10 @@ ip_acl_onload(mtev_image_t *self) {
         mtevL(noit_debug, "ACL %s/%p -> %d/%d rules\n", name, acl, arcnt, rcnt);
         mtev_hash_replace(&acls, name, strlen(name), acl, free, free_btrie);
       }
-      mtev_conf_release_sections(rule_c, rcnt);
+      mtev_conf_release_sections_read(rule_c, rcnt);
     }
   }
-  mtev_conf_release_sections(acl_c, cnt);
+  mtev_conf_release_sections_read(acl_c, cnt);
   
   return 0;
 }

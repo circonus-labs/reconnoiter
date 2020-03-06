@@ -67,7 +67,7 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
 
-  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  section = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
   if(mtev_conf_section_is_empty(section)) goto not_found;
 
   doc = xmlNewDoc((xmlChar *)"1.0");
@@ -85,7 +85,7 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
 
  cleanup:
   if(doc) xmlFreeDoc(doc);
-  mtev_conf_release_section(section);
+  mtev_conf_release_section_read(section);
   return 0;
 }
 
