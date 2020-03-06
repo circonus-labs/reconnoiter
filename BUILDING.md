@@ -10,6 +10,7 @@
  * apr is required if you want to build STOMP drivers.
  * mysql libraries for pure-C mysql client (Java recommended)
  * libssh2 is required for the ssh2 check.
+ * pickletools for the graphite check.
 
 ## Platforms
 
