@@ -212,8 +212,13 @@ listener_metric_track_or_log(void *vrxc, const char *name,
   if(t == METRIC_GUESS) return;
   void *vm;
   if(rxc->immediate_metrics == NULL) {
-    rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
-    mtev_hash_init_locks(rxc->immediate_metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+    pthread_mutex_lock(&rxc->flushlock);
+    if(rxc->immediate_metrics == NULL) {
+      mtev_hash_table *t = calloc(1, sizeof(*t));
+      mtev_hash_init_locks(t, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+      rxc->immediate_metrics = t;
+    }
+    pthread_mutex_unlock(&rxc->flushlock);
   }
   if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm) ||
      mtev_hash_size(rxc->immediate_metrics) > FLUSH_SIZE) {
