@@ -138,13 +138,15 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
     uint32_t plen;
     memcpy(&plen, buffer, sizeof(uint32_t));
     plen = ntohl(plen);
+
+    buffer += sizeof(uint32_t);
+    len -= sizeof(uint32_t);
+
     if(len < plen) {
       mtevL(nldeb, "Short pickle data\n");
       return -1;
     }
     rv++;
-    buffer += sizeof(uint32_t);
-    len -= sizeof(uint32_t);
     try {
       Val result;
       PickleLoader pl((const char *)buffer, plen);
