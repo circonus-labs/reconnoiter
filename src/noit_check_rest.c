@@ -941,7 +941,15 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
   CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(config));
 }
 static void
-configure_lmdb_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePtr c, int64_t *seq) {
+configure_lmdb_check(xmlNodePtr a, xmlNodePtr c, int64_t *seq) {
+  xmlNodePtr n;
+  if (seq) *seq = 0;
+  for (n = a->children; n; n = n->next) {
+  }
+  if (c) {
+    for(n = c->children; n; n = n->next) {
+    }
+  }
 }
 static xmlNodePtr
 make_conf_path(char *path) {
@@ -1087,7 +1095,7 @@ rest_check_free_attrs(char *target, char *name, char *module) {
 }
 
 static int
-rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr)
+rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr, xmlNodePtr config)
 {
   noit_check_t *check = noit_poller_lookup(checkid);
   mtev_boolean exists = mtev_false;
@@ -1099,13 +1107,11 @@ rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr)
     if (exists) {
       return -1;
     }
-    xmlNodePtr config, parent;
     int64_t seq;
     uint64_t old_seq = 0;
     char *target = NULL, *name = NULL, *module = NULL;
     noit_module_t *m = NULL;
     noit_check_t *check = NULL;
-    xmlNodePtr newcheck = NULL;
     /* make sure this isn't a dup */
     rest_check_get_attrs(attr, &target, &name, &module);
     exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
@@ -1123,20 +1129,10 @@ rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr)
       return -1;
     }
     /* create a check here */
-#if 0
-    newcheck = xmlNewNode(NULL, (xmlChar *)"check");
-    xmlSetProp(newcheck, (xmlChar *)"uuid", (xmlChar *)pats[1]);
-    parent = make_conf_path(pats[0]);
-    if(!parent) {
-      return -1;
-    }
-    configure_lmdb_check(parent, newcheck, attr, config, &seq);
+    configure_lmdb_check(attr, config, &seq);
     if(old_seq >= seq && seq != 0) {
       return -1;
     }
-    xmlAddChild(parent, newcheck);
-    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(newcheck));
-#endif
   }
   else {
   }
@@ -1173,7 +1169,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
    * do XML - this is on for test purposes now */
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   if(instance) {
-    rest_set_check_lmdb(checkid, attr);
+    rest_set_check_lmdb(checkid, attr, config);
   }
 
   check = noit_poller_lookup(checkid);
