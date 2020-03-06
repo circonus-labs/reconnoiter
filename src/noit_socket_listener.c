@@ -475,7 +475,7 @@ listener_describe_callback(char *buffer, int size, eventer_t e, void *closure)
 {
   listener_instance_t *inst = (listener_instance_t *)eventer_get_closure(e);
   listener_closure_t *lc = inst ? inst->parent : NULL;
-  if (lc) {
+  if (lc && lc->check) {
     char check_uuid[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(lc->check->checkid, check_uuid);
     snprintf(buffer, size, "%s(%s)", lc->nlname, check_uuid);
@@ -491,7 +491,7 @@ listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *closu
   mtev_acceptor_closure_t *ac = (mtev_acceptor_closure_t *)eventer_get_closure(e);
   listener_instance_t *inst = (listener_instance_t *)mtev_acceptor_closure_ctx(ac);
   listener_closure_t *lc = inst ? inst->parent : NULL;
-  if (lc) {
+  if (lc && lc->check) {
     char check_uuid[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(lc->check->checkid, check_uuid);
     snprintf(buffer, size, "%s(%s)", lc->nlname, check_uuid);
