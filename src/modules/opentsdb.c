@@ -275,8 +275,6 @@ noit_opentsdb_initiate_check(noit_module_t *self,
     int sockaddr_len;
     const char *config_val;
 
-    mtev_dyn_buffer_init(&ccl->buffer);
-
     if(mtev_hash_retr_str(check->config, "listen_port", strlen("listen_port"),
                           (const char **)&config_val)) {
       port = atoi(config_val);

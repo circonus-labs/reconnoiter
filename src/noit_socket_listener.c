@@ -84,6 +84,19 @@ count_records(char *buffer, size_t inlen, size_t *usedlen)
   return count;
 }
 
+static listener_instance_t *
+listener_instance_alloc(void)
+{
+  listener_instance_t *inst = calloc(1, sizeof(*inst));
+  mtev_dyn_buffer_init(&inst->buffer);
+  return inst;
+}
+
+static void
+listener_instance_free(listener_instance_t *inst)
+{
+  mtev_dyn_buffer_destroy(&inst->buffer);
+}
 
 listener_closure_t *
 listener_closure_alloc(const char *name, noit_module_t *mod, noit_check_t *check,
@@ -120,7 +133,6 @@ listener_closure_deref(listener_closure_t *lc)
   if(!zero) return;
 
   pthread_mutex_destroy(&lc->use_lock);
-  mtev_dyn_buffer_destroy(&lc->buffer);
   mtev_hash_delete_all(lc->immediate_metrics, NULL, metric_local_free);
   /* no need to free `lc` here as the noit cleanup code will
    * free the check's closure for us */
@@ -247,7 +259,8 @@ int
 listener_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 {
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
-  listener_closure_t *self = (listener_closure_t *)closure;
+  listener_instance_t *inst = (listener_instance_t *)closure;
+  listener_closure_t *self = (listener_closure_t *)inst->parent;
   int rows_per_cycle = 0, records_this_loop = 0;
   noit_check_t *check = self->check;
   rows_per_cycle = self->rows_per_cycle;
@@ -261,6 +274,7 @@ socket_close:
     eventer_close(e, &newmask);
     listener_flush_immediate(self);
     pthread_mutex_unlock(&self->use_lock);
+    listener_instance_free(inst);
     listener_closure_deref(self);
     return 0;
   }
@@ -270,9 +284,9 @@ socket_close:
     int toRead = READ_CHUNK;
     int num_records = 0;
 
-    mtev_dyn_buffer_ensure(&self->buffer, toRead);
+    mtev_dyn_buffer_ensure(&inst->buffer, toRead);
     errno = 0;
-    len = eventer_read(e, mtev_dyn_buffer_write_pointer(&self->buffer), toRead, &newmask);
+    len = eventer_read(e, mtev_dyn_buffer_write_pointer(&inst->buffer), toRead, &newmask);
 
     if (len == 0) {
       goto socket_close;
@@ -287,26 +301,26 @@ socket_close:
       goto socket_close;
     }
 
-    mtev_dyn_buffer_advance(&self->buffer, len);
-    *mtev_dyn_buffer_write_pointer(&self->buffer) = '\0';
+    mtev_dyn_buffer_advance(&inst->buffer, len);
+    *mtev_dyn_buffer_write_pointer(&inst->buffer) = '\0';
 
     if(!self->count_records) self->count_records = count_records;
     size_t used_size;
-    num_records = self->count_records((char *)mtev_dyn_buffer_data(&self->buffer),
-                                      mtev_dyn_buffer_used(&self->buffer),
+    num_records = self->count_records((char *)mtev_dyn_buffer_data(&inst->buffer),
+                                      mtev_dyn_buffer_used(&inst->buffer),
                                       &used_size);
     if (num_records < 0) goto socket_close;
     if (num_records > 0) {
       records_this_loop += num_records;
-      size_t total_size = mtev_dyn_buffer_used(&self->buffer);
-      if(self->payload_handler(check, (char *)mtev_dyn_buffer_data(&self->buffer), used_size) < 0)
+      size_t total_size = mtev_dyn_buffer_used(&inst->buffer);
+      if(self->payload_handler(check, (char *)mtev_dyn_buffer_data(&inst->buffer), used_size) < 0)
         goto socket_close;
       if (total_size > used_size) {
-        void *end_ptr = mtev_dyn_buffer_data(&self->buffer) + used_size;
-        memmove(mtev_dyn_buffer_data(&self->buffer), end_ptr, total_size - used_size);
-        mtev_dyn_buffer_reset(&self->buffer);
-        mtev_dyn_buffer_advance(&self->buffer, total_size - used_size);
-        *mtev_dyn_buffer_write_pointer(&self->buffer) = '\0';
+        void *end_ptr = mtev_dyn_buffer_data(&inst->buffer) + used_size;
+        memmove(mtev_dyn_buffer_data(&inst->buffer), end_ptr, total_size - used_size);
+        mtev_dyn_buffer_reset(&inst->buffer);
+        mtev_dyn_buffer_advance(&inst->buffer, total_size - used_size);
+        *mtev_dyn_buffer_write_pointer(&inst->buffer) = '\0';
       }
       if (records_this_loop >= rows_per_cycle) {
         listener_flush_immediate(self);
@@ -353,7 +367,9 @@ listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
 
     eventer_t newe;
     listener_closure_ref(self);
-    newe = eventer_alloc_fd(listener_handler, self, fd,
+    listener_instance_t *inst = listener_instance_alloc();
+    inst->parent = self;
+    newe = eventer_alloc_fd(listener_handler, inst, fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
     eventer_add(newe);
     /* continue to accept */
@@ -373,9 +389,9 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   mtev_acceptor_closure_t *ac = closure;
   if(!ac) return 0;
 
-  listener_closure_t *lc = mtev_acceptor_closure_ctx(ac);
-  if(lc) {
-    return listener_handler(e, mask, lc, now);
+  listener_instance_t *inst = mtev_acceptor_closure_ctx(ac);
+  if(inst) {
+    return listener_handler(e, mask, inst, now);
   }
 
 #define ERR_TO_CLIENT(a...) do { \
@@ -424,7 +440,7 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
     ERR_TO_CLIENT("invalid uuid: not configured\n");
     goto bail;
   }
-  lc = check->closure;
+  listener_closure_t *lc = check->closure;
   if(strcmp(check->module, lc->self->hdr.name)) {
     ERR_TO_CLIENT("invalid check: bad type\n");
     goto bail;
@@ -440,9 +456,12 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
     goto bail;
   }
 
-  mtev_acceptor_closure_set_ctx(ac, check->closure, NULL);
-  listener_closure_ref((listener_closure_t *)check->closure);
-  return listener_handler(e, mask, check->closure, now);
+  inst = listener_instance_alloc();
+  inst->parent = lc;
+  listener_closure_ref(lc);
+
+  mtev_acceptor_closure_set_ctx(ac, inst, NULL);
+  return listener_handler(e, mask, inst, now);
 
   bail:
   eventer_remove_fde(e);
@@ -454,7 +473,8 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
 void
 listener_describe_callback(char *buffer, int size, eventer_t e, void *closure)
 {
-  listener_closure_t *lc = (listener_closure_t *)eventer_get_closure(e);
+  listener_instance_t *inst = (listener_instance_t *)eventer_get_closure(e);
+  listener_closure_t *lc = inst ? inst->parent : NULL;
   if (lc) {
     char check_uuid[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(lc->check->checkid, check_uuid);
@@ -469,7 +489,8 @@ void
 listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure)
 {
   mtev_acceptor_closure_t *ac = (mtev_acceptor_closure_t *)eventer_get_closure(e);
-  listener_closure_t *lc = (listener_closure_t *)mtev_acceptor_closure_ctx(ac);
+  listener_instance_t *inst = (listener_instance_t *)mtev_acceptor_closure_ctx(ac);
+  listener_closure_t *lc = inst ? inst->parent : NULL;
   if (lc) {
     char check_uuid[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(lc->check->checkid, check_uuid);

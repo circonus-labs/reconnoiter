@@ -64,7 +64,6 @@ typedef struct listener_closure_s {
   int rows_per_cycle;
   int ipv4_listen_fd;
   int ipv6_listen_fd;
-  mtev_dyn_buffer_t buffer;
   int32_t refcnt;
   mtev_log_stream_t nlerr;
   mtev_log_stream_t nldeb;
@@ -73,6 +72,11 @@ typedef struct listener_closure_s {
   int (*payload_handler)(noit_check_t *check, char *buffer, size_t len);
   int (*count_records)(char *buffer, size_t inlen, size_t *usedlen);
 } listener_closure_t;
+
+typedef struct listener_instance {
+  mtev_dyn_buffer_t buffer;
+  listener_closure_t *parent;
+} listener_instance_t;
 
 #define READ_CHUNK 32768
 
