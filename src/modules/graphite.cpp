@@ -141,6 +141,7 @@ graphite_handle_pickle(noit_check_t *check, char *buffer, size_t len)
       return;
     }
     buffer += sizeof(uint32_t);
+    len -= sizeof(uint32_t);
     try {
       Val result;
       PickleLoader pl((const char *)buffer, plen);
