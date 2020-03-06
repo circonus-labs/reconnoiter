@@ -67,6 +67,7 @@ typedef struct listener_closure_s {
   mtev_log_stream_t nlerr;
   mtev_log_stream_t nldeb;
   char nlname[16];
+  pthread_mutex_t flushlock;
   mtev_hash_table *immediate_metrics;
   int (*payload_handler)(noit_check_t *check, char *buffer, size_t len);
   int (*count_records)(char *buffer, size_t inlen, size_t *usedlen);

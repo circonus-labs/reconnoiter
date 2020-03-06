@@ -116,6 +116,7 @@ listener_closure_alloc(const char *name, noit_module_t *mod, noit_check_t *check
   lc->nldeb = deb;
   lc->nlerr = err;
   strlcpy(lc->nlname, name, sizeof(lc->nlname));
+  pthread_mutex_init(&lc->flushlock, NULL);
   return lc;
 }
 
@@ -132,6 +133,7 @@ listener_closure_deref(listener_closure_t *lc)
   ck_pr_dec_int_zero(&lc->refcnt, &zero);
   if(!zero) return;
 
+  pthread_mutex_destroy(&lc->flushlock);
   mtev_hash_delete_all(lc->immediate_metrics, NULL, metric_local_free);
   /* no need to free `lc` here as the noit cleanup code will
    * free the check's closure for us */
@@ -194,9 +196,13 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
 void
 listener_flush_immediate(listener_closure_t *rxc) {
   struct timeval now;
-  mtev_gettimeofday(&now, NULL);
-  noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
-  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+  pthread_mutex_lock(&rxc->flushlock);
+  if(mtev_hash_size(rxc->immediate_metrics) > 0) {
+    mtev_gettimeofday(&now, NULL);
+    noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
+    mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+  }
+  pthread_mutex_unlock(&rxc->flushlock);
 }
 
 void 
@@ -207,7 +213,7 @@ listener_metric_track_or_log(void *vrxc, const char *name,
   void *vm;
   if(rxc->immediate_metrics == NULL) {
     rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
-    mtev_hash_init(rxc->immediate_metrics);
+    mtev_hash_init_locks(rxc->immediate_metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   }
   if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm) ||
      mtev_hash_size(rxc->immediate_metrics) > FLUSH_SIZE) {
