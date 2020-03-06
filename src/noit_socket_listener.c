@@ -40,6 +40,7 @@
 #include <math.h>
 #include <ctype.h>
 
+#include <mtev_rand.h>
 #include <mtev_rest.h>
 #include <mtev_hash.h>
 #include <mtev_json.h>
@@ -115,7 +116,7 @@ listener_closure_alloc(const char *name, noit_module_t *mod, noit_check_t *check
   lc->nldeb = deb;
   lc->nlerr = err;
   strlcpy(lc->nlname, name, sizeof(lc->nlname));
-  pthread_mutex_init(&lc->use_lock, NULL);
+  pthread_mutex_init(&lc->flushlock, NULL);
   return lc;
 }
 
@@ -132,7 +133,7 @@ listener_closure_deref(listener_closure_t *lc)
   ck_pr_dec_int_zero(&lc->refcnt, &zero);
   if(!zero) return;
 
-  pthread_mutex_destroy(&lc->use_lock);
+  pthread_mutex_destroy(&lc->flushlock);
   mtev_hash_delete_all(lc->immediate_metrics, NULL, metric_local_free);
   /* no need to free `lc` here as the noit cleanup code will
    * free the check's closure for us */
@@ -195,9 +196,13 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
 void
 listener_flush_immediate(listener_closure_t *rxc) {
   struct timeval now;
-  mtev_gettimeofday(&now, NULL);
-  noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
-  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+  pthread_mutex_lock(&rxc->flushlock);
+  if(mtev_hash_size(rxc->immediate_metrics) > 0) {
+    mtev_gettimeofday(&now, NULL);
+    noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
+    mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+  }
+  pthread_mutex_unlock(&rxc->flushlock);
 }
 
 void 
@@ -208,7 +213,7 @@ listener_metric_track_or_log(void *vrxc, const char *name,
   void *vm;
   if(rxc->immediate_metrics == NULL) {
     rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
-    mtev_hash_init(rxc->immediate_metrics);
+    mtev_hash_init_locks(rxc->immediate_metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   }
   if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm) ||
      mtev_hash_size(rxc->immediate_metrics) > FLUSH_SIZE) {
@@ -264,8 +269,14 @@ listener_handler(eventer_t e, int mask, void *closure, struct timeval *now)
   int rows_per_cycle = 0, records_this_loop = 0;
   noit_check_t *check = self->check;
   rows_per_cycle = self->rows_per_cycle;
-
-  pthread_mutex_lock(&self->use_lock);
+  if(!inst->subsequent_invocation) {
+    if(N_L_S_ON(self->nldeb)) {
+      char uuid_str[UUID_STR_LEN+1];
+      mtev_uuid_unparse_lower(check->checkid, uuid_str);
+      mtevL(self->nldeb, "handling %s for %s\n", self->self->hdr.name, uuid_str);
+    }
+    inst->subsequent_invocation = 1;
+  }
 
   if(self->shutdown || (mask & EVENTER_EXCEPTION) || check == NULL) {
 socket_close:
@@ -273,7 +284,6 @@ socket_close:
     eventer_remove_fde(e);
     eventer_close(e, &newmask);
     listener_flush_immediate(self);
-    pthread_mutex_unlock(&self->use_lock);
     listener_instance_free(inst);
     listener_closure_deref(self);
     return 0;
@@ -293,7 +303,6 @@ socket_close:
     }
     else if (len < 0) {
       if (errno == EAGAIN) {
-        pthread_mutex_unlock(&self->use_lock);
         return newmask | EVENTER_EXCEPTION;
       }
 
@@ -324,13 +333,11 @@ socket_close:
       }
       if (records_this_loop >= rows_per_cycle) {
         listener_flush_immediate(self);
-        pthread_mutex_unlock(&self->use_lock);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }
   }
   /* unreachable */
-  pthread_mutex_unlock(&self->use_lock);
   return newmask | EVENTER_EXCEPTION;
 }
 
@@ -338,9 +345,8 @@ int
 listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now)
 {
   listener_closure_t *self = (listener_closure_t *)closure;
-  pthread_mutex_lock(&self->use_lock);
   if (self->shutdown) {
-    pthread_mutex_unlock(&self->use_lock);
+    eventer_close(e, &mask);
     return 0;
   }
 
@@ -351,7 +357,6 @@ listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
     int fd = accept(self->ipv4_listen_fd, &cli_addr, &clilen);
     if (fd < 0) {
       mtevL(self->nlerr, "%s error accept: %s\n", self->nlname, strerror(errno));
-      pthread_mutex_unlock(&self->use_lock);
       return 0;
     }
 
@@ -361,7 +366,6 @@ listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
       mtevL(self->nlerr,
             "%s: could not set accept fd (IPv4) non-blocking: %s\n",
             self->nlname, strerror(errno));
-      pthread_mutex_unlock(&self->use_lock);
       return 0;
     }
 
@@ -369,14 +373,21 @@ listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
     listener_closure_ref(self);
     listener_instance_t *inst = listener_instance_alloc();
     inst->parent = self;
+    mtevL(mtev_error, "listener_handler (%p)\n", inst);
     newe = eventer_alloc_fd(listener_handler, inst, fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
+
+    char poolname[128];
+    poolname[0] = '\0';
+    strlcat(poolname, "noit_module_", sizeof(poolname));
+    strlcat(poolname, self->self->hdr.name, sizeof(poolname));
+    eventer_pool_t *dp = eventer_pool(poolname);
+    if(dp) eventer_set_owner(newe, eventer_choose_owner_pool(dp, mtev_rand()));
+    else eventer_set_owner(newe, eventer_choose_owner(mtev_rand()));
     eventer_add(newe);
     /* continue to accept */
-    pthread_mutex_unlock(&self->use_lock);
     return EVENTER_READ | EVENTER_EXCEPTION;
   }
-  pthread_mutex_unlock(&self->use_lock);
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
@@ -486,6 +497,20 @@ listener_describe_callback(char *buffer, int size, eventer_t e, void *closure)
 }
 
 void
+listener_listen_describe_callback(char *buffer, int size, eventer_t e, void *closure)
+{
+  listener_closure_t *lc = (listener_closure_t *)eventer_get_closure(e);
+  if (lc && lc->check) {
+    char check_uuid[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(lc->check->checkid, check_uuid);
+    snprintf(buffer, size, "%s(%s)", lc->nlname, check_uuid);
+  }
+  else {
+    snprintf(buffer, size, "listener(...)");
+  }
+}
+
+void
 listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure)
 {
   mtev_acceptor_closure_t *ac = (mtev_acceptor_closure_t *)eventer_get_closure(e);
@@ -526,9 +551,7 @@ noit_listener_cleanup(noit_module_t *self, noit_check_t *check)
   listener_closure_t *lc = (listener_closure_t *)check->closure;
 
   /* This is administrative shutdown of services. */
-  pthread_mutex_lock(&lc->use_lock);
   lc->shutdown = mtev_true;
-  pthread_mutex_unlock(&lc->use_lock);
   int mask = 0;
   eventer_t listen_eventer = eventer_find_fd(lc->ipv4_listen_fd);
   if (listen_eventer) {

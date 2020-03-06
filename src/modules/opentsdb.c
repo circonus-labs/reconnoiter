@@ -404,13 +404,19 @@ noit_opentsdb_onload(mtev_image_t *self) {
   return 0;
 }
 
+static int opentsdb_handler(eventer_t e, int m, void *c, struct timeval *t) {
+  return listener_handler(e,m,c,t);
+}
+static int opentsdb_listener(eventer_t e, int m, void *c, struct timeval *t) {
+  return listener_listen_handler(e,m,c,t);
+}
 static int
 noit_opentsdb_init(noit_module_t *self)
 {
-  eventer_name_callback_ext("opentsdb/opentsdb_handler", listener_handler,
+  eventer_name_callback_ext("opentsdb/opentsdb_handler", opentsdb_handler,
                             listener_describe_callback, self);
-  eventer_name_callback_ext("opentsdb/opentsdb_listen_handler", listener_listen_handler,
-                            listener_describe_callback, self);
+  eventer_name_callback_ext("opentsdb/opentsdb_listener", opentsdb_listener,
+                            listener_listen_describe_callback, self);
 
   return 0;
 }

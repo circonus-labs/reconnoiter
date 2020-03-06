@@ -59,7 +59,6 @@ typedef struct listener_closure_s {
   noit_module_t *self;
   noit_check_t *check;
   mtev_boolean shutdown;
-  pthread_mutex_t use_lock;
   int port;
   int rows_per_cycle;
   int ipv4_listen_fd;
@@ -68,6 +67,7 @@ typedef struct listener_closure_s {
   mtev_log_stream_t nlerr;
   mtev_log_stream_t nldeb;
   char nlname[16];
+  pthread_mutex_t flushlock;
   mtev_hash_table *immediate_metrics;
   int (*payload_handler)(noit_check_t *check, char *buffer, size_t len);
   int (*count_records)(char *buffer, size_t inlen, size_t *usedlen);
@@ -75,6 +75,7 @@ typedef struct listener_closure_s {
 
 typedef struct listener_instance {
   mtev_dyn_buffer_t buffer;
+  int subsequent_invocation;
   listener_closure_t *parent;
 } listener_instance_t;
 
@@ -107,6 +108,7 @@ void listener_metric_track_or_log(void *vrxc, const char *name,
 int listener_handler(eventer_t e, int mask, void *closure, struct timeval *now);
 int listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *now);
 int listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now);
+void listener_listen_describe_callback(char *buffer, int size, eventer_t e, void *closure);
 void listener_describe_callback(char *buffer, int size, eventer_t e, void *closure);
 void listener_describe_mtev_callback(char *buffer, int size, eventer_t e, void *closure);
 int noit_listener_config(noit_module_t *self, mtev_hash_table *options);
