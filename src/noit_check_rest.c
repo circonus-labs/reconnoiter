@@ -941,15 +941,50 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
   CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(config));
 }
 static void
-configure_lmdb_check(xmlNodePtr a, xmlNodePtr c, int64_t *seq) {
+configure_lmdb_check(xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
   xmlNodePtr n;
-  if (seq) *seq = 0;
+  char *name = NULL;
+  char *target = NULL;
+  char *resolve_rtype= NULL;
+  char *module = NULL;
+  char *period = NULL;
+  char *timeout = NULL;
+  char *disable = NULL;
+  char *filterset = NULL;
+  char *seq = NULL;
+
+  if (seq_in) *seq_in = 0;
   for (n = a->children; n; n = n->next) {
+#define ATTR2STR(attr) do { \
+  if(!strcmp((char *)n->name, #attr)) { \
+    attr = (char *)xmlNodeGetContent(n); \
+  } \
+} while(0)
+    ATTR2STR(name);
+    ATTR2STR(target);
+    ATTR2STR(resolve_rtype);
+    ATTR2STR(module);
+    ATTR2STR(period);
+    ATTR2STR(timeout);
+    ATTR2STR(disable);
+    ATTR2STR(filterset);
+    ATTR2STR(seq);
   }
+  /* TODO: Store these */
   if (c) {
     for(n = c->children; n; n = n->next) {
     }
   }
+
+  if (name) xmlFree(name);
+  if (target) xmlFree(target);
+  if (resolve_rtype) xmlFree(resolve_rtype);
+  if (module) xmlFree(module);
+  if (period) xmlFree(period);
+  if (timeout) xmlFree(timeout);
+  if (disable) xmlFree(disable);
+  if (filterset) xmlFree(filterset);
+  if (seq) xmlFree(seq);
 }
 static xmlNodePtr
 make_conf_path(char *path) {
@@ -1104,7 +1139,7 @@ rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr, xmlNodePtr config)
   mtev_boolean in_db = mtev_false;
   /* First, check to see if this is already in the db.... TODO */
   if (!in_db) {
-    if (exists) {
+    if (0 && exists) {
       return -1;
     }
     int64_t seq;
@@ -1122,7 +1157,7 @@ rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr, xmlNodePtr config)
       m = noit_module_lookup(module);
     }
     rest_check_free_attrs(target, name, module);
-    if(exists) {
+    if(0 && exists) {
       return -1;
     }
     if(!m) {
