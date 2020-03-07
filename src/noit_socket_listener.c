@@ -133,8 +133,10 @@ listener_closure_deref(listener_closure_t *lc)
   ck_pr_dec_int_zero(&lc->refcnt, &zero);
   if(!zero) return;
 
-  pthread_mutex_destroy(&lc->flushlock);
+  pthread_mutex_lock(&lc->flushlock);
   mtev_hash_delete_all(lc->immediate_metrics, NULL, metric_local_free);
+  pthread_mutex_unlock(&lc->flushlock);
+  pthread_mutex_destroy(&lc->flushlock);
   /* no need to free `lc` here as the noit cleanup code will
    * free the check's closure for us */
   free(lc);
@@ -196,37 +198,32 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
 void
 listener_flush_immediate(listener_closure_t *rxc) {
   struct timeval now;
-  pthread_mutex_lock(&rxc->flushlock);
-  if(mtev_hash_size(rxc->immediate_metrics) > 0) {
-    mtev_gettimeofday(&now, NULL);
-    noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
-    mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
-  }
-  pthread_mutex_unlock(&rxc->flushlock);
+  mtev_gettimeofday(&now, NULL);
+  noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
 }
 
 void 
 listener_metric_track_or_log(void *vrxc, const char *name, 
                              metric_type_t t, const void *vp, struct timeval *w) {
+  metric_t *m;
   listener_closure_t *rxc = vrxc;
   if(t == METRIC_GUESS) return;
   void *vm;
+retry:
+  pthread_mutex_lock(&rxc->flushlock);
   if(rxc->immediate_metrics == NULL) {
-    pthread_mutex_lock(&rxc->flushlock);
-    if(rxc->immediate_metrics == NULL) {
-      mtev_hash_table *t = calloc(1, sizeof(*t));
-      mtev_hash_init_locks(t, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
-      rxc->immediate_metrics = t;
-    }
-    pthread_mutex_unlock(&rxc->flushlock);
+    mtev_hash_table *tbl = calloc(1, sizeof(*tbl));
+    mtev_hash_init_mtev_memory(tbl, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+    rxc->immediate_metrics = tbl;
   }
   if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm) ||
      mtev_hash_size(rxc->immediate_metrics) > FLUSH_SIZE) {
     /* collision, just log it out */
     listener_flush_immediate(rxc);
   }
-  metric_t *m = calloc(1, sizeof(*m));
-  memset(m, 0, sizeof(*m));
+  pthread_mutex_unlock(&rxc->flushlock);
+  m = calloc(1, sizeof(*m));
   m->metric_name = strdup(name);
   m->metric_type = t;
   if(w) {
@@ -262,7 +259,13 @@ listener_metric_track_or_log(void *vrxc, const char *name,
     }
   }
   noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
-  mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m);
+  pthread_mutex_lock(&rxc->flushlock);
+  mtev_boolean inserted = mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m);
+  pthread_mutex_unlock(&rxc->flushlock);
+  if(!inserted) {
+    metric_local_free(m);
+    goto retry;
+  }
 }
 
 int
@@ -288,7 +291,9 @@ socket_close:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fde(e);
     eventer_close(e, &newmask);
+    pthread_mutex_lock(&self->flushlock);
     listener_flush_immediate(self);
+    pthread_mutex_unlock(&self->flushlock);
     listener_instance_free(inst);
     listener_closure_deref(self);
     return 0;
@@ -337,7 +342,9 @@ socket_close:
         *mtev_dyn_buffer_write_pointer(&inst->buffer) = '\0';
       }
       if (records_this_loop >= rows_per_cycle) {
+        pthread_mutex_lock(&self->flushlock);
         listener_flush_immediate(self);
+        pthread_mutex_unlock(&self->flushlock);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }
