@@ -67,8 +67,8 @@
   mtev_conf_section_t nc__lock
 #define NCLOCK \
   nc__locked = mtev_true; \
-  nc__lock = (nc_lock_ro) ? mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit") :mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
-#define NCUNLOCK if(nc__locked) nc_lock_ro ? mtev_conf_release_section_read(nc__lock) : mtev_conf_release_section(nc__lock)
+  nc__lock = (nc_lock_ro) ? mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit") :mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit")
+#define NCUNLOCK if(nc__locked) nc_lock_ro ? mtev_conf_release_section_read(nc__lock) : mtev_conf_release_section_write(nc__lock)
 
 #define NS_NODE_CONTENT(parent, ns, k, v, followup) do { \
   xmlNodePtr tmp; \
@@ -948,10 +948,10 @@ make_conf_path(char *path) {
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
   fullpath[sizeof(fullpath)-1] = '\0';
-  section = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/checks");
+  section = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
   start = mtev_conf_section_to_xmlnodeptr(section);
-  mtev_conf_release_section(section);
   if(mtev_conf_section_is_empty(section)) {
+    mtev_conf_release_section_write(section);
     return NULL;
   }
   for (tok = strtok_r(fullpath, "/", &brk);
@@ -970,6 +970,7 @@ make_conf_path(char *path) {
     }
     start = tmp;
   }
+  mtev_conf_release_section_write(section);
   return start;
 }
 static int

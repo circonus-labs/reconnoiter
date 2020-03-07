@@ -97,9 +97,8 @@ make_conf_path(char *path) {
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
   fullpath[strlen(fullpath)-1] = '\0';
-  section = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/filtersets");
+  section = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/filtersets");
   start = mtev_conf_section_to_xmlnodeptr(section);
-  mtev_conf_release_section(section);
   if(mtev_conf_section_is_empty(section)) return NULL;
   for (tok = strtok_r(fullpath, "/", &brk);
        tok;
@@ -116,6 +115,7 @@ make_conf_path(char *path) {
     }
     start = tmp;
   }
+  mtev_conf_release_section_write(section);
   return start;
 }
 static xmlNodePtr
@@ -206,7 +206,7 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
-  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  section = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
   if(mtev_conf_section_is_empty(section)) goto not_found;
   if(noit_filter_remove(section) == 0) goto not_found;
   CONF_REMOVE(section);
@@ -226,7 +226,7 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
-  mtev_conf_release_section(section);
+  mtev_conf_release_section_write(section);
   return 0;
 }
 
@@ -275,7 +275,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
-  section = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  section = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
   exists = noit_filter_get_seq(pats[1], &old_seq);
   if(mtev_conf_section_is_empty(section) && exists == mtev_true) {
     /* It's someone else's */
@@ -315,7 +315,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   restc->call_closure_free = NULL;
   restc->call_closure = NULL;
   restc->fastpath = rest_show_filter;
-  mtev_conf_release_section(section);
+  mtev_conf_release_section_write(section);
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
@@ -330,7 +330,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
 
  cleanup:
   if(doc) xmlFreeDoc(doc);
-  mtev_conf_release_section(section);
+  mtev_conf_release_section_write(section);
   return 0;
 }
 

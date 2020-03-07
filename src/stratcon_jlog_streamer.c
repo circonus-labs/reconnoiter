@@ -1244,13 +1244,13 @@ stratcon_add_noit(const char *target, unsigned short port,
     if(cnt != 0) return -1;
   }
 
-  parent = mtev_conf_get_section(MTEV_CONF_ROOT, "//noits//include//noits");
+  parent = mtev_conf_get_section_write(MTEV_CONF_ROOT, "//noits//include//noits");
   if(mtev_conf_section_is_empty(parent)) {
-    mtev_conf_release_section(parent);
-    parent = mtev_conf_get_section(MTEV_CONF_ROOT, "//noits");
+    mtev_conf_release_section_write(parent);
+    parent = mtev_conf_get_section_write(MTEV_CONF_ROOT, "//noits");
   }
   if(mtev_conf_section_is_empty(parent)) {
-    mtev_conf_release_section(parent);
+    mtev_conf_release_section_write(parent);
     return -1;
   }
   snprintf(port_str, sizeof(port_str), "%d", port);
@@ -1281,7 +1281,7 @@ stratcon_add_noit(const char *target, unsigned short port,
                                  (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
                                  NULL,
                                  jlog_streamer_ctx_free);
-  mtev_conf_release_section(parent);
+  mtev_conf_release_section_write(parent);
   return 1;
 }
 static int
@@ -1302,7 +1302,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
    * possibly limited by CN if specified. */
   snprintf(path, sizeof(path),
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
-  noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
+  noit_configs = mtev_conf_get_sections_write(MTEV_CONF_ROOT, path, &cnt);
   for(i=0; i<cnt; i++) {
     char expected_cn[256];
     if(mtev_conf_get_stringbuf(noit_configs[i], "self::node()/config/cn",
@@ -1319,13 +1319,13 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
     xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
     xmlFreeNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
   }
-  mtev_conf_release_sections(noit_configs, cnt);
+  mtev_conf_release_sections_write(noit_configs, cnt);
 
   /* A sweep through the config of all noits with this CN */
   if(cn) {
     snprintf(path, sizeof(path),
              "//noits/noit[self::node()/config/cn/text()=\"%s\"]", cn);
-    noit_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
+    noit_configs = mtev_conf_get_sections_write(MTEV_CONF_ROOT, path, &cnt);
     for(i=0; i<cnt; i++) {
       pthread_mutex_lock(&noit_ip_by_cn_lock);
       mtev_hash_delete(&noit_ip_by_cn, cn, strlen(cn), free, free);
@@ -1334,7 +1334,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
       xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
       xmlFreeNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
     }
-    mtev_conf_release_sections(noit_configs, cnt);
+    mtev_conf_release_sections_write(noit_configs, cnt);
   }
 
   int n = 0;

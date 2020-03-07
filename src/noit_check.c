@@ -3058,7 +3058,7 @@ noit_check_process_repl(xmlDocPtr doc) {
   xmlNodePtr root, child, next = NULL, node;
   root = xmlDocGetRootElement(doc);
   mtev_conf_section_t section;
-  mtev_conf_section_t checks = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit/checks");
+  mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
   mtevAssert(!mtev_conf_section_is_empty(checks));
   for(child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
@@ -3087,14 +3087,14 @@ noit_check_process_repl(xmlDocPtr doc) {
 
       snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
                uuid_str);
-      mtev_conf_section_t oldsection = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+      mtev_conf_section_t oldsection = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
       if(!mtev_conf_section_is_empty(oldsection)) {
         CONF_REMOVE(oldsection);
         node = mtev_conf_section_to_xmlnodeptr(oldsection);
         xmlUnlinkNode(node);
         xmlFreeNode(node);
       }
-      mtev_conf_release_section(oldsection);
+      mtev_conf_release_section_write(oldsection);
     }
 
     xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);
@@ -3104,7 +3104,7 @@ noit_check_process_repl(xmlDocPtr doc) {
     noit_poller_process_check_conf(section);
     i++;
   }
-  mtev_conf_release_section(checks);
+  mtev_conf_release_section_write(checks);
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(check_error, "local config write failed\n");
