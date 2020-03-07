@@ -785,13 +785,13 @@ noit_poller_process_checks(const char *xpath) {
   int i, cnt = 0;
   mtev_conf_section_t *sec;
   __config_load_generation++;
-  mtevL(mtev_error, "processing checks\n");
+  mtevL(check_debug, "processing checks\n");
   sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
   for(i=0; i<cnt; i++) {
     noit_poller_process_check_conf(sec[i]);
   }
   mtev_conf_release_sections_read(sec, cnt);
-  mtevL(mtev_error, "processed %d checks\n", cnt);
+  mtevL(check_debug, "processed %d checks\n", cnt);
 }
 
 int
