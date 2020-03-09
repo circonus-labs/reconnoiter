@@ -31,6 +31,10 @@
 #define _NOIT_LMDB_TOOLS_H
 
 #include <lmdb.h>
+#include <mtev_uuid.h>
+
+#define NOIT_LMDB_CHECK_ATTRIBUTE_TYPE 'A'
+#define NOIT_LMDB_CHECK_CONFIG_TYPE 'C'
 
 typedef struct noit_lmdb_instance {
   MDB_env *env;
@@ -38,6 +42,7 @@ typedef struct noit_lmdb_instance {
   char *path;
 } noit_lmdb_instance_t;
 
+char *noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key);
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path);
 void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance);
 

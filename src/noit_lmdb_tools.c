@@ -51,6 +51,46 @@ lmdb_instance_mkdir(const char *path)
   return mtev_true;
 }
 
+inline char *
+noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key)
+{
+  size_t size = sizeof(uuid_t) + sizeof(char);
+  unsigned short ns_len = 0, key_len = 0;
+  unsigned short ns_len_network_byte_order = 0, key_len_network_byte_order = 0;
+  size_t current_location = 0;
+  char *toRet = NULL;
+  /* Must have key */
+  mtevAssert(key != NULL);
+  if (ns) {
+    ns_len = strlen(ns);
+    size += sizeof(unsigned short);
+    size += ns_len;
+    ns_len_network_byte_order = htons(ns_len);
+  }
+  key_len = strlen(key);
+  size += sizeof(unsigned short);
+  size += key_len;
+  key_len_network_byte_order = htons(key_len);
+
+  toRet = (char *)malloc(size);
+  mtevAssert(toRet);
+  memcpy(toRet, id, sizeof(uuid_t));
+  memcpy(toRet + sizeof(uuid_t), &type, sizeof(char));
+  current_location = sizeof(uuid_t) + sizeof(char);
+  memcpy(toRet + current_location, &ns_len_network_byte_order, sizeof(unsigned short));
+  current_location += sizeof(unsigned short);
+  if (ns_len) {
+    memcpy(toRet + current_location, ns, ns_len);
+    current_location += ns_len;
+  }
+  memcpy(toRet + current_location, &key_len_network_byte_order, sizeof(unsigned short));
+  current_location += sizeof(unsigned short);
+  if (key_len) {
+    memcpy(toRet + current_location, key, key_len);
+  }
+  return toRet;
+}
+
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
 {
   int rc;
