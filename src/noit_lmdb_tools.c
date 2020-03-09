@@ -59,21 +59,22 @@ noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key)
   unsigned short ns_len_network_byte_order = 0, key_len_network_byte_order = 0;
   size_t current_location = 0;
   char *toRet = NULL;
-  /* Must have key */
-  mtevAssert(key != NULL);
   if (ns) {
     ns_len = strlen(ns);
     size += sizeof(unsigned short);
     size += ns_len;
     ns_len_network_byte_order = htons(ns_len);
   }
-  key_len = strlen(key);
-  size += sizeof(unsigned short);
-  size += key_len;
-  key_len_network_byte_order = htons(key_len);
+  if (key) {
+    key_len = strlen(key);
+    size += sizeof(unsigned short);
+    size += key_len;
+    key_len_network_byte_order = htons(key_len);
+  }
 
   toRet = (char *)malloc(size);
   mtevAssert(toRet);
+
   memcpy(toRet, id, sizeof(uuid_t));
   memcpy(toRet + sizeof(uuid_t), &type, sizeof(char));
   current_location = sizeof(uuid_t) + sizeof(char);
