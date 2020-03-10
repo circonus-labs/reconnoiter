@@ -36,6 +36,7 @@
 
 #include <mtev_conf.h>
 #include <mtev_reverse_socket.h>
+#include <mtev_stats.h>
 
 #include <jlog.h>
 #include <netinet/in.h>
@@ -43,6 +44,8 @@
 #include <arpa/inet.h>
 
 #include "stratcon_datastore.h"
+
+typedef struct jlog_stream_stats jlog_streamer_stats_t;
 
 typedef struct jlog_streamer_ctx_t {
   uint32_t jlog_feed_cmd;
@@ -59,6 +62,7 @@ typedef struct jlog_streamer_ctx_t {
     JLOG_STREAMER_WANT_CHKPT = 5,
     JLOG_STREAMER_WANT_ERROR = 6,
   } state;
+  struct timeval state_change;
   int count;            /* Number of jlog messages we need to read */
   int needs_chkpt;
   struct {
@@ -71,6 +75,7 @@ typedef struct jlog_streamer_ctx_t {
   uint64_t total_events;
   uint64_t total_bytes_read;
 
+  jlog_streamer_stats_t *stats;
   void (*push)(stratcon_datastore_op_t, struct sockaddr *, const char *, void *, eventer_t);
 } jlog_streamer_ctx_t;
 
