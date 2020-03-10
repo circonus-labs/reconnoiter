@@ -118,6 +118,7 @@ stats_alloc(stats_ns_t *parent, const char *cn) {
 static jlog_streamer_stats_t *
 fetch_stats_for_feed(const char *cn, bool durable) {
   jlog_streamer_stats_t *h;
+  if(cn == NULL) return NULL;
   mtev_hash_table *tbl = durable ? &noit_stats_durable : &noit_stats_iep;
   pthread_mutex_lock(&noit_ip_by_cn_lock);
   void *vs;
@@ -434,7 +435,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
   }
 
   mtev_connection_update_timeout(nctx);
-  if(feedtype) {
+  if(ctx->stats == NULL && feedtype) {
     if(!strcmp(feedtype, "iep"))
       ctx->stats = fetch_stats_for_feed(cn_expected, false);
     else if(!strcmp(feedtype, "storage"))
