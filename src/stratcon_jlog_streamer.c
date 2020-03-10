@@ -52,6 +52,7 @@
 #include <mtev_getip.h>
 #include <mtev_rest.h>
 #include <mtev_json.h>
+#include <mtev_stats.h>
 
 #include "noit_mtev_bridge.h"
 #include "stratcon_dtrace_probes.h"
@@ -72,6 +73,71 @@ static struct sockaddr_in self_stratcon_ip;
 static mtev_boolean stratcon_selfcheck_extended_id = mtev_true;
 
 static struct timeval DEFAULT_NOIT_PERIOD_TV = { 5UL, 0UL };
+
+static stats_ns_t *iep_ns, *durable_ns;
+struct jlog_stream_stats {
+  stats_handle_t *total_events;
+  stats_handle_t *total_bytes_read;
+  stats_handle_t *last_event_age;
+  stats_handle_t *jlog_id;
+  stats_handle_t *batch_size;
+  stats_handle_t *batch_read_latency;
+  stats_handle_t *batch_commit_latency;
+};
+mtev_hash_table noit_stats_iep; /* this is persistent */
+mtev_hash_table noit_stats_durable; /* this is persistent */
+
+static jlog_streamer_stats_t *
+stats_alloc(stats_ns_t *parent, const char *cn) {
+  jlog_streamer_stats_t *h = calloc(1, sizeof(*h));
+  stats_ns_t *ns = mtev_stats_ns(parent, cn);
+  stats_ns_add_tag(ns, "broker-cn", cn);
+  h->jlog_id = stats_register(ns, "jlog_id", STATS_TYPE_UINT32);
+  h->total_events = stats_register(ns, "events", STATS_TYPE_UINT64);
+  stats_handle_units(h->total_events, STATS_UNITS_MESSAGES);
+  h->total_bytes_read = stats_register(ns, "inoctets", STATS_TYPE_UINT64);
+  stats_handle_units(h->total_bytes_read, STATS_UNITS_BYTES);
+  h->last_event_age = stats_register(ns, "delay", STATS_TYPE_DOUBLE);
+  stats_handle_units(h->last_event_age, STATS_UNITS_SECONDS);
+  h->batch_size = stats_register(ns, "batch_size", STATS_TYPE_HISTOGRAM);
+  stats_handle_units(h->batch_size, STATS_UNITS_MESSAGES);
+  h->batch_read_latency = stats_register(ns, "batch_read_latency", STATS_TYPE_HISTOGRAM);
+  stats_handle_tagged_name(h->batch_read_latency, "batch_latency");
+  stats_handle_add_tag(h->batch_read_latency, "feed-stage", "read");
+  stats_handle_units(h->batch_read_latency, STATS_UNITS_SECONDS);
+  h->batch_commit_latency = stats_register(ns, "batch_commit_latency", STATS_TYPE_HISTOGRAM);
+  stats_handle_tagged_name(h->batch_commit_latency, "batch_latency");
+  stats_handle_add_tag(h->batch_commit_latency, "feed-stage", "commit");
+  stats_handle_units(h->batch_commit_latency, STATS_UNITS_SECONDS);
+  return h;
+}
+
+static jlog_streamer_stats_t *
+fetch_stats_for_feed(const char *cn, bool durable) {
+  jlog_streamer_stats_t *h;
+  mtev_hash_table *tbl = durable ? &noit_stats_durable : &noit_stats_iep;
+  pthread_mutex_lock(&noit_ip_by_cn_lock);
+  void *vs;
+  if(mtev_hash_retrieve(tbl, cn, strlen(cn), &vs)) {
+    pthread_mutex_unlock(&noit_ip_by_cn_lock);
+    return (jlog_streamer_stats_t *)vs;
+  }
+
+  h = stats_alloc(durable ? durable_ns : iep_ns, cn);
+  mtev_hash_store(tbl, strdup(cn), strlen(cn), h);
+  pthread_mutex_unlock(&noit_ip_by_cn_lock);
+  return h;
+}
+
+static void stats_clear(jlog_streamer_stats_t *h) {
+  stats_handle_clear(h->jlog_id);
+  stats_handle_clear(h->total_events);
+  stats_handle_clear(h->total_bytes_read);
+  stats_handle_clear(h->last_event_age);
+  stats_handle_clear(h->batch_size);
+  stats_handle_clear(h->batch_read_latency);
+  stats_handle_clear(h->batch_commit_latency);
+}
 
 static const char *feed_type_to_str(int jlog_feed_cmd) {
   switch(jlog_feed_cmd) {
@@ -94,7 +160,7 @@ static const char *jlog_state_to_str(int state) {
   return "unknown";
 }
 
-static void change_state(jlog_streamer_ctx_t *ctx, mtev_connection_ctx_t *nctx, int new_state) {
+static void change_state(jlog_streamer_ctx_t *ctx, mtev_connection_ctx_t *nctx, int new_state, struct timeval *now) {
   if (N_L_S_ON(jlog_streamer_deb)) {
     mtevL(jlog_streamer_deb, "changing state (type: %s) from \"%s\" to \"%s\" - [%s] [%s]\n",
           feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
@@ -103,6 +169,7 @@ static void change_state(jlog_streamer_ctx_t *ctx, mtev_connection_ctx_t *nctx, 
           (nctx && nctx->remote_str) ? nctx->remote_str : "(null)",
           (nctx && nctx->remote_cn) ? nctx->remote_cn : "(null)");
   }
+  if(now) ctx->state_change = *now;
   ctx->state = new_state;
 }
 
@@ -286,6 +353,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
      * if(len == 0) return ctx->bytes_read;
      */
     ctx->total_bytes_read += len;
+    if(ctx->stats) stats_set(ctx->stats->total_bytes_read, STATS_TYPE_UINT64, &ctx->total_bytes_read);
     ctx->bytes_read += len;
   }
   mtevAssert(ctx->bytes_read == ctx->bytes_expected);
@@ -348,7 +416,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       mtevL(jlog_streamer_err, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
             nctx->remote_cn ? nctx->remote_cn : "(null)", strerror(errno));
  socket_error:
-    change_state(ctx, nctx, JLOG_STREAMER_WANT_INITIATE);
+    change_state(ctx, nctx, JLOG_STREAMER_WANT_INITIATE, now);
     ctx->count = 0;
     ctx->needs_chkpt = 0;
     ctx->bytes_read = 0;
@@ -356,11 +424,18 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     if(ctx->buffer) free(ctx->buffer);
     ctx->buffer = NULL;
     nctx->schedule_reattempt(nctx, now);
+    if(ctx->stats) stats_clear(ctx->stats);
     nctx->close(nctx, e);
     return 0;
   }
 
   mtev_connection_update_timeout(nctx);
+  if(feedtype) {
+    if(!strcmp(feedtype, "iep"))
+      ctx->stats = fetch_stats_for_feed(cn_expected, false);
+    else if(!strcmp(feedtype, "storage"))
+      ctx->stats = fetch_stats_for_feed(cn_expected, true);
+  }
   while(1) {
     switch(ctx->state) {
       case JLOG_STREAMER_WANT_INITIATE:
@@ -378,7 +453,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                 (int)len, (int)sizeof(ctx->jlog_feed_cmd));
           goto socket_error;
         }
-        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT, now);
         break;
 
       case JLOG_STREAMER_WANT_ERROR:
@@ -399,14 +474,14 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                                    nctx->remote_str, (char *)cn_expected,
                                    ctx->count);
         if(ctx->count < 0)
-          change_state(ctx, nctx, JLOG_STREAMER_WANT_ERROR);
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_ERROR, now);
         else
-          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER);
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER, now);
         break;
 
       case JLOG_STREAMER_WANT_HEADER:
         if(ctx->count == 0) {
-          change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT, now);
           break;
         }
         FULLREAD(e, ctx, sizeof(ctx->header));
@@ -422,7 +497,13 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                                     ctx->header.tv_sec, ctx->header.tv_usec,
                                     ctx->header.message_len);
         free(ctx->buffer); ctx->buffer = NULL;
-        change_state(ctx, nctx, JLOG_STREAMER_WANT_BODY);
+        if(ctx->stats) {
+          struct timeval diff, last = { .tv_sec = ctx->header.tv_sec, .tv_usec = ctx->header.tv_usec };
+          sub_timeval(*now, last, &diff);
+          double last_event_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+          stats_set(ctx->stats->last_event_age, STATS_TYPE_DOUBLE, &last_event_ms);
+        }
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_BODY, now);
         break;
 
       case JLOG_STREAMER_WANT_BODY:
@@ -443,13 +524,24 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         ctx->buffer = NULL;
         ctx->count--;
         ctx->total_events++;
+        if(ctx->stats) {
+          stats_set_hist_intscale(ctx->stats->batch_size, ctx->count, 0, 1);
+          stats_set(ctx->stats->total_events, STATS_TYPE_UINT64, &ctx->total_events);
+        }
         if(ctx->count == 0 && ctx->needs_chkpt) {
           eventer_t completion_e;
           eventer_remove_fde(e);
           completion_e = eventer_alloc_copy(e);
           nctx->e = completion_e;
           eventer_set_mask(completion_e, EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION);
-          change_state(ctx, nctx, JLOG_STREAMER_IS_ASYNC);
+          /* register read latency */
+          if(ctx->stats) {
+            /* register batch size and latency */
+            struct timeval diff;
+            sub_timeval(*now, ctx->state_change, &diff);
+            stats_set_hist_intscale(ctx->stats->batch_read_latency, diff.tv_sec * 1000000 + diff.tv_usec, -6, 1);
+          }
+          change_state(ctx, nctx, JLOG_STREAMER_IS_ASYNC, now);
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
                     NULL, completion_e);
           mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: Pushing %s batch async [%s] [%s]: [%u/%u]\n",
@@ -461,13 +553,19 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           return 0;
         }
         else if(ctx->count == 0)
-          change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT);
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT, now);
         else
-          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER);
+          change_state(ctx, nctx, JLOG_STREAMER_WANT_HEADER, now);
         break;
 
       case JLOG_STREAMER_IS_ASYNC:
-        change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT); /* falls through */
+        if(ctx->stats) {
+          /* register batch size and latency */
+          struct timeval diff;
+          sub_timeval(*now, ctx->state_change, &diff);
+          stats_set_hist_intscale(ctx->stats->batch_commit_latency, diff.tv_sec * 1000000 + diff.tv_usec, -6, 1);
+        }
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_CHKPT, now); /* falls through */
       case JLOG_STREAMER_WANT_CHKPT:
         mtevL(jlog_streamer_deb, "stratcon_jlog_recv_handler: Pushing %s checkpoint [%s] [%s]: [%u/%u]\n",
               feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
@@ -497,7 +595,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         STRATCON_STREAM_CHECKPOINT(eventer_get_fd(e), (char *)feedtype,
                                         nctx->remote_str, (char *)cn_expected,
                                         ctx->header.chkpt.log, ctx->header.chkpt.marker);
-        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT);
+        if(ctx->stats) stats_set(ctx->stats->jlog_id, STATS_TYPE_UINT32, &ctx->header.chkpt.log);
+        change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT, now);
         break;
     }
   }
@@ -670,6 +769,7 @@ emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
            uuid_str, cn_expected, feedtype);
   wr = str + strlen(str);
   len = sizeof(str) - (wr - str);
+
 
   /* Now we write NAME TYPE VALUE into wr each time and push it */
 #define push_noit_m_str(name, value) do { \
@@ -1546,6 +1646,8 @@ stratcon_jlog_streamer_init(const char *toplevel) {
     mtev_getip_ipv4(remote, &self_stratcon_ip.sin_addr);
     gethostname(self_stratcon_hostname, sizeof(self_stratcon_hostname));
     eventer_add_in(periodic_noit_metrics, NULL, whence);
+    stats_ns_t *ns = mtev_stats_ns(NULL, "stratcon");
+    stats_ns_replace_tag(ns, "stratcon-id", uuid_str);
   }
 }
 
@@ -1553,5 +1655,13 @@ void
 stratcon_jlog_streamer_init_globals(void) {
   mtev_hash_init(&noits);
   mtev_hash_init(&noit_ip_by_cn);
+  mtev_hash_init(&noit_stats_iep);
+  mtev_hash_init(&noit_stats_durable);
+  stats_ns_t *ns = mtev_stats_ns(NULL, "stratcon");
+  stats_ns_t *fns = mtev_stats_ns(ns, "feed");
+  iep_ns = mtev_stats_ns(fns, "iep");
+  stats_ns_add_tag(iep_ns, "feed-type", "iep");
+  durable_ns = mtev_stats_ns(fns, "storage");
+  stats_ns_add_tag(durable_ns, "feed-type", "storage");
 }
 

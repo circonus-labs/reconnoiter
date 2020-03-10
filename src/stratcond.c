@@ -184,6 +184,8 @@ static int child_main() {
 
   mtev_watchdog_child_eventer_heartbeat();
 
+  (void)mtev_stats_ns(NULL, "stratcon");
+
   mtev_dso_init();
   mtev_console_init(APPNAME);
   mtev_console_conf_init();
