@@ -1013,8 +1013,29 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   ATTR2LMDB(filterset);
   ATTR2LMDB(seq);
 
+  char *config_val = NULL;
   if (c) {
     for(n = c->children; n; n = n->next) {
+      config_val = (char *)xmlNodeGetContent(n);
+      if (config_val != NULL) {
+        char *prefix = NULL;
+        if (n->ns) {
+          prefix = (char *)n->ns->prefix;
+        }
+        key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)n->name, &key_size);
+        mtevAssert(key);
+        mdb_key.mv_data = key;
+        mdb_key.mv_size = key_size;
+        mdb_data.mv_data = config_val;
+        mdb_data.mv_size = strlen(config_val);
+        rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
+        if (rc != 0) {
+          mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
+        }
+        if (config_val) xmlFree(config_val);
+        free(key);
+      }
+      config_val = NULL;
     }
   }
 
