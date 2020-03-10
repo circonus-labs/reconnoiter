@@ -79,6 +79,7 @@ struct jlog_stream_stats {
   stats_handle_t *total_events;
   stats_handle_t *total_bytes_read;
   stats_handle_t *last_event_age;
+  stats_handle_t *connection_age;
   stats_handle_t *jlog_id;
   stats_handle_t *batch_size;
   stats_handle_t *batch_read_latency;
@@ -99,6 +100,8 @@ stats_alloc(stats_ns_t *parent, const char *cn) {
   stats_handle_units(h->total_bytes_read, STATS_UNITS_BYTES);
   h->last_event_age = stats_register(ns, "delay", STATS_TYPE_DOUBLE);
   stats_handle_units(h->last_event_age, STATS_UNITS_SECONDS);
+  h->connection_age = stats_register(ns, "uptime", STATS_TYPE_DOUBLE);
+  stats_handle_units(h->connection_age, STATS_UNITS_SECONDS);
   h->batch_size = stats_register(ns, "batch_size", STATS_TYPE_HISTOGRAM);
   stats_handle_units(h->batch_size, STATS_UNITS_MESSAGES);
   h->batch_read_latency = stats_register(ns, "batch_read_latency", STATS_TYPE_HISTOGRAM);
@@ -134,6 +137,7 @@ static void stats_clear(jlog_streamer_stats_t *h) {
   stats_handle_clear(h->total_events);
   stats_handle_clear(h->total_bytes_read);
   stats_handle_clear(h->last_event_age);
+  stats_handle_clear(h->connection_age);
   stats_handle_clear(h->batch_size);
   stats_handle_clear(h->batch_read_latency);
   stats_handle_clear(h->batch_commit_latency);
@@ -436,6 +440,12 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     else if(!strcmp(feedtype, "storage"))
       ctx->stats = fetch_stats_for_feed(cn_expected, true);
   }
+  if(ctx->stats) {
+    struct timeval diff;
+    sub_timeval(*now, nctx->last_connect, &diff);
+    double last_event = (double)diff.tv_sec + (double)diff.tv_usec / 1000000.0;
+    stats_set(ctx->stats->connection_age, STATS_TYPE_DOUBLE, &last_event);
+  }
   while(1) {
     switch(ctx->state) {
       case JLOG_STREAMER_WANT_INITIATE:
@@ -500,8 +510,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         if(ctx->stats) {
           struct timeval diff, last = { .tv_sec = ctx->header.tv_sec, .tv_usec = ctx->header.tv_usec };
           sub_timeval(*now, last, &diff);
-          double last_event_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
-          stats_set(ctx->stats->last_event_age, STATS_TYPE_DOUBLE, &last_event_ms);
+          double last_event = (double)diff.tv_sec + (double)diff.tv_usec / 1000000.0;
+          stats_set(ctx->stats->last_event_age, STATS_TYPE_DOUBLE, &last_event);
         }
         change_state(ctx, nctx, JLOG_STREAMER_WANT_BODY, now);
         break;
