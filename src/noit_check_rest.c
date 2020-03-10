@@ -958,22 +958,7 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   mtevAssert(instance != NULL);
 
   if (seq_in) *seq_in = 0;
-  for (n = a->children; n; n = n->next) {
-#define ATTR2STR(attr) do { \
-  if(!strcmp((char *)n->name, #attr)) { \
-    attr = (char *)xmlNodeGetContent(n); \
-  } \
-} while(0)
-    ATTR2STR(name);
-    ATTR2STR(target);
-    ATTR2STR(resolve_rtype);
-    ATTR2STR(module);
-    ATTR2STR(period);
-    ATTR2STR(timeout);
-    ATTR2STR(disable);
-    ATTR2STR(filterset);
-    ATTR2STR(seq);
-  }
+
   MDB_txn *txn;
   MDB_cursor *cursor;
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
@@ -987,37 +972,44 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   size_t key_size;
   char *key;
   MDB_val mdb_key, mdb_data;
-#define ATTR2LMDB(val) do {\
-  if (val != NULL) { \
-    key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, #val, &key_size); \
-    mtevAssert(key); \
-    mdb_key.mv_data = key; \
-    mdb_key.mv_size = key_size; \
-    mdb_data.mv_data = val; \
-    mdb_data.mv_size = strlen(val); \
-    rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
-    if (rc != 0) { \
-      mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
+  char *val = NULL;
+  for (n = a->children; n; n = n->next) {
+#define ATTR2LMDB(attr_name) do { \
+  if(!strcmp((char *)n->name, #attr_name)) { \
+    val = (char *)xmlNodeGetContent(n); \
+    if (val) { \
+      key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, #attr_name, &key_size); \
+      mtevAssert(key); \
+      mdb_key.mv_data = key; \
+      mdb_key.mv_size = key_size; \
+      mdb_data.mv_data = val; \
+      mdb_data.mv_size = strlen(val); \
+      rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
+      if (rc != 0) { \
+        mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
+      } \
+      free(key); \
+      xmlFree(val); \
+      val = NULL; \
     } \
-    free(key); \
-  }\
-} while (0)
+  } \
+} while(0)
 
-  ATTR2LMDB(name);
-  ATTR2LMDB(target);
-  ATTR2LMDB(resolve_rtype);
-  ATTR2LMDB(module);
-  ATTR2LMDB(period);
-  ATTR2LMDB(timeout);
-  ATTR2LMDB(disable);
-  ATTR2LMDB(filterset);
-  ATTR2LMDB(seq);
+    ATTR2LMDB(name);
+    ATTR2LMDB(target);
+    ATTR2LMDB(resolve_rtype);
+    ATTR2LMDB(module);
+    ATTR2LMDB(period);
+    ATTR2LMDB(timeout);
+    ATTR2LMDB(disable);
+    ATTR2LMDB(filterset);
+    ATTR2LMDB(seq);
+  }
 
-  char *config_val = NULL;
   if (c) {
     for(n = c->children; n; n = n->next) {
-      config_val = (char *)xmlNodeGetContent(n);
-      if (config_val != NULL) {
+      val = (char *)xmlNodeGetContent(n);
+      if (val != NULL) {
         char *prefix = NULL;
         if (n->ns) {
           prefix = (char *)n->ns->prefix;
@@ -1026,16 +1018,16 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
         mtevAssert(key);
         mdb_key.mv_data = key;
         mdb_key.mv_size = key_size;
-        mdb_data.mv_data = config_val;
-        mdb_data.mv_size = strlen(config_val);
+        mdb_data.mv_data = val;
+        mdb_data.mv_size = strlen(val);
         rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
         if (rc != 0) {
           mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
         }
-        if (config_val) xmlFree(config_val);
+        if (val) xmlFree(val);
         free(key);
       }
-      config_val = NULL;
+      val = NULL;
     }
   }
 
