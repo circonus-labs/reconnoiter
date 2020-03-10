@@ -941,8 +941,10 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
   CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(config));
 }
 static void
-configure_lmdb_check(xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
+configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
   xmlNodePtr n;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  int rc = 0;
   char *name = NULL;
   char *target = NULL;
   char *resolve_rtype= NULL;
@@ -952,6 +954,8 @@ configure_lmdb_check(xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
   char *disable = NULL;
   char *filterset = NULL;
   char *seq = NULL;
+
+  mtevAssert(instance != NULL);
 
   if (seq_in) *seq_in = 0;
   for (n = a->children; n; n = n->next) {
@@ -970,11 +974,55 @@ configure_lmdb_check(xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
     ATTR2STR(filterset);
     ATTR2STR(seq);
   }
-  /* TODO: Store these */
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  rc = mdb_cursor_open(txn, instance->dbi, &cursor);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  size_t key_size;
+  char *key;
+  MDB_val mdb_key, mdb_data;
+#define ATTR2LMDB(val) do {\
+  if (val != NULL) { \
+    key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, #val, &key_size); \
+    mtevAssert(key); \
+    mdb_key.mv_data = key; \
+    mdb_key.mv_size = key_size; \
+    mdb_data.mv_data = val; \
+    mdb_data.mv_size = strlen(val); \
+    rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
+    if (rc != 0) { \
+      mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
+    } \
+    free(key); \
+  }\
+} while (0)
+
+  ATTR2LMDB(name);
+  ATTR2LMDB(target);
+  ATTR2LMDB(resolve_rtype);
+  ATTR2LMDB(module);
+  ATTR2LMDB(period);
+  ATTR2LMDB(timeout);
+  ATTR2LMDB(disable);
+  ATTR2LMDB(filterset);
+  ATTR2LMDB(seq);
+
   if (c) {
     for(n = c->children; n; n = n->next) {
     }
   }
+
+  rc = mdb_txn_commit(txn);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  mdb_cursor_close(cursor);
 
   if (name) xmlFree(name);
   if (target) xmlFree(target);
@@ -1164,7 +1212,7 @@ rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr, xmlNodePtr config)
       return -1;
     }
     /* create a check here */
-    configure_lmdb_check(attr, config, &seq);
+    configure_lmdb_check(checkid, attr, config, &seq);
     if(old_seq >= seq && seq != 0) {
       return -1;
     }
