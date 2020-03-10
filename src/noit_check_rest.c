@@ -943,17 +943,8 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
 static void
 configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
   xmlNodePtr n;
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   int rc = 0;
-  char *name = NULL;
-  char *target = NULL;
-  char *resolve_rtype= NULL;
-  char *module = NULL;
-  char *period = NULL;
-  char *timeout = NULL;
-  char *disable = NULL;
-  char *filterset = NULL;
-  char *seq = NULL;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
 
@@ -970,9 +961,8 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
     mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
   }
   size_t key_size;
-  char *key;
+  char *key = NULL, *val = NULL;;
   MDB_val mdb_key, mdb_data;
-  char *val = NULL;
   for (n = a->children; n; n = n->next) {
 #define ATTR2LMDB(attr_name) do { \
   if(!strcmp((char *)n->name, #attr_name)) { \
@@ -1036,16 +1026,6 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
   mdb_cursor_close(cursor);
-
-  if (name) xmlFree(name);
-  if (target) xmlFree(target);
-  if (resolve_rtype) xmlFree(resolve_rtype);
-  if (module) xmlFree(module);
-  if (period) xmlFree(period);
-  if (timeout) xmlFree(timeout);
-  if (disable) xmlFree(disable);
-  if (filterset) xmlFree(filterset);
-  if (seq) xmlFree(seq);
 }
 static xmlNodePtr
 make_conf_path(char *path) {
