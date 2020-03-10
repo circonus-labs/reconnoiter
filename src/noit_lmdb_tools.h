@@ -42,7 +42,7 @@ typedef struct noit_lmdb_instance {
   char *path;
 } noit_lmdb_instance_t;
 
-char *noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key);
+char*noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size_out);
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path);
 void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance);
 

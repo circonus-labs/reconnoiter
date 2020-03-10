@@ -52,7 +52,7 @@ lmdb_instance_mkdir(const char *path)
 }
 
 inline char *
-noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key)
+noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size_out)
 {
   size_t size = sizeof(uuid_t) + sizeof(char);
   unsigned short ns_len = 0, key_len = 0;
@@ -61,14 +61,12 @@ noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key)
   char *toRet = NULL;
   if (ns) {
     ns_len = strlen(ns);
-    size += sizeof(unsigned short);
-    size += ns_len;
+    size += (sizeof(unsigned short) + ns_len);
     ns_len_network_byte_order = htons(ns_len);
   }
   if (key) {
     key_len = strlen(key);
-    size += sizeof(unsigned short);
-    size += key_len;
+    size += (sizeof(unsigned short) + key_len);
     key_len_network_byte_order = htons(key_len);
   }
 
@@ -88,6 +86,9 @@ noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key)
   current_location += sizeof(unsigned short);
   if (key_len) {
     memcpy(toRet + current_location, key, key_len);
+  }
+  if (size_out) {
+    *size_out = size;
   }
   return toRet;
 }
