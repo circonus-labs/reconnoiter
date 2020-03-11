@@ -81,7 +81,7 @@ count_records(char *buffer, size_t inlen, size_t *usedlen)
     iter++;
     previter = iter;
   }
-  *usedlen = previter - iter;
+  *usedlen = previter - buffer;
   return count;
 }
 
