@@ -982,6 +982,7 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
       xmlFree(val); \
       val = NULL; \
     } \
+    continue; \
   } \
 } while(0)
 
@@ -997,6 +998,8 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   }
 
   if (c) {
+    key = NULL;
+    val = NULL;
     for(n = c->children; n; n = n->next) {
       val = (char *)xmlNodeGetContent(n);
       if (val != NULL) {
@@ -1004,8 +1007,10 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
         if (n->ns) {
           prefix = (char *)n->ns->prefix;
         }
+        
         key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)n->name, &key_size);
         mtevAssert(key);
+
         mdb_key.mv_data = key;
         mdb_key.mv_size = key_size;
         mdb_data.mv_data = val;
@@ -1014,10 +1019,12 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
         if (rc != 0) {
           mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
         }
-        if (val) xmlFree(val);
+        
         free(key);
+        if (val) xmlFree(val);
+        key = NULL;
+        val = NULL;
       }
-      val = NULL;
     }
   }
 
@@ -1026,6 +1033,8 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
   mdb_cursor_close(cursor);
+
+  noit_lmdb_check_keys_to_hash_table(checkid);
 }
 static xmlNodePtr
 make_conf_path(char *path) {

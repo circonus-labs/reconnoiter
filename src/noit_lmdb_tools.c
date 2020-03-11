@@ -28,6 +28,7 @@
  */
 
 #include "noit_lmdb_tools.h"
+#include "noit_check.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -51,42 +52,83 @@ lmdb_instance_mkdir(const char *path)
   return mtev_true;
 }
 
+mtev_hash_table *noit_lmdb_check_keys_to_hash_table(uuid_t id) {
+  int rc;
+  MDB_val mdb_key, mdb_data;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  mtevAssert(instance != NULL);
+  mtev_hash_table *toRet = (mtev_hash_table *)malloc(sizeof(mtev_hash_table));
+
+  mtev_hash_init(toRet);
+
+  key = noit_lmdb_make_check_key(id, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  while(rc == 0) {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    if (data) {
+      mtevL(mtev_error, "KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
+      noit_lmdb_free_check_data(data);
+    }
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+  txn = NULL;
+  free(key);
+
+  return toRet;
+}
+
 inline char *
 noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size_out)
 {
-  size_t size = sizeof(uuid_t) + sizeof(char);
   unsigned short ns_len = 0, key_len = 0;
   unsigned short ns_len_network_byte_order = 0, key_len_network_byte_order = 0;
-  size_t current_location = 0;
+  char *current_location = NULL;
   char *toRet = NULL;
   if (ns) {
     ns_len = strlen(ns);
-    size += (sizeof(unsigned short) + ns_len);
-    ns_len_network_byte_order = htons(ns_len);
   }
   if (key) {
     key_len = strlen(key);
-    size += (sizeof(unsigned short) + key_len);
-    key_len_network_byte_order = htons(key_len);
   }
+  ns_len_network_byte_order = htons(ns_len);
+  key_len_network_byte_order = htons(key_len);
 
-  toRet = (char *)malloc(size);
+  size_t size = sizeof(uuid_t) + sizeof(char) + sizeof(unsigned short) + sizeof(unsigned short) + ns_len + key_len;
+  toRet = current_location = (char *)calloc(1, size);
   mtevAssert(toRet);
 
-  memcpy(toRet, id, sizeof(uuid_t));
-  memcpy(toRet + sizeof(uuid_t), &type, sizeof(char));
-  current_location = sizeof(uuid_t) + sizeof(char);
-  memcpy(toRet + current_location, &ns_len_network_byte_order, sizeof(unsigned short));
+  memcpy(current_location, id, sizeof(uuid_t));
+  current_location += sizeof(uuid_t);
+  memcpy(current_location, &type, sizeof(char));
+  current_location += sizeof(char);
+  memcpy(current_location, &ns_len_network_byte_order, sizeof(unsigned short));
   current_location += sizeof(unsigned short);
   if (ns_len) {
-    memcpy(toRet + current_location, ns, ns_len);
+    memcpy(current_location, ns, ns_len);
     current_location += ns_len;
   }
-  memcpy(toRet + current_location, &key_len_network_byte_order, sizeof(unsigned short));
+  memcpy(current_location, &key_len_network_byte_order, sizeof(unsigned short));
   current_location += sizeof(unsigned short);
   if (key_len) {
-    memcpy(toRet + current_location, key, key_len);
+    memcpy(current_location, key, key_len);
+    current_location += key_len;
   }
+  /* Verify that we copied in what we expected to - this is checking for programming
+   * errors */
+  mtevAssert((current_location - size) == toRet);
   if (size_out) {
     *size_out = size;
   }
@@ -95,8 +137,10 @@ noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size
 noit_lmdb_check_data_t *noit_lmdb_check_data_from_key(char *key) {
   noit_lmdb_check_data_t *toRet = NULL;
   size_t current_location = 0;
-  if (!key) return toRet;
-  toRet = (noit_lmdb_check_data_t *)malloc(sizeof(noit_lmdb_check_data_t));
+  if (!key) {
+    return toRet;
+  }
+  toRet = (noit_lmdb_check_data_t *)calloc(1, sizeof(noit_lmdb_check_data_t));
   memcpy(&toRet->id, key, sizeof(uuid_t));
   current_location += sizeof(uuid_t);
   memcpy(&toRet->type, key + current_location, sizeof(char));

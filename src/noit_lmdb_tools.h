@@ -31,6 +31,7 @@
 #define _NOIT_LMDB_TOOLS_H
 
 #include <lmdb.h>
+#include <mtev_hash.h>
 #include <mtev_uuid.h>
 
 #define NOIT_LMDB_CHECK_ATTRIBUTE_TYPE 'A'
@@ -51,6 +52,7 @@ typedef struct noit_lmdb_check_data {
   char *key;
 } noit_lmdb_check_data_t;
 
+mtev_hash_table *noit_lmdb_check_keys_to_hash_table(uuid_t id);
 char* noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size_out);
 noit_lmdb_check_data_t *noit_lmdb_check_data_from_key(char *key);
 void noit_lmdb_free_check_data(noit_lmdb_check_data_t *data);
