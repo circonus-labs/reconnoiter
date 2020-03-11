@@ -774,6 +774,9 @@ function TestProc:start(params, sloppy)
   if params.boot_match == nil then params.boot_match = params.argv[1] .. ' ready' end
   if TEST_OPTIONS.debug then table.insert(argv, 2, '-d') end
   self.proc = start_child(params)
+  self.crash_counter = self:watchfor(mtev.pcre(" \\d+ has crashed"))
+  self.crash_count = 0
+  self.expect_crash = false
   return self
 end
 function TestProc:pause() return self.proc:pause() end
@@ -802,7 +805,16 @@ end
 function TestProc:is_booted()
   return self.proc ~= nil and self.proc:pid() >= 0
 end
+function TestProc:crashes()
+  while self:waitfor(self.crash_counter,0) do
+    self.crash_count = self.crash_count + 1
+  end
+  return self.crash_count
+end
 function TestProc:stop()
+  if self.expect_crash == false and self:crashes() > 0 then
+    error("process crashed")
+  end
   if self.proc ~= nil then
     kill_child(self.proc)
   end
