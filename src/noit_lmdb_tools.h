@@ -58,5 +58,6 @@ noit_lmdb_check_data_t *noit_lmdb_check_data_from_key(char *key);
 void noit_lmdb_free_check_data(noit_lmdb_check_data_t *data);
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path);
 void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance);
+void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance);
 
 #endif

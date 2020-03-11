@@ -253,3 +253,35 @@ void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance)
   free(instance->path);
   free(instance);
 }
+
+#define NOIT_LMDB_RESIZE_FACTOR 1.5
+void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
+{
+
+  MDB_envinfo mei;
+  MDB_stat mst;
+  uint64_t new_mapsize;
+
+  /* prevent new transactions on the write side */
+  //ck_rwlock_write_lock(&hh->resize_lock);
+
+  /* check if resize is necessary.. another thread may have already resized. */
+  mdb_env_info(instance->env, &mei);
+  mdb_env_stat(instance->env, &mst);
+
+  uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
+
+  /* resize on 80% full */
+  if ((double)size_used / mei.me_mapsize < 0.8) {
+    //ck_rwlock_write_unlock(&hh->resize_lock);
+    return;
+  }
+
+  new_mapsize = (double)mei.me_mapsize * NOIT_LMDB_RESIZE_FACTOR;
+  new_mapsize += (new_mapsize % mst.ms_psize);
+
+  mdb_env_set_mapsize(instance->env, new_mapsize);
+
+  //ck_rwlock_write_unlock(&hh->resize_lock);
+}
+
