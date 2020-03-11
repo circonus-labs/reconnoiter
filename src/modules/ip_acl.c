@@ -45,7 +45,7 @@
 
 #ifndef MTEV_FEATURE_CONF_RW
 #define mtev_conf_get_sections_read mtev_conf_get_sections
-#define mtev_conf_relase_sections_read mtev_conf_relase_sections
+#define mtev_conf_release_sections_read mtev_conf_release_sections
 #endif
 
 #define DENY_PTR (void *)-1
