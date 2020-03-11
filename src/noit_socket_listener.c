@@ -332,6 +332,7 @@ socket_close:
     if (num_records > 0) {
       records_this_loop += num_records;
       size_t total_size = mtev_dyn_buffer_used(&inst->buffer);
+      mtevAssert(total_size >= used_size);
       if(self->payload_handler(check, (char *)mtev_dyn_buffer_data(&inst->buffer), used_size) < 0)
         goto socket_close;
       if (total_size > used_size) {
