@@ -106,12 +106,12 @@ noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size
   ns_len_network_byte_order = htons(ns_len);
   key_len_network_byte_order = htons(key_len);
 
-  size_t size = sizeof(uuid_t) + sizeof(char) + sizeof(unsigned short) + sizeof(unsigned short) + ns_len + key_len;
+  size_t size = UUID_SIZE + sizeof(char) + sizeof(unsigned short) + sizeof(unsigned short) + ns_len + key_len;
   toRet = current_location = (char *)calloc(1, size);
   mtevAssert(toRet);
 
-  memcpy(current_location, id, sizeof(uuid_t));
-  current_location += sizeof(uuid_t);
+  memcpy(current_location, id, UUID_SIZE);
+  current_location += UUID_SIZE;
   memcpy(current_location, &type, sizeof(char));
   current_location += sizeof(char);
   memcpy(current_location, &ns_len_network_byte_order, sizeof(unsigned short));
@@ -141,8 +141,8 @@ noit_lmdb_check_data_t *noit_lmdb_check_data_from_key(char *key) {
     return toRet;
   }
   toRet = (noit_lmdb_check_data_t *)calloc(1, sizeof(noit_lmdb_check_data_t));
-  memcpy(&toRet->id, key, sizeof(uuid_t));
-  current_location += sizeof(uuid_t);
+  memcpy(&toRet->id, key, UUID_SIZE);
+  current_location += UUID_SIZE;
   memcpy(&toRet->type, key + current_location, sizeof(char));
   current_location += sizeof(char);
   memcpy(&toRet->ns_len, key + current_location, sizeof(unsigned short));
