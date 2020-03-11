@@ -52,7 +52,7 @@ lmdb_instance_mkdir(const char *path)
   return mtev_true;
 }
 
-mtev_hash_table *noit_lmdb_check_keys_to_hash_table(uuid_t id) {
+int noit_lmdb_check_keys_to_hash_table(mtev_hash_table *table, uuid_t id) {
   int rc;
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn;
@@ -61,9 +61,12 @@ mtev_hash_table *noit_lmdb_check_keys_to_hash_table(uuid_t id) {
   size_t key_size;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance != NULL);
-  mtev_hash_table *toRet = (mtev_hash_table *)malloc(sizeof(mtev_hash_table));
 
-  mtev_hash_init(toRet);
+  if (!table) {
+    return -1;
+  }
+
+  mtev_hash_init(table);
 
   key = noit_lmdb_make_check_key(id, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
   mtevAssert(key);
@@ -77,8 +80,20 @@ mtev_hash_table *noit_lmdb_check_keys_to_hash_table(uuid_t id) {
   while(rc == 0) {
     noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
     if (data) {
+      if (memcmp(data->id, id, UUID_SIZE) != 0) {
+        noit_lmdb_free_check_data(data);
+        break;
+      }
+      char *my_key = (char *)malloc(mdb_key.mv_size);
+      memcpy(my_key, mdb_key.mv_data, mdb_key.mv_size);
+      if (!mtev_hash_store(table, my_key, mdb_key.mv_size, NULL)) {
+        free(my_key);
+      }
       mtevL(mtev_error, "KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
       noit_lmdb_free_check_data(data);
+    }
+    else {
+      break;
     }
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   }
@@ -87,7 +102,7 @@ mtev_hash_table *noit_lmdb_check_keys_to_hash_table(uuid_t id) {
   txn = NULL;
   free(key);
 
-  return toRet;
+  return 0;
 }
 
 inline char *

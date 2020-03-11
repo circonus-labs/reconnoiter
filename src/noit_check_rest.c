@@ -945,11 +945,13 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   xmlNodePtr n;
   int rc = 0;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  mtev_hash_table conf_table;
 
   mtevAssert(instance != NULL);
 
   if (seq_in) *seq_in = 0;
 
+  noit_lmdb_check_keys_to_hash_table(&conf_table, checkid);
   MDB_txn *txn;
   MDB_cursor *cursor;
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
@@ -978,6 +980,7 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
       if (rc != 0) { \
         mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
       } \
+      mtev_hash_delete(&conf_table, key, key_size, free, NULL); \
       free(key); \
       xmlFree(val); \
       val = NULL; \
@@ -1019,7 +1022,7 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
         if (rc != 0) {
           mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
         }
-        
+        mtev_hash_delete(&conf_table, key, key_size, free, NULL);
         free(key);
         if (val) xmlFree(val);
         key = NULL;
@@ -1028,13 +1031,13 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
     }
   }
 
+  /* TODO: Delete entries from DB remaining in conf_table */
   rc = mdb_txn_commit(txn);
   if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
   mdb_cursor_close(cursor);
-
-  noit_lmdb_check_keys_to_hash_table(checkid);
+  mtev_hash_destroy(&conf_table, free, NULL);
 }
 static xmlNodePtr
 make_conf_path(char *path) {
