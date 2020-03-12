@@ -50,7 +50,7 @@ noit_rest_show_config(mtev_http_rest_closure_t *restc,
   char xpath[1024];
 
   snprintf(xpath, sizeof(xpath), "/%s", pats ? pats[0] : mtev_get_app_name());
-  node = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  node = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
 
   if(mtev_conf_section_is_empty(node)) {
     mtev_http_response_not_found(ctx, "text/xml");
@@ -66,7 +66,7 @@ noit_rest_show_config(mtev_http_rest_closure_t *restc,
   }
 
   if(doc) xmlFreeDoc(doc);
-  mtev_conf_release_section(node);
+  mtev_conf_release_section_read(node);
 
   return 0;
 }

@@ -178,7 +178,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
   assert(seq>=0);
   set->seq = seq;
 
-  rules = mtev_conf_get_sections(setinfo, "rule", &fcnt);
+  rules = mtev_conf_get_sections_read(setinfo, "rule", &fcnt);
   /* Here we will work through the list backwards pushing the rules on
    * the front of the list.  That way we can simply walk them in order
    * for the application process.
@@ -218,7 +218,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     int hte_cnt, hti, tablesize = 2; \
     int32_t auto_max = 0; \
     char *htstr; \
-    htentries = mtev_conf_get_sections(rules[j], #rname, &hte_cnt); \
+    htentries = mtev_conf_get_sections_read(rules[j], #rname, &hte_cnt); \
     mtev_conf_get_int32(rules[j], "@" #rname "_auto_add", &auto_max); \
     if(hte_cnt || auto_max > 0) { \
       rule->rname##_auto_hash_max = auto_max; \
@@ -241,7 +241,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
         } \
       } \
     } \
-    mtev_conf_release_sections(htentries, hte_cnt); \
+    mtev_conf_release_sections_read(htentries, hte_cnt); \
 } while(0);
     HT_COMPILE(target, mtev_false);
     HT_COMPILE(module, mtev_false);
@@ -313,7 +313,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
               set->name, cursor->skipto);
     }
   }
-  mtev_conf_release_sections(rules, fcnt);
+  mtev_conf_release_sections_read(rules, fcnt);
   mtev_boolean used_new_one = mtev_false;
   void *vset;
   LOCKFS();
@@ -376,12 +376,12 @@ noit_filters_from_conf() {
   mtev_conf_section_t *sets;
   int i, cnt;
 
-  sets = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/filtersets//filterset", &cnt);
+  sets = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "/noit/filtersets//filterset", &cnt);
   for(i=0; i<cnt; i++) {
     mtev_watchdog_child_heartbeat();
     noit_filter_compile_add(sets[i]);
   }
-  mtev_conf_release_sections(sets, cnt);
+  mtev_conf_release_sections_read(sets, cnt);
 }
 
 int
@@ -389,7 +389,7 @@ noit_filters_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL;
   root = xmlDocGetRootElement(doc);
-  mtev_conf_section_t filtersets = mtev_conf_get_section(MTEV_CONF_ROOT, filtersets_replication_path);
+  mtev_conf_section_t filtersets = mtev_conf_get_section_write(MTEV_CONF_ROOT, filtersets_replication_path);
   mtevAssert(!mtev_conf_section_is_empty(filtersets));
   for(child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
@@ -401,21 +401,21 @@ noit_filters_process_repl(xmlDocPtr doc) {
       char xpath[MAX_METRIC_TAGGED_NAME];
       snprintf(xpath, sizeof(xpath), "/noit/filtersets//filterset[@name=\"%s\"]",
                filterset_name);
-      mtev_conf_section_t oldsection = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+      mtev_conf_section_t oldsection = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
       if(!mtev_conf_section_is_empty(oldsection)) {
         CONF_REMOVE(oldsection);
         xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(oldsection);
         xmlUnlinkNode(node);
         xmlFreeNode(node);
       }
-      mtev_conf_release_section(oldsection);
+      mtev_conf_release_section_write(oldsection);
       xmlUnlinkNode(child);
       xmlAddChild(mtev_conf_section_to_xmlnodeptr(filtersets), child);
       CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(child));
     }
     i++;
   }
-  mtev_conf_release_section(filtersets);
+  mtev_conf_release_section_write(filtersets);
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(nf_error, "local config write failed\n");
@@ -642,13 +642,13 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   snprintf(xpath, sizeof(xpath), "/%s",
            info->path);
-  fsnode = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  fsnode = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
   if(mtev_conf_section_is_empty(fsnode)) {
     nc_printf(ncct, "internal error\n");
-    mtev_conf_release_section(fsnode);
+    mtev_conf_release_section_read(fsnode);
     return -1;
   }
-  rules = mtev_conf_get_sections(fsnode, "rule", &rulecnt);
+  rules = mtev_conf_get_sections_read(fsnode, "rule", &rulecnt);
   for(i=0; i<rulecnt; i++) {
     char val[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[i], "@type", val, sizeof(val)))
@@ -658,7 +658,7 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   char *vstr; \
   mtev_conf_section_t *ht; \
   int cnt; \
-  ht = mtev_conf_get_sections(rules[i], #a, &cnt); \
+  ht = mtev_conf_get_sections_read(rules[i], #a, &cnt); \
   if(ht && cnt) { \
     nc_printf(ncct, "\t%s: hash match of %d items\n", #a, cnt); \
   } \
@@ -666,7 +666,7 @@ noit_console_filter_show(mtev_console_closure_t ncct,
     nc_printf(ncct, "\t%s: /%s/\n", #a, val); \
     free(vstr); \
   } \
-  mtev_conf_release_sections(ht, cnt); \
+  mtev_conf_release_sections_read(ht, cnt); \
 } while(0)
     DUMP_ATTR(target);
     DUMP_ATTR(module);
@@ -677,8 +677,8 @@ noit_console_filter_show(mtev_console_closure_t ncct,
     DUMP_ATTR(id);
     DUMP_ATTR(skipto);
   }
-  mtev_conf_release_sections(rules, rulecnt);
-  mtev_conf_release_section(fsnode);
+  mtev_conf_release_sections_write(rules, rulecnt);
+  mtev_conf_release_section_write(fsnode);
   return 0;
 }
 static int
@@ -698,7 +698,7 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   snprintf(xpath, sizeof(xpath), "/%s",
            info->path);
-  fsnode = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  fsnode = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
   if(mtev_conf_section_is_empty(fsnode)) {
     nc_printf(ncct, "internal error");
     goto bail;
@@ -712,7 +712,7 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
     }
     rulenum = atoi(argv[0]);
     snprintf(xpath, sizeof(xpath), "rule[%d]", rulenum);
-    byebye = mtev_conf_get_section(fsnode, xpath);
+    byebye = mtev_conf_get_section_write(fsnode, xpath);
     if(mtev_conf_section_is_empty(byebye)) {
       nc_printf(ncct, "cannot find rule\n");
       goto bail;
@@ -732,7 +732,7 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
     if(!strcmp(argv[0], "before") || !strcmp(argv[0], "after")) {
       int rulenum = atoi(argv[1]);
       snprintf(xpath, sizeof(xpath), "rule[%d]", rulenum);
-      add_arg = mtev_conf_get_section(fsnode, xpath);
+      add_arg = mtev_conf_get_section_write(fsnode, xpath);
       add_arg_initialized = mtev_true;
       if(mtev_conf_section_is_empty(add_arg)) {
         nc_printf(ncct, "%s rule not found\n", xpath);
@@ -770,11 +770,11 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
   rv = 0;
  bail:
   if (add_arg_initialized) {
-    mtev_conf_release_section(add_arg);
+    mtev_conf_release_section_write(add_arg);
   }
-  mtev_conf_release_section(fsnode);
-  mtev_conf_release_section(sec2);
-  mtev_conf_release_section(byebye);
+  mtev_conf_release_section_write(fsnode);
+  mtev_conf_release_section_write(sec2);
+  mtev_conf_release_section_write(byebye);
   return rv;
 }
 static int
@@ -803,13 +803,13 @@ noit_console_filter_configure(mtev_console_closure_t ncct,
     goto cleanup;
   }
   snprintf(xpath, sizeof(xpath), "/%s", info->path);
-  parent = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  parent = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
   if(mtev_conf_section_is_empty(parent)) {
     nc_printf(ncct, "internal error, can't final current working path\n");
     goto cleanup;
   }
   snprintf(xpath, sizeof(xpath), "filterset[@name=\"%s\"]", argv[0]);
-  fsnode = mtev_conf_get_section(parent, xpath);
+  fsnode = mtev_conf_get_section_write(parent, xpath);
   if(closure) {
     int removed;
     removed = noit_filter_remove(fsnode);
@@ -854,8 +854,8 @@ noit_console_filter_configure(mtev_console_closure_t ncct,
     }
   }
  cleanup:
-  mtev_conf_release_section(parent);
-  mtev_conf_release_section(fsnode);
+  mtev_conf_release_section_write(parent);
+  mtev_conf_release_section_write(fsnode);
   return rv;
 }
 
@@ -888,7 +888,7 @@ noit_filtersets_cull_unused() {
 
   mtev_hash_init(&active);
 
-  declares = mtev_conf_get_sections(MTEV_CONF_ROOT, declare_xpath, &n_declares);
+  declares = mtev_conf_get_sections_write(MTEV_CONF_ROOT, declare_xpath, &n_declares);
   for(i=0;i<n_declares;i++) {
     if(!buffer) buffer = malloc(128);
     if(mtev_conf_get_stringbuf(declares[i], "@name", buffer, 128)) {
@@ -939,7 +939,7 @@ noit_filtersets_cull_unused() {
       }
     }
   }
-  mtev_conf_release_sections(declares, n_declares);
+  mtev_conf_release_sections_write(declares, n_declares);
 
   mtev_hash_destroy(&active, free, NULL);
   return removed;

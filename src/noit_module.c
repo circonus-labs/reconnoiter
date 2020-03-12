@@ -259,7 +259,7 @@ void noit_module_init() {
   mtev_console_add_help("module", noit_module_help, noit_module_options);
 
   /* Load the modules (these *are* specific to the /noit/ root) */
-  sections = mtev_conf_get_sections(MTEV_CONF_ROOT, "/noit/modules//module", &cnt);
+  sections = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "/noit/modules//module", &cnt);
   if(!sections) cnt = 0;
   for(i=0; i<cnt; i++) {
     mtev_dso_loader_t *loader = &__noit_module_loader;
@@ -311,7 +311,7 @@ void noit_module_init() {
     }
     if(module->config) {
       int rv;
-      include_sections = mtev_conf_get_sections(sections[i], "include", &section_cnt);
+      include_sections = mtev_conf_get_sections_read(sections[i], "include", &section_cnt);
       if ((include_sections) && (section_cnt == 1)) {
         config = mtev_conf_get_hash(*include_sections, "config");
       }
@@ -331,7 +331,7 @@ void noit_module_init() {
               "Configure failed on %s\n", module_name);
         continue;
       }
-      if(include_sections) mtev_conf_release_sections(include_sections, section_cnt);
+      if(include_sections) mtev_conf_release_sections_read(include_sections, section_cnt);
     }
     if(module->init && module->init(module)) {
       mtevL(noit_stderr,
@@ -340,7 +340,7 @@ void noit_module_init() {
     }
     mtevL(noit_debug, "Module %s successfully loaded.\n", module_name);
   }
-  mtev_conf_release_sections(sections, cnt);
+  mtev_conf_release_sections_read(sections, cnt);
   if(module_match) pcre_free(module_match);
 }
 

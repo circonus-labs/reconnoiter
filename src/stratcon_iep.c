@@ -198,7 +198,7 @@ void stratcon_iep_submit_statements() {
   mtev_hash_init(&stmt_by_provider);
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//statement");
-  statement_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
+  statement_configs = mtev_conf_get_sections_read(MTEV_CONF_ROOT, path, &cnt);
   mtevL(noit_debug, "Found %d %s stanzas\n", cnt, path);
 
   /* Phase 1: sweep in all the statements */
@@ -259,7 +259,7 @@ void stratcon_iep_submit_statements() {
       exit(-1);
     }
     stmt = vstmt;
-    reqs = mtev_conf_get_sections(statement_configs[i],
+    reqs = mtev_conf_get_sections_read(statement_configs[i],
                                   "self::node()/requires", &rcnt);
     if(rcnt > 0) {
       stmt->requires = malloc(rcnt * sizeof(*(stmt->requires)));
@@ -309,7 +309,7 @@ void stratcon_iep_submit_statements() {
 
   mtev_hash_destroy(&stmt_by_provider, NULL, NULL);
   mtev_hash_destroy(&stmt_by_id, NULL, statement_node_free);
-  mtev_conf_release_sections(statement_configs, cnt);
+  mtev_conf_release_sections_read(statement_configs, cnt);
 }
 
 void stratcon_iep_submit_queries() {
@@ -318,7 +318,7 @@ void stratcon_iep_submit_queries() {
   char path[256];
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//query");
-  query_configs = mtev_conf_get_sections(MTEV_CONF_ROOT, path, &cnt);
+  query_configs = mtev_conf_get_sections_read(MTEV_CONF_ROOT, path, &cnt);
   mtevL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
     char id[UUID_STR_LEN+1];
@@ -358,7 +358,7 @@ void stratcon_iep_submit_queries() {
     }
     stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, line, NULL);
   }
-  mtev_conf_release_sections(query_configs, cnt);
+  mtev_conf_release_sections_read(query_configs, cnt);
 }
 
 static struct driver_thread_data *
@@ -827,7 +827,7 @@ stratcon_iep_init() {
     return;
   }
 
-  mqs = mtev_conf_get_sections(MTEV_CONF_ROOT, "/stratcon/iep/mq", &cnt);
+  mqs = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "/stratcon/iep/mq", &cnt);
   for(i=0; i<cnt; i++) {
     if(mtev_conf_env_off(mqs[i], NULL)) continue;
     if(!mtev_conf_get_stringbuf(mqs[i], "@type",
@@ -848,7 +848,7 @@ stratcon_iep_init() {
     newdriver->next = drivers;
     drivers = newdriver;
   }
-  mtev_conf_release_sections(mqs, cnt);
+  mtev_conf_release_sections_read(mqs, cnt);
 
   eventer_name_callback("stratcon_iep_submitter", stratcon_iep_submitter);
   eventer_name_callback("stratcon_iep_err_handler", stratcon_iep_err_handler);

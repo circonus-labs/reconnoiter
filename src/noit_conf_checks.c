@@ -56,8 +56,8 @@
 #include "noit_check_tools.h"
 #include "noit_clustering.h"
 
-#define NCLOCK mtev_conf_section_t nc__lock = mtev_conf_get_section(MTEV_CONF_ROOT, "/noit")
-#define NCUNLOCK mtev_conf_release_section(nc__lock)
+#define NCLOCK mtev_conf_section_t nc__lock = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit")
+#define NCUNLOCK mtev_conf_release_section_write(nc__lock)
 
 static void register_console_config_check_commands();
 static mtev_hash_table check_attrs;
@@ -1292,12 +1292,12 @@ noit_delete_section_impl(void *closure, const char *root, const char *path,
   mtev_conf_section_t exists;
 
   snprintf(xpath, sizeof(xpath), "/%s%s/%s//check", root, path, name);
-  exists = mtev_conf_get_section(MTEV_CONF_ROOT, xpath);
+  exists = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
   if(!mtev_conf_section_is_empty(exists)) {
     if(err) *err = "cannot delete section, has checks";
     rv = MTEV_HOOK_ABORT;
   }
-  mtev_conf_release_section(exists);
+  mtev_conf_release_section_read(exists);
   return rv;
 }
 
