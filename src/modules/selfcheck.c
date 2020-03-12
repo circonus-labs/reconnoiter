@@ -58,6 +58,7 @@ typedef struct {
 
 struct threadq_crutch {
   noit_check_t *check;
+  bool tagged;
 };
 
 static mtev_log_stream_t nlerr = NULL;
@@ -94,16 +95,6 @@ static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
   selfcheck_cleanse(self, check);
   free(ci);
 }
-static mtev_boolean jobq_thread_helper(eventer_jobq_t *jobq, void *closure) {
-  int s32;
-  char buffer[128];
-  struct threadq_crutch *crutch = (struct threadq_crutch *)closure;
-  s32 = eventer_jobq_get_concurrency(jobq);
-  if(s32 == 0) return true; /* omit if no concurrency */
-  snprintf(buffer, sizeof(buffer), "%s_threads", eventer_jobq_get_queue_name(jobq));
-  noit_stats_set_metric(crutch->check, buffer, METRIC_INT32, &s32);
-  return true;
-}
 static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
   char buff[256];
   uint64_t ms;
@@ -114,15 +105,31 @@ static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
   if(s->last_connection.tv_sec > 0) {
     sub_timeval(now, s->last_connection, &diff);
     ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
-    snprintf(buff, sizeof(buff), "feed`%s`last_connection_ms", s->feed_name);
-    noit_stats_set_metric(crutch->check, buff, METRIC_UINT64, &ms);
+    if(crutch->tagged) {
+      char *ft = strchr(s->feed_name, '/');
+      ft = ft ? ft+1 : s->feed_name;
+      snprintf(buff, sizeof(buff), "uptime|ST[feed-type:%s,units:seconds]", ft);
+      double seconds = (double)ms / 1000.0;
+      noit_stats_set_metric(crutch->check, buff, METRIC_DOUBLE, &seconds);
+    } else {
+      snprintf(buff, sizeof(buff), "feed`%s`last_connection_ms", s->feed_name);
+      noit_stats_set_metric(crutch->check, buff, METRIC_UINT64, &ms);
+    }
   }
 
   if(s->last_checkpoint.tv_sec > 0) {
     sub_timeval(now, s->last_checkpoint, &diff);
     ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
-    snprintf(buff, sizeof(buff), "feed`%s`last_checkpoint_ms", s->feed_name);
-    noit_stats_set_metric(crutch->check, buff, METRIC_UINT64, &ms);
+    if(crutch->tagged) {
+      char *ft = strchr(s->feed_name, '/');
+      ft = ft ? ft+1 : s->feed_name;
+      snprintf(buff, sizeof(buff), "delay|ST[feed-type:%s,units:seconds]", ft);
+      double seconds = (double)ms / 1000.0;
+      noit_stats_set_metric(crutch->check, buff, METRIC_DOUBLE, &seconds);
+    } else {
+      snprintf(buff, sizeof(buff), "feed`%s`last_checkpoint_ms", s->feed_name);
+      noit_stats_set_metric(crutch->check, buff, METRIC_UINT64, &ms);
+    }
   }
   return 1;
 }
@@ -135,7 +142,13 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval now, duration, epoch, diff;
   selfcheck_info_t *ci = check->closure;
 
+  const char *format = mtev_hash_dict_get(check->config, "format");
   crutch.check = check;
+  if(strcmp(self->hdr.name, "selfcheck")) {
+    crutch.tagged = (!format || strcmp(format, "tagged"));
+  } else {
+    crutch.tagged = (format && !strcmp(format, "tagged"));
+  }
 
   mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
@@ -150,19 +163,32 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
     noit_stats_set_status(check, "ok");
   }
   /* Set all the metrics here */
+  const char *name_feed_bytes = "feed_bytes";
+  const char *name_check_cnt = "check_cnt";
+  const char *name_transient_cnt = "transient_cnt";
+  const char *name_uptime = "uptime";
+  const char *name_checks_run = "checks_run";
+  const char *name_metrics_collected = "metrics_collected";
+  if(crutch.tagged) {
+    name_feed_bytes = "feed|ST[units:bytes]";
+    name_check_cnt = "registered|ST[units:checks]";
+    name_transient_cnt = "transient|ST[units:transients]";
+    name_uptime = "uptime|ST[units:seconds]";
+    name_checks_run = "checks|ST[units:executions]";
+    name_metrics_collected = "collected|ST[units:tuples]";
+  }
   s64 = (int64_t)ci->logsize;
-  noit_stats_set_metric(check, "feed_bytes", METRIC_INT64, &s64);
+  noit_stats_set_metric(check, name_feed_bytes, METRIC_INT64, &s64);
   s32 = noit_poller_check_count();
-  noit_stats_set_metric(check, "check_cnt", METRIC_INT32, &s32);
+  noit_stats_set_metric(check, name_check_cnt, METRIC_INT32, &s32);
   s32 = noit_poller_transient_check_count();
-  noit_stats_set_metric(check, "transient_cnt", METRIC_INT32, &s32);
+  noit_stats_set_metric(check, name_transient_cnt, METRIC_INT32, &s32);
   if(eventer_get_epoch(&epoch)) s64 = 0;
   else {
     sub_timeval(now, epoch, &diff);
     s64 = diff.tv_sec;
   }
-  noit_stats_set_metric(check, "uptime", METRIC_INT64, &s64);
-  eventer_jobq_process_each(jobq_thread_helper, &crutch);
+  noit_stats_set_metric(check, name_uptime, METRIC_INT64, &s64);
   noit_build_version(buff, sizeof(buff));
   noit_stats_set_metric(check, "version", METRIC_STRING, buff);
 
@@ -172,9 +198,9 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   noit_stats_set_metric(check, "OS version", METRIC_STRING, buff);
 
   u64 = noit_check_completion_count();
-  noit_stats_set_metric(check, "checks_run", METRIC_UINT64, &u64);
+  noit_stats_set_metric(check, name_checks_run, METRIC_UINT64, &u64);
   u64 = noit_check_metric_count();
-  noit_stats_set_metric(check, "metrics_collected", METRIC_UINT64, &u64);
+  noit_stats_set_metric(check, name_metrics_collected, METRIC_UINT64, &u64);
   /* feed pull info */
   noit_jlog_foreach_feed_stats(selfcheck_feed_details, &crutch);
 
