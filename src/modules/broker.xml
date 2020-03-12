@@ -10,6 +10,9 @@
                required="required"
                allowed=".+"
                default="feed">The name of the feed that will be sized.</parameter>
+    <parameter name="format"
+               required="optional"
+               default="tagged">Specify use of tagged metric names.</paramter>
   </checkconfig>
   <examples>
     <example>
