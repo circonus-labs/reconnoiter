@@ -558,7 +558,7 @@ static int noit_prometheus_init(noit_module_t *self) {
 
   noit_module_set_userdata(self, conf);
 
-  eventer_pool_t *dp = eventer_pool("noit_module_prometheus");
+  eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
 
   /* register rest handler */
   mtev_rest_mountpoint_t *rule;
