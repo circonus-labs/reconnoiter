@@ -114,7 +114,6 @@ static int selfcheck_feed_details(jlog_feed_stats_t *s, void *closure) {
     sub_timeval(now, s->last_checkpoint, &diff);
     ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
     if(crutch->tagged) {
-      mtevL(mtev_error, "FEED: %s\n", s->feed_name);
       snprintf(buff, sizeof(buff), "delay|ST[stratcon-cn:%s,feed-type:storage,units:seconds]", s->feed_name);
       double seconds = (double)ms / 1000.0;
       noit_stats_set_metric(crutch->check, buff, METRIC_DOUBLE, &seconds);
