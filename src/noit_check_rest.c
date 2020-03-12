@@ -990,6 +990,8 @@ put_retry:
         mdb_cursor_close(cursor); \
         mdb_txn_abort(txn); \
         mtev_hash_destroy(&conf_table, free, NULL); \
+        free(key); \
+        xmlFree(val); \
         noit_lmdb_resize_instance(instance); \
         goto put_retry; \
       } \
@@ -1040,6 +1042,8 @@ put_retry:
           mdb_cursor_close(cursor);
           mdb_txn_abort(txn);
           mtev_hash_destroy(&conf_table, free, NULL);
+          free(key);
+          xmlFree(val);
           noit_lmdb_resize_instance(instance);
           goto put_retry;
         }
