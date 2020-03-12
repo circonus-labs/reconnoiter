@@ -52,18 +52,22 @@ lmdb_instance_mkdir(const char *path)
   return mtev_true;
 }
 
-int noit_lmdb_check_keys_to_hash_table(mtev_hash_table *table, uuid_t id) {
+int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash_table *table, uuid_t id, bool locked) {
   int rc;
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn;
   MDB_cursor *cursor;
   char *key = NULL;
   size_t key_size;
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
   mtevAssert(instance != NULL);
 
   if (!table) {
     return -1;
+  }
+
+  if (!locked) {
+    ck_rwlock_read_lock(&instance->lock);
   }
 
   mtev_hash_init(table);
@@ -101,6 +105,10 @@ int noit_lmdb_check_keys_to_hash_table(mtev_hash_table *table, uuid_t id) {
   mdb_txn_abort(txn);
   txn = NULL;
   free(key);
+
+  if (!locked) {
+    ck_rwlock_read_unlock(&instance->lock);
+  }
 
   return 0;
 }

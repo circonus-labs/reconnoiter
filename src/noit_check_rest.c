@@ -952,7 +952,8 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   if (seq_in) *seq_in = 0;
 
 put_retry:
-  noit_lmdb_check_keys_to_hash_table(&conf_table, checkid);
+  ck_rwlock_read_lock(&instance->lock);
+  noit_lmdb_check_keys_to_hash_table(instance, &conf_table, checkid, true);
   MDB_txn *txn;
   MDB_cursor *cursor;
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
@@ -979,6 +980,7 @@ put_retry:
       mdb_data.mv_size = strlen(val); \
       rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
       if (rc == MDB_MAP_FULL) { \
+        ck_rwlock_read_unlock(&instance->lock); \
         mdb_cursor_close(cursor); \
         mdb_txn_abort(txn); \
         mtev_hash_destroy(&conf_table, free, NULL); \
@@ -1028,6 +1030,7 @@ put_retry:
         mdb_data.mv_size = strlen(val);
         rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
         if (rc == MDB_MAP_FULL) {
+          ck_rwlock_read_unlock(&instance->lock);
           mdb_cursor_close(cursor);
           mdb_txn_abort(txn);
           mtev_hash_destroy(&conf_table, free, NULL);
@@ -1049,6 +1052,7 @@ put_retry:
   /* TODO: Delete entries from DB remaining in conf_table */
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
+    ck_rwlock_read_unlock(&instance->lock);
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     mtev_hash_destroy(&conf_table, free, NULL);

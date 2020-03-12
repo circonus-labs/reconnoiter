@@ -54,7 +54,7 @@ typedef struct noit_lmdb_check_data {
   char *key;
 } noit_lmdb_check_data_t;
 
-int noit_lmdb_check_keys_to_hash_table(mtev_hash_table *table, uuid_t id);
+int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash_table *table, uuid_t id, bool locked);
 char* noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size_out);
 noit_lmdb_check_data_t *noit_lmdb_check_data_from_key(char *key);
 void noit_lmdb_free_check_data(noit_lmdb_check_data_t *data);
