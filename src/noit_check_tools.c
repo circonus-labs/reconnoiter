@@ -413,6 +413,17 @@ noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs) {
   CA_STORE("module", check->module);
 }
 
+/* eventer pool selection works by exploring the pool name space
+ * looking for the first available pool by name as follows (using
+ * graphite_pickle as an example module):
+ *
+ *    noit_check_ (if check based)
+ *    noit_module_graphite_pickle
+ *    noit_module_graphite
+ *    noit_module
+ *    noit
+ *    -> default (NULL)
+ */
 eventer_pool_t *noit_check_choose_pool_by_module(const char *mod) {
   char poolname[256];
   eventer_pool_t *dedicated_pool = NULL;
