@@ -946,16 +946,24 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   int rc = 0;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtev_hash_table conf_table;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  char *key, *val;
+  size_t key_size;
+  MDB_val mdb_key, mdb_data;
 
   mtevAssert(instance != NULL);
 
   if (seq_in) *seq_in = 0;
 
 put_retry:
+  txn = NULL;
+  cursor = NULL;
+  key = NULL;
+  val = NULL;
+  key_size = 0;
   ck_rwlock_read_lock(&instance->lock);
   noit_lmdb_check_keys_to_hash_table(instance, &conf_table, checkid, true);
-  MDB_txn *txn;
-  MDB_cursor *cursor;
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
@@ -964,9 +972,7 @@ put_retry:
   if (rc != 0) {
     mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
   }
-  size_t key_size;
-  char *key = NULL, *val = NULL;;
-  MDB_val mdb_key, mdb_data;
+
   for (n = a->children; n; n = n->next) {
 #define ATTR2LMDB(attr_name) do { \
   if(!strcmp((char *)n->name, #attr_name)) { \

@@ -66,10 +66,6 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
     return -1;
   }
 
-  if (!locked) {
-    ck_rwlock_read_lock(&instance->lock);
-  }
-
   mtev_hash_init(table);
 
   key = noit_lmdb_make_check_key(id, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
@@ -77,6 +73,10 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
 
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
+
+  if (!locked) {
+    ck_rwlock_read_lock(&instance->lock);
+  }
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
