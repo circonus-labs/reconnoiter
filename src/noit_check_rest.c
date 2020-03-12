@@ -951,6 +951,9 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
   char *key, *val;
   size_t key_size;
   MDB_val mdb_key, mdb_data;
+  mtev_hash_iter iter;
+  const char *_hash_iter_key;
+  int _hash_iter_klen;
 
   mtevAssert(instance != NULL);
 
@@ -962,6 +965,8 @@ put_retry:
   key = NULL;
   val = NULL;
   key_size = 0;
+  memset(&iter, 0, sizeof(mtev_hash_iter));
+
   ck_rwlock_read_lock(&instance->lock);
   noit_lmdb_check_keys_to_hash_table(instance, &conf_table, checkid, true);
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
@@ -1058,8 +1063,25 @@ put_retry:
       }
     }
   }
-
-  /* TODO: Delete entries from DB remaining in conf_table */
+  void *unused;
+  while(mtev_hash_next(&conf_table, &iter, &_hash_iter_key, &_hash_iter_klen, &unused)) {
+    mdb_key.mv_data = (char *)_hash_iter_key;
+    mdb_key.mv_size = _hash_iter_klen;
+    rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
+    if (rc != 0) {
+      if (rc == MDB_MAP_FULL) {
+        ck_rwlock_read_unlock(&instance->lock);
+        mdb_cursor_close(cursor);
+        mdb_txn_abort(txn);
+        mtev_hash_destroy(&conf_table, free, NULL);
+        noit_lmdb_resize_instance(instance);
+        goto put_retry;
+      }
+      else if (rc != MDB_NOTFOUND) {
+        mtevL(mtev_error, "failed to delete key: %d (%s)\n", rc, mdb_strerror(rc));
+      }
+    }
+  }
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
     ck_rwlock_read_unlock(&instance->lock);
