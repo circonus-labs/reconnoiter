@@ -413,16 +413,32 @@ noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs) {
   CA_STORE("module", check->module);
 }
 
-pthread_t noit_check_choose_eventer_thread(noit_check_t *check) {
-  char buff[128];
+eventer_pool_t *noit_check_choose_pool_by_module(const char *mod) {
+  char poolname[256];
   eventer_pool_t *dedicated_pool = NULL;
-  strlcpy(buff, "noit_check_", sizeof(buff));
-  mtev_uuid_unparse_lower(check->checkid, buff + strlen("noit_check_"));
-  dedicated_pool = eventer_pool(buff);
-  if(!dedicated_pool) {
-    snprintf(buff, sizeof(buff), "noit_module_%s", check->module);
-    dedicated_pool = eventer_pool(buff);
-  }
+  if(!mod) return NULL;
+  snprintf(poolname, sizeof(poolname), "noit_module_%s", mod);
+  do {
+    dedicated_pool = eventer_pool(poolname);
+    char *spot_ = strrchr(poolname, '_');
+    if(!spot_) break;
+    *spot_ = '\0';
+  } while(dedicated_pool == NULL);
+  return dedicated_pool;
+}
+
+eventer_pool_t *noit_check_choose_pool(noit_check_t *check) {
+  char poolname[256];
+  eventer_pool_t *dedicated_pool = NULL;
+  strlcpy(poolname, "noit_check_", sizeof(poolname));
+  mtev_uuid_unparse_lower(check->checkid, poolname + strlen("noit_check_"));
+  dedicated_pool = eventer_pool(poolname);
+  if(!dedicated_pool) dedicated_pool = noit_check_choose_pool_by_module(check->module);
+  return dedicated_pool;
+}
+
+pthread_t noit_check_choose_eventer_thread(noit_check_t *check) {
+  eventer_pool_t *dedicated_pool = noit_check_choose_pool(check);
   int rnd = noit_check_uuid_to_integer(check->checkid) / sizeof(*(check)) * 2654435761;
   if(dedicated_pool) return eventer_choose_owner_pool(dedicated_pool, rnd);
   return eventer_choose_owner(rnd);

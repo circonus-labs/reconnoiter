@@ -389,11 +389,7 @@ listener_listen_handler(eventer_t e, int mask, void *closure, struct timeval *no
     newe = eventer_alloc_fd(listener_handler, inst, fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
 
-    char poolname[128];
-    poolname[0] = '\0';
-    strlcat(poolname, "noit_module_", sizeof(poolname));
-    strlcat(poolname, self->self->hdr.name, sizeof(poolname));
-    eventer_pool_t *dp = eventer_pool(poolname);
+    eventer_pool_t *dp = noit_check_choose_pool(self->check);
     if(dp) eventer_set_owner(newe, eventer_choose_owner_pool(dp, mtev_rand()));
     else eventer_set_owner(newe, eventer_choose_owner(mtev_rand()));
     eventer_add(newe);

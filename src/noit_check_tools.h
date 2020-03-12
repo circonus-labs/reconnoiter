@@ -80,6 +80,10 @@ noit_check_uuid_to_integer(uuid_t uuid)
   return x[0] ^ x[1] ^ x[2] ^ x[3];
 }
 
+API_EXPORT(eventer_pool_t *)
+  noit_check_choose_pool_by_module(const char *mod);
+API_EXPORT(eventer_pool_t *)
+  noit_check_choose_pool(noit_check_t *check);
 API_EXPORT(pthread_t)
   noit_check_choose_eventer_thread(noit_check_t *check);
 
