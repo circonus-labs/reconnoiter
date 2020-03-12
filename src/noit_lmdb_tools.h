@@ -30,6 +30,7 @@
 #ifndef _NOIT_LMDB_TOOLS_H
 #define _NOIT_LMDB_TOOLS_H
 
+#include <ck_rwlock.h>
 #include <lmdb.h>
 #include <mtev_hash.h>
 #include <mtev_uuid.h>
@@ -40,6 +41,7 @@
 typedef struct noit_lmdb_instance {
   MDB_env *env;
   MDB_dbi dbi;
+  ck_rwlock_t lock;
   char *path;
 } noit_lmdb_instance_t;
 

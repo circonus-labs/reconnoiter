@@ -951,6 +951,7 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
 
   if (seq_in) *seq_in = 0;
 
+put_retry:
   noit_lmdb_check_keys_to_hash_table(&conf_table, checkid);
   MDB_txn *txn;
   MDB_cursor *cursor;
@@ -977,7 +978,14 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
       mdb_data.mv_data = val; \
       mdb_data.mv_size = strlen(val); \
       rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
-      if (rc != 0) { \
+      if (rc == MDB_MAP_FULL) { \
+        mdb_cursor_close(cursor); \
+        mdb_txn_abort(txn); \
+        mtev_hash_destroy(&conf_table, free, NULL); \
+        noit_lmdb_resize_instance(instance); \
+        goto put_retry; \
+      } \
+      else if (rc != 0) { \
         mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
       } \
       mtev_hash_delete(&conf_table, key, key_size, free, NULL); \
@@ -1019,7 +1027,14 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
         mdb_data.mv_data = val;
         mdb_data.mv_size = strlen(val);
         rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
-        if (rc != 0) {
+        if (rc == MDB_MAP_FULL) {
+          mdb_cursor_close(cursor);
+          mdb_txn_abort(txn);
+          mtev_hash_destroy(&conf_table, free, NULL);
+          noit_lmdb_resize_instance(instance);
+          goto put_retry;
+        }
+        else if (rc != 0) {
           mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
         }
         mtev_hash_delete(&conf_table, key, key_size, free, NULL);
@@ -1033,7 +1048,14 @@ configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in
 
   /* TODO: Delete entries from DB remaining in conf_table */
   rc = mdb_txn_commit(txn);
-  if (rc != 0) {
+  if (rc == MDB_MAP_FULL) {
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    mtev_hash_destroy(&conf_table, free, NULL);
+    noit_lmdb_resize_instance(instance);
+    goto put_retry;
+  }
+  else if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
   mdb_cursor_close(cursor);
