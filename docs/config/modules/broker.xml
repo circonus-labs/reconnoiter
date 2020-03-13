@@ -46,6 +46,34 @@
         </listitem>
       </varlistentry>
     </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>format</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>tagged</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para/>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Specify use of tagged metric names.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <section>
     <title>Examples</title>
