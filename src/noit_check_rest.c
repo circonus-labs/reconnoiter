@@ -1130,6 +1130,108 @@ make_conf_path(char *path) {
   mtev_conf_release_section_write(section);
   return start;
 }
+
+static int
+rest_delete_check_lmdb(mtev_http_rest_closure_t *restc,
+                       int npats, char **pats) {
+  //mtev_http_session_ctx *ctx = restc->http_ctx;
+  uuid_t checkid;
+  int rc;//, error_code = 500;
+  MDB_val mdb_key, mdb_data;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  char *key = NULL;
+  size_t key_size;
+  bool locked = false;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  mtevAssert(instance != NULL);
+
+  if(npats != 2) goto error;
+  if(mtev_uuid_parse(pats[1], checkid)) goto error;
+
+  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  ck_rwlock_read_lock(&instance->lock);
+  locked = true;
+
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    mtevL(mtev_error, "failed to create transaction for delete: %d (%s)\n", rc, mdb_strerror(rc));
+    goto error;
+  }
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  if (rc != 0) {
+    if (rc == MDB_NOTFOUND) {
+      mdb_cursor_close(cursor);
+      mdb_txn_abort(txn);
+      goto not_found;
+    }
+    else {
+      mtevL(mtev_error, "failed on delete lookup: %d (%s)\n", rc, mdb_strerror(rc));
+      mdb_cursor_close(cursor);
+      mdb_txn_abort(txn);
+      goto error;
+    }
+  }
+  while(rc == 0) {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    if (data) {
+      if (memcmp(data->id, checkid, UUID_SIZE) != 0) {
+        noit_lmdb_free_check_data(data);
+        break;
+      }
+      mtevL(mtev_error, "DELETING KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
+      noit_lmdb_free_check_data(data);
+      rc = mdb_cursor_del(cursor, 0);
+      if (rc != 0) {
+        mtevL(mtev_error, "failed to delete key in check: %d (%s)\n", rc, mdb_strerror(rc));
+        mdb_cursor_close(cursor);
+        mdb_txn_abort(txn);
+        goto error;
+      }
+    }
+    else {
+      break;
+    }
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+  rc = mdb_txn_commit(txn);
+  if (rc != 0) {
+    mtevL(mtev_error, "failed to commit delete txn: %d (%s)\n", rc, mdb_strerror(rc));
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    goto error;
+  }
+  mdb_cursor_close(cursor);
+
+  /* TODO: Uncomment these when done */
+  //mtev_http_response_ok(ctx, "text/html");
+  //mtev_http_response_end(ctx);
+  goto cleanup;
+
+ not_found:
+  //mtev_http_response_not_found(ctx, "text/html");
+  //mtev_http_response_end(ctx);
+  goto cleanup;
+
+ error:
+  //mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  //mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if (locked) {
+    ck_rwlock_read_unlock(&instance->lock);
+  }
+  free(key);
+  return 0;
+}
+
 static int
 rest_delete_check(mtev_http_rest_closure_t *restc,
                   int npats, char **pats) {
@@ -1143,6 +1245,14 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
+
+  /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
+   * do XML - this is on for test purposes now */
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  if(instance) {
+    rest_delete_check_lmdb(restc, npats, pats);
+  }
+
   NCINIT_WR;
 
   if(npats != 2) goto error;
