@@ -50,6 +50,7 @@
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
 #include "noit_check.h"
+#include "noit_check_lmdb.h"
 #include "noit_conf_checks.h"
 #include "noit_check_resolver.h"
 #include "noit_check_tools.h"
@@ -940,163 +941,6 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
   else xmlAddChild(check, config);
   CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(config));
 }
-static void
-configure_lmdb_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
-  xmlNodePtr n;
-  int rc = 0;
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  mtev_hash_table conf_table;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
-  char *key, *val;
-  size_t key_size;
-  MDB_val mdb_key, mdb_data;
-  mtev_hash_iter iter;
-  const char *_hash_iter_key;
-  int _hash_iter_klen;
-
-  mtevAssert(instance != NULL);
-
-  if (seq_in) *seq_in = 0;
-
-put_retry:
-  txn = NULL;
-  cursor = NULL;
-  key = NULL;
-  val = NULL;
-  key_size = 0;
-  memset(&iter, 0, sizeof(mtev_hash_iter));
-
-  ck_rwlock_read_lock(&instance->lock);
-  noit_lmdb_check_keys_to_hash_table(instance, &conf_table, checkid, true);
-  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
-  if (rc != 0) {
-    mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
-  }
-  rc = mdb_cursor_open(txn, instance->dbi, &cursor);
-  if (rc != 0) {
-    mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
-  }
-
-  for (n = a->children; n; n = n->next) {
-#define ATTR2LMDB(attr_name) do { \
-  if(!strcmp((char *)n->name, #attr_name)) { \
-    val = (char *)xmlNodeGetContent(n); \
-    if (val) { \
-      key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, #attr_name, &key_size); \
-      mtevAssert(key); \
-      mdb_key.mv_data = key; \
-      mdb_key.mv_size = key_size; \
-      mdb_data.mv_data = val; \
-      mdb_data.mv_size = strlen(val); \
-      rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
-      if (rc == MDB_MAP_FULL) { \
-        ck_rwlock_read_unlock(&instance->lock); \
-        mdb_cursor_close(cursor); \
-        mdb_txn_abort(txn); \
-        mtev_hash_destroy(&conf_table, free, NULL); \
-        free(key); \
-        xmlFree(val); \
-        noit_lmdb_resize_instance(instance); \
-        goto put_retry; \
-      } \
-      else if (rc != 0) { \
-        mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
-      } \
-      mtev_hash_delete(&conf_table, key, key_size, free, NULL); \
-      free(key); \
-      xmlFree(val); \
-      val = NULL; \
-    } \
-    continue; \
-  } \
-} while(0)
-
-    ATTR2LMDB(name);
-    ATTR2LMDB(target);
-    ATTR2LMDB(resolve_rtype);
-    ATTR2LMDB(module);
-    ATTR2LMDB(period);
-    ATTR2LMDB(timeout);
-    ATTR2LMDB(disable);
-    ATTR2LMDB(filterset);
-    ATTR2LMDB(seq);
-  }
-
-  if (c) {
-    key = NULL;
-    val = NULL;
-    for(n = c->children; n; n = n->next) {
-      val = (char *)xmlNodeGetContent(n);
-      if (val != NULL) {
-        char *prefix = NULL;
-        if (n->ns) {
-          prefix = (char *)n->ns->prefix;
-        }
-        
-        key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)n->name, &key_size);
-        mtevAssert(key);
-
-        mdb_key.mv_data = key;
-        mdb_key.mv_size = key_size;
-        mdb_data.mv_data = val;
-        mdb_data.mv_size = strlen(val);
-        rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
-        if (rc == MDB_MAP_FULL) {
-          ck_rwlock_read_unlock(&instance->lock);
-          mdb_cursor_close(cursor);
-          mdb_txn_abort(txn);
-          mtev_hash_destroy(&conf_table, free, NULL);
-          free(key);
-          xmlFree(val);
-          noit_lmdb_resize_instance(instance);
-          goto put_retry;
-        }
-        else if (rc != 0) {
-          mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
-        }
-        mtev_hash_delete(&conf_table, key, key_size, free, NULL);
-        free(key);
-        if (val) xmlFree(val);
-        key = NULL;
-        val = NULL;
-      }
-    }
-  }
-  void *unused;
-  while(mtev_hash_next(&conf_table, &iter, &_hash_iter_key, &_hash_iter_klen, &unused)) {
-    mdb_key.mv_data = (char *)_hash_iter_key;
-    mdb_key.mv_size = _hash_iter_klen;
-    rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
-    if (rc != 0) {
-      if (rc == MDB_MAP_FULL) {
-        ck_rwlock_read_unlock(&instance->lock);
-        mdb_cursor_close(cursor);
-        mdb_txn_abort(txn);
-        mtev_hash_destroy(&conf_table, free, NULL);
-        noit_lmdb_resize_instance(instance);
-        goto put_retry;
-      }
-      else if (rc != MDB_NOTFOUND) {
-        mtevL(mtev_error, "failed to delete key: %d (%s)\n", rc, mdb_strerror(rc));
-      }
-    }
-  }
-  rc = mdb_txn_commit(txn);
-  if (rc == MDB_MAP_FULL) {
-    ck_rwlock_read_unlock(&instance->lock);
-    mdb_cursor_close(cursor);
-    mdb_txn_abort(txn);
-    mtev_hash_destroy(&conf_table, free, NULL);
-    noit_lmdb_resize_instance(instance);
-    goto put_retry;
-  }
-  else if (rc != 0) {
-    mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
-  }
-  mdb_cursor_close(cursor);
-  mtev_hash_destroy(&conf_table, free, NULL);
-}
 static xmlNodePtr
 make_conf_path(char *path) {
   mtev_conf_section_t section;
@@ -1132,107 +976,6 @@ make_conf_path(char *path) {
 }
 
 static int
-rest_delete_check_lmdb(mtev_http_rest_closure_t *restc,
-                       int npats, char **pats) {
-  //mtev_http_session_ctx *ctx = restc->http_ctx;
-  uuid_t checkid;
-  int rc;//, error_code = 500;
-  MDB_val mdb_key, mdb_data;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
-  char *key = NULL;
-  size_t key_size;
-  bool locked = false;
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  mtevAssert(instance != NULL);
-
-  if(npats != 2) goto error;
-  if(mtev_uuid_parse(pats[1], checkid)) goto error;
-
-  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
-  mtevAssert(key);
-
-  mdb_key.mv_data = key;
-  mdb_key.mv_size = key_size;
-
-  ck_rwlock_read_lock(&instance->lock);
-  locked = true;
-
-  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
-  if (rc != 0) {
-    mtevL(mtev_error, "failed to create transaction for delete: %d (%s)\n", rc, mdb_strerror(rc));
-    goto error;
-  }
-  mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
-  if (rc != 0) {
-    if (rc == MDB_NOTFOUND) {
-      mdb_cursor_close(cursor);
-      mdb_txn_abort(txn);
-      goto not_found;
-    }
-    else {
-      mtevL(mtev_error, "failed on delete lookup: %d (%s)\n", rc, mdb_strerror(rc));
-      mdb_cursor_close(cursor);
-      mdb_txn_abort(txn);
-      goto error;
-    }
-  }
-  while(rc == 0) {
-    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
-    if (data) {
-      if (memcmp(data->id, checkid, UUID_SIZE) != 0) {
-        noit_lmdb_free_check_data(data);
-        break;
-      }
-      mtevL(mtev_error, "DELETING KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
-      noit_lmdb_free_check_data(data);
-      rc = mdb_cursor_del(cursor, 0);
-      if (rc != 0) {
-        mtevL(mtev_error, "failed to delete key in check: %d (%s)\n", rc, mdb_strerror(rc));
-        mdb_cursor_close(cursor);
-        mdb_txn_abort(txn);
-        goto error;
-      }
-    }
-    else {
-      break;
-    }
-    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
-  }
-  rc = mdb_txn_commit(txn);
-  if (rc != 0) {
-    mtevL(mtev_error, "failed to commit delete txn: %d (%s)\n", rc, mdb_strerror(rc));
-    mdb_cursor_close(cursor);
-    mdb_txn_abort(txn);
-    goto error;
-  }
-  mdb_cursor_close(cursor);
-
-  /* TODO: Uncomment these when done */
-  //mtev_http_response_ok(ctx, "text/html");
-  //mtev_http_response_end(ctx);
-  goto cleanup;
-
- not_found:
-  //mtev_http_response_not_found(ctx, "text/html");
-  //mtev_http_response_end(ctx);
-  goto cleanup;
-
- error:
-  //mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
-  //mtev_http_response_end(ctx);
-  goto cleanup;
-
- cleanup:
-  if (locked) {
-    ck_rwlock_read_unlock(&instance->lock);
-  }
-  free(key);
-  return 0;
-}
-
-static int
 rest_delete_check(mtev_http_rest_closure_t *restc,
                   int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
@@ -1250,7 +993,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
    * do XML - this is on for test purposes now */
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   if(instance) {
-    rest_delete_check_lmdb(restc, npats, pats);
+    noit_check_lmdb_delete_check(restc, npats, pats);
   }
 
   NCINIT_WR;
@@ -1385,7 +1128,7 @@ rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr, xmlNodePtr config)
       return -1;
     }
     /* create a check here */
-    configure_lmdb_check(checkid, attr, config, &seq);
+    noit_check_lmdb_configure_check(checkid, attr, config, &seq);
     if(old_seq >= seq && seq != 0) {
       return -1;
     }
