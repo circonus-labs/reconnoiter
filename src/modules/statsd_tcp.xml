@@ -1,0 +1,35 @@
+<module>
+  <name>statsd_tcp</name>
+  <description><para>The statsd over TCP module provides a simple way to push data into reconnoiter from other applications.  See https://github.com/etsy/statsd for more details.</para></description>
+  <loader>C</loader>
+  <image>statsd.so</image>
+  <moduleconfig/>
+  <checkconfig>
+    <parameter name="listen_port"
+               required="optional"
+               default="8126"
+               allowed="[0-9]+">Specify the TCP port which this check listens on.</parameter>
+    <parameter name="rows_per_cycle"
+               required="optional"
+               default="100"
+               allowed="[0-9]+">The max number of rows to process in one event loop.  Defaults to 100.  Turn this up higher if you have very high volume metric collection.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>A sample statsd configuration.</title>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="statsd" name="statsd_tcp"/>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="statsd"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><port>8126</port></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>
