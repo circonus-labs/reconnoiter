@@ -525,6 +525,13 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   int klen;
   void *data;
   mtev_hash_table *configh;
+
+  /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
+   * do XML - this is on for test purposes now */
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  if(instance) {
+    //return noit_check_lmdb_show_check(restc, npats, pats);
+  }
   NCINIT_RD;
 
   if(npats != 2 && npats != 3) goto error;

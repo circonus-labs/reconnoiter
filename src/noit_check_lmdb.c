@@ -33,6 +33,143 @@
 
 #include <errno.h>
 
+static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc, 
+                                           uuid_t checkid) {
+  return 0;
+}
+int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root, attr;//, config, state, tmp, anode;
+  //int error_code = 500;
+  uuid_t checkid;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  int rc;
+  char *key = NULL;
+  size_t key_size;
+  MDB_val mdb_key, mdb_data;
+  bool locked = false;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  if(npats != 2 && npats != 3) {
+    goto error;
+  }
+  /* pats[0] was an XML path in the XML-backed store.... we can no longer
+   * respect that, so just ignore it */
+  if(mtev_uuid_parse(pats[1], checkid)) goto error;
+
+  if(npats == 3 && !strcmp(pats[2], ".json")) {
+    return noit_check_lmdb_show_check_json(restc, checkid);
+  }
+
+  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
+  xmlDocSetRootElement(doc, root);
+
+  attr = xmlNewNode(NULL, (xmlChar *)"attributes");
+  xmlAddChild(root, attr);
+
+#define ADD_ATTR(parent, key, value, value_len) do { \
+  if ((value != NULL) && (value_len != 0)) { \
+    char *val = (char *)calloc(1, value_len); \
+    memcpy(val, value, value_len); \
+    xmlNodePtr child = xmlNewNode(NULL, (xmlChar *)key); \
+    xmlNodeAddContent(child, (xmlChar *)val); \
+    xmlAddChild(parent, child); \
+    free(val); \
+  } \
+} while (0);
+
+  ck_rwlock_read_lock(&instance->lock);
+  locked = true;
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  if (rc != 0) {
+    if (rc == MDB_NOTFOUND) {
+      mdb_cursor_close(cursor);
+      mdb_txn_abort(txn);
+      goto not_found;
+    }
+    else {
+      mtevL(mtev_error, "failed on lookup for show: %d (%s)\n", rc, mdb_strerror(rc));
+      mdb_cursor_close(cursor);
+      mdb_txn_abort(txn);
+      goto error;
+    }
+  }
+  else {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    if (data) {
+      if (memcmp(data->id, checkid, UUID_SIZE) != 0) {
+        noit_lmdb_free_check_data(data);
+        mdb_cursor_close(cursor);
+        mdb_txn_abort(txn);
+        goto not_found;
+      }
+      noit_lmdb_free_check_data(data);
+    }
+    else {
+      mdb_cursor_close(cursor);
+      mdb_txn_abort(txn);
+      goto error;
+    }
+  }
+  while(rc == 0) {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    if (data) {
+      if ((memcmp(data->id, checkid, UUID_SIZE) != 0) || (data->type != NOIT_LMDB_CHECK_ATTRIBUTE_TYPE)) {
+        noit_lmdb_free_check_data(data);
+        break;
+      }
+      mtevL(mtev_error, "CHECKING ATTR KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
+      ADD_ATTR(attr, data->key, mdb_data.mv_data, mdb_data.mv_size);
+      noit_lmdb_free_check_data(data);
+    }
+    else {
+      break;
+    }
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+  txn = NULL;
+
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ not_found:
+  //mtev_http_response_not_found(ctx, "text/html");
+  //mtev_http_response_end(ctx);
+  goto cleanup;
+
+ error:
+  //mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  //mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if (locked) {
+    ck_rwlock_read_unlock(&instance->lock);
+  }
+  free(key);
+  if(doc) xmlFreeDoc(doc);
+  return 0;
+}
+
 void noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
   xmlNodePtr n;
   int rc = 0;
