@@ -45,6 +45,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_mtev_bridge.h"
+#include "noit_socket_listener.h"
 
 #define MAX_CHECKS 3
 
@@ -52,7 +53,7 @@ static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 static const char *COUNTER_STRING = "c";
 
-typedef struct _mod_config {
+typedef struct statsd_mod_config {
   mtev_hash_table *options;
   int packets_per_cycle;
   unsigned short port;
@@ -158,6 +159,7 @@ update_check(noit_check_t *check, const char *key, char type,
 static void
 statsd_handle_payload(noit_check_t **checks, int nchecks,
                       char *payload, int len) {
+  mtevL(nldeb, "PAYLOAD(%zu bytes)\n", (size_t)len);
   char *cp, *ecp, *endptr;
   cp = ecp = payload;
   endptr = payload + len - 1;
@@ -491,4 +493,186 @@ noit_module_t statsd = {
   noit_statsd_init,
   noit_statsd_initiate_check,
   NULL
+};
+
+static int statsd_tcp_handle_payload(noit_check_t *check, char *payload, size_t len) {
+  statsd_handle_payload(&check, 1, payload, len);
+  return 0;
+}
+static int statsd_tcp_handler(eventer_t e, int m, void *c, struct timeval *t) {
+  return listener_handler(e,m,c,t);
+}
+static int statsd_tcp_listener(eventer_t e, int m, void *c, struct timeval *t) {
+  return listener_listen_handler(e,m,c,t);
+}
+static int
+noit_statsd_tcp_initiate_check(noit_module_t *self,
+                               noit_check_t *check,
+                               int once, noit_check_t *cause) {
+  check->flags |= NP_PASSIVE_COLLECTION;
+  if (check->closure == NULL) {
+    listener_closure_t *ccl;
+    ccl =
+      listener_closure_alloc("statsd", self, check,
+                             nldeb, nlerr,
+                             statsd_tcp_handle_payload,
+                             NULL);
+    check->closure = ccl;
+    unsigned short port = 8126;
+    int rows_per_cycle = 100;
+    struct sockaddr_in skaddr;
+    int sockaddr_len;
+    const char *config_val;
+
+    if(mtev_hash_retr_str(check->config, "listen_port", strlen("listen_port"),
+                          (const char **)&config_val)) {
+      port = atoi(config_val);
+    }
+    ccl->port = port;
+
+    if(mtev_hash_retr_str(check->config, "rows_per_cycle",
+                          strlen("rows_per_cycle"),
+                          (const char **)&config_val)) {
+      rows_per_cycle = atoi(config_val);
+    }
+    ccl->rows_per_cycle = rows_per_cycle;
+
+    if(port > 0) ccl->ipv4_listen_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(ccl->ipv4_listen_fd < 0) {
+      if(port > 0) {
+        mtevL(noit_error, "statsd: socket failed: %s\n", strerror(errno));
+        return -1;
+      }
+    }
+    else {
+      if(eventer_set_fd_nonblocking(ccl->ipv4_listen_fd)) {
+        close(ccl->ipv4_listen_fd);
+        ccl->ipv4_listen_fd = -1;
+        mtevL(noit_error,
+              "statsd: could not set socket (IPv4) non-blocking: %s\n",
+              strerror(errno));
+        return -1;
+      }
+      socklen_t reuse = 1;
+      if (setsockopt(ccl->ipv4_listen_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+        mtevL(noit_error, "statsd listener(IPv4) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+      }
+#ifdef SO_REUSEPORT
+      reuse = 1;
+      if (setsockopt(ccl->ipv4_listen_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+        mtevL(noit_error, "statsd listener(IPv4) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+      }
+#endif
+      memset(&skaddr, 0, sizeof(skaddr));
+      skaddr.sin_family = AF_INET;
+      skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+      skaddr.sin_port = htons(ccl->port);
+      sockaddr_len = sizeof(skaddr);
+      if(bind(ccl->ipv4_listen_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
+        mtevL(noit_error, "statsd bind(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+        close(ccl->ipv4_listen_fd);
+        return -1;
+      }
+      if (listen(ccl->ipv4_listen_fd, 5) != 0) {
+        mtevL(noit_error, "statsd listen(IPv4) failed[%d]: %s\n", ccl->port, strerror(errno));
+        close(ccl->ipv4_listen_fd);
+        return -1;
+      }
+  
+      eventer_t newe = eventer_alloc_fd(statsd_tcp_listener, ccl, ccl->ipv4_listen_fd,
+                                        EVENTER_READ | EVENTER_EXCEPTION);
+      eventer_add(newe);
+    }
+    if(port > 0) ccl->ipv6_listen_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+    if(ccl->ipv6_listen_fd < 0) {
+      if(port > 0) {
+        mtevL(noit_error, "statsd: IPv6 socket failed: %s\n",
+              strerror(errno));
+      }
+    }
+    else {
+      if(eventer_set_fd_nonblocking(ccl->ipv6_listen_fd)) {
+        close(ccl->ipv6_listen_fd);
+        ccl->ipv6_listen_fd = -1;
+        mtevL(noit_error,
+              "statsd: could not set socket (IPv6) non-blocking: %s\n",
+              strerror(errno));
+      }
+      else {
+        socklen_t reuse = 1;
+        if (setsockopt(ccl->ipv6_listen_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse)) != 0) {
+          mtevL(noit_error, "statsd listener(IPv6) failed(%s) to set REUSEADDR (doing our best)\n", strerror(errno));
+        }
+#ifdef SO_REUSEPORT
+        reuse = 1;
+        if (setsockopt(ccl->ipv6_listen_fd, SOL_SOCKET, SO_REUSEPORT, (void *)&reuse, sizeof(reuse)) != 0) {
+          mtevL(noit_error, "statsd listener(IPv4) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
+        }
+#endif
+        struct sockaddr_in6 skaddr6;
+        struct in6_addr in6addr_any;
+        sockaddr_len = sizeof(skaddr6);
+        memset(&skaddr6, 0, sizeof(skaddr6));
+        skaddr6.sin6_family = AF_INET6;
+        memset(&in6addr_any, 0, sizeof(in6addr_any));
+        skaddr6.sin6_addr = in6addr_any;
+        skaddr6.sin6_port = htons(ccl->port);
+
+        if(bind(ccl->ipv6_listen_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
+          mtevL(noit_error, "statsd bind(IPv6) failed[%d]: %s\n",
+                ccl->port, strerror(errno));
+          close(ccl->ipv6_listen_fd);
+          ccl->ipv6_listen_fd = -1;
+        }
+
+        else if (listen(ccl->ipv6_listen_fd, 5) != 0) {
+          mtevL(noit_error, "statsd listen(IPv6) failed[%d]: %s\n", ccl->port, strerror(errno));
+          close(ccl->ipv6_listen_fd);
+          if (ccl->ipv4_listen_fd <= 0) return -1;
+        }
+
+      }
+    }
+
+    if(ccl->ipv6_listen_fd >= 0) {
+      eventer_t newe = eventer_alloc_fd(statsd_tcp_listener, ccl, ccl->ipv6_listen_fd,
+                                        EVENTER_READ | EVENTER_EXCEPTION);
+      eventer_add(newe);
+    }
+  }
+  INITIATE_CHECK(listener_submit, self, check, cause);
+  return 0;
+}
+
+static int noit_statsd_tcp_onload(mtev_image_t *self) {
+  if(!nlerr) nlerr = mtev_log_stream_find("error/statsd");
+  if(!nldeb) nldeb = mtev_log_stream_find("debug/statsd");
+  listener_onload();
+  return 0;
+}
+
+static int noit_statsd_tcp_init(noit_module_t *self) 
+{
+  eventer_name_callback_ext("statsd_tcp/statsd_tcp_handler", statsd_tcp_handler,
+                            listener_describe_callback, self);
+  eventer_name_callback_ext("statsd_tcp/statsd_tcp_listener", statsd_tcp_listener,
+                            listener_listen_describe_callback, self);
+
+  return 0;
+}
+
+#include "statsd_tcp.xmlh"
+noit_module_t statsd_tcp = {
+  {
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "statsd_tcp",
+    .description = "statsd_tcp collection",
+    .xml_description = statsd_tcp_xml_description,
+    .onload = noit_statsd_tcp_onload
+  },
+  noit_listener_config,
+  noit_statsd_tcp_init,
+  noit_statsd_tcp_initiate_check,
+  noit_listener_cleanup
 };

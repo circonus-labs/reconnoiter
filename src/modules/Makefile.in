@@ -241,7 +241,7 @@ statsd.@MODULEEXT@:	statsd.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ statsd.lo
 
-statsd.lo:	statsd.xmlh
+statsd.lo:	statsd.xmlh statsd_tcp.xmlh
 
 collectd.@MODULEEXT@:	collectd.lo
 	@echo "- linking $@"
