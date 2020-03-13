@@ -40,11 +40,11 @@ static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc,
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
-  xmlNodePtr root, attr;//, config, state, tmp, anode;
-  //int error_code = 500;
+  xmlNodePtr root, attr, config;//, state, tmp, anode;
+  int error_code = 500;
   uuid_t checkid;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
   int rc;
   char *key = NULL;
   size_t key_size;
@@ -76,9 +76,9 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   xmlDocSetRootElement(doc, root);
 
   attr = xmlNewNode(NULL, (xmlChar *)"attributes");
-  xmlAddChild(root, attr);
+  config = xmlNewNode(NULL, (xmlChar *)"config");
 
-#define ADD_ATTR(parent, key, value, value_len) do { \
+#define ADD_ATTR(parent, ns, key, value, value_len) do { \
   if ((value != NULL) && (value_len != 0)) { \
     char *val = (char *)calloc(1, value_len); \
     memcpy(val, value, value_len); \
@@ -128,12 +128,17 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   while(rc == 0) {
     noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
     if (data) {
-      if ((memcmp(data->id, checkid, UUID_SIZE) != 0) || (data->type != NOIT_LMDB_CHECK_ATTRIBUTE_TYPE)) {
+      if (memcmp(data->id, checkid, UUID_SIZE) != 0) {
         noit_lmdb_free_check_data(data);
         break;
       }
       mtevL(mtev_error, "CHECKING ATTR KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
-      ADD_ATTR(attr, data->key, mdb_data.mv_data, mdb_data.mv_size);
+      if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
+        ADD_ATTR(attr, data->ns, data->key, mdb_data.mv_data, mdb_data.mv_size);
+      }
+      else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
+        ADD_ATTR(config, data->ns, data->key, mdb_data.mv_data, mdb_data.mv_size);
+      }
       noit_lmdb_free_check_data(data);
     }
     else {
@@ -142,8 +147,9 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   }
 
-  mdb_cursor_close(cursor);
-  mdb_txn_abort(txn);
+  xmlAddChild(root, attr);
+  xmlAddChild(root, config);
+
   txn = NULL;
 
   mtev_http_response_ok(ctx, "text/xml");
@@ -152,13 +158,13 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   goto cleanup;
 
  not_found:
-  //mtev_http_response_not_found(ctx, "text/html");
-  //mtev_http_response_end(ctx);
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
-  //mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
-  //mtev_http_response_end(ctx);
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -167,6 +173,8 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   }
   free(key);
   if(doc) xmlFreeDoc(doc);
+  if (cursor) mdb_cursor_close(cursor);
+  if (txn) mdb_txn_abort(txn);
   return 0;
 }
 
