@@ -159,7 +159,6 @@ update_check(noit_check_t *check, const char *key, char type,
 static void
 statsd_handle_payload(noit_check_t **checks, int nchecks,
                       char *payload, int len) {
-  mtevL(nldeb, "PAYLOAD(%zu bytes)\n", (size_t)len);
   char *cp, *ecp, *endptr;
   cp = ecp = payload;
   endptr = payload + len - 1;
