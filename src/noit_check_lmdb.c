@@ -45,7 +45,7 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   uuid_t checkid;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
-  int rc;
+  int rc, mod, mod_cnt;
   char *key = NULL;
   size_t key_size;
   MDB_val mdb_key, mdb_data;
@@ -75,6 +75,21 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
   xmlDocSetRootElement(doc, root);
 
+  mod_cnt = noit_check_registered_module_cnt();
+  for(mod=0; mod<mod_cnt; mod++) {
+    xmlNsPtr ns;
+    const char *nsname;
+    char buff[256];
+
+    nsname = noit_check_registered_module(mod);
+ 
+    snprintf(buff, sizeof(buff), "noit://module/%s", nsname);
+    ns = xmlSearchNs(root->doc, root, (xmlChar *)nsname);
+    if(!ns) {
+      ns = xmlNewNs(root, (xmlChar *)buff, (xmlChar *)nsname);
+    }
+  }
+
   attr = xmlNewNode(NULL, (xmlChar *)"attributes");
   config = xmlNewNode(NULL, (xmlChar *)"config");
 
@@ -82,9 +97,27 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   if ((value != NULL) && (value_len != 0)) { \
     char *val = (char *)calloc(1, value_len); \
     memcpy(val, value, value_len); \
-    xmlNodePtr child = xmlNewNode(NULL, (xmlChar *)key); \
-    xmlNodeAddContent(child, (xmlChar *)val); \
-    xmlAddChild(parent, child); \
+    xmlNodePtr child = NULL; \
+    if (ns == NULL) { \
+      child = xmlNewNode(NULL, (xmlChar *)key); \
+      xmlNodeAddContent(child, (xmlChar *)val); \
+    } \
+    else { \
+      xmlNsPtr ns_found = xmlSearchNs(root->doc, root, (xmlChar *)ns); \
+      if (ns_found) { \
+        char buff[256]; \
+        snprintf(buff, sizeof(buff), "%s:value", ns); \
+        child = xmlNewNode(NULL, (xmlChar *)buff); \
+        xmlSetProp(child, (xmlChar *)"name", (xmlChar *)key); \
+        xmlNodeAddContent(child, (xmlChar *)val); \
+      } \
+      else { \
+        mtevL(mtev_debug, "namespace %s configured in check, but not loaded - skipping\n", ns); \
+      } \
+    } \
+    if (child) { \
+      xmlAddChild(parent, child); \
+    } \
     free(val); \
   } \
 } while (0);
