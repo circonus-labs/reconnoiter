@@ -451,7 +451,7 @@ rest_show_check_owner(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
-static int
+int
 rest_show_check_json(mtev_http_rest_closure_t *restc,
                      uuid_t checkid) {
   noit_check_t *check;
