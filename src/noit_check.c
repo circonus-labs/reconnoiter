@@ -1588,8 +1588,14 @@ noit_poller_free_check(noit_check_t *checker) {
   checker->flags |= NP_KILLED;
   noit_poller_free_check_internal(checker, mtev_false);
 }
+
+struct check_remove_todo {
+  uuid_t id;
+  struct check_remove_todo *next;
+};
 static void
 check_recycle_bin_processor_internal() {
+  struct check_remove_todo *head = NULL;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   struct _checker_rcb *prev = NULL, *curr = NULL;
   mtevL(check_debug, "Scanning checks for cluster sync\n");
@@ -1597,32 +1603,46 @@ check_recycle_bin_processor_internal() {
   while(mtev_hash_adv(&polls, &iter)) {
     noit_check_t *check = (noit_check_t *)iter.value.ptr;
     if(NOIT_CHECK_DELETED(check) && !noit_cluster_checkid_replication_pending(check->checkid)) {
-      char xpath[1024], idstr[UUID_STR_LEN+1];
+      char idstr[UUID_STR_LEN+1];
       mtev_uuid_unparse_lower(check->checkid, idstr);
 
+      struct check_remove_todo *todo = calloc(1, sizeof(*todo));
+      mtev_uuid_copy(todo->id, check->checkid);
+      todo->next = head;
+      head = todo;
       mtevL(check_debug, "cluster delete of %s complete.\n", idstr);
       /* Set the config_seq to zero so it can be truly descheduled */
       check->config_seq = 0;
       noit_poller_deschedule(check->checkid, mtev_true, mtev_false);
 
-      if(noit_check_xpath(xpath, sizeof(xpath), "/", idstr) > 0) {
-        xmlXPathContextPtr xpath_ctxt = NULL;
-        xmlXPathObjectPtr pobj = NULL;
-        mtev_conf_xml_xpath(NULL, &xpath_ctxt);
-        pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
-        if(pobj && pobj->type == XPATH_NODESET && !xmlXPathNodeSetIsEmpty(pobj->nodesetval) &&
-           xmlXPathNodeSetGetLength(pobj->nodesetval) >= 1) {
-          xmlNodePtr node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
-          CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
-          xmlUnlinkNode(node);
-          mtev_conf_mark_changed();
-          (void)mtev_conf_write_file(NULL);
-        }
-        if(pobj) xmlXPathFreeObject(pobj);
-      }
     }
   }
   pthread_mutex_unlock(&polls_lock);
+
+  while(head) {
+    char idstr[UUID_STR_LEN+1], xpath[1024];
+    mtev_uuid_unparse_lower(head->id, idstr);
+    mtev_conf_section_t lock = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
+    if(noit_check_xpath(xpath, sizeof(xpath), "/", idstr) > 0) {
+      xmlXPathContextPtr xpath_ctxt = NULL;
+      xmlXPathObjectPtr pobj = NULL;
+      mtev_conf_xml_xpath(NULL, &xpath_ctxt);
+      pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+      if(pobj && pobj->type == XPATH_NODESET && !xmlXPathNodeSetIsEmpty(pobj->nodesetval) &&
+         xmlXPathNodeSetGetLength(pobj->nodesetval) >= 1) {
+        xmlNodePtr node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+        CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
+        xmlUnlinkNode(node);
+        mtev_conf_mark_changed();
+      }
+      if(pobj) xmlXPathFreeObject(pobj);
+    }
+    mtev_conf_release_section_write(lock);
+    struct check_remove_todo *tofree = head;
+    head = head->next;
+    free(tofree);
+  }
+  (void)mtev_conf_write_file(NULL);
 
   mtevL(check_debug, "Scanning check recycle bin\n");
   pthread_mutex_lock(&recycling_lock);
