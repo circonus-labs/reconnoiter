@@ -215,7 +215,7 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     return NULL;
   }
 
-  rc = mdb_env_open(env, path, MDB_NOMETASYNC | MDB_NOSYNC | MDB_NOMEMINIT, 0644);
+  rc = mdb_env_open(env, path, 0, 0644);
   if (rc != 0) {
     errno = rc;
     mdb_env_close(env);
