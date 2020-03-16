@@ -29,6 +29,7 @@
 
 #include "noit_check_lmdb.h"
 #include "noit_check.h"
+#include "noit_check_rest.h"
 #include "noit_lmdb_tools.h"
 
 #include <errno.h>
@@ -40,9 +41,10 @@ static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc,
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
-  xmlNodePtr root, attr, config;//, state, tmp, anode;
+  xmlNodePtr root, attr, config, state;
   int error_code = 500;
   uuid_t checkid;
+  noit_check_t *check;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
   int rc, mod, mod_cnt;
@@ -74,6 +76,11 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
   xmlDocSetRootElement(doc, root);
+
+  mtev_http_request *req = mtev_http_session_request(ctx);
+  const char *redirect_s = mtev_http_request_querystring(req, "redirect");
+  mtev_boolean redirect = !redirect_s || strcmp(redirect_s, "0");
+  const char *metrics = mtev_http_request_querystring(req, "metrics");
 
   mod_cnt = noit_check_registered_module_cnt();
   for(mod=0; mod<mod_cnt; mod++) {
@@ -130,14 +137,10 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   if (rc != 0) {
     if (rc == MDB_NOTFOUND) {
-      mdb_cursor_close(cursor);
-      mdb_txn_abort(txn);
       goto not_found;
     }
     else {
       mtevL(mtev_error, "failed on lookup for show: %d (%s)\n", rc, mdb_strerror(rc));
-      mdb_cursor_close(cursor);
-      mdb_txn_abort(txn);
       goto error;
     }
   }
@@ -146,15 +149,11 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     if (data) {
       if (memcmp(data->id, checkid, UUID_SIZE) != 0) {
         noit_lmdb_free_check_data(data);
-        mdb_cursor_close(cursor);
-        mdb_txn_abort(txn);
         goto not_found;
       }
       noit_lmdb_free_check_data(data);
     }
     else {
-      mdb_cursor_close(cursor);
-      mdb_txn_abort(txn);
       goto error;
     }
   }
@@ -179,11 +178,49 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     }
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   }
+  /* Add the state */
+  check = noit_poller_lookup(checkid);
+  if(!check) {
+    state = xmlNewNode(NULL, (xmlChar *)"state");
+    xmlSetProp(state, (xmlChar *)"error", (xmlChar *)"true");
+  }
+  else {
+    int full = 1;
+    if(metrics && strtoll(metrics, NULL, 10) == 0) full = -1;
+    state = noit_check_state_as_xml(check, full);
+  }
 
   xmlAddChild(root, attr);
   xmlAddChild(root, config);
+  xmlAddChild(root, state);
 
-  txn = NULL;
+  mtev_cluster_node_t *owner = NULL;
+  if(check && !noit_should_run_check(check, &owner) && owner) {
+    const char *cn = mtev_cluster_node_get_cn(owner);
+    char url[1024];
+    struct sockaddr *addr;
+    socklen_t addrlen;
+    unsigned short port;
+    switch(mtev_cluster_node_get_addr(owner, &addr, &addrlen)) {
+      case AF_INET:
+        port = ntohs(((struct sockaddr_in *)addr)->sin_port);
+        break;
+      case AF_INET6:
+        port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+        break;
+      default:
+        port = 43191;
+    }
+    char uuid_str[UUID_STR_LEN+1];
+    mtev_uuid_unparse_lower(checkid, uuid_str);
+    snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s",
+             cn, port, uuid_str);
+    mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    mtev_http_response_standard(ctx, redirect ? 302 : 200, "NOT IT", "text/xml");
+  }
+  else {
+    mtev_http_response_ok(ctx, "text/xml");
+  }
 
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
@@ -201,13 +238,13 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   goto cleanup;
 
  cleanup:
+  if (cursor) mdb_cursor_close(cursor);
+  if (txn) mdb_txn_abort(txn);
   if (locked) {
     ck_rwlock_read_unlock(&instance->lock);
   }
   free(key);
   if(doc) xmlFreeDoc(doc);
-  if (cursor) mdb_cursor_close(cursor);
-  if (txn) mdb_txn_abort(txn);
   return 0;
 }
 
