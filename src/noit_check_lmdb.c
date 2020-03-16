@@ -330,6 +330,8 @@ put_retry:
     ATTR2LMDB(seq);
   }
 
+  /* TODO: Add UUID as check attribute */
+
   if (c) {
     key = NULL;
     val = NULL;
