@@ -44,6 +44,10 @@
 #include <libxml/tree.h>
 #include <mtev_json.h>
 
+API_EXPORT(int)
+rest_show_check_json(mtev_http_rest_closure_t *restc,
+                     uuid_t checkid);
+
 API_EXPORT(void)
   noit_check_rest_init();
 

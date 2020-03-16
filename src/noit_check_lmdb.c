@@ -36,7 +36,7 @@
 
 static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc, 
                                            uuid_t checkid) {
-  return 0;
+  return rest_show_check_json(restc, checkid);
 }
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
