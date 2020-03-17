@@ -369,19 +369,6 @@ noit_check_state_as_json(noit_check_t *check, int full) {
 }
 
 static int
-rest_show_config(mtev_http_rest_closure_t *restc,
-                 int npats, char **pats) {
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if (instance) {
-    return noit_rest_show_config_with_lmdb(restc, npats, pats, instance);
-  }
-  else {
-    return noit_rest_show_config(restc, npats, pats);
-  }
-  mtevFatal(mtev_error, "unreachable\n");
-}
-
-static int
 json_check_accum(noit_check_t *check, void *closure) {
   struct json_object *cobj, *doc = closure;
   char id_str[UUID_STR_LEN+1];
@@ -1335,7 +1322,7 @@ void
 noit_check_rest_init() {
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
-    rest_show_config, mtev_http_rest_client_cert_auth
+    noit_rest_show_config, mtev_http_rest_client_cert_auth
   ) == 0);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^updates$",
