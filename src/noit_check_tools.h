@@ -42,6 +42,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_clustering.h"
+#include "noit_lmdb_tools.h"
 #include "noit_check_tools_shared.h"
 
 typedef int (*dispatch_func_t)(noit_module_t *, noit_check_t *,
@@ -53,6 +54,11 @@ API_EXPORT(void)
 API_EXPORT(int)
   noit_rest_show_config(mtev_http_rest_closure_t *restc,
                         int npats, char **pats);
+
+API_EXPORT(int)
+  noit_rest_show_config_with_lmdb(mtev_http_rest_closure_t *restc,
+                                  int npats, char **pats,
+                                  noit_lmdb_instance_t *instance);
 
 API_EXPORT(int)
   noit_check_schedule_next(noit_module_t *self,
