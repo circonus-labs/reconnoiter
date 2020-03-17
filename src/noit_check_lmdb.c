@@ -38,49 +38,78 @@ static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc,
                                            uuid_t checkid) {
   return rest_show_check_json(restc, checkid);
 }
-int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
-  mtev_http_session_ctx *ctx = restc->http_ctx;
-  xmlDocPtr doc = NULL;
-  xmlNodePtr root, attr, config, state;
-  int error_code = 500;
-  uuid_t checkid;
-  noit_check_t *check;
+
+static int noit_check_lmdb_add_attribute(xmlNodePtr root, xmlNodePtr attr, noit_lmdb_check_data_t *key_data, MDB_val mdb_data, bool separate_stanza) {
+  mtevAssert(root != NULL);
+  if ((!mdb_data.mv_data) || (mdb_data.mv_size == 0)) {
+    return 0;
+  }
+  char *val = (char *)calloc(1, mdb_data.mv_size);
+  memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
+  if (separate_stanza) {
+    mtevAssert(attr != NULL);
+    xmlNodePtr child = NULL;
+    child = xmlNewNode(NULL, (xmlChar *)key_data->key);
+    xmlNodeAddContent(child, (xmlChar *)val);
+    xmlAddChild(attr, child);
+  }
+  else {
+    /* TODO */
+  }
+  free(val);
+  return 0;
+}
+static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_lmdb_check_data_t *key_data, MDB_val mdb_data) {
+  mtevAssert(root != NULL);
+  mtevAssert(config != NULL);
+  if ((!mdb_data.mv_data) || (mdb_data. mv_size == 0)) {
+    return 0;
+  }
+  char *val = (char *)calloc(1, mdb_data.mv_size);
+  memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
+  xmlNodePtr child = NULL;
+  if (key_data->ns == NULL) {
+    child = xmlNewNode(NULL, (xmlChar *)key_data->key);
+    xmlNodeAddContent(child, (xmlChar *)val);
+  }
+  else {
+    xmlNsPtr ns_found = xmlSearchNs(root->doc, root, (xmlChar *)key_data->ns);
+    if (ns_found) {
+      char buff[256];
+      snprintf(buff, sizeof(buff), "%s:value", key_data->ns);
+      child = xmlNewNode(NULL, (xmlChar *)buff);
+      xmlSetProp(child, (xmlChar *)"name", (xmlChar *)key_data->key);
+      xmlNodeAddContent(child, (xmlChar *)val);
+    }
+    else {
+      mtevL(mtev_error, "PHIL: namespace %s configured in check, but not loaded - skipping\n", key_data->ns);
+    }
+  }
+  if (child) {
+    xmlAddChild(config, child);
+  }
+  free(val);
+  return 0;
+}
+
+int noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, boolean separate_attributes) {
+  int rc, mod, mod_cnt;
+  xmlNodePtr attr = NULL, config = NULL;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
-  int rc, mod, mod_cnt;
+  MDB_val mdb_key, mdb_data;
   char *key = NULL;
   size_t key_size;
-  MDB_val mdb_key, mdb_data;
   bool locked = false;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
-
-  if(npats != 2 && npats != 3) {
-    goto error;
-  }
-  /* pats[0] was an XML path in the XML-backed store.... we can no longer
-   * respect that, so just ignore it */
-  if(mtev_uuid_parse(pats[1], checkid)) goto error;
-
-  if(npats == 3 && !strcmp(pats[2], ".json")) {
-    return noit_check_lmdb_show_check_json(restc, checkid);
-  }
 
   key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
-
-  doc = xmlNewDoc((xmlChar *)"1.0");
-  root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
-  xmlDocSetRootElement(doc, root);
-
-  mtev_http_request *req = mtev_http_session_request(ctx);
-  const char *redirect_s = mtev_http_request_querystring(req, "redirect");
-  mtev_boolean redirect = !redirect_s || strcmp(redirect_s, "0");
-  const char *metrics = mtev_http_request_querystring(req, "metrics");
 
   mod_cnt = noit_check_registered_module_cnt();
   for(mod=0; mod<mod_cnt; mod++) {
@@ -97,37 +126,10 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     }
   }
 
-  attr = xmlNewNode(NULL, (xmlChar *)"attributes");
+  if (separate_attributes) {
+    attr = xmlNewNode(NULL, (xmlChar *)"attributes");
+  }
   config = xmlNewNode(NULL, (xmlChar *)"config");
-
-#define ADD_ATTR(parent, ns, key, value, value_len) do { \
-  if ((value != NULL) && (value_len != 0)) { \
-    char *val = (char *)calloc(1, value_len); \
-    memcpy(val, value, value_len); \
-    xmlNodePtr child = NULL; \
-    if (ns == NULL) { \
-      child = xmlNewNode(NULL, (xmlChar *)key); \
-      xmlNodeAddContent(child, (xmlChar *)val); \
-    } \
-    else { \
-      xmlNsPtr ns_found = xmlSearchNs(root->doc, root, (xmlChar *)ns); \
-      if (ns_found) { \
-        char buff[256]; \
-        snprintf(buff, sizeof(buff), "%s:value", ns); \
-        child = xmlNewNode(NULL, (xmlChar *)buff); \
-        xmlSetProp(child, (xmlChar *)"name", (xmlChar *)key); \
-        xmlNodeAddContent(child, (xmlChar *)val); \
-      } \
-      else { \
-        mtevL(mtev_debug, "namespace %s configured in check, but not loaded - skipping\n", ns); \
-      } \
-    } \
-    if (child) { \
-      xmlAddChild(parent, child); \
-    } \
-    free(val); \
-  } \
-} while (0);
 
   ck_rwlock_read_lock(&instance->lock);
   locked = true;
@@ -137,25 +139,22 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   if (rc != 0) {
     if (rc == MDB_NOTFOUND) {
-      goto not_found;
+      goto cleanup;
     }
     else {
       mtevL(mtev_error, "failed on lookup for show: %d (%s)\n", rc, mdb_strerror(rc));
-      goto error;
+      goto cleanup;
     }
   }
   else {
     noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
-    if (data) {
-      if (memcmp(data->id, checkid, UUID_SIZE) != 0) {
-        noit_lmdb_free_check_data(data);
-        goto not_found;
-      }
+    mtevAssert(data);
+    if (memcmp(data->id, checkid, UUID_SIZE) != 0) {
       noit_lmdb_free_check_data(data);
+      rc = MDB_NOTFOUND;
+      goto cleanup;
     }
-    else {
-      goto error;
-    }
+    noit_lmdb_free_check_data(data);
   }
   while(rc == 0) {
     noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
@@ -166,10 +165,10 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
       }
       mtevL(mtev_error, "CHECKING ATTR KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
       if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
-        ADD_ATTR(attr, data->ns, data->key, mdb_data.mv_data, mdb_data.mv_size);
+        noit_check_lmdb_add_attribute(root, attr, data, mdb_data, separate_attributes);
       }
       else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
-        ADD_ATTR(config, data->ns, data->key, mdb_data.mv_data, mdb_data.mv_size);
+        noit_check_lmdb_add_config(root, config, data, mdb_data);
       }
       noit_lmdb_free_check_data(data);
     }
@@ -178,6 +177,68 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     }
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   }
+
+  if (separate_attributes) {
+    xmlAddChild(root, attr);
+  }
+  xmlAddChild(root, config);
+
+  rc = 0;
+  goto cleanup;
+
+ cleanup:
+  if (cursor) mdb_cursor_close(cursor);
+  if (txn) mdb_txn_abort(txn);
+  if (locked) {
+    ck_rwlock_read_unlock(&instance->lock);
+  }
+  free(key);
+  return rc;
+}
+
+int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root, state;
+  int error_code = 500;
+  uuid_t checkid;
+  noit_check_t *check;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  if(npats != 2 && npats != 3) {
+    goto error;
+  }
+  /* pats[0] was an XML path in the XML-backed store.... we can no longer
+   * respect that, so just ignore it */
+  if(mtev_uuid_parse(pats[1], checkid)) goto error;
+
+  if(npats == 3 && !strcmp(pats[2], ".json")) {
+    return noit_check_lmdb_show_check_json(restc, checkid);
+  }
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
+  xmlDocSetRootElement(doc, root);
+
+  int rc = noit_check_lmdb_populate_check_xml_from_lmdb(root, checkid, true);
+  if (rc != 0) {
+    if (rc == MDB_NOTFOUND) {
+      goto not_found;
+    }
+    else {
+      goto error;
+    }
+  }
+
+  mtev_http_request *req = mtev_http_session_request(ctx);
+  const char *redirect_s = mtev_http_request_querystring(req, "redirect");
+  mtev_boolean redirect = !redirect_s || strcmp(redirect_s, "0");
+  const char *metrics = mtev_http_request_querystring(req, "metrics");
+
   /* Add the state */
   check = noit_poller_lookup(checkid);
   if(!check) {
@@ -190,8 +251,6 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     state = noit_check_state_as_xml(check, full);
   }
 
-  xmlAddChild(root, attr);
-  xmlAddChild(root, config);
   xmlAddChild(root, state);
 
   mtev_cluster_node_t *owner = NULL;
@@ -240,10 +299,6 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
  cleanup:
   if (cursor) mdb_cursor_close(cursor);
   if (txn) mdb_txn_abort(txn);
-  if (locked) {
-    ck_rwlock_read_unlock(&instance->lock);
-  }
-  free(key);
   if(doc) xmlFreeDoc(doc);
   return 0;
 }
