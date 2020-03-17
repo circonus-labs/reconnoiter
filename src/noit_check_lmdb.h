@@ -36,6 +36,7 @@
 #ifndef _NOIT_CHECK_LMDB_H
 #define _NOIT_CHECK_LMDB_H
 
+int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char **pats);
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
 void noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in);
 int noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc, int npats, char **pats);

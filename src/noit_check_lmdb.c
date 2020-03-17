@@ -54,7 +54,7 @@ static int noit_check_lmdb_add_attribute(xmlNodePtr root, xmlNodePtr attr, noit_
     xmlAddChild(attr, child);
   }
   else {
-    /* TODO */
+    xmlSetProp(root, (xmlChar *)key_data->key, (xmlChar *)val);
   }
   free(val);
   return 0;
@@ -92,7 +92,8 @@ static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_l
   return 0;
 }
 
-int noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, boolean separate_attributes) {
+static int
+noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, boolean separate_attributes) {
   int rc, mod, mod_cnt;
   xmlNodePtr attr = NULL, config = NULL;
   MDB_txn *txn = NULL;
@@ -194,6 +195,74 @@ int noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid
   }
   free(key);
   return rc;
+}
+
+static int
+noit_check_lmdb_scan_lmdb_for_each_check_cb(noit_check_t *check, void *closure) {
+  xmlNodePtr root = (xmlNodePtr)closure;
+  xmlNodePtr check_node = xmlNewNode(NULL, (xmlChar *)"check");
+  int rv = noit_check_lmdb_populate_check_xml_from_lmdb(check_node, check->checkid, false);
+  if (rv == 0) {
+    xmlAddChild(root, check_node);
+  }
+  else {
+    xmlFreeNode(check_node);
+  }
+  return 1;
+}
+
+int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  int error_code = 500;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root = NULL;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"checks", NULL);
+  xmlDocSetRootElement(doc, root);
+
+  mtev_conf_section_t checks = mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit/checks");
+  xmlNodePtr checks_xmlnode = mtev_conf_section_to_xmlnodeptr(checks);
+  mtev_conf_release_section_read(checks);
+  if (!checks_xmlnode) {
+    goto error;
+  }
+
+  /* First, set the properties */
+  xmlAttr* props = checks_xmlnode->properties;
+  while (props != NULL) {
+    xmlChar* value = xmlNodeListGetString(checks_xmlnode->doc, props->children, 1);
+    if (value) {
+      xmlSetProp(root, props->name, value);
+      xmlFree(value);
+    }
+    props = props->next;
+  }
+
+  /* Next, iterate the checks and set the data from LMDB */
+  noit_poller_do(noit_check_lmdb_scan_lmdb_for_each_check_cb, root);
+
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ error:
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if (cursor) mdb_cursor_close(cursor);
+  if (txn) mdb_txn_abort(txn);
+  if (doc) xmlFreeDoc(doc);
+
+  return 0;
 }
 
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {

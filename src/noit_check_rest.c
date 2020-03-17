@@ -397,12 +397,19 @@ rest_show_checks_json(mtev_http_rest_closure_t *restc,
 static int
 rest_show_checks(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
-  char *cpath = "/checks";
-
-  if(npats == 1 && !strcmp(pats[0], ".json"))
+  if(npats == 1 && !strcmp(pats[0], ".json")) {
     return rest_show_checks_json(restc, npats, pats);
-
-  return noit_rest_show_config(restc, 1, &cpath);
+  }
+  else if (0 && noit_check_get_lmdb_instance() != NULL) {
+    /* TODO: Remove 0 && */
+    return noit_check_lmdb_show_checks(restc, npats, pats);
+  }
+  else {
+    char *cpath = "/checks";
+    return noit_rest_show_config(restc, 1, &cpath);
+  }
+  mtevFatal(mtev_error, "unreachable\n");
+  return 0;
 }
 
 static int
@@ -529,8 +536,9 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
    * do XML - this is on for test purposes now */
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(instance) {
-    //return noit_check_lmdb_show_check(restc, npats, pats);
+  if(0 && instance) {
+    /* TODO: Remove 0 && */
+    return noit_check_lmdb_show_check(restc, npats, pats);
   }
   NCINIT_RD;
 
