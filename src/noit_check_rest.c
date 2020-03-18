@@ -1007,8 +1007,9 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
    * do XML - this is on for test purposes now */
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(instance) {
-    noit_check_lmdb_delete_check(restc, npats, pats);
+  if(0 && instance) {
+    /* TODO: Remove 0 && */
+    return noit_check_lmdb_delete_check(restc, npats, pats);
   }
 
   NCINIT_WR;

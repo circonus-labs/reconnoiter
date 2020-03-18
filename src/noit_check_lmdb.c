@@ -534,9 +534,9 @@ put_retry:
 int
 noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
                              int npats, char **pats) {
-  //mtev_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   uuid_t checkid;
-  int rc;//, error_code = 500;
+  int rc, error_code = 500;
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn;
   MDB_cursor *cursor;
@@ -609,19 +609,18 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
   }
   mdb_cursor_close(cursor);
 
-  /* TODO: Uncomment these when done */
-  //mtev_http_response_ok(ctx, "text/html");
-  //mtev_http_response_end(ctx);
+  mtev_http_response_ok(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
-  //mtev_http_response_not_found(ctx, "text/html");
-  //mtev_http_response_end(ctx);
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
-  //mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
-  //mtev_http_response_end(ctx);
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
