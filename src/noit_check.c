@@ -56,11 +56,11 @@
 #include <mtev_log.h>
 #include <mtev_hash.h>
 #include <mtev_skiplist.h>
-#include <mtev_watchdog.h>
 #include <mtev_conf.h>
 #include <mtev_console.h>
 #include <mtev_cluster.h>
 #include <mtev_str.h>
+#include <mtev_watchdog.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_dtrace_probes.h"

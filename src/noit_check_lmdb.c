@@ -630,3 +630,82 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
   free(key);
   return 0;
 }
+
+/* This function assumes that the cursor is pointing at the first element for a uuid
+ * It will iterate the cursor until it hits a new uuid or the end of the database, 
+ * then reeturn the return code fro, the lmdb call
+ * It is the responsibility of the caller to handle this */
+static int
+noit_check_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t checkid) {
+  int rc = 0;
+  MDB_val mdb_key, mdb_data;
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
+  while (rc == 0) {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    mtevAssert(data);
+    /* If the uuid doesn't match, we're done */
+    if (mtev_uuid_compare(checkid, data->id) != 0) {
+      noit_lmdb_free_check_data(data);
+      break;
+    }
+    if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
+    }
+    else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
+    }
+    else {
+      mtevFatal(mtev_error, "unknown type\n");
+    }
+    noit_lmdb_free_check_data(data);
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+  return rc;
+}
+static void
+noit_check_lmdb_poller_process_all_checks() {
+  int rc;
+  MDB_val mdb_key, mdb_data;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
+  mtevAssert(instance);
+
+  mdb_key.mv_data = NULL;
+  mdb_key.mv_size = 0;
+  ck_rwlock_read_lock(&instance->lock);
+
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    ck_rwlock_read_unlock(&instance->lock);
+    mtevL(mtev_error, "failed to create transaction for processing all checks: %d (%s)\n", rc, mdb_strerror(rc));
+    return;
+  }
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  while (rc == 0) {
+    uuid_t checkid;
+    /* The start of the key is always a uuid */
+    mtev_uuid_copy(checkid, mdb_key.mv_data);
+    rc = noit_check_lmdb_create_check_from_database_locked(cursor, checkid);
+  }
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+  ck_rwlock_read_unlock(&instance->lock);
+}
+static void
+noit_check_lmdb_poller_process_check(uuid_t checkid) {
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  mtevAssert(instance);
+}
+void
+noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
+  int i = 0;
+  if (!uuids) {
+    noit_check_lmdb_poller_process_all_checks();
+  }
+  else {
+    for (i = 0; i < uuid_cnt; i++) {
+      noit_check_lmdb_poller_process_check(uuids[i]);
+    }
+  }
+}
