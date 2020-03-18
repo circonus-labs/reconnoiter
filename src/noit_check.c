@@ -3202,6 +3202,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   int64_t config_seq = 0;
   int ridx, flags, found = 0;
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
+  mtev_hash_table options;
   mtev_hash_table **moptions = NULL;
   mtev_boolean moptions_used = mtev_false, backdated = mtev_false;
   MDB_val mdb_key, mdb_data;
@@ -3211,6 +3212,8 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
    * end up getting watchdog killed before we get a chance to run 
    * any checks */
   mtev_watchdog_child_heartbeat();
+
+  mtev_hash_init(&options);
 
   if(reg_module_id > 0) {
     moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
@@ -3257,6 +3260,29 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       }
     }
     else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
+      mtev_hash_table *insertTable = NULL;
+      if (data->ns == NULL) {
+        insertTable = &options;
+      }
+      else {
+        for(ridx=0; ridx<reg_module_id; ridx++) {
+          if (strcmp(reg_module_names[ridx], data->ns) == 0) {
+            if (!moptions[ridx]) {
+              moptions[ridx] = calloc(1, sizeof(mtev_hash_table));
+              mtev_hash_init(moptions[ridx]);
+            }
+            insertTable = moptions[ridx];
+            break;
+          }
+        }
+      }
+      if (insertTable) {
+        char *key = strdup(data->key);
+        char *value = (char *)malloc(mdb_data.mv_size + 1);
+        memcpy(value, mdb_data.mv_data, mdb_data.mv_size);
+        value[mdb_data.mv_size] = 0;
+        mtev_hash_store(&options, key, strlen(key), value);
+      }
     }
     else {
       mtevFatal(mtev_error, "unknown type\n");
@@ -3290,16 +3316,13 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       noit_poller_deschedule(uuid, mtev_false, mtev_false);
     }
   }
-/*
   for(ridx=0; ridx<reg_module_id; ridx++) {
     if(moptions[ridx]) {
-
       mtev_hash_destroy(moptions[ridx], free, free);
       free(moptions[ridx]);
     }
   }
-  mtev_hash_destroy(options, free, free);
-  free(options); */
+  mtev_hash_destroy(&options, free, free);
 
   return rc;
 }
