@@ -751,17 +751,8 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   flags |= noit_calc_rtype_flag(resolve_rtype);
 
-  pthread_mutex_lock(&polls_lock);
-  found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
-  if(found) {
-    noit_check_t *check = (noit_check_t *)vcheck;
-    /* Possibly reset the seq */
-    if(config_seq < 0) check->config_seq = 0;
+  vcheck = noit_poller_check_found_and_backdated(uuid, config_seq, &found, &backdated);
 
-    /* Otherwise note a non-increasing sequence */
-    if(check->config_seq > config_seq) backdated = mtev_true;
-  }
-  pthread_mutex_unlock(&polls_lock);
   if(found)
     noit_poller_deschedule(uuid, mtev_false, mtev_true);
   if(backdated) {
@@ -785,6 +776,22 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   }
   mtev_hash_destroy(options, free, free);
   free(options);
+}
+void *
+noit_poller_check_found_and_backdated(uuid_t uuid, int64_t config_seq, int *found, mtev_boolean *backdated) {
+  void *vcheck = NULL;
+  pthread_mutex_lock(&polls_lock);
+  *found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
+  if(*found) {
+    noit_check_t *check = (noit_check_t *)vcheck;
+    /* Possibly reset the seq */
+    if(config_seq < 0) check->config_seq = 0;
+
+    /* Otherwise note a non-increasing sequence */
+    if(check->config_seq > config_seq) *backdated = mtev_true;
+  }
+  pthread_mutex_unlock(&polls_lock);
+  return vcheck;
 }
 void
 noit_poller_process_checks(const char *xpath) {
