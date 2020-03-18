@@ -3181,3 +3181,125 @@ noit_check_process_repl(xmlDocPtr doc) {
     mtevL(check_error, "local config write failed\n");
   return i;
 }
+
+/* This function assumes that the cursor is pointing at the first element for a uuid
+ * It will iterate the cursor until it hits a new uuid or the end of the database, 
+ * then reeturn the return code fro, the lmdb call
+ * It is the responsibility of the caller to handle this */
+int
+noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t checkid) {
+  void *vcheck = NULL;
+  int rc = 0;
+  char uuid_str[37];
+  char target[256] = "";
+  char module[256] = "";
+  char name[256] = "";
+  char filterset[256] = "";
+  char oncheck[1024] = "";
+  char resolve_rtype[16] = "";
+  char delstr[8] = "";
+  uuid_t uuid, out_uuid;
+  int64_t config_seq = 0;
+  int ridx, flags, found = 0;
+  mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
+  mtev_hash_table **moptions = NULL;
+  mtev_boolean moptions_used = mtev_false, backdated = mtev_false;
+  MDB_val mdb_key, mdb_data;
+
+  /* We want to heartbeat here... otherwise, if a lot of checks are 
+   * configured or if we're running on a slower system, we could 
+   * end up getting watchdog killed before we get a chance to run 
+   * any checks */
+  mtev_watchdog_child_heartbeat();
+
+  if(reg_module_id > 0) {
+    moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
+    memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
+    moptions_used = mtev_true;
+  }
+
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
+  while (rc == 0) {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    mtevAssert(data);
+    /* If the uuid doesn't match, we're done */
+    if (mtev_uuid_compare(checkid, data->id) != 0) {
+      noit_lmdb_free_check_data(data);
+      break;
+    }
+    int copySize = 0;
+    if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
+#define COPYSTRING(val) do { \
+  copySize = MIN(mdb_data.mv_size, sizeof(val) - 1); \
+  memcpy(val, mdb_data.mv_data, copySize); \
+  val[copySize] = 0; \
+} while(0);
+      if (strcmp(data->key, "target") == 0) {
+        COPYSTRING(target);
+      }
+      else if (strcmp(data->key, "module") == 0) {
+        COPYSTRING(module);
+      }
+      else if (strcmp(data->key, "name") == 0) {
+        COPYSTRING(name);
+      }
+      else if (strcmp(data->key, "filterset") == 0) {
+        COPYSTRING(filterset);
+      }
+      else if (strcmp(data->key, "seq") == 0) {
+      }
+      else if (strcmp(data->key, "period") == 0) {
+      }
+      else if (strcmp(data->key, "timeout") == 0) {
+      }
+      else {
+        mtevL(mtev_error, "PHIL: UNKNOWN ATTRIBUTE: %s\n", data->key);
+      }
+    }
+    else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
+    }
+    else {
+      mtevFatal(mtev_error, "unknown type\n");
+    }
+    noit_lmdb_free_check_data(data);
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+  mtevL(mtev_error, "TARGET: %s\n", target);
+  mtevL(mtev_error, "MODULE: %s\n", module);
+  mtevL(mtev_error, "NAME: %s\n", name);
+  mtevL(mtev_error, "FILTERSET: %s\n", filterset);
+
+  vcheck = noit_poller_check_found_and_backdated(uuid, config_seq, &found, &backdated);
+
+  if(found) {
+    noit_poller_deschedule(uuid, mtev_false, mtev_true);
+  }
+  if(backdated) {
+    mtevL(mtev_error, "Check config seq backwards, ignored\n");
+    if(found) {
+      noit_check_log_delete((noit_check_t *)vcheck);
+    }
+  }
+  else {
+    //noit_poller_schedule(target, module, name, filterset, options,
+    //                     moptions_used ? moptions : NULL,
+    //                     period, timeout, oncheck[0] ? oncheck : NULL,
+    //                     config_seq, flags, uuid, out_uuid);
+    mtevL(mtev_debug, "loaded uuid: %s\n", uuid_str);
+    if(deleted) {
+      noit_poller_deschedule(uuid, mtev_false, mtev_false);
+    }
+  }
+/*
+  for(ridx=0; ridx<reg_module_id; ridx++) {
+    if(moptions[ridx]) {
+
+      mtev_hash_destroy(moptions[ridx], free, free);
+      free(moptions[ridx]);
+    }
+  }
+  mtev_hash_destroy(options, free, free);
+  free(options); */
+
+  return rc;
+}

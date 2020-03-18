@@ -466,6 +466,9 @@ API_EXPORT(int)
 API_EXPORT(void)
   noit_check_build_cluster_changelog(void *);
 
+API_EXPORT(int)
+  noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t checkid);
+
 MTEV_HOOK_PROTO(check_config_fixup,
                 (noit_check_t *check),
                 void *, closure,
