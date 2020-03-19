@@ -77,6 +77,9 @@ static bool initialized = false;
 static mtev_log_stream_t check_error;
 static mtev_log_stream_t check_debug;
 
+static int global_minimum_period = 1000;
+static int global_maximum_period = 300000;
+
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
 #define CHECKS_XPATH_BASE CHECKS_XPATH_ROOT "/" CHECKS_XPATH_PARENT
@@ -711,8 +714,9 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 		if(period > maximum_period) period = maximum_period;
 	}
 
-  if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
+  if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
     no_oncheck = 1;
+  }
 
   if(deleted) {
     memcpy(target, "none", 5);
@@ -3197,14 +3201,21 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   char filterset[256] = "";
   char oncheck[1024] = "";
   char resolve_rtype[16] = "";
-  char delstr[8] = "";
+  char delstr[16] = "";
+  char seq_str[256] = "";
+  char period_str[256] = "";
+  char timeout_str[256] = "";
   uuid_t uuid, out_uuid;
   int64_t config_seq = 0;
   int ridx, flags, found = 0;
+  int no_oncheck = 1;
+  int no_period = 1;
+  int no_timeout = 1;
+  int period = 0, timeout = 0;
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   mtev_hash_table options;
   mtev_hash_table **moptions = NULL;
-  mtev_boolean moptions_used = mtev_false, backdated = mtev_false;
+  mtev_boolean moptions_used = mtev_false, moptions_malloced = mtev_false, backdated = mtev_false;
   MDB_val mdb_key, mdb_data;
 
   /* We want to heartbeat here... otherwise, if a lot of checks are 
@@ -3213,10 +3224,17 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
    * any checks */
   mtev_watchdog_child_heartbeat();
 
+  mtev_uuid_unparse_lower(checkid, uuid_str);
   mtev_hash_init(&options);
 
   if(reg_module_id > 0) {
-    moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
+    if (reg_module_id > 10) {
+      moptions = malloc(reg_module_id * sizeof(mtev_hash_table *));
+      moptions_malloced = mtev_true;
+    }
+    else {
+      moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
+    }
     memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
     moptions_used = mtev_true;
   }
@@ -3250,10 +3268,35 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
         COPYSTRING(filterset);
       }
       else if (strcmp(data->key, "seq") == 0) {
+        COPYSTRING(seq_str);
       }
       else if (strcmp(data->key, "period") == 0) {
+        COPYSTRING(period_str);
+        period = atoi(period_str);
+        no_period = 0;
+        if (period < global_minimum_period) {
+          period = global_minimum_period;
+        }
+	else if (period > global_maximum_period) {
+          period = global_maximum_period;
+        }
       }
       else if (strcmp(data->key, "timeout") == 0) {
+        COPYSTRING(timeout_str);
+        no_timeout = 0;
+        timeout = atoi(timeout_str);
+      }
+      else if (strcmp(data->key, "oncheck") == 0) {
+        COPYSTRING(oncheck);
+        no_oncheck = 0;
+      }
+      else if (strcmp(data->key, "deleted") == 0) {
+        COPYSTRING(delstr);
+        if (strcmp(delstr, "deleted") == 0) {
+          deleted = mtev_true;
+          disabled = mtev_true;
+          flags |= NP_DELETED;
+        }
       }
       else {
         mtevL(mtev_error, "PHIL: UNKNOWN ATTRIBUTE: %s\n", data->key);
@@ -3294,6 +3337,42 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   mtevL(mtev_error, "MODULE: %s\n", module);
   mtevL(mtev_error, "NAME: %s\n", name);
   mtevL(mtev_error, "FILTERSET: %s\n", filterset);
+  mtevL(mtev_error, "ONCHECK: %s\n", oncheck);
+  mtevL(mtev_error, "PERIOD: %s\n", period_str);
+  mtevL(mtev_error, "TIMEOUT: %s\n", timeout_str);
+  mtevL(mtev_error, "SEQ: %s\n", seq_str);
+  mtevL(mtev_error, "DELETED: %s\n", delstr);
+
+  if(deleted) {
+    memcpy(target, "none", 5);
+    mtev_uuid_unparse_lower(uuid, name);
+  } else {
+    if(no_period && no_oncheck) {
+      mtevL(mtev_error, "check uuid: '%s' has neither period nor oncheck\n",
+        uuid_str);
+      busted = mtev_true;
+    }
+    if(!(no_period || no_oncheck)) {
+      mtevL(mtev_error, "check uuid: '%s' has oncheck and period.\n",
+        uuid_str);
+      busted = mtev_true;
+    }
+    if (no_timeout) {
+      mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
+      busted = mtev_true;
+    }
+    if(timeout < 0) timeout = 0;
+    if(!no_period && timeout >= period) {
+      mtevL(mtev_error, "check uuid: '%s' timeout > period\n", uuid_str);
+      timeout = period/2;
+    }
+    //INHERIT(boolean, disable, &disabled);
+  }
+
+  if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
+  else if(disabled) flags |= NP_DISABLED;
+
+  flags |= noit_calc_rtype_flag(resolve_rtype);
 
   vcheck = noit_poller_check_found_and_backdated(uuid, config_seq, &found, &backdated);
 
@@ -3307,10 +3386,10 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     }
   }
   else {
-    //noit_poller_schedule(target, module, name, filterset, options,
-    //                     moptions_used ? moptions : NULL,
-    //                     period, timeout, oncheck[0] ? oncheck : NULL,
-    //                     config_seq, flags, uuid, out_uuid);
+    noit_poller_schedule(target, module, name, filterset, &options,
+                         moptions_used ? moptions : NULL,
+                         period, timeout, oncheck[0] ? oncheck : NULL,
+                         config_seq, flags, uuid, out_uuid);
     mtevL(mtev_debug, "loaded uuid: %s\n", uuid_str);
     if(deleted) {
       noit_poller_deschedule(uuid, mtev_false, mtev_false);
@@ -3321,6 +3400,9 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       mtev_hash_destroy(moptions[ridx], free, free);
       free(moptions[ridx]);
     }
+  }
+  if (moptions_malloced == mtev_true) {
+    free(moptions);
   }
   mtev_hash_destroy(&options, free, free);
 
