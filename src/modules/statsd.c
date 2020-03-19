@@ -199,6 +199,34 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
       last_space = 0;
       cp++;
     }
+
+    /* We've finished graphite-style tags, now we skip to the end to eat up
+     * DD-style trailing tags.
+     */
+    const char *ddtags = memchr(cp, '#', endptr - cp);
+    if(ddtags) {
+      ddtags++;
+      ssize_t len = endptr - ddtags;
+      if(len > 0) {
+        mtevL(nldeb, "found DD tags: %.*s\n", (int)len, ddtags);
+        if(tags && len < sizeof(key) - idx - 3) {
+          key[idx++] = ',';
+          memcpy(key+idx, ddtags, len);
+          idx += len;
+        }
+        else if(!tags && len < sizeof(key) - idx - sizeof("|ST[]")) {
+          key[idx++] = '|';
+          key[idx++] = 'S';
+          key[idx++] = 'T';
+          key[idx++] = '[';
+          tags = mtev_true;
+          memcpy(key+idx, ddtags, len);
+          idx += len;
+        } else {
+          mtevL(nlerr, "found DD tags (too long): %.*s\n", (int)(endptr - ddtags), ddtags);
+        }
+      }
+    }
     if(tags) key[idx++] = ']';
     key[idx] = '\0';
 
