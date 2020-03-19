@@ -3221,9 +3221,9 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   char seq_str[256] = "";
   char period_str[256] = "";
   char timeout_str[256] = "";
-  uuid_t uuid, out_uuid;
+  uuid_t out_uuid;
   int64_t config_seq = 0;
-  int ridx, flags, found = 0;
+  int ridx, flags = 0, found = 0;
   int no_oncheck = 1;
   int no_period = 1;
   int no_timeout = 1;
@@ -3316,7 +3316,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
         }
       }
       else {
-        mtevL(mtev_error, "PHIL: UNKNOWN ATTRIBUTE: %s\n", data->key);
+        mtevL(mtev_error, "unknown attribute in check: %s\n", data->key);
       }
     }
     else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
@@ -3362,7 +3362,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
 
   if(deleted) {
     memcpy(target, "none", 5);
-    mtev_uuid_unparse_lower(uuid, name);
+    mtev_uuid_unparse_lower(checkid, name);
   } else {
     if(no_period && no_oncheck) {
       mtevL(mtev_error, "check uuid: '%s' has neither period nor oncheck\n",
@@ -3391,10 +3391,10 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
 
   flags |= noit_calc_rtype_flag(resolve_rtype);
 
-  vcheck = noit_poller_check_found_and_backdated(uuid, config_seq, &found, &backdated);
+  vcheck = noit_poller_check_found_and_backdated(checkid, config_seq, &found, &backdated);
 
   if(found) {
-    noit_poller_deschedule(uuid, mtev_false, mtev_true);
+    noit_poller_deschedule(checkid, mtev_false, mtev_true);
   }
   if(backdated) {
     mtevL(mtev_error, "Check config seq backwards, ignored\n");
@@ -3406,10 +3406,10 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     noit_poller_schedule(target, module, name, filterset, &options,
                          moptions_used ? moptions : NULL,
                          period, timeout, oncheck[0] ? oncheck : NULL,
-                         config_seq, flags, uuid, out_uuid);
+                         config_seq, flags, checkid, out_uuid);
     mtevL(mtev_debug, "loaded uuid: %s\n", uuid_str);
     if(deleted) {
-      noit_poller_deschedule(uuid, mtev_false, mtev_false);
+      noit_poller_deschedule(checkid, mtev_false, mtev_false);
     }
   }
   for(ridx=0; ridx<reg_module_id; ridx++) {
