@@ -765,8 +765,41 @@ noit_check_lmdb_poller_process_all_checks() {
 }
 static void
 noit_check_lmdb_poller_process_check(uuid_t checkid) {
+  int rc;
+  char *key = NULL;
+  size_t key_size;
+  MDB_val mdb_key, mdb_data;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
   mtevAssert(instance);
+
+  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+  ck_rwlock_read_lock(&instance->lock);
+
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    ck_rwlock_read_unlock(&instance->lock);
+    mtevL(mtev_error, "failed to create transaction for processing all checks: %d (%s)\n", rc, mdb_strerror(rc));
+    return;
+  }
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  if (rc == 0) {
+    uuid_t db_checkid;
+    /* The start of the key is always a uuid */
+    mtev_uuid_copy(db_checkid, mdb_key.mv_data);
+    if (mtev_uuid_compare(checkid, db_checkid) == 0) {
+      noit_poller_lmdb_create_check_from_database_locked(cursor, checkid);
+    }
+  }
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+  ck_rwlock_read_unlock(&instance->lock);
 }
 void
 noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
