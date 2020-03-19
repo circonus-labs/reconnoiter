@@ -961,7 +961,8 @@ noit_poller_reload(const char *xpath)
   }
   noit_poller_make_causal_map();
 }
-void noit_poller_reload_lmdb(uuid_t *checks, int cnt)
+void
+noit_poller_reload_lmdb(uuid_t *checks, int cnt)
 {
   noit_check_lmdb_poller_process_checks(checks, cnt);
   if(!checks) {
