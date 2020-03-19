@@ -176,6 +176,7 @@ API_EXPORT(void) noit_check_metric_count_add(int);
 API_EXPORT(int) noit_poller_check_count();
 API_EXPORT(int) noit_poller_transient_check_count();
 API_EXPORT(void) noit_poller_reload(const char *xpath); /* NULL for all */
+API_EXPORT(void) noit_poller_reload_lmdb(uuid_t *checks, int cnt); /* NULL for all */
 API_EXPORT(void*) noit_poller_check_found_and_backdated(uuid_t uuid,
                                                         int64_t config_seq,
                                                         int *found,

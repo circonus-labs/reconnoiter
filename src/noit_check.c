@@ -68,6 +68,7 @@
 #include "noit_module.h"
 #include "noit_check_tools.h"
 #include "noit_check_resolver.h"
+#include "noit_check_lmdb.h"
 #include "modules/histogram.h"
 
 static int check_recycle_period = 60000;
@@ -960,6 +961,15 @@ noit_poller_reload(const char *xpath)
   }
   noit_poller_make_causal_map();
 }
+void noit_poller_reload_lmdb(uuid_t *checks, int cnt)
+{
+  noit_check_lmdb_poller_process_checks(NULL, 0);
+  if(!checks) {
+    /* Full reload, we need to wipe old checks */
+    noit_poller_flush_epoch(__config_load_generation);
+  }
+  noit_poller_make_causal_map();
+}
 void
 noit_check_dns_ignore_tld(const char* extension, const char* ignore) {
   mtev_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), free, free);
@@ -1052,7 +1062,13 @@ noit_poller_init() {
     text_size_limit = NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
   noit_check_dns_ignore_list_init();
-  noit_poller_reload(NULL);
+  /* TODO: Remove 0 && */
+  if (0 && lmdb_instance) {
+    noit_poller_reload_lmdb(NULL, 0);
+  }
+  else {
+    noit_poller_reload(NULL);
+  }
   initialized = true;
 }
 
