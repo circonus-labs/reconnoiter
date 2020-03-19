@@ -372,7 +372,8 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   return 0;
 }
 
-void noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
+static void
+noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
   xmlNodePtr n;
   int rc = 0;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
@@ -530,6 +531,105 @@ put_retry:
   mdb_cursor_close(cursor);
   mtev_hash_destroy(&conf_table, free, NULL);
 }
+
+int
+noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
+                          int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL, indoc = NULL;
+  xmlNodePtr root, attr, config;
+  uuid_t checkid;
+  noit_check_t *check = NULL;
+  int error_code = 500, complete = 0, mask = 0;
+  const char *error = "internal error";
+  mtev_boolean exists = mtev_false;
+
+  if(npats != 2) {
+    goto error;
+  }
+
+  indoc = rest_get_xml_upload(restc, &mask, &complete);
+  if(!complete) {
+    return mask;
+  }
+  if(indoc == NULL) {
+    error_code = 400;
+    error = "xml parse error";
+    goto error;
+  }
+  if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) {
+    goto error;
+  }
+
+  if(mtev_uuid_parse(pats[1], checkid)) {
+    goto error;
+  }
+
+  check = noit_poller_lookup(checkid);
+  if(check) {
+    exists = mtev_true;
+  }
+  mtev_boolean in_db = mtev_false;
+  /* First, check to see if this is already in the db.... TODO */
+  if (!in_db) {
+    if (0 && exists) {
+      return -1;
+    }
+    int64_t seq;
+    uint64_t old_seq = 0;
+    char *target = NULL, *name = NULL, *module = NULL;
+    noit_module_t *m = NULL;
+    noit_check_t *check = NULL;
+    /* make sure this isn't a dup */
+    rest_check_get_attrs(attr, &target, &name, &module);
+    exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
+    if(check) {
+      old_seq = check->config_seq;
+    }
+    if(module) {
+      m = noit_module_lookup(module);
+    }
+    rest_check_free_attrs(target, name, module);
+    if(0 && exists) {
+      return -1;
+    }
+    if(!m) {
+      return -1;
+    }
+    /* create a check here */
+    noit_check_lmdb_configure_check(checkid, attr, config, &seq);
+    if(old_seq >= seq && seq != 0) {
+      return -1;
+    }
+  }
+  else {
+  }
+
+  noit_poller_reload_lmdb(&checkid, 1);
+  if(restc->call_closure_free) {
+    restc->call_closure_free(restc->call_closure);
+  }
+  restc->call_closure_free = NULL;
+  restc->call_closure = NULL;
+  restc->fastpath = noit_check_lmdb_show_check;
+  return restc->fastpath(restc, restc->nparams, restc->params);
+
+ error:
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+  xmlDocSetRootElement(doc, root);
+  xmlNodeAddContent(root, (xmlChar *)error);
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(doc) xmlFreeDoc(doc);
+
+  return 0;
+}
+
 
 int
 noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,

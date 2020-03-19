@@ -50,6 +50,7 @@
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
 #include "noit_check.h"
+#include "noit_check_rest.h"
 #include "noit_check_lmdb.h"
 #include "noit_conf_checks.h"
 #include "noit_check_resolver.h"
@@ -81,6 +82,9 @@
   } \
 } while(0)
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
+
+/* TODO: Enable before release */
+#define ENABLE_LMDB_FOR_CHECKS 0
 
 static void
 add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
@@ -400,8 +404,7 @@ rest_show_checks(mtev_http_rest_closure_t *restc,
   if(npats == 1 && !strcmp(pats[0], ".json")) {
     return rest_show_checks_json(restc, npats, pats);
   }
-  else if (0 && noit_check_get_lmdb_instance() != NULL) {
-    /* TODO: Remove 0 && */
+  else if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance() != NULL) {
     return noit_check_lmdb_show_checks(restc, npats, pats);
   }
   else {
@@ -533,11 +536,8 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   void *data;
   mtev_hash_table *configh;
 
-  /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
-   * do XML - this is on for test purposes now */
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(0 && instance) {
-    /* TODO: Remove 0 && */
+  if(ENABLE_LMDB_FOR_CHECKS && instance) {
     return noit_check_lmdb_show_check(restc, npats, pats);
   }
   NCINIT_RD;
@@ -1004,11 +1004,8 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
 
-  /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
-   * do XML - this is on for test purposes now */
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(0 && instance) {
-    /* TODO: Remove 0 && */
+  if(ENABLE_LMDB_FOR_CHECKS && instance) {
     return noit_check_lmdb_delete_check(restc, npats, pats);
   }
 
@@ -1083,78 +1080,6 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
-static void
-rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module) {
-  xmlNodePtr a = NULL;
-  for(a = attr->children; a; a = a->next) {
-    if(!strcmp((char *)a->name, "target"))
-      *target = (char *)xmlNodeGetContent(a);
-    if(!strcmp((char *)a->name, "name"))
-      *name = (char *)xmlNodeGetContent(a);
-    if(!strcmp((char *)a->name, "module"))
-      *module = (char *)xmlNodeGetContent(a);
-  }
-}
-
-static void
-rest_check_free_attrs(char *target, char *name, char *module) {
-  if (target) {
-    xmlFree(target);
-  }
-  if (name) {
-    xmlFree(name);
-  }
-  if (module) {
-    xmlFree(module);
-  }
-}
-
-static int
-rest_set_check_lmdb(uuid_t checkid, xmlNodePtr attr, xmlNodePtr config)
-{
-  noit_check_t *check = noit_poller_lookup(checkid);
-  mtev_boolean exists = mtev_false;
-  if(check)
-    exists = mtev_true;
-  mtev_boolean in_db = mtev_false;
-  /* First, check to see if this is already in the db.... TODO */
-  if (!in_db) {
-    if (0 && exists) {
-      return -1;
-    }
-    int64_t seq;
-    uint64_t old_seq = 0;
-    char *target = NULL, *name = NULL, *module = NULL;
-    noit_module_t *m = NULL;
-    noit_check_t *check = NULL;
-    /* make sure this isn't a dup */
-    rest_check_get_attrs(attr, &target, &name, &module);
-    exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
-    if(check) {
-      old_seq = check->config_seq;
-    }
-    if(module) {
-      m = noit_module_lookup(module);
-    }
-    rest_check_free_attrs(target, name, module);
-    if(0 && exists) {
-      return -1;
-    }
-    if(!m) {
-      return -1;
-    }
-    /* create a check here */
-    noit_check_lmdb_configure_check(checkid, attr, config, &seq);
-    if(old_seq >= seq && seq != 0) {
-      return -1;
-    }
-  }
-  else {
-  }
-
-  return 0;
-}
-
 static int
 rest_set_check(mtev_http_rest_closure_t *restc,
                int npats, char **pats) {
@@ -1169,6 +1094,11 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
+
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  if(ENABLE_LMDB_FOR_CHECKS && instance) {
+    return noit_check_lmdb_set_check(restc, npats, pats);
+  }
   NCINIT_WR;
 
   if(npats != 2) goto error;
@@ -1179,13 +1109,6 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) goto error;
 
   if(mtev_uuid_parse(pats[1], checkid)) goto error;
-
-  /* TODO: Eventually, this will be an "or" if lmdb, do that, otherwise
-   * do XML - this is on for test purposes now */
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(instance) {
-    rest_set_check_lmdb(checkid, attr, config);
-  }
 
   check = noit_poller_lookup(checkid);
   if(check)
@@ -1325,6 +1248,32 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
   if(doc) xmlFreeDoc(doc);
 
   return 0;
+}
+
+void
+rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module) {
+  xmlNodePtr a = NULL;
+  for(a = attr->children; a; a = a->next) {
+    if(!strcmp((char *)a->name, "target"))
+      *target = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "name"))
+      *name = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "module"))
+      *module = (char *)xmlNodeGetContent(a);
+  }
+}
+
+void
+rest_check_free_attrs(char *target, char *name, char *module) {
+  if (target) {
+    xmlFree(target);
+  }
+  if (name) {
+    xmlFree(name);
+  }
+  if (module) {
+    xmlFree(module);
+  }
 }
 
 void

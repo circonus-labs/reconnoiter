@@ -61,4 +61,10 @@ API_EXPORT(xmlNodePtr)
 API_EXPORT(struct json_object *)
   noit_check_state_as_json(noit_check_t *check, int full);
 
+API_EXPORT(void)
+  rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module);
+
+API_EXPORT(void)
+  rest_check_free_attrs(char *target, char *name, char *module);
+
 #endif
