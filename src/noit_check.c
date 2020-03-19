@@ -963,7 +963,7 @@ noit_poller_reload(const char *xpath)
 }
 void noit_poller_reload_lmdb(uuid_t *checks, int cnt)
 {
-  noit_check_lmdb_poller_process_checks(NULL, 0);
+  noit_check_lmdb_poller_process_checks(checks, cnt);
   if(!checks) {
     /* Full reload, we need to wipe old checks */
     noit_poller_flush_epoch(__config_load_generation);
