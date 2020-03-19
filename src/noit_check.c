@@ -3269,6 +3269,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       }
       else if (strcmp(data->key, "seq") == 0) {
         COPYSTRING(seq_str);
+        config_seq = atoi(seq_str);
       }
       else if (strcmp(data->key, "period") == 0) {
         COPYSTRING(period_str);
