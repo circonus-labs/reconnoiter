@@ -83,9 +83,6 @@
 } while(0)
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
 
-/* TODO: Enable before release */
-#define ENABLE_LMDB_FOR_CHECKS 0
-
 static void
 add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
                     int include_time, mtev_hash_table *supp) {

@@ -1063,8 +1063,7 @@ noit_poller_init() {
     text_size_limit = NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
   noit_check_dns_ignore_list_init();
-  /* TODO: Remove 0 && */
-  if (0 && lmdb_instance) {
+  if (ENABLE_LMDB_FOR_CHECKS && lmdb_instance) {
     noit_poller_reload_lmdb(NULL, 0);
   }
   else {

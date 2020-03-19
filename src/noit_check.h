@@ -52,6 +52,9 @@
 #include "noit_metric.h"
 #include "noit_lmdb_tools.h"
 
+/* TODO: Enable before release */
+#define ENABLE_LMDB_FOR_CHECKS 0
+
 /*
  * Checks:
  *  attrs:
