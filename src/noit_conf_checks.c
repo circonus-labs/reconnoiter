@@ -52,6 +52,7 @@
 
 #include "noit_filters.h"
 #include "noit_conf_checks.h"
+#include "noit_conf_checks_lmdb.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_clustering.h"
@@ -476,6 +477,10 @@ noit_console_show_check(mtev_console_closure_t ncct,
   char xpath[1024];
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
+
+  if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance()) {
+    return noit_conf_checks_lmdb_console_show_check(ncct, argc, argv, state, closure);
+  }
 
   if(argc > 1) {
     nc_printf(ncct, "requires zero or one arguments\n");

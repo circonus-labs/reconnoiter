@@ -28,3 +28,153 @@
  */
 
 #include "noit_conf_checks_lmdb.h"
+#include "noit_check.h"
+#include "noit_lmdb_tools.h"
+
+int
+noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
+                                         int argc,
+                                         char **argv,
+                                         mtev_console_state_t *state,
+                                         void *closure) {
+  int rc;
+  uuid_t checkid;
+  char *key;
+  size_t key_size;
+  char error_str[255];
+  char *name = NULL,
+       *module = NULL,
+       *target = NULL,
+       *seq = NULL,
+       *resolve_rtype = NULL, 
+       *period = NULL,
+       *timeout = NULL,
+       *oncheck = NULL,
+       *filterset = NULL,
+       *disable = NULL;
+  mtev_boolean error = mtev_false;
+  MDB_val mdb_key, mdb_data;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  mtevAssert(instance);
+
+  if(argc != 1) {
+    nc_printf(ncct, "requires one argument\n");
+    return -1;
+  }
+
+  if (mtev_uuid_parse(argv[0], checkid) != 0) {
+    nc_printf(ncct, "%s is invalid uuid\n", argv[0]);
+    return -1;
+  }
+
+  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  mtevAssert(key);
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  ck_rwlock_read_lock(&instance->lock);
+
+  do {
+    rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+    if (rc != 0) {
+      snprintf(error_str, sizeof(error_str), "failed to create lmdb transaction: %d (%s)", rc, mdb_strerror(rc));
+      error = mtev_true;
+      break;
+    }
+    mdb_cursor_open(txn, instance->dbi, &cursor);
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+    if (rc != 0) {
+      if (rc == MDB_NOTFOUND) {
+        snprintf(error_str, sizeof(error_str), "check %s not found", argv[0]);
+      }
+      else {
+        snprintf(error_str, sizeof(error_str), "failed to perform lmdb cursor get: %d (%s)", rc, mdb_strerror(rc));
+      }
+      error = mtev_true;
+      break;
+    }
+    else {
+      if (mtev_uuid_compare(checkid, mdb_key.mv_data) != 0) {
+        snprintf(error_str, sizeof(error_str), "check %s not found", argv[0]);
+        error = mtev_true;
+        break;
+      }
+    }
+    nc_printf(ncct, "==== %s ====\n", argv[0]);
+    while (rc == 0) {
+      if (mtev_uuid_compare(checkid, mdb_key.mv_data) != 0) {
+        /* This means we've hit the next uuid, break out  */
+        break;
+      }
+      noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+      mtevAssert(data);
+
+      if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
+#define SET_ATTR_STRING(attribute) do { \
+  if (!strcmp(data->key, #attribute)) { \
+    if ((mdb_data.mv_data != NULL) && (mdb_data.mv_size > 0)) { \
+      attribute = (char *)calloc(1, mdb_data.mv_size + 1); \
+      memcpy(attribute, mdb_data.mv_data, mdb_data.mv_size); \
+    } \
+  } \
+} while (0);
+        SET_ATTR_STRING(name);
+        SET_ATTR_STRING(module);
+        SET_ATTR_STRING(target);
+        SET_ATTR_STRING(seq);
+        SET_ATTR_STRING(resolve_rtype);
+        SET_ATTR_STRING(period);
+        SET_ATTR_STRING(timeout);
+        SET_ATTR_STRING(oncheck);
+        SET_ATTR_STRING(filterset);
+        SET_ATTR_STRING(disable);
+      }
+      else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
+      }
+      else {
+        /* Will hopefully never happen */
+      }
+
+      noit_lmdb_free_check_data(data);
+      rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+    }
+  } while (0);
+
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+  ck_rwlock_read_unlock(&instance->lock);
+
+#define NC_PRINT_ATTRIBUTE(attribute) do {\
+  nc_printf(ncct, " %s: %s\n", #attribute, attribute ? attribute : "[undef]"); \
+} while (0);
+
+  NC_PRINT_ATTRIBUTE(name);
+  NC_PRINT_ATTRIBUTE(module);
+  NC_PRINT_ATTRIBUTE(target);
+  NC_PRINT_ATTRIBUTE(seq);
+  NC_PRINT_ATTRIBUTE(resolve_rtype);
+  NC_PRINT_ATTRIBUTE(period);
+  NC_PRINT_ATTRIBUTE(timeout);
+  NC_PRINT_ATTRIBUTE(oncheck);
+  NC_PRINT_ATTRIBUTE(filterset);
+  NC_PRINT_ATTRIBUTE(disable);
+
+  free(name);
+  free(module);
+  free(target);
+  free(seq);
+  free(resolve_rtype);
+  free(period);
+  free(timeout);
+  free(oncheck);
+  free(filterset);
+  free(disable);
+
+  if (error == mtev_true) {
+    nc_printf(ncct, "%s\n", error_str);
+    return -1;
+  }
+  return 0;
+}

@@ -30,4 +30,12 @@
 #ifndef _NOIT_CONF_CHECKS_LMDB_H
 #define _NOIT_CONF_CHECKS_LMDB_H
 
+#include <mtev_console.h>
+
+int
+noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
+                                         int argc,
+                                         char **argv,
+                                         mtev_console_state_t *state,
+                                         void *closure);
 #endif
