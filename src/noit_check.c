@@ -3383,7 +3383,6 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       mtevL(mtev_error, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
-    //INHERIT(boolean, disable, &disabled);
   }
 
   if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
