@@ -709,6 +709,8 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
   }
   mdb_cursor_close(cursor);
 
+  /* TODO: Remmove from running */
+
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
