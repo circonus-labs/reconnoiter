@@ -758,6 +758,9 @@ noit_check_lmdb_poller_process_all_checks() {
     /* The start of the key is always a uuid */
     mtev_uuid_copy(checkid, mdb_key.mv_data);
     rc = noit_poller_lmdb_create_check_from_database_locked(cursor, checkid);
+    if (rc == 0) {
+      rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
+    }
   }
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
