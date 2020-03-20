@@ -28,6 +28,7 @@
  */
 
 #include "noit_conf_checks_lmdb.h"
+#include "noit_conf_checks.h"
 #include "noit_check.h"
 #include "noit_lmdb_tools.h"
 
@@ -56,6 +57,11 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn;
   MDB_cursor *cursor;
+  mtev_hash_table configh;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance);
 
@@ -68,6 +74,8 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
     nc_printf(ncct, "%s is invalid uuid\n", argv[0]);
     return -1;
   }
+
+  mtev_hash_init(&configh);
 
   key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
   mtevAssert(key);
@@ -132,6 +140,12 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
         SET_ATTR_STRING(disable);
       }
       else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
+        /* We don't care about namespaced config stuff here */
+        if (data->ns == NULL) {
+          char *out_data = (char *)calloc(1, mdb_data.mv_size + 1);
+          memcpy(out_data, mdb_data.mv_data, mdb_data.mv_size);
+          mtev_hash_store(&configh, strdup(data->key), strlen(data->key), out_data);
+        }
       }
       else {
         /* Will hopefully never happen */
@@ -161,6 +175,12 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   NC_PRINT_ATTRIBUTE(filterset);
   NC_PRINT_ATTRIBUTE(disable);
 
+  while(mtev_hash_next(&configh, &iter, &k, &klen, &data)) {
+    nc_printf(ncct, " config::%s: %s\n", k, (const char *)data);
+  }
+
+  noit_console_get_running_stats(ncct, checkid);
+
   free(name);
   free(module);
   free(target);
@@ -171,6 +191,8 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   free(oncheck);
   free(filterset);
   free(disable);
+
+  mtev_hash_destroy(&configh, free, free);
 
   if (error == mtev_true) {
     nc_printf(ncct, "%s\n", error_str);
