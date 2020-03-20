@@ -953,8 +953,15 @@ static int
 noit_conf_checks_reload(mtev_console_closure_t ncct,
                         int argc, char **argv,
                         mtev_console_state_t *state, void *closure) {
-  if(mtev_conf_reload(ncct, argc, argv, state, closure)) return -1;
-  noit_poller_reload(NULL);
+  if(mtev_conf_reload(ncct, argc, argv, state, closure)) {
+    return -1;
+  }
+  if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance()) {
+    noit_poller_reload_lmdb(NULL, 0);
+  }
+  else {
+    noit_poller_reload(NULL);
+  }
   return 0;
 }
 
