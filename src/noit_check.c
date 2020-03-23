@@ -3315,6 +3315,9 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
           flags |= NP_DELETED;
         }
       }
+      else {
+        mtevL(mtev_error, "unknown attribute in check: %s\n", data->key);
+      }
     }
     else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
       mtev_hash_table *insertTable = NULL;

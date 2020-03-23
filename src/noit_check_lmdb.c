@@ -455,31 +455,7 @@ put_retry:
     ATTR2LMDB(seq);
   }
 
-  //PHIL
-  char uuid_str[UUID_STR_LEN+1];
-  memset(uuid_str, 0, sizeof(uuid_str));
-  mtev_uuid_unparse_lower(checkid, uuid_str);
-  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "uuid", &key_size);
-  mtevAssert(key);
-  mdb_key.mv_data = key;
-  mdb_key.mv_size = key_size;
-  mdb_data.mv_data = uuid_str;
-  mdb_data.mv_size = strlen(uuid_str);
-  rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
-  if (rc == MDB_MAP_FULL) {
-    ck_rwlock_read_unlock(&instance->lock);
-    mdb_cursor_close(cursor);
-    mdb_txn_abort(txn);
-    mtev_hash_destroy(&conf_table, free, NULL);
-    free(key);
-    noit_lmdb_resize_instance(instance);
-    goto put_retry;
-  }
-  else if (rc != 0) {
-    mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
-  }
-  mtev_hash_delete(&conf_table, key, key_size, free, NULL);
-  free(key);
+  /* TODO: Add UUID as check attribute */
 
   if (c) {
     key = NULL;
