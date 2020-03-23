@@ -72,6 +72,7 @@
 
 static int check_recycle_period = 60000;
 static mtev_boolean perpetual_metrics = mtev_false;
+static bool initialized = false;
 
 static mtev_log_stream_t check_error;
 static mtev_log_stream_t check_debug;
@@ -1013,6 +1014,7 @@ noit_poller_init() {
   }
   noit_check_dns_ignore_list_init();
   noit_poller_reload(NULL);
+  initialized = true;
 }
 
 int
@@ -3089,6 +3091,7 @@ int
 noit_check_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL, node;
+  if(!initialized) return -1;
   root = xmlDocGetRootElement(doc);
   mtev_conf_section_t section;
   mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
