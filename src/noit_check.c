@@ -1289,6 +1289,18 @@ noit_check_resolve(noit_check_t *check) {
   return -1;
 }
 
+static int
+delayed_cluster_set(eventer_t e, int mask, void *closure, struct timeval *now) {
+  uuid_t me;
+  memcpy(me, closure, UUID_SIZE);
+  char uuid_str[37];
+  mtev_uuid_unparse_lower(me, uuid_str);
+  mtevL(mtev_notice, "Setting global cluster identity to '%s'\n", uuid_str);
+  mtev_cluster_set_self(me);
+  free(closure);
+  return 0;
+}
+
 int
 noit_check_update(noit_check_t *new_check,
                   const char *target,
@@ -1319,8 +1331,9 @@ noit_check_update(noit_check_t *new_check,
     uuid_t cluster_id;
     mtev_cluster_get_self(cluster_id);
     if(mtev_uuid_compare(cluster_id, new_check->checkid)) {
-      mtevL(mtev_notice, "Setting global cluster identity to '%s'\n", uuid_str);
-      mtev_cluster_set_self(new_check->checkid);
+      void *uuid_copy = malloc(UUID_SIZE);
+      memcpy(uuid_copy, new_check->checkid, UUID_SIZE);
+      eventer_add_in_s_us(delayed_cluster_set, uuid_copy, 0, 0);
     }
   }
 
