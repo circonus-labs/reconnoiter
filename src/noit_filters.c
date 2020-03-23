@@ -66,6 +66,7 @@ static pcre *fallback_no_match = NULL;
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
 #define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 static char* filtersets_replication_path = NULL;
+static bool initialized = false;
 
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
 typedef struct _filterrule {
@@ -388,6 +389,10 @@ int
 noit_filters_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL;
+  if(!initialized) {
+    mtevL(nf_debug, "filterset replication pending initialization\n");
+    return -1;
+  }
   root = xmlDocGetRootElement(doc);
   mtev_conf_section_t filtersets = mtev_conf_get_section_write(MTEV_CONF_ROOT, filtersets_replication_path);
   mtevAssert(!mtev_conf_section_is_empty(filtersets));
@@ -1145,6 +1150,7 @@ noit_filters_init() {
   else {
     filtersets_replication_path = "/noit/filtersets";
   }
+  initialized = true;
 }
 
 void
