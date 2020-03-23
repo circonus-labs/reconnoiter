@@ -325,12 +325,12 @@ noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
     if(mtev_hash_store(&dedup, (const char *)node->name, strlen(node->name), NULL)) {
       char xpath[512];
       snprintf(xpath, sizeof(xpath), "//filtersets//filterset[@name=\"%s\"]", node->name);
-      mtev_conf_section_t filternode = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
+      mtev_conf_section_t filternode = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
       if(!mtev_conf_section_is_empty(filternode)) {
         xmlAddChild(parent, xmlCopyNode(mtev_conf_section_to_xmlnodeptr(filternode),1));
         last_seen = node->seq;
       }
-      mtev_conf_release_section_write(filternode);
+      mtev_conf_release_section_read(filternode);
     }
   }
   pthread_mutex_unlock(&noit_peer_lock);
