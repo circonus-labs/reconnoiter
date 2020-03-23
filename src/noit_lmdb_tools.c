@@ -68,7 +68,7 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
 
   mtev_hash_init(table);
 
-  key = noit_lmdb_make_check_key(id, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  key = noit_lmdb_make_check_key_for_iterating(id, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -80,7 +80,7 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_RANGE);
   while(rc == 0) {
     noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
     if (data) {
@@ -154,6 +154,15 @@ noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size
   mtevAssert((current_location - size) == toRet);
   if (size_out) {
     *size_out = size;
+  }
+  return toRet;
+}
+inline char *
+noit_lmdb_make_check_key_for_iterating(uuid_t id, size_t *size_out) {
+  char *toRet = (char *)malloc(UUID_SIZE);
+  memcpy(toRet, id, UUID_SIZE);
+  if (size_out) {
+    *size_out = UUID_SIZE;
   }
   return toRet;
 }

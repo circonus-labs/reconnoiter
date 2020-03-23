@@ -77,7 +77,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
 
   mtev_hash_init(&configh);
 
-  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
@@ -92,7 +92,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
       break;
     }
     mdb_cursor_open(txn, instance->dbi, &cursor);
-    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_RANGE);
     if (rc != 0) {
       if (rc == MDB_NOTFOUND) {
         snprintf(error_str, sizeof(error_str), "check %s not found", argv[0]);

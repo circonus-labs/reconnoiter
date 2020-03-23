@@ -106,7 +106,7 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
 
   mtevAssert(instance != NULL);
 
-  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -137,7 +137,7 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_RANGE);
   if (rc != 0) {
     if (rc == MDB_NOTFOUND) {
       goto cleanup;
@@ -649,7 +649,7 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
   if(npats != 2) goto error;
   if(mtev_uuid_parse(pats[1], checkid)) goto error;
 
-  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -664,7 +664,7 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
     goto error;
   }
   mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_RANGE);
   if (rc != 0) {
     if (rc == MDB_NOTFOUND) {
       mdb_cursor_close(cursor);
@@ -754,7 +754,7 @@ noit_check_lmdb_poller_process_all_checks() {
     return;
   }
   mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
   while (rc == 0) {
     uuid_t checkid;
     /* The start of the key is always a uuid */
@@ -780,7 +780,8 @@ noit_check_lmdb_poller_process_check(uuid_t checkid) {
 
   mtevAssert(instance);
 
-  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, NULL, &key_size);
+  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
+  mtevAssert(key);
 
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
@@ -793,7 +794,7 @@ noit_check_lmdb_poller_process_check(uuid_t checkid) {
     return;
   }
   mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_RANGE);
   if (rc == 0) {
     uuid_t db_checkid;
     /* The start of the key is always a uuid */
