@@ -82,7 +82,7 @@ static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_l
       xmlNodeAddContent(child, (xmlChar *)val);
     }
     else {
-      mtevL(mtev_error, "PHIL: namespace %s configured in check, but not loaded - skipping\n", key_data->ns);
+      mtevL(mtev_debug, "namespace %s configured in check, but not loaded - skipping\n", key_data->ns);
     }
   }
   if (child) {
