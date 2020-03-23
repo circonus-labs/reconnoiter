@@ -177,6 +177,42 @@ static int noit_metric_id_index_func(lua_State *L) {
         break;
       }
       return 1;
+    case 'c':
+      if(!strcmp(k, "ctags")) {
+        /* Before passing along the check tags, we need to
+           1. Augment the tag-set by the check uuid we get from the message
+           2. Invoke the fixup hook, that will add replicated check tags.
+         */
+        if ( metric_id->check.tag_count > MAX_TAGS - 1 ) { return 0; }
+        /* Step 0: Copy everything to the stack, so we can mutate */
+        noit_metric_tag_t check_tags[MAX_TAGS];
+        memcpy(&check_tags, metric_id->check.tags, metric_id->check.tag_count * sizeof(noit_metric_tag_t));
+        noit_metric_tagset_t check_tagset = {0};
+        memcpy(&check_tagset, &metric_id->check, sizeof(noit_metric_tagset_t));
+        check_tagset.tags = check_tags;
+
+        /* Step 1: Add uuid tag */
+        char uuid_str[13 + UUID_STR_LEN + 1];
+        strcpy(uuid_str, "__check_uuid:");
+        mtev_uuid_unparse_lower(metric_id->id, uuid_str + 13);
+        noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 13 };
+        check_tagset.tags[check_tagset.tag_count] = uuid_tag;
+        check_tagset.tag_count++;
+
+        /* Step 2: Fixup check tags */
+        if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_CHECK, &check_tagset) == MTEV_HOOK_ABORT) {
+          return 0;
+        };
+
+        /* warp into lua_tagset */
+        lua_pushvalue(L, 2);
+        int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+        noit_lua_tagset_t check_lua_tagset = { .tagset = check_tagset, .lua_name_ref = ref };
+        noit_lua_tagset_copy_setup(L, &check_lua_tagset);
+      } else {
+        break;
+      }
+      return 1;
     case 'i':
       if(!strcmp(k, "id")) {
         char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
@@ -207,6 +243,8 @@ static int noit_metric_id_index_func(lua_State *L) {
         int ref = luaL_ref(L, LUA_REGISTRYINDEX);
         noit_lua_tagset_t set = { .tagset = metric_id->measurement, .lua_name_ref = ref };
         noit_lua_tagset_copy_setup(L, &set);
+      } else {
+        break;
       }
       return 1;
     case 's':
@@ -215,6 +253,8 @@ static int noit_metric_id_index_func(lua_State *L) {
         int ref = luaL_ref(L, LUA_REGISTRYINDEX);
         noit_lua_tagset_t set = { .tagset = metric_id->stream, .lua_name_ref = ref };
         noit_lua_tagset_copy_setup(L, &set);
+      } else {
+        break;
       }
       return 1;
     default:
@@ -416,9 +456,9 @@ noit_lua_tagset_copy_setup(lua_State *L, noit_lua_tagset_t *src_set) {
 // returns: tag1, tag2, ...
 static int
 lua_noit_tag_tostring(lua_State *L) {
-  noit_metric_tagset_t **udata = (noit_metric_tagset_t **)
-    luaL_checkudata(L, 1, "noit_lua_tagset_t");
-  noit_metric_tagset_t *set = *udata;
+  noit_lua_tagset_t **udata = (noit_lua_tagset_t **) luaL_checkudata(L, 1, "noit_lua_tagset_t");
+  noit_lua_tagset_t *lset = *udata;
+  noit_metric_tagset_t *set = &(lset->tagset);
   int cnt = set->tag_count;
   for (int i=0; i<cnt; i++) {
     noit_metric_tag_t tag = set->tags[i];
