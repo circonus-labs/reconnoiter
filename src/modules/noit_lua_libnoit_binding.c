@@ -179,7 +179,6 @@ static int noit_metric_id_index_func(lua_State *L) {
       return 1;
     case 'c':
       if(!strcmp(k, "ctags")) {
-        lua_pushvalue(L, 2);
         /* Before passing along the check tags, we need to
            1. Augment the tag-set by the check uuid we get from the message
            2. Invoke the fixup hook, that will add replicated check tags.
@@ -206,6 +205,7 @@ static int noit_metric_id_index_func(lua_State *L) {
         };
 
         /* warp into lua_tagset */
+        lua_pushvalue(L, 2);
         int ref = luaL_ref(L, LUA_REGISTRYINDEX);
         noit_lua_tagset_t check_lua_tagset = { .tagset = check_tagset, .lua_name_ref = ref };
         noit_lua_tagset_copy_setup(L, &check_lua_tagset);
