@@ -530,6 +530,7 @@ put_retry:
   }
   mdb_cursor_close(cursor);
   mtev_hash_destroy(&conf_table, free, NULL);
+  ck_rwlock_read_unlock(&instance->lock);
 }
 
 int
@@ -630,7 +631,6 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
-//PHIL
 int
 noit_check_lmdb_bump_seq_and_mark_deleted(uuid_t checkid) {
   int rc;
