@@ -481,7 +481,7 @@ static int dns_module_check_timeout(eventer_t e, int mask, void *closure,
 static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
                                       struct timeval *now) {
   dns_ctx_handle_t *h = closure;
-  mtevAssert(h && h->timeout);
+  mtevAssert(h);
   h->timeout = NULL; /* This will be free upon return from this function */
   dns_timeouts(h->ctx, 0, now->tv_sec);
   dns_module_dns_ctx_release(h, mtev_false);
@@ -515,6 +515,12 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
 
   /* if(timeout < 0) no timeout is required at this time */
   if(timeout >= 0) {
+    /* It is possible that we have h->timeout already, but we were unable to
+     * remove it above, so setting it here will create an "alternative" timeout
+     * and the callback will end up firing twice.
+     *
+     * This should be accommodated in the timeout function.
+     */
     h->timeout = eventer_in_s_us(dns_module_invoke_timeouts, h, timeout, 0);
     eventer_set_owner(h->timeout, eventer_get_owner(h->e));
     dns_module_dns_ctx_acquire(h);
