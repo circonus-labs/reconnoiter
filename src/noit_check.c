@@ -1692,6 +1692,12 @@ check_recycle_bin_processor_internal_cleanup_xml(struct check_remove_todo *head)
 }
 static void
 check_recycle_bin_processor_internal_cleanup_lmdb(struct check_remove_todo *head) {
+  while(head) {
+    noit_check_lmdb_remove_check_from_db(head->id);
+    struct check_remove_todo *tofree = head;
+    head = head->next;
+    free(tofree);
+  }
 }
 static void
 check_recycle_bin_processor_internal() {
@@ -1714,7 +1720,6 @@ check_recycle_bin_processor_internal() {
       /* Set the config_seq to zero so it can be truly descheduled */
       check->config_seq = 0;
       noit_poller_deschedule(check->checkid, mtev_true, mtev_false);
-
     }
   }
   pthread_mutex_unlock(&polls_lock);
