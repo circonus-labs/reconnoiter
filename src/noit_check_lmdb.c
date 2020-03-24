@@ -630,6 +630,142 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+//PHIL
+int
+noit_check_lmdb_bump_seq_and_mark_deleted(uuid_t checkid) {
+  int rc;
+  MDB_val mdb_key, mdb_data;
+  MDB_txn *txn;
+  MDB_cursor *cursor;
+  char *key = NULL;
+  char buff[255];
+  size_t key_size;
+  int new_seq = -1;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  mtevAssert(instance != NULL);
+
+put_retry:
+  new_seq = -1;
+  txn = NULL;
+  cursor = NULL;
+
+  /* First, set deleted */
+  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "deleted", &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+  mdb_data.mv_data = "deleted";
+  mdb_data.mv_size = 7;
+
+  ck_rwlock_read_lock(&instance->lock);
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  rc = mdb_cursor_open(txn, instance->dbi, &cursor);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+
+  rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
+  if (rc == MDB_MAP_FULL) {
+    ck_rwlock_read_unlock(&instance->lock);
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    free(key);
+    noit_lmdb_resize_instance(instance);
+    goto put_retry;
+  }
+  else if (rc != 0) {
+    mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+
+  /* Now, find the sequence number - set it to one if it doesn't exist, otherwise bump it by
+   * one */
+
+  free(key);
+  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_KEY);
+  if (rc != 0 && rc != MDB_NOTFOUND) {
+    /* Weird error, abort */
+    mtevFatal(mtev_error, "failure on cursor get - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  else if (rc != 0) {
+    /* We didn't find it - set to one */
+    mdb_key.mv_data = key;
+    mdb_key.mv_size = key_size;
+    mdb_data.mv_data = "1";
+    mdb_key.mv_size = 1;
+  }
+  else {
+    /* We found it - increment by one */
+    char *val_string = NULL;
+    bool allocated = false;
+
+    if (mdb_data.mv_size < 10) {
+      val_string = (char *)alloca(mdb_data.mv_size + 1);
+    }
+    else {
+      val_string = (char *)malloc(mdb_data.mv_size + 1);
+      allocated = true;
+    }
+
+    mdb_key.mv_data = key;
+    mdb_key.mv_size = key_size;
+    memcpy(val_string, mdb_data.mv_data, mdb_data.mv_size);
+    val_string[mdb_data.mv_size] = 0;
+    int seq = atoi(mdb_data.mv_data);
+    if (seq >= 0) {
+      seq++;
+    }
+    else {
+      seq = 1;
+    }
+    snprintf(buff, sizeof(buff), "%d", seq);
+    mdb_data.mv_data = buff;
+    mdb_data.mv_size = strlen(buff);
+
+    if (allocated) {
+      free(val_string);
+    }
+    new_seq = seq;
+  }
+
+  rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
+  if (rc == MDB_MAP_FULL) {
+    ck_rwlock_read_unlock(&instance->lock);
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    free(key);
+    noit_lmdb_resize_instance(instance);
+    goto put_retry;
+  }
+  else if (rc != 0) {
+    mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+
+  rc = mdb_txn_commit(txn);
+  if (rc == MDB_MAP_FULL) {
+    ck_rwlock_read_unlock(&instance->lock);
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    noit_lmdb_resize_instance(instance);
+    goto put_retry;
+  }
+  else if (rc != 0) {
+    mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  mdb_cursor_close(cursor);
+  ck_rwlock_read_unlock(&instance->lock);
+
+  return new_seq;
+}
+
 int
 noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
                              int npats, char **pats) {
@@ -659,14 +795,13 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
     }
   }
   if(just_mark) {
-    /* TODO: Figure out what to do here */
-    /*int64_t newseq = noit_conf_check_bump_seq(node);
-    xmlSetProp(node, (xmlChar *)"deleted", (xmlChar *)"deleted");
-    if(check) {
-      check->config_seq = newseq;
-      noit_cluster_mark_check_changed(check, NULL);
+    int new_seq = noit_check_lmdb_bump_seq_and_mark_deleted(checkid);
+    if (new_seq <= 0) {
+      new_seq = 1;
     }
-    CONF_DIRTY(mtev_conf_section_from_xmlnodeptr(node)); */
+    if (check) {
+      check->config_seq = new_seq;
+    }
   }
   else {
     key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
