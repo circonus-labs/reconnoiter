@@ -1002,7 +1002,6 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
   mtev_boolean deleted = mtev_false, disabled = mtev_false;
   int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
   int no_period = 0, no_oncheck = 0;
-  mtev_boolean resized = mtev_false;
 
   int rc;
   MDB_txn *txn = NULL;
@@ -1139,7 +1138,6 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
       free(key); \
       ck_rwlock_read_unlock(&instance->lock); \
       noit_lmdb_resize_instance(instance); \
-      resized = mtev_true; \
       goto put_retry; \
     } \
     else if (rc != 0) { \
@@ -1177,9 +1175,7 @@ put_retry:
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
     ck_rwlock_read_unlock(&instance->lock);
-    mtevL(mtev_error, "PHIL: RESIZE/RETRY\n");
     noit_lmdb_resize_instance(instance);
-    resized = mtev_true;
     goto put_retry;
   }
   else if (rc != 0) {
