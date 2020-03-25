@@ -42,6 +42,7 @@ int noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc, int npats, char *
 int noit_check_lmdb_remove_check_from_db(uuid_t checkid);
 int noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
 void noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt);
+void noit_check_lmdb_migrate_xml_checks_to_lmdb();
 
 
 #endif

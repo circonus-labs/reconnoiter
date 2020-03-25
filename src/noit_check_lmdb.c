@@ -31,6 +31,7 @@
 #include "noit_check.h"
 #include "noit_check_rest.h"
 #include "noit_lmdb_tools.h"
+#include <mtev_watchdog.h>
 
 #include <errno.h>
 
@@ -985,5 +986,223 @@ noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
     for (i = 0; i < uuid_cnt; i++) {
       noit_check_lmdb_poller_process_check(uuids[i]);
     }
+  }
+}
+
+static void
+noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
+  char uuid_str[37];
+  char target[256] = "";
+  char module[256] = "";
+  char name[256] = "";
+  char filterset[256] = "";
+  char oncheck[1024] = "";
+  char resolve_rtype[16] = "";
+  char period_string[16] = "";
+  char timeout_string[16] = "";
+  char seq_string[16] = "";
+  char delstr[8] = "";
+  uuid_t checkid;
+  int64_t config_seq = 0;
+  mtev_boolean deleted = mtev_false, disabled = mtev_false;
+  int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
+  int no_period = 0, no_oncheck = 0;
+  mtev_boolean resized = mtev_false;
+
+  int rc;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  char *key = NULL;
+  size_t key_size;
+
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  mtevAssert(instance != NULL);
+
+  /* We want to heartbeat here... otherwise, if a lot of checks are 
+   * configured or if we're running on a slower system, we could 
+   * end up getting watchdog killed before we get a chance to run 
+   * any checks */
+  mtev_watchdog_child_heartbeat();
+
+#define MYATTR(type,a,...) mtev_conf_get_##type(section, "@" #a, __VA_ARGS__)
+#define INHERIT(type,a,...) \
+  mtev_conf_get_##type(section, "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+
+  if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
+    mtevL(mtev_error, "check has no uuid\n");
+    return;
+  }
+  MYATTR(int64, seq, &config_seq);
+
+  if(mtev_uuid_parse(uuid_str, checkid)) {
+    mtevL(mtev_error, "check uuid: '%s' is invalid\n", uuid_str);
+    return;
+  }
+  if(MYATTR(stringbuf, deleted, delstr, sizeof(delstr) && !strcmp(delstr, "deleted"))) {
+    deleted = mtev_true;
+  }
+
+  if(!INHERIT(stringbuf, target, target, sizeof(target))) {
+    if(!deleted) {
+      mtevL(mtev_error, "check uuid: '%s' has no target\n", uuid_str);
+      return;
+    }
+  }
+  if(!noit_check_validate_target(target)) {
+    if(!deleted) {
+      mtevL(mtev_error, "check uuid: '%s' has malformed target\n", uuid_str);
+      return;
+    }
+  }
+  if(!INHERIT(stringbuf, module, module, sizeof(module))) {
+    if(!deleted) {
+      mtevL(mtev_error, "check uuid: '%s' has no module\n", uuid_str);
+      return;
+    }
+  }
+
+  if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset))) {
+    filterset[0] = '\0';
+  }
+
+  if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
+    strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
+  }
+
+  if(!MYATTR(stringbuf, name, name, sizeof(name))) {
+    strlcpy(name, module, sizeof(name));
+  }
+
+  if(!noit_check_validate_name(name)) {
+    if(!deleted) {
+      mtevL(mtev_error, "check uuid: '%s' has malformed name\n", uuid_str);
+      return;
+    }
+  }
+
+  INHERIT(int32, minimum_period, &minimum_period);
+  INHERIT(int32, maximum_period, &maximum_period);
+  if(!INHERIT(int32, period, &period) || period == 0) {
+    no_period = 1;
+  }
+  else {
+    if(period < minimum_period) {
+      period = minimum_period;
+    }
+    if(period > maximum_period) {
+      period = maximum_period;
+    }
+  }
+
+  if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
+    no_oncheck = 1;
+  }
+
+  if(deleted) {
+    memcpy(target, "none", 5);
+    mtev_uuid_unparse_lower(checkid, name);
+  }
+  else {
+    if(no_period && no_oncheck) {
+      mtevL(mtev_error, "check uuid: '%s' has neither period nor oncheck\n", uuid_str);
+      return;
+    }
+    if(!(no_period || no_oncheck)) {
+      mtevL(mtev_error, "check uuid: '%s' has oncheck and period.\n", uuid_str);
+      return;
+    }
+    if(!INHERIT(int32, timeout, &timeout)) {
+      mtevL(mtev_error, "check uuid: '%s' has no timeout\n", uuid_str);
+      return;
+    }
+    if(timeout < 0) {
+      timeout = 0;
+    }
+    if(!no_period && timeout >= period) {
+      mtevL(mtev_error, "check uuid: '%s' timeout > period\n", uuid_str);
+      timeout = period/2;
+    }
+    INHERIT(boolean, disable, &disabled);
+  }
+  snprintf(seq_string, sizeof(seq_string), "%" PRId64 "", config_seq);
+  snprintf(period_string, sizeof(period_string), "%d", period);
+  snprintf(timeout_string, sizeof(timeout_string), "%d", timeout);
+
+#define WRITE_ATTR_TO_LMDB(attr_name, attr_value) do { \
+  if (strlen(attr_value)) { \
+    key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, attr_name, &key_size); \
+    mtevAssert(key); \
+    mdb_key.mv_data = key; \
+    mdb_key.mv_size = key_size; \
+    mdb_data.mv_data = attr_value; \
+    mdb_data.mv_size = strlen(attr_value); \
+    rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
+    if (rc == MDB_MAP_FULL) { \
+      mdb_txn_abort(txn); \
+      mdb_cursor_close(cursor); \
+      free(key); \
+      ck_rwlock_read_unlock(&instance->lock); \
+      noit_lmdb_resize_instance(instance); \
+      resized = mtev_true; \
+      goto put_retry; \
+    } \
+    else if (rc != 0) { \
+      mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
+    } \
+    free(key); \
+    key = NULL; \
+  } \
+} while(0)
+
+put_retry:
+  key = NULL;
+  txn = NULL;
+  cursor = NULL;
+  ck_rwlock_read_lock(&instance->lock);
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  rc = mdb_cursor_open(txn, instance->dbi, &cursor);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  WRITE_ATTR_TO_LMDB("target", target);
+  WRITE_ATTR_TO_LMDB("module", module);
+  WRITE_ATTR_TO_LMDB("name", name);
+  WRITE_ATTR_TO_LMDB("filterset", filterset);
+  WRITE_ATTR_TO_LMDB("period", period_string);
+  WRITE_ATTR_TO_LMDB("timeout", timeout_string);
+  WRITE_ATTR_TO_LMDB("resolve_rtype", resolve_rtype);
+  WRITE_ATTR_TO_LMDB("oncheck", oncheck);
+  WRITE_ATTR_TO_LMDB("deleted", delstr);
+
+  rc = mdb_txn_commit(txn);
+  if (rc == MDB_MAP_FULL) {
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    ck_rwlock_read_unlock(&instance->lock);
+    noit_lmdb_resize_instance(instance);
+    resized = mtev_true;
+    goto put_retry;
+  }
+  else if (rc != 0) {
+    mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  mdb_cursor_close(cursor);
+  ck_rwlock_read_unlock(&instance->lock);
+}
+
+void
+noit_check_lmdb_migrate_xml_checks_to_lmdb() {
+  int cnt, i;
+  const char *xpath = "/noit/checks//check";
+  mtev_conf_section_t *sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
+  for(i=0; i<cnt; i++) {
+    /* TODO: Turn this on */
+#if 0
+    noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i]);
+#endif
   }
 }
