@@ -1200,9 +1200,6 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   const char *xpath = "/noit/checks//check";
   mtev_conf_section_t *sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
   for(i=0; i<cnt; i++) {
-    /* TODO: Turn this on */
-#if 0
     noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i]);
-#endif
   }
 }

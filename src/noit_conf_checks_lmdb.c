@@ -55,8 +55,8 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
        *disable = NULL;
   mtev_boolean error = mtev_false;
   MDB_val mdb_key, mdb_data;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
   mtev_hash_table configh;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
@@ -156,8 +156,8 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
     }
   } while (0);
 
-  mdb_cursor_close(cursor);
-  mdb_txn_abort(txn);
+  if (cursor) mdb_cursor_close(cursor);
+  if (txn) mdb_txn_abort(txn);
   ck_rwlock_read_unlock(&instance->lock);
 
 #define NC_PRINT_ATTRIBUTE(attribute) do {\
