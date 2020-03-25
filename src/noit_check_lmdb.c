@@ -189,8 +189,8 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
   goto cleanup;
 
  cleanup:
-  if (cursor) mdb_cursor_close(cursor);
-  if (txn) mdb_txn_abort(txn);
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
   if (locked) {
     ck_rwlock_read_unlock(&instance->lock);
   }
@@ -217,8 +217,6 @@ int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char
   int error_code = 500;
   xmlDocPtr doc = NULL;
   xmlNodePtr root = NULL;
-  MDB_txn *txn = NULL;
-  MDB_cursor *cursor = NULL;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
@@ -259,8 +257,6 @@ int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char
   goto cleanup;
 
  cleanup:
-  if (cursor) mdb_cursor_close(cursor);
-  if (txn) mdb_txn_abort(txn);
   if (doc) xmlFreeDoc(doc);
 
   return 0;
@@ -273,8 +269,6 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   int error_code = 500;
   uuid_t checkid;
   noit_check_t *check;
-  MDB_txn *txn = NULL;
-  MDB_cursor *cursor = NULL;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
@@ -367,8 +361,6 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   goto cleanup;
 
  cleanup:
-  if (cursor) mdb_cursor_close(cursor);
-  if (txn) mdb_txn_abort(txn);
   if(doc) xmlFreeDoc(doc);
   return 0;
 }
@@ -379,8 +371,8 @@ noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int6
   int rc = 0;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtev_hash_table conf_table;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
   char *key, *val;
   size_t key_size;
   MDB_val mdb_key, mdb_data;
@@ -478,12 +470,12 @@ put_retry:
         mdb_data.mv_size = strlen(val);
         rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
         if (rc == MDB_MAP_FULL) {
-          ck_rwlock_read_unlock(&instance->lock);
           mdb_cursor_close(cursor);
           mdb_txn_abort(txn);
           mtev_hash_destroy(&conf_table, free, NULL);
           free(key);
           xmlFree(val);
+          ck_rwlock_read_unlock(&instance->lock);
           noit_lmdb_resize_instance(instance);
           goto put_retry;
         }
@@ -634,8 +626,8 @@ int
 noit_check_lmdb_bump_seq_and_mark_deleted(uuid_t checkid) {
   int rc;
   MDB_val mdb_key, mdb_data;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
   char *key = NULL;
   char buff[255];
   size_t key_size;
@@ -767,8 +759,8 @@ int
 noit_check_lmdb_remove_check_from_db(uuid_t checkid) {
   int rc = 0;
   MDB_val mdb_key, mdb_data;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
   char *key = NULL;
   size_t key_size;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
@@ -901,8 +893,8 @@ static void
 noit_check_lmdb_poller_process_all_checks() {
   int rc;
   MDB_val mdb_key, mdb_data;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance);
@@ -938,8 +930,8 @@ noit_check_lmdb_poller_process_check(uuid_t checkid) {
   char *key = NULL;
   size_t key_size;
   MDB_val mdb_key, mdb_data;
-  MDB_txn *txn;
-  MDB_cursor *cursor;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance);
@@ -1133,8 +1125,8 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
     mdb_data.mv_size = strlen(attr_value); \
     rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
     if (rc == MDB_MAP_FULL) { \
-      mdb_txn_abort(txn); \
       mdb_cursor_close(cursor); \
+      mdb_txn_abort(txn); \
       free(key); \
       ck_rwlock_read_unlock(&instance->lock); \
       noit_lmdb_resize_instance(instance); \
