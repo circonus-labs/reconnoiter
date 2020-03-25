@@ -424,12 +424,12 @@ put_retry:
       mdb_data.mv_size = strlen(val); \
       rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
       if (rc == MDB_MAP_FULL) { \
-        ck_rwlock_read_unlock(&instance->lock); \
         mdb_cursor_close(cursor); \
         mdb_txn_abort(txn); \
         mtev_hash_destroy(&conf_table, free, NULL); \
         free(key); \
         xmlFree(val); \
+        ck_rwlock_read_unlock(&instance->lock); \
         noit_lmdb_resize_instance(instance); \
         goto put_retry; \
       } \
@@ -505,10 +505,10 @@ put_retry:
     rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
     if (rc != 0) {
       if (rc == MDB_MAP_FULL) {
-        ck_rwlock_read_unlock(&instance->lock);
         mdb_cursor_close(cursor);
         mdb_txn_abort(txn);
         mtev_hash_destroy(&conf_table, free, NULL);
+        ck_rwlock_read_unlock(&instance->lock);
         noit_lmdb_resize_instance(instance);
         goto put_retry;
       }
@@ -517,19 +517,17 @@ put_retry:
       }
     }
   }
+  mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
-    ck_rwlock_read_unlock(&instance->lock);
-    mdb_cursor_close(cursor);
-    mdb_txn_abort(txn);
     mtev_hash_destroy(&conf_table, free, NULL);
+    ck_rwlock_read_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
   else if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
-  mdb_cursor_close(cursor);
   mtev_hash_destroy(&conf_table, free, NULL);
   ck_rwlock_read_unlock(&instance->lock);
 }
@@ -671,10 +669,10 @@ put_retry:
 
   rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
   if (rc == MDB_MAP_FULL) {
-    ck_rwlock_read_unlock(&instance->lock);
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     free(key);
+    ck_rwlock_read_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
@@ -739,10 +737,10 @@ put_retry:
 
   rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
   if (rc == MDB_MAP_FULL) {
-    ck_rwlock_read_unlock(&instance->lock);
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     free(key);
+    ck_rwlock_read_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
@@ -750,18 +748,16 @@ put_retry:
     mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc));
   }
 
+  mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
     ck_rwlock_read_unlock(&instance->lock);
-    mdb_cursor_close(cursor);
-    mdb_txn_abort(txn);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
   else if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
-  mdb_cursor_close(cursor);
   ck_rwlock_read_unlock(&instance->lock);
 
   return new_seq;
@@ -828,14 +824,13 @@ noit_check_lmdb_remove_check_from_db(uuid_t checkid) {
     }
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   }
+  mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
   if (rc != 0) {
     mtevL(mtev_error, "failed to commit delete txn: %d (%s)\n", rc, mdb_strerror(rc));
-    mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     goto cleanup;
   }
-  mdb_cursor_close(cursor);
   rc = 0;
 
 cleanup:
@@ -1178,11 +1173,11 @@ put_retry:
   WRITE_ATTR_TO_LMDB("oncheck", oncheck);
   WRITE_ATTR_TO_LMDB("deleted", delstr);
 
+  mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
-    mdb_cursor_close(cursor);
-    mdb_txn_abort(txn);
     ck_rwlock_read_unlock(&instance->lock);
+    mtevL(mtev_error, "PHIL: RESIZE/RETRY\n");
     noit_lmdb_resize_instance(instance);
     resized = mtev_true;
     goto put_retry;
@@ -1190,7 +1185,6 @@ put_retry:
   else if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
-  mdb_cursor_close(cursor);
   ck_rwlock_read_unlock(&instance->lock);
 }
 
