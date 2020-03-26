@@ -115,8 +115,6 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
   key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
 
-  mtev_uuid_unparse_lower(checkid, uuid_str);
-
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
 
@@ -139,15 +137,6 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
     attr = xmlNewNode(NULL, (xmlChar *)"attributes");
   }
   config = xmlNewNode(NULL, (xmlChar *)"config");
-
-  if (separate_attributes) {
-    xmlNodePtr child = xmlNewNode(NULL, (xmlChar *)"uuid");
-    xmlNodeAddContent(child, (xmlChar *)uuid_str);
-    xmlAddChild(attr, child);
-  }
-  else {
-    xmlSetProp(root, (xmlChar *)"uuid", (xmlChar *)uuid_str);
-  }
 
   ck_rwlock_read_lock(&instance->lock);
   locked = true;
@@ -174,6 +163,18 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
     }
     noit_lmdb_free_check_data(data);
   }
+  
+  /* Go ahead and set the UUID before we start */
+  mtev_uuid_unparse_lower(checkid, uuid_str);
+  if (separate_attributes) {
+    xmlNodePtr child = xmlNewNode(NULL, (xmlChar *)"uuid");
+    xmlNodeAddContent(child, (xmlChar *)uuid_str);
+    xmlAddChild(attr, child);
+  }
+  else {
+    xmlSetProp(root, (xmlChar *)"uuid", (xmlChar *)uuid_str);
+  }
+
   while(rc == 0) {
     noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
     if (data) {
@@ -181,7 +182,6 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
         noit_lmdb_free_check_data(data);
         break;
       }
-      mtevL(mtev_error, "CHECKING ATTR KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
       if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
         noit_check_lmdb_add_attribute(root, attr, data, mdb_data, separate_attributes);
       }
