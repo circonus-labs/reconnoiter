@@ -1221,6 +1221,8 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   const char *xpath = "/noit/checks//check";
   char **namespaces = noit_check_get_namespaces(&namespace_cnt);
   mtev_conf_section_t *sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
+
+  /* TODO: Remove checks from XML config when done */
   mtevL(mtev_error, "converting %d xml checks to lmdb\n", cnt);
   for(i=0; i<cnt; i++) {
     noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i], namespaces, namespace_cnt);
