@@ -3170,6 +3170,9 @@ noit_check_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL, node;
   if(!initialized) return -1;
+  if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance()) {
+    return noit_check_lmdb_process_repl(doc);
+  }
   root = xmlDocGetRootElement(doc);
   mtev_conf_section_t section;
   mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");

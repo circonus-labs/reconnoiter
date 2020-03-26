@@ -1250,3 +1250,8 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   free(namespaces);
   mtevL(mtev_error, "done converting %d xml checks to lmdb\n", cnt);
 }
+
+int
+noit_check_lmdb_process_repl(xmlDocPtr doc) {
+  return 0;
+}
