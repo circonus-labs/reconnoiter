@@ -45,6 +45,10 @@ static int noit_check_lmdb_add_attribute(xmlNodePtr root, xmlNodePtr attr, noit_
   if ((!mdb_data.mv_data) || (mdb_data.mv_size == 0)) {
     return 0;
   }
+  if (!strcmp(key_data->key, "uuid")) {
+    /* This should be set separately */
+    return 0;
+  }
   char *val = (char *)calloc(1, mdb_data.mv_size);
   memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
   if (separate_stanza) {
@@ -96,6 +100,7 @@ static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_l
 static int
 noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, boolean separate_attributes) {
   int rc, mod, mod_cnt;
+  char uuid_str[UUID_STR_LEN+1];
   xmlNodePtr attr = NULL, config = NULL;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
@@ -109,6 +114,8 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
 
   key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
+
+  mtev_uuid_unparse_lower(checkid, uuid_str);
 
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
@@ -132,6 +139,15 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
     attr = xmlNewNode(NULL, (xmlChar *)"attributes");
   }
   config = xmlNewNode(NULL, (xmlChar *)"config");
+
+  if (separate_attributes) {
+    xmlNodePtr child = xmlNewNode(NULL, (xmlChar *)"uuid");
+    xmlNodeAddContent(child, (xmlChar *)uuid_str);
+    xmlAddChild(attr, child);
+  }
+  else {
+    xmlSetProp(root, (xmlChar *)"uuid", (xmlChar *)uuid_str);
+  }
 
   ck_rwlock_read_lock(&instance->lock);
   locked = true;
