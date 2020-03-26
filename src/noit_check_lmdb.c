@@ -979,7 +979,8 @@ noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
 }
 
 static void
-noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
+noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char **namespaces, int namespace_cnt) {
+  int i = 0;
   char uuid_str[37];
   char target[256] = "";
   char module[256] = "";
@@ -996,6 +997,11 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
   mtev_boolean deleted = mtev_false, disabled = mtev_false;
   int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
   int no_period = 0, no_oncheck = 0;
+  mtev_hash_table *options;
+  mtev_hash_iter iter;
+  const char *_hash_iter_key;
+  int _hash_iter_klen;
+  char *config_value = NULL;
 
   int rc;
   MDB_txn *txn = NULL;
@@ -1117,19 +1123,24 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
   snprintf(period_string, sizeof(period_string), "%d", period);
   snprintf(timeout_string, sizeof(timeout_string), "%d", timeout);
 
-#define WRITE_ATTR_TO_LMDB(attr_name, attr_value) do { \
-  if (strlen(attr_value)) { \
-    key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, attr_name, &key_size); \
+  options = mtev_conf_get_hash(section, "config");
+
+#define WRITE_ATTR_TO_LMDB(type, ns, name, value, allocated) do { \
+  if (strlen(value)) { \
+    key = noit_lmdb_make_check_key(checkid, type, ns, name, &key_size); \
     mtevAssert(key); \
     mdb_key.mv_data = key; \
     mdb_key.mv_size = key_size; \
-    mdb_data.mv_data = attr_value; \
-    mdb_data.mv_size = strlen(attr_value); \
+    mdb_data.mv_data = value; \
+    mdb_data.mv_size = strlen(value); \
     rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
     if (rc == MDB_MAP_FULL) { \
       mdb_cursor_close(cursor); \
       mdb_txn_abort(txn); \
       free(key); \
+      if (allocated) { \
+        free(name); \
+      } \
       ck_rwlock_read_unlock(&instance->lock); \
       noit_lmdb_resize_instance(instance); \
       goto put_retry; \
@@ -1139,6 +1150,9 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
     } \
     free(key); \
     key = NULL; \
+    if (allocated) { \
+      free(name); \
+    } \
   } \
 } while(0)
 
@@ -1156,15 +1170,37 @@ put_retry:
   if (rc != 0) {
     mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
   }
-  WRITE_ATTR_TO_LMDB("target", target);
-  WRITE_ATTR_TO_LMDB("module", module);
-  WRITE_ATTR_TO_LMDB("name", name);
-  WRITE_ATTR_TO_LMDB("filterset", filterset);
-  WRITE_ATTR_TO_LMDB("period", period_string);
-  WRITE_ATTR_TO_LMDB("timeout", timeout_string);
-  WRITE_ATTR_TO_LMDB("resolve_rtype", resolve_rtype);
-  WRITE_ATTR_TO_LMDB("oncheck", oncheck);
-  WRITE_ATTR_TO_LMDB("deleted", delstr);
+
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "target", target, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "module", module, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "name", name, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "filterset", filterset, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "period", period_string, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "timeout", timeout_string, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "resolve_rtype", resolve_rtype, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "oncheck", oncheck, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "deleted", delstr, false);
+
+  memset(&iter, 0, sizeof(mtev_hash_iter));
+  while(mtev_hash_next(options, &iter, &_hash_iter_key, &_hash_iter_klen, (void **)&config_value)) {
+    char *config_name = (char *)calloc(1, _hash_iter_klen+1);
+    memcpy(config_name, _hash_iter_key, _hash_iter_klen);
+    WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_CONFIG_TYPE, NULL, config_name, config_value, true);
+  }
+
+  for (i=0; i < namespace_cnt; i++) {
+    char *namespace = namespaces[i];
+    mtev_hash_table *ns_options = mtev_conf_get_namespaced_hash(section, "config",
+                                    namespace);
+    if (ns_options) {
+      memset(&iter, 0, sizeof(mtev_hash_iter));
+      while(mtev_hash_next(ns_options, &iter, &_hash_iter_key, &_hash_iter_klen, (void **)&config_value)) {
+        char *config_name = (char *)calloc(1, _hash_iter_klen+1);
+        memcpy(config_name, _hash_iter_key, _hash_iter_klen);
+        WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_CONFIG_TYPE, namespace, config_name, config_value, true);
+      }
+    }
+  }
 
   mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
@@ -1181,12 +1217,17 @@ put_retry:
 
 void
 noit_check_lmdb_migrate_xml_checks_to_lmdb() {
-  int cnt, i;
+  int cnt, i, namespace_cnt;
   const char *xpath = "/noit/checks//check";
+  char **namespaces = noit_check_get_namespaces(&namespace_cnt);
   mtev_conf_section_t *sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
   mtevL(mtev_error, "converting %d xml checks to lmdb\n", cnt);
   for(i=0; i<cnt; i++) {
-    noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i]);
+    noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i], namespaces, namespace_cnt);
   }
+  for(i=0; i<namespace_cnt; i++) {
+    free(namespaces[i]);
+  }
+  free(namespaces);
   mtevL(mtev_error, "done converting %d xml checks to lmdb\n", cnt);
 }

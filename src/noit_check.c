@@ -3449,3 +3449,19 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
 
   return rc;
 }
+
+char **noit_check_get_namespaces(int *cnt) {
+  char **toRet = NULL;
+  int i = 0;
+  mtevAssert(cnt);
+  *cnt = reg_module_id;
+
+  if (reg_module_id == 0) {
+    return toRet;
+  }
+  toRet = (char **)calloc(reg_module_id, sizeof(char *));
+  for (i = 0; i < reg_module_id; i++) {
+    toRet[i] = strdup(reg_module_names[i]);
+  }
+  return toRet;
+}
