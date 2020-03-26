@@ -301,6 +301,9 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
 
   mdb_env_set_mapsize(instance->env, new_mapsize);
 
+  mtevL(mtev_error, "lmdb checks db: mapsize increased. old: %" PRIu64 " MiB, new: %" PRIu64 " MiB\n",
+        mei.me_mapsize / (1024 * 1024), new_mapsize / (1024 * 1024));
+
   ck_rwlock_write_unlock(&instance->lock);
 }
 

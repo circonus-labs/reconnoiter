@@ -911,6 +911,7 @@ noit_check_lmdb_poller_process_all_checks() {
   }
   mdb_cursor_open(txn, instance->dbi, &cursor);
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
+  mtevL(mtev_error, "begin loading checks from db\n");
   while (rc == 0) {
     uuid_t checkid;
     /* The start of the key is always a uuid */
@@ -920,6 +921,7 @@ noit_check_lmdb_poller_process_all_checks() {
       rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
     }
   }
+  mtevL(mtev_error, "finished loading checks from db\n");
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
   ck_rwlock_read_unlock(&instance->lock);
@@ -1141,6 +1143,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section) {
 } while(0)
 
 put_retry:
+  mtev_watchdog_child_heartbeat();
   key = NULL;
   txn = NULL;
   cursor = NULL;
@@ -1181,7 +1184,9 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   int cnt, i;
   const char *xpath = "/noit/checks//check";
   mtev_conf_section_t *sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
+  mtevL(mtev_error, "converting %d xml checks to lmdb\n", cnt);
   for(i=0; i<cnt; i++) {
     noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i]);
   }
+  mtevL(mtev_error, "done converting %d xml checks to lmdb\n", cnt);
 }
