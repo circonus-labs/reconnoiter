@@ -1007,7 +1007,6 @@ noit_poller_init() {
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
   mtev_conf_get_int32(MTEV_CONF_ROOT, "/noit/@check_recycle_period", &check_recycle_period);
-  mtevL(mtev_error, "CHECK_RECYCLE_PERIOD: %d\n", check_recycle_period);
   eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
   mtev_conf_get_int32(MTEV_CONF_ROOT, "/noit/@text_size_limit", &text_size_limit);
   if (text_size_limit <= 0) {
