@@ -1225,6 +1225,7 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   for(i=0; i<cnt; i++) {
     noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i], namespaces, namespace_cnt);
   }
+  mtev_conf_release_sections_read(sec, cnt);
   for(i=0; i<namespace_cnt; i++) {
     free(namespaces[i]);
   }
