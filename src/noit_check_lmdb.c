@@ -1282,23 +1282,6 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
       continue;
     }
 
-    if(check) {
-#if 0
-      char xpath[1024];
-
-      snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
-               uuid_str);
-      mtev_conf_section_t oldsection = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
-      if(!mtev_conf_section_is_empty(oldsection)) {
-        CONF_REMOVE(oldsection);
-        node = mtev_conf_section_to_xmlnodeptr(oldsection);
-        xmlUnlinkNode(node);
-        xmlFreeNode(node);
-      }
-      mtev_conf_release_section_write(oldsection);
-#endif
-    }
-
 #if 0
     xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);
     child = xmlDocCopyNode(child, checks_node->doc, 1);
@@ -1307,11 +1290,6 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
     noit_poller_process_check_conf(section);
 #endif
     i++;
-  }
-  mtev_conf_release_section_write(checks);
-  mtev_conf_mark_changed();
-  if(mtev_conf_write_file(NULL) != 0) {
-    mtevL(mtev_error, "local config write failed\n");
   }
   return i;
 }
