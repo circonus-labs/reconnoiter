@@ -1251,57 +1251,67 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   mtevL(mtev_error, "done converting %d xml checks to lmdb\n", cnt);
 }
 
-static int
-noit_check_lmdb_process_repl_handle_one_locked(MDB_cursor *cursor, uuid_t checkid)
-{
-  int rc = 0;
-  MDB_val mdb_key, mdb_data;
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
-  while (rc == 0) {
-    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
-    mtevAssert(data);
-    /* If the uuid doesn't match, we're done */
-    if (mtev_uuid_compare(checkid, data->id) != 0) {
-      noit_lmdb_free_check_data(data);
-      break;
-    }
-    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
-  }
-  return rc;
-}
 int
 noit_check_lmdb_process_repl(xmlDocPtr doc) {
-  int rc;
-  MDB_txn *txn = NULL;
-  MDB_cursor *cursor = NULL;
-  MDB_val mdb_key, mdb_data;
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+  int i = 0;
+  xmlNodePtr root = NULL, child = NULL, next = NULL;
+  mtev_conf_section_t section;
 
-  mtevAssert(instance != NULL);
+  root = xmlDocGetRootElement(doc);
+  mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
+  mtevAssert(!mtev_conf_section_is_empty(checks));
+  for(child = xmlFirstElementChild(root); child; child = next) {
+    next = xmlNextElementSibling(child);
 
-  mdb_key.mv_data = NULL;
-  mdb_key.mv_size = 0;
-
-  ck_rwlock_read_lock(&instance->lock);
-
-  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
-  if (rc != 0) {
-    ck_rwlock_read_unlock(&instance->lock);
-    mtevL(mtev_error, "failed to create transaction for processing all checks: %d (%s)\n", rc, mdb_strerror(rc));
-    return 0;
-  }
-  mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
-  while (rc == 0) {
     uuid_t checkid;
-    /* The start of the key is always a uuid */
-    mtev_uuid_copy(checkid, mdb_key.mv_data);
-    rc = noit_check_lmdb_process_repl_handle_one_locked(cursor, checkid);
-    if (rc == 0) {
-      rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
-    }
-  }
+    int64_t seq;
+    char uuid_str[UUID_STR_LEN+1], seq_str[32];
+    section = mtev_conf_section_from_xmlnodeptr(child);
+    mtevAssert(mtev_conf_get_stringbuf(section, "@uuid",
+                                       uuid_str, sizeof(uuid_str)));
+    mtevAssert(mtev_uuid_parse(uuid_str, checkid) == 0);
+    mtevAssert(mtev_conf_get_stringbuf(section, "@seq",
+                                       seq_str, sizeof(seq_str)));
+    seq = strtoll(seq_str, NULL, 10);
 
-  ck_rwlock_read_unlock(&instance->lock);
-  return 0;
+    noit_check_t *check = noit_poller_lookup(checkid);
+
+    /* too old, don't bother */
+    if(check && check->config_seq >= seq) {
+      i++;
+      continue;
+    }
+
+    if(check) {
+#if 0
+      char xpath[1024];
+
+      snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
+               uuid_str);
+      mtev_conf_section_t oldsection = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);
+      if(!mtev_conf_section_is_empty(oldsection)) {
+        CONF_REMOVE(oldsection);
+        node = mtev_conf_section_to_xmlnodeptr(oldsection);
+        xmlUnlinkNode(node);
+        xmlFreeNode(node);
+      }
+      mtev_conf_release_section_write(oldsection);
+#endif
+    }
+
+#if 0
+    xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);
+    child = xmlDocCopyNode(child, checks_node->doc, 1);
+    xmlAddChild(mtev_conf_section_to_xmlnodeptr(checks), child);
+    CONF_DIRTY(section);
+    noit_poller_process_check_conf(section);
+#endif
+    i++;
+  }
+  mtev_conf_release_section_write(checks);
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0) {
+    mtevL(mtev_error, "local config write failed\n");
+  }
+  return i;
 }
