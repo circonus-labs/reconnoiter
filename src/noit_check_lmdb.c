@@ -464,8 +464,6 @@ put_retry:
     ATTR2LMDB(seq);
   }
 
-  /* TODO: Add UUID as check attribute */
-
   if (c) {
     key = NULL;
     val = NULL;
@@ -1025,6 +1023,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   MDB_val mdb_key, mdb_data;
   char *key = NULL;
   size_t key_size;
+  mtev_hash_table conf_table;
 
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance != NULL);
@@ -1157,6 +1156,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
       if (allocated) { \
         free(name); \
       } \
+      mtev_hash_destroy(&conf_table, free, NULL); \
       ck_rwlock_read_unlock(&instance->lock); \
       noit_lmdb_resize_instance(instance); \
       goto put_retry; \
@@ -1164,6 +1164,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
     else if (rc != 0) { \
       mtevFatal(mtev_error, "failure on cursor put - %d (%s)\n", rc, mdb_strerror(rc)); \
     } \
+    mtev_hash_delete(&conf_table, key, key_size, free, NULL); \
     free(key); \
     key = NULL; \
     if (allocated) { \
@@ -1178,6 +1179,9 @@ put_retry:
   txn = NULL;
   cursor = NULL;
   ck_rwlock_read_lock(&instance->lock);
+
+  noit_lmdb_check_keys_to_hash_table(instance, &conf_table, checkid, true);
+
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
@@ -1218,9 +1222,31 @@ put_retry:
     }
   }
 
+  memset(&iter, 0, sizeof(mtev_hash_iter));
+  void *unused;
+  while(mtev_hash_next(&conf_table, &iter, &_hash_iter_key, &_hash_iter_klen, &unused)) {
+    mdb_key.mv_data = (char *)_hash_iter_key;
+    mdb_key.mv_size = _hash_iter_klen;
+    rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
+    if (rc != 0) {
+      if (rc == MDB_MAP_FULL) {
+        mdb_cursor_close(cursor);
+        mdb_txn_abort(txn);
+        mtev_hash_destroy(&conf_table, free, NULL);
+        ck_rwlock_read_unlock(&instance->lock);
+        noit_lmdb_resize_instance(instance);
+        goto put_retry;
+      }
+      else if (rc != MDB_NOTFOUND) {
+        mtevL(mtev_error, "failed to delete key: %d (%s)\n", rc, mdb_strerror(rc));
+      }
+    }
+  }
+
   mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
+    mtev_hash_destroy(&conf_table, free, NULL);
     ck_rwlock_read_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
@@ -1228,6 +1254,7 @@ put_retry:
   else if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
+  mtev_hash_destroy(&conf_table, free, NULL);
   ck_rwlock_read_unlock(&instance->lock);
 }
 
@@ -1253,9 +1280,10 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
 
 int
 noit_check_lmdb_process_repl(xmlDocPtr doc) {
-  int i = 0;
+  int i = 0, j = 0, namespace_cnt = 0;
   xmlNodePtr root = NULL, child = NULL, next = NULL;
   mtev_conf_section_t section;
+  char **namespaces = noit_check_get_namespaces(&namespace_cnt);
 
   root = xmlDocGetRootElement(doc);
   mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
@@ -1281,15 +1309,14 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
       i++;
       continue;
     }
+    noit_check_lmdb_convert_one_xml_check_to_lmdb(section, namespaces, namespace_cnt);
+    noit_check_lmdb_poller_process_checks(&checkid, 1);
 
-#if 0
-    xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);
-    child = xmlDocCopyNode(child, checks_node->doc, 1);
-    xmlAddChild(mtev_conf_section_to_xmlnodeptr(checks), child);
-    CONF_DIRTY(section);
-    noit_poller_process_check_conf(section);
-#endif
     i++;
   }
+  for(j=0; i<namespace_cnt; j++) {
+    free(namespaces[j]);
+  }
+  free(namespaces);
   return i;
 }
