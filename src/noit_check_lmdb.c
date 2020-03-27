@@ -1251,7 +1251,57 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   mtevL(mtev_error, "done converting %d xml checks to lmdb\n", cnt);
 }
 
+static int
+noit_check_lmdb_process_repl_handle_one_locked(MDB_cursor *cursor, uuid_t checkid)
+{
+  int rc = 0;
+  MDB_val mdb_key, mdb_data;
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
+  while (rc == 0) {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    mtevAssert(data);
+    /* If the uuid doesn't match, we're done */
+    if (mtev_uuid_compare(checkid, data->id) != 0) {
+      noit_lmdb_free_check_data(data);
+      break;
+    }
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+  return rc;
+}
 int
 noit_check_lmdb_process_repl(xmlDocPtr doc) {
+  int rc;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  mdb_key.mv_data = NULL;
+  mdb_key.mv_size = 0;
+
+  ck_rwlock_read_lock(&instance->lock);
+
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    ck_rwlock_read_unlock(&instance->lock);
+    mtevL(mtev_error, "failed to create transaction for processing all checks: %d (%s)\n", rc, mdb_strerror(rc));
+    return 0;
+  }
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
+  while (rc == 0) {
+    uuid_t checkid;
+    /* The start of the key is always a uuid */
+    mtev_uuid_copy(checkid, mdb_key.mv_data);
+    rc = noit_check_lmdb_process_repl_handle_one_locked(cursor, checkid);
+    if (rc == 0) {
+      rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
+    }
+  }
+
+  ck_rwlock_read_unlock(&instance->lock);
   return 0;
 }
