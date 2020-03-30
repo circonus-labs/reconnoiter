@@ -568,7 +568,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
-  if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance()) {
+  if (noit_check_get_lmdb_instance()) {
     return noit_conf_checks_lmdb_console_show_check(ncct, argc, argv, state, closure);
   }
 
@@ -968,7 +968,7 @@ noit_conf_checks_reload(mtev_console_closure_t ncct,
   if(mtev_conf_reload(ncct, argc, argv, state, closure)) {
     return -1;
   }
-  if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance()) {
+  if (noit_check_get_lmdb_instance()) {
     noit_poller_reload_lmdb(NULL, 0);
   }
   else {

@@ -1069,7 +1069,7 @@ noit_poller_init() {
     text_size_limit = NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
   noit_check_dns_ignore_list_init();
-  if (ENABLE_LMDB_FOR_CHECKS && lmdb_instance) {
+  if (noit_check_get_lmdb_instance()) {
     noit_poller_reload_lmdb(NULL, 0);
   }
   else {
@@ -1730,7 +1730,7 @@ check_recycle_bin_processor_internal() {
   }
   pthread_mutex_unlock(&polls_lock);
 
-  if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance()) {
+  if (noit_check_get_lmdb_instance()) {
     check_recycle_bin_processor_internal_cleanup_lmdb(head);
   }
   else {
@@ -3170,7 +3170,7 @@ noit_check_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL, node;
   if(!initialized) return -1;
-  if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance()) {
+  if (noit_check_get_lmdb_instance()) {
     return noit_check_lmdb_process_repl(doc);
   }
   root = xmlDocGetRootElement(doc);

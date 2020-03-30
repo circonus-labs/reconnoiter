@@ -401,7 +401,7 @@ rest_show_checks(mtev_http_rest_closure_t *restc,
   if(npats == 1 && !strcmp(pats[0], ".json")) {
     return rest_show_checks_json(restc, npats, pats);
   }
-  else if (ENABLE_LMDB_FOR_CHECKS && noit_check_get_lmdb_instance() != NULL) {
+  else if (noit_check_get_lmdb_instance()) {
     return noit_check_lmdb_show_checks(restc, npats, pats);
   }
   else {
@@ -533,8 +533,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   void *data;
   mtev_hash_table *configh;
 
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(ENABLE_LMDB_FOR_CHECKS && instance) {
+  if(noit_check_get_lmdb_instance()) {
     return noit_check_lmdb_show_check(restc, npats, pats);
   }
   NCINIT_RD;
@@ -1001,8 +1000,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
 
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(ENABLE_LMDB_FOR_CHECKS && instance) {
+  if(noit_check_get_lmdb_instance()) {
     return noit_check_lmdb_delete_check(restc, npats, pats);
   }
 
@@ -1092,8 +1090,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
 
-  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
-  if(ENABLE_LMDB_FOR_CHECKS && instance) {
+  if(noit_check_get_lmdb_instance()) {
     return noit_check_lmdb_set_check(restc, npats, pats);
   }
   NCINIT_WR;
