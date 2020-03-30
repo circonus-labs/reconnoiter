@@ -873,6 +873,7 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
     }
     if (check) {
       check->config_seq = new_seq;
+      noit_cluster_mark_check_changed(check, NULL);
     }
   }
   else {
