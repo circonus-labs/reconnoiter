@@ -1195,6 +1195,7 @@ put_retry:
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "module", module, false);
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "name", name, false);
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "filterset", filterset, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", seq_string, false);
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "period", period_string, false);
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "timeout", timeout_string, false);
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "resolve_rtype", resolve_rtype, false);
