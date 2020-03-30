@@ -1049,7 +1049,9 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
     mtevL(mtev_error, "check uuid: '%s' is invalid\n", uuid_str);
     return;
   }
-  if(MYATTR(stringbuf, deleted, delstr, sizeof(delstr) && !strcmp(delstr, "deleted"))) {
+  memset(delstr, 0, sizeof(delstr));
+  MYATTR(stringbuf, deleted, delstr, sizeof(delstr));
+  if (!strcmp(delstr, "deleted")) {
     deleted = mtev_true;
   }
 
