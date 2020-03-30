@@ -1314,6 +1314,7 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
 
     i++;
   }
+  mtev_conf_release_section_write(checks);
   for(j=0; j<namespace_cnt; j++) {
     free(namespaces[j]);
   }
