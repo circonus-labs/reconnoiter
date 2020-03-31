@@ -383,7 +383,7 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
 
 static void
 noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
-  xmlNodePtr n;
+  xmlNodePtr node;
   int rc = 0;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtev_hash_table conf_table;
@@ -419,10 +419,10 @@ put_retry:
     mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
   }
 
-  for (n = a->children; n; n = n->next) {
+  for (node = a->children; node; node = node->next) {
 #define ATTR2LMDB(attr_name) do { \
-  if(!strcmp((char *)n->name, #attr_name)) { \
-    val = (char *)xmlNodeGetContent(n); \
+  if(!strcmp((char *)node->name, #attr_name)) { \
+    val = (char *)xmlNodeGetContent(node); \
     if (val) { \
       key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, #attr_name, &key_size); \
       mtevAssert(key); \
@@ -467,15 +467,15 @@ put_retry:
   if (c) {
     key = NULL;
     val = NULL;
-    for(n = c->children; n; n = n->next) {
-      val = (char *)xmlNodeGetContent(n);
+    for(node = c->children; node; node = node->next) {
+      val = (char *)xmlNodeGetContent(node);
       if (val != NULL) {
         char *prefix = NULL;
-        if (n->ns) {
-          prefix = (char *)n->ns->prefix;
+        if (node->ns) {
+          prefix = (char *)node->ns->prefix;
         }
-        
-        key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)n->name, &key_size);
+       
+        key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)node->name, &key_size);
         mtevAssert(key);
 
         mdb_key.mv_data = key;
