@@ -3367,7 +3367,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
         char *value = (char *)malloc(mdb_data.mv_size + 1);
         memcpy(value, mdb_data.mv_data, mdb_data.mv_size);
         value[mdb_data.mv_size] = 0;
-        mtev_hash_store(&options, key, strlen(key), value);
+        mtev_hash_store(insertTable, key, strlen(key), value);
       }
     }
     else {
