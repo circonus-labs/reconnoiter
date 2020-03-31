@@ -35,9 +35,6 @@
 #include <mtev_hash.h>
 #include <mtev_uuid.h>
 
-#define NOIT_LMDB_CHECK_ATTRIBUTE_TYPE 'A'
-#define NOIT_LMDB_CHECK_CONFIG_TYPE 'C'
-
 typedef struct noit_lmdb_instance {
   MDB_env *env;
   MDB_dbi dbi;

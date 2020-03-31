@@ -30,6 +30,7 @@
 #include "noit_conf_checks_lmdb.h"
 #include "noit_conf_checks.h"
 #include "noit_check.h"
+#include "noit_check_lmdb.h"
 #include "noit_lmdb_tools.h"
 
 int

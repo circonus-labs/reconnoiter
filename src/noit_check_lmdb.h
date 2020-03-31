@@ -36,6 +36,11 @@
 #ifndef _NOIT_CHECK_LMDB_H
 #define _NOIT_CHECK_LMDB_H
 
+typedef enum {
+  NOIT_LMDB_CHECK_ATTRIBUTE_TYPE = 'A',
+  NOIT_LMDB_CHECK_CONFIG_TYPE = 'C'
+} noit_lmdb_check_type_e;
+
 int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char **pats);
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
 int noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
@@ -44,6 +49,8 @@ int noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc, int npats, cha
 void noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt);
 void noit_check_lmdb_migrate_xml_checks_to_lmdb();
 int noit_check_lmdb_process_repl(xmlDocPtr doc);
-
+mtev_boolean noit_check_lmdb_already_in_db(uuid_t checkid);
+char *noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search_type,
+                                         char *search_namespace, char *search_key);
 
 #endif

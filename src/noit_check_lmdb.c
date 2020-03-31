@@ -462,6 +462,13 @@ put_retry:
     ATTR2LMDB(disable);
     ATTR2LMDB(filterset);
     ATTR2LMDB(seq);
+    if (!strcmp((char *)node->name, "seq")) {
+      if (seq_in) {
+        xmlChar *v = xmlNodeGetContent(node);
+        *seq_in = strtoll((const char *)v, NULL, 10);
+        xmlFree(v);
+      }
+    }
   }
 
   if (c) {
@@ -583,11 +590,13 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   if(check) {
     exists = mtev_true;
   }
-  mtev_boolean in_db = mtev_false;
-  /* First, check to see if this is already in the db.... TODO */
+  mtev_boolean in_db = noit_check_lmdb_already_in_db(checkid);
+  /* TODO: Don't write to the DB if there's a sequencing error */
   if (!in_db) {
-    if (0 && exists) {
-      return -1;
+    if (exists) {
+      error_code = 403;
+      error = "uuid not yours";
+      goto error;
     }
     int64_t seq;
     uint64_t old_seq = 0;
@@ -604,19 +613,60 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
       m = noit_module_lookup(module);
     }
     rest_check_free_attrs(target, name, module);
-    if(0 && exists) {
-      return -1;
+    if(exists) {
+      error_code = 409;
+      error = "target`name already registered";
+      goto error;
     }
     if(!m) {
-      return -1;
+      error_code = 412;
+      error = "module does not exist";
+      goto error;
     }
-    /* create a check here */
     noit_check_lmdb_configure_check(checkid, attr, config, &seq);
     if(old_seq >= seq && seq != 0) {
-      return -1;
+      error_code = 409;
+      error = "sequencing error";
+      goto error;
     }
   }
-  else {
+  if (exists) {
+    int64_t seq;
+    uint64_t old_seq = 0;
+    int module_change;
+    char *target = NULL, *name = NULL, *module = NULL;
+    noit_check_t *ocheck;
+    if(!check) {
+      error_code = 500;
+      error = "internal check error";
+      goto error;
+    }
+
+    /* make sure this isn't a dup */
+    rest_check_get_attrs(attr, &target, &name, &module);
+
+    ocheck = noit_poller_lookup_by_name(target, name);
+    module_change = strcmp(check->module, module);
+    rest_check_free_attrs(target, name, module);
+    if(ocheck && ocheck != check) {
+      error_code = 409;
+      error = "new target`name would collide";
+      goto error;
+    }
+    if(module_change) {
+      error_code = 400;
+      error = "cannot change module";
+      goto error;
+    }
+    noit_check_lmdb_configure_check(checkid, attr, config, &seq);
+    if(check) {
+      old_seq = check->config_seq;
+    }
+    if(old_seq >= seq && seq != 0) {
+      error_code = 409;
+      error = "sequencing error";
+      goto error;
+    }
   }
 
   noit_poller_reload_lmdb(&checkid, 1);
@@ -1332,3 +1382,81 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
   free(namespaces);
   return i;
 }
+
+mtev_boolean
+noit_check_lmdb_already_in_db(uuid_t checkid) {
+  int rc;
+  mtev_boolean toRet = mtev_false;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  ck_rwlock_read_lock(&instance->lock);
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_RANGE);
+  if (rc == 0) {
+    if ((mdb_data.mv_size >= UUID_SIZE) && (mdb_data.mv_data != NULL) && (mtev_uuid_compare(checkid, mdb_data.mv_data) == 0)) {
+      toRet = mtev_true;
+    }
+  }
+
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+
+  ck_rwlock_read_unlock(&instance->lock);
+  free(key);
+  return toRet;
+}
+
+char *
+noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search_type, char *search_namespace, char *search_key) {
+  int rc;
+  char *toRet = NULL;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  key = noit_lmdb_make_check_key(checkid, search_type, search_namespace, search_key, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  ck_rwlock_read_lock(&instance->lock);
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_KEY);
+
+  if (rc == 0) {
+    toRet = (char *)calloc(1, mdb_data.mv_size + 1);
+    memcpy(toRet, mdb_data.mv_data, mdb_data.mv_size);
+  }
+
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+
+  ck_rwlock_read_unlock(&instance->lock);
+
+  free(key);
+  return toRet;
+}
+
