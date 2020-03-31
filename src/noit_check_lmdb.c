@@ -243,7 +243,6 @@ int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char
 
   mtev_conf_section_t checks = mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit/checks");
   xmlNodePtr checks_xmlnode = mtev_conf_section_to_xmlnodeptr(checks);
-  mtev_conf_release_section_read(checks);
   if (!checks_xmlnode) {
     goto error;
   }
@@ -274,6 +273,7 @@ int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char
 
  cleanup:
   if (doc) xmlFreeDoc(doc);
+  mtev_conf_release_section_read(checks);
 
   return 0;
 }
