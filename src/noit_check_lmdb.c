@@ -474,8 +474,16 @@ put_retry:
         if (node->ns) {
           prefix = (char *)node->ns->prefix;
         }
-       
-        key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)node->name, &key_size);
+        /* If there's an attribute here, use it as the key - otherwise, use node->name */
+        xmlAttr* attribute = node->properties;
+        if (attribute) {
+          xmlChar* value = xmlNodeListGetString(node->doc, attribute->children, 1);
+          key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)value, &key_size);
+          xmlFree(value);
+        }
+        else {
+          key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_CONFIG_TYPE, prefix, (char *)node->name, &key_size);
+        }
         mtevAssert(key);
 
         mdb_key.mv_data = key;
