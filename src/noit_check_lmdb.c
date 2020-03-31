@@ -823,7 +823,6 @@ noit_check_lmdb_remove_check_from_db(uuid_t checkid) {
         noit_lmdb_free_check_data(data);
         break;
       }
-      mtevL(mtev_error, "DELETING KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
       noit_lmdb_free_check_data(data);
       rc = mdb_cursor_del(cursor, 0);
       if (rc != 0) {

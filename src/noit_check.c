@@ -3376,17 +3376,6 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     noit_lmdb_free_check_data(data);
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   }
-#if 0
-  mtevL(mtev_error, "TARGET: %s\n", target);
-  mtevL(mtev_error, "MODULE: %s\n", module);
-  mtevL(mtev_error, "NAME: %s\n", name);
-  mtevL(mtev_error, "FILTERSET: %s\n", filterset);
-  mtevL(mtev_error, "ONCHECK: %s\n", oncheck);
-  mtevL(mtev_error, "PERIOD: %s\n", period_str);
-  mtevL(mtev_error, "TIMEOUT: %s\n", timeout_str);
-  mtevL(mtev_error, "SEQ: %s\n", seq_str);
-  mtevL(mtev_error, "DELETED: %s\n", delstr);
-#endif
 
   if(deleted) {
     memcpy(target, "none", 5);
