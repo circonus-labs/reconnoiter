@@ -565,8 +565,14 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
 
+#define GOTO_ERROR(ec, es) do { \
+  error_code = ec; \
+  error = es; \
+  goto error; \
+} while(0)
+
   if(npats != 2) {
-    goto error;
+    GOTO_ERROR(500, "internal error");
   }
 
   indoc = rest_get_xml_upload(restc, &mask, &complete);
@@ -574,16 +580,14 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     return mask;
   }
   if(indoc == NULL) {
-    error_code = 400;
-    error = "xml parse error";
-    goto error;
+    GOTO_ERROR(400, "xml parse error");
   }
   if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) {
-    goto error;
+    GOTO_ERROR(500, "could not validate xml check");
   }
 
   if(mtev_uuid_parse(pats[1], checkid)) {
-    goto error;
+    GOTO_ERROR(500, "not a valid uuid");
   }
 
   check = noit_poller_lookup(checkid);
@@ -594,9 +598,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   /* TODO: Don't write to the DB if there's a sequencing error */
   if (!in_db) {
     if (exists) {
-      error_code = 403;
-      error = "uuid not yours";
-      goto error;
+      GOTO_ERROR(403, "uuid not yours");
     }
     int64_t seq;
     uint64_t old_seq = 0;
@@ -614,20 +616,14 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     }
     rest_check_free_attrs(target, name, module);
     if(exists) {
-      error_code = 409;
-      error = "target`name already registered";
-      goto error;
+      GOTO_ERROR(409, "target`name already registered");
     }
     if(!m) {
-      error_code = 412;
-      error = "module does not exist";
-      goto error;
+      GOTO_ERROR(412, "module does not exist");
     }
     noit_check_lmdb_configure_check(checkid, attr, config, &seq);
     if(old_seq >= seq && seq != 0) {
-      error_code = 409;
-      error = "sequencing error";
-      goto error;
+      GOTO_ERROR(409, "sequencing error");
     }
   }
   if (exists) {
@@ -637,9 +633,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     char *target = NULL, *name = NULL, *module = NULL;
     noit_check_t *ocheck;
     if(!check) {
-      error_code = 500;
-      error = "internal check error";
-      goto error;
+      GOTO_ERROR(500, "internal check error");
     }
 
     /* make sure this isn't a dup */
@@ -649,23 +643,17 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     module_change = strcmp(check->module, module);
     rest_check_free_attrs(target, name, module);
     if(ocheck && ocheck != check) {
-      error_code = 409;
-      error = "new target`name would collide";
-      goto error;
+      GOTO_ERROR(409, "new target`name would collide");
     }
     if(module_change) {
-      error_code = 400;
-      error = "cannot change module";
-      goto error;
+      GOTO_ERROR(400, "cannot change module");
     }
     noit_check_lmdb_configure_check(checkid, attr, config, &seq);
     if(check) {
       old_seq = check->config_seq;
     }
     if(old_seq >= seq && seq != 0) {
-      error_code = 409;
-      error = "sequencing error";
-      goto error;
+      GOTO_ERROR(409, "sequencing error");
     }
   }
 
