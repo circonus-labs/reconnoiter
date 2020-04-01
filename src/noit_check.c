@@ -3244,7 +3244,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   int no_oncheck = 1;
   int no_period = 1;
   int no_timeout = 1;
-  int period = 0, timeout = 0;
+  int32_t period = 0, timeout = 0;
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   mtev_hash_table options;
   mtev_hash_table **moptions = NULL;
@@ -3370,6 +3370,46 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     noit_lmdb_free_check_data(data);
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
   }
+
+  /* These *may* be defined in the check stanza and not in the db - if this is the case,
+   * we need to set these based on the inheritable values */
+#define CHECK_FROM_LMDB_INHERIT(type,a,...) \
+  mtev_conf_get_##type(checks, "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+  mtev_conf_section_t checks = mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit/checks");
+  if (!strlen(target)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, target, target, sizeof(target));
+  }
+  if (!strlen(module)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, module, module, sizeof(module));
+  }
+  if (!strlen(filterset)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, filterset, filterset, sizeof(filterset));
+  }
+  if (!strlen(oncheck)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck));
+  }
+  if (!strlen(resolve_rtype)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype));
+  }
+  if (no_period) {
+    period = 0;
+    if (CHECK_FROM_LMDB_INHERIT(int32, period, &period)) {
+      no_period = 0;
+      if(period < global_minimum_period) {
+        period = global_minimum_period;
+      }
+      if(period > global_maximum_period) {
+        period = global_maximum_period;
+      }
+    }
+  }
+  if (no_timeout) {
+    timeout = 0;
+    if (CHECK_FROM_LMDB_INHERIT(int32, timeout, &timeout)) {
+      no_timeout = 0;
+    }
+  }
+  mtev_conf_release_section_read(checks);
 
   if(deleted) {
     memcpy(target, "none", 5);
