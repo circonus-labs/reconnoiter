@@ -1075,6 +1075,16 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   int _hash_iter_klen;
   char *config_value = NULL;
 
+  /* If an attribute is inherited, we don't want to write it to the
+   * db.... track which things are inherited and which aren't */
+  mtev_boolean target_inherited = mtev_false;
+  mtev_boolean module_inherited = mtev_false;
+  mtev_boolean filterset_inherited = mtev_false;
+  mtev_boolean resolve_rtype_inherited = mtev_false;
+  mtev_boolean oncheck_inherited = mtev_false;
+  mtev_boolean period_inherited = mtev_false;
+  mtev_boolean timeout_inherited = mtev_false;
+
   int rc;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
@@ -1112,31 +1122,53 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
     deleted = mtev_true;
   }
 
-  if(!INHERIT(stringbuf, target, target, sizeof(target))) {
-    if(!deleted) {
-      mtevL(mtev_error, "check uuid: '%s' has no target\n", uuid_str);
-      return;
+  if(!MYATTR(stringbuf, target, target, sizeof(target))) {
+    if(!INHERIT(stringbuf, target, target, sizeof(target))) {
+      if(!deleted) {
+        mtevL(mtev_error, "check uuid: '%s' has no target\n", uuid_str);
+        return;
+      }
+    }
+    else {
+      target_inherited = mtev_true;
     }
   }
+
   if(!noit_check_validate_target(target)) {
     if(!deleted) {
       mtevL(mtev_error, "check uuid: '%s' has malformed target\n", uuid_str);
       return;
     }
   }
-  if(!INHERIT(stringbuf, module, module, sizeof(module))) {
-    if(!deleted) {
-      mtevL(mtev_error, "check uuid: '%s' has no module\n", uuid_str);
-      return;
+
+  if(!MYATTR(stringbuf, module, module, sizeof(module))) {
+    if(!INHERIT(stringbuf, module, module, sizeof(module))) {
+      if(!deleted) {
+        mtevL(mtev_error, "check uuid: '%s' has no module\n", uuid_str);
+        return;
+      }
+    }
+    else {
+      module_inherited = mtev_true;
+    }
+ }
+
+  if(!MYATTR(stringbuf, filterset, filterset, sizeof(filterset))) {
+    if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset))) {
+      filterset[0] = '\0';
+    }
+    else {
+      filterset_inherited = mtev_true;
     }
   }
 
-  if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset))) {
-    filterset[0] = '\0';
-  }
-
-  if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
-    strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
+  if (!MYATTR(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
+    if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
+      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
+    }
+    else {
+      resolve_rtype_inherited = mtev_true;
+    }
   }
 
   if(!MYATTR(stringbuf, name, name, sizeof(name))) {
@@ -1152,7 +1184,15 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
 
   INHERIT(int32, minimum_period, &minimum_period);
   INHERIT(int32, maximum_period, &maximum_period);
-  if(!INHERIT(int32, period, &period) || period == 0) {
+  if(!MYATTR(int32, period, &period)) {
+    if(!INHERIT(int32, period, &period)) {
+      period = 0;
+    }
+    else {
+      period_inherited = mtev_true;
+    }
+  }
+  if (period == 0) {
     no_period = 1;
   }
   else {
@@ -1164,12 +1204,18 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
     }
   }
 
-  if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
-    no_oncheck = 1;
+  if(!MYATTR(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
+    if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
+      no_oncheck = 1;
+    }
+    else {
+      oncheck_inherited = mtev_true;
+    }
   }
 
   if(deleted) {
     memcpy(target, "none", 5);
+    target_inherited = mtev_false;
     mtev_uuid_unparse_lower(checkid, name);
   }
   else {
@@ -1181,9 +1227,14 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
       mtevL(mtev_error, "check uuid: '%s' has oncheck and period.\n", uuid_str);
       return;
     }
-    if(!INHERIT(int32, timeout, &timeout)) {
-      mtevL(mtev_error, "check uuid: '%s' has no timeout\n", uuid_str);
-      return;
+    if(!MYATTR(int32, timeout, &timeout)) {
+      if(!INHERIT(int32, timeout, &timeout)) {
+        mtevL(mtev_error, "check uuid: '%s' has no timeout\n", uuid_str);
+        return;
+      }
+      else {
+        timeout_inherited = mtev_false;
+      }
     }
     if(timeout < 0) {
       timeout = 0;
@@ -1200,8 +1251,8 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
 
   options = mtev_conf_get_hash(section, "config");
 
-#define WRITE_ATTR_TO_LMDB(type, ns, name, value, allocated) do { \
-  if (strlen(value)) { \
+#define WRITE_ATTR_TO_LMDB(type, ns, name, value, inherited, allocated) do { \
+  if ((inherited == mtev_false) && (strlen(value))) { \
     key = noit_lmdb_make_check_key(checkid, type, ns, name, &key_size); \
     mtevAssert(key); \
     mdb_key.mv_data = key; \
@@ -1231,6 +1282,9 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
       free(name); \
     } \
   } \
+  else if (allocated) { \
+    free(name); \
+  } \
 } while(0)
 
 put_retry:
@@ -1251,22 +1305,22 @@ put_retry:
     mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
   }
 
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "target", target, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "module", module, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "name", name, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "filterset", filterset, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", seq_string, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "period", period_string, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "timeout", timeout_string, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "resolve_rtype", resolve_rtype, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "oncheck", oncheck, false);
-  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "deleted", delstr, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "target", target, target_inherited, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "module", module, module_inherited, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "name", name, mtev_false, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "filterset", filterset, filterset_inherited, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", seq_string, mtev_false, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "period", period_string, period_inherited, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "timeout", timeout_string, timeout_inherited, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "resolve_rtype", resolve_rtype, resolve_rtype_inherited, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "oncheck", oncheck, oncheck_inherited, false);
+  WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "deleted", delstr, mtev_false, false);
 
   memset(&iter, 0, sizeof(mtev_hash_iter));
   while(mtev_hash_next(options, &iter, &_hash_iter_key, &_hash_iter_klen, (void **)&config_value)) {
     char *config_name = (char *)calloc(1, _hash_iter_klen+1);
     memcpy(config_name, _hash_iter_key, _hash_iter_klen);
-    WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_CONFIG_TYPE, NULL, config_name, config_value, true);
+    WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_CONFIG_TYPE, NULL, config_name, config_value, mtev_false, true);
   }
 
   for (i=0; i < namespace_cnt; i++) {
@@ -1278,7 +1332,7 @@ put_retry:
       while(mtev_hash_next(ns_options, &iter, &_hash_iter_key, &_hash_iter_klen, (void **)&config_value)) {
         char *config_name = (char *)calloc(1, _hash_iter_klen+1);
         memcpy(config_name, _hash_iter_key, _hash_iter_klen);
-        WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_CONFIG_TYPE, namespace, config_name, config_value, true);
+        WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_CONFIG_TYPE, namespace, config_name, config_value, mtev_false, true);
       }
     }
   }
