@@ -242,7 +242,7 @@ AC_CHECK_LIB(flatccrt, flatcc_builder_init, , )
 AC_CHECK_HEADER(curl/curl.h, [], [AC_MSG_ERROR(*** curl headers required ***)])
 AC_CHECK_LIB(curl, curl_easy_init, , [AC_MSG_ERROR(*** curl is required ***)])
 AC_CHECK_LIB(snappyc, snappy_uncompress, , [AC_MSG_ERROR(*** libsnappy is required ***)])
-AC_CHECK_LIB(lmdb, mdb_dbi_open, , [AC_MSG_ERROR([*** lmdb is required ***])])
+AC_CHECK_LIB(lmdb, mdb_dbi_open, , [AC_MSG_ERROR(*** lmdb is required ***)])
 
 AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
 	[
