@@ -1104,7 +1104,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
 
 #define MYATTR(type,a,...) mtev_conf_get_##type(section, "@" #a, __VA_ARGS__)
 #define INHERIT(type,a,...) \
-  mtev_conf_get_##type(section, "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+  mtev_conf_get_##type(section, "ancestor::node()/@" #a, __VA_ARGS__)
 
   if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
     mtevL(mtev_error, "check has no uuid\n");
