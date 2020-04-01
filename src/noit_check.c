@@ -3341,6 +3341,9 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
           flags |= NP_DELETED;
         }
       }
+      else if (strcmp(data->key, "resolve_rtype") == 0) {
+        COPYSTRING(resolve_rtype);
+      }
       else {
         mtevL(mtev_error, "unknown attribute in check: %s\n", data->key);
       }
