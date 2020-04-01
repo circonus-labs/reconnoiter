@@ -1030,15 +1030,6 @@ noit_poller_init() {
     if (convert_xml_to_lmdb == mtev_true) {
       noit_check_lmdb_migrate_xml_checks_to_lmdb();
     }
-    /* TODO: Uncomment before merging to master - the if 0 is for debug purposes */
-#if 0
-    char *backingstore_path = NULL;
-    mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@backingstore", &backingstore_path);
-    if (backingstore_path) {
-      free(backingstore_path);
-      mtevFatal(mtev_error, "noit_check: cannot use both lmdb and xml backingstore\n");
-    }
-#endif
   }
 
   noit_check_resolver_init();
