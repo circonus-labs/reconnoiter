@@ -381,8 +381,8 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   return 0;
 }
 
-static void
-noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t *seq_in) {
+static int
+noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t old_seq) {
   xmlNodePtr node;
   int rc = 0;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
@@ -397,8 +397,7 @@ noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int6
   int _hash_iter_klen;
 
   mtevAssert(instance != NULL);
-
-  if (seq_in) *seq_in = 0;
+  mtevAssert(old_seq >= 0);
 
 put_retry:
   txn = NULL;
@@ -463,10 +462,20 @@ put_retry:
     ATTR2LMDB(filterset);
     ATTR2LMDB(seq);
     if (!strcmp((char *)node->name, "seq")) {
-      if (seq_in) {
-        xmlChar *v = xmlNodeGetContent(node);
-        *seq_in = strtoll((const char *)v, NULL, 10);
-        xmlFree(v);
+      xmlChar *v = xmlNodeGetContent(node);
+      int64_t new_seq = strtoll((const char *)v, NULL, 10);
+      xmlFree(v);
+      if (new_seq < 0) {
+        new_seq = 0;
+      }
+      /* If the new sequence is greater than/equal to the old one, that's
+       * an error */
+      if ((old_seq) && (old_seq >= new_seq)) {
+        mtev_hash_destroy(&conf_table, free, NULL);
+        mdb_cursor_close(cursor);
+        mdb_txn_abort(txn);
+        ck_rwlock_read_unlock(&instance->lock);
+        return -1;
       }
     }
   }
@@ -551,6 +560,7 @@ put_retry:
   }
   mtev_hash_destroy(&conf_table, free, NULL);
   ck_rwlock_read_unlock(&instance->lock);
+  return 0;
 }
 
 int
@@ -561,11 +571,12 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   xmlNodePtr root, attr, config;
   uuid_t checkid;
   noit_check_t *check = NULL;
-  int error_code = 500, complete = 0, mask = 0;
+  int error_code = 500, complete = 0, mask = 0, rc = 0;
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
 
 #define GOTO_ERROR(ec, es) do { \
+  mtevL(mtev_error, "PHIL: SETTING %d, %s\n", ec, es); \
   error_code = ec; \
   error = es; \
   goto error; \
@@ -595,13 +606,13 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     exists = mtev_true;
   }
   mtev_boolean in_db = noit_check_lmdb_already_in_db(checkid);
-  /* TODO: Don't write to the DB if there's a sequencing error */
   if (!in_db) {
     if (exists) {
+      mtev_log_go_synch();
+      mtevL(mtev_error, "PHIL: WAT 1\n");
       GOTO_ERROR(403, "uuid not yours");
     }
-    int64_t seq;
-    uint64_t old_seq = 0;
+    int64_t old_seq = 0;
     char *target = NULL, *name = NULL, *module = NULL;
     noit_module_t *m = NULL;
     noit_check_t *check = NULL;
@@ -621,16 +632,15 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     if(!m) {
       GOTO_ERROR(412, "module does not exist");
     }
-    noit_check_lmdb_configure_check(checkid, attr, config, &seq);
-    if(old_seq >= seq && seq != 0) {
+    rc = noit_check_lmdb_configure_check(checkid, attr, config, old_seq);
+    if (rc) {
       GOTO_ERROR(409, "sequencing error");
     }
   }
   if (exists) {
-    int64_t seq;
-    uint64_t old_seq = 0;
+    int64_t old_seq = 0;
     int module_change;
-    char *target = NULL, *name = NULL, *module = NULL;
+    char *target = NULL, *name = NULL, *module = NULL, *old_seq_string = NULL;;
     noit_check_t *ocheck;
     if(!check) {
       GOTO_ERROR(500, "internal check error");
@@ -648,11 +658,16 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     if(module_change) {
       GOTO_ERROR(400, "cannot change module");
     }
-    noit_check_lmdb_configure_check(checkid, attr, config, &seq);
-    if(check) {
-      old_seq = check->config_seq;
+    old_seq_string = noit_check_lmdb_get_specific_field(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq");
+    if (old_seq_string) {
+      old_seq = strtoll(old_seq_string, NULL, 10);
+      if (old_seq < 0) {
+        old_seq = 0;
+      }
     }
-    if(old_seq >= seq && seq != 0) {
+    free(old_seq_string);
+    rc = noit_check_lmdb_configure_check(checkid, attr, config, old_seq);
+    if (rc) {
       GOTO_ERROR(409, "sequencing error");
     }
   }
@@ -1396,7 +1411,7 @@ noit_check_lmdb_already_in_db(uuid_t checkid) {
   mdb_cursor_open(txn, instance->dbi, &cursor);
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_RANGE);
   if (rc == 0) {
-    if ((mdb_data.mv_size >= UUID_SIZE) && (mdb_data.mv_data != NULL) && (mtev_uuid_compare(checkid, mdb_data.mv_data) == 0)) {
+    if ((mdb_key.mv_size >= UUID_SIZE) && (mdb_key.mv_data != NULL) && (mtev_uuid_compare(checkid, mdb_key.mv_data) == 0)) {
       toRet = mtev_true;
     }
   }
