@@ -782,14 +782,14 @@ put_retry:
     mdb_key.mv_size = key_size;
     memcpy(val_string, mdb_data.mv_data, mdb_data.mv_size);
     val_string[mdb_data.mv_size] = 0;
-    int seq = atoi(mdb_data.mv_data);
+    int64_t seq = strtoll(val_string, NULL, 10);
     if (seq >= 0) {
       seq++;
     }
     else {
       seq = 1;
     }
-    snprintf(buff, sizeof(buff), "%d", seq);
+    snprintf(buff, sizeof(buff), "%" PRId64 "", seq);
     mdb_data.mv_data = buff;
     mdb_data.mv_size = strlen(buff);
 
