@@ -576,7 +576,6 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   mtev_boolean exists = mtev_false;
 
 #define GOTO_ERROR(ec, es) do { \
-  mtevL(mtev_error, "PHIL: SETTING %d, %s\n", ec, es); \
   error_code = ec; \
   error = es; \
   goto error; \
@@ -608,8 +607,6 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   mtev_boolean in_db = noit_check_lmdb_already_in_db(checkid);
   if (!in_db) {
     if (exists) {
-      mtev_log_go_synch();
-      mtevL(mtev_error, "PHIL: WAT 1\n");
       GOTO_ERROR(403, "uuid not yours");
     }
     int64_t old_seq = 0;
