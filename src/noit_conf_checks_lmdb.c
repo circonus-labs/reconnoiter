@@ -40,6 +40,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
                                          mtev_console_state_t *state,
                                          void *closure) {
   int rc;
+  int toRet = -1;
   uuid_t checkid;
   char *key;
   size_t key_size;
@@ -68,12 +69,12 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
 
   if(argc != 1) {
     nc_printf(ncct, "requires one argument\n");
-    return -1;
+    return toRet;
   }
 
   if (mtev_uuid_parse(argv[0], checkid) != 0) {
     nc_printf(ncct, "%s is invalid uuid\n", argv[0]);
-    return -1;
+    return toRet;
   }
 
   mtev_hash_init(&configh);
@@ -165,23 +166,30 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   nc_printf(ncct, " %s: %s\n", #attribute, attribute ? attribute : "[undef]"); \
 } while (0);
 
-  NC_PRINT_ATTRIBUTE(name);
-  NC_PRINT_ATTRIBUTE(module);
-  NC_PRINT_ATTRIBUTE(target);
-  NC_PRINT_ATTRIBUTE(seq);
-  NC_PRINT_ATTRIBUTE(resolve_rtype);
-  NC_PRINT_ATTRIBUTE(period);
-  NC_PRINT_ATTRIBUTE(timeout);
-  NC_PRINT_ATTRIBUTE(oncheck);
-  NC_PRINT_ATTRIBUTE(filterset);
-  NC_PRINT_ATTRIBUTE(disable);
+  if (error == mtev_false) {
+    NC_PRINT_ATTRIBUTE(name);
+    NC_PRINT_ATTRIBUTE(module);
+    NC_PRINT_ATTRIBUTE(target);
+    NC_PRINT_ATTRIBUTE(seq);
+    NC_PRINT_ATTRIBUTE(resolve_rtype);
+    NC_PRINT_ATTRIBUTE(period);
+    NC_PRINT_ATTRIBUTE(timeout);
+    NC_PRINT_ATTRIBUTE(oncheck);
+    NC_PRINT_ATTRIBUTE(filterset);
+    NC_PRINT_ATTRIBUTE(disable);
 
-  while(mtev_hash_next(&configh, &iter, &k, &klen, &data)) {
-    nc_printf(ncct, " config::%s: %s\n", k, (const char *)data);
+    while(mtev_hash_next(&configh, &iter, &k, &klen, &data)) {
+      nc_printf(ncct, " config::%s: %s\n", k, (const char *)data);
+    }
+
+    noit_console_get_running_stats(ncct, checkid);
+
+    toRet = 0;
   }
-
-  noit_console_get_running_stats(ncct, checkid);
-
+  else {
+    nc_printf(ncct, "%s\n", error_str);
+    toRet = -1;
+  }
   free(name);
   free(module);
   free(target);
@@ -192,12 +200,6 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   free(oncheck);
   free(filterset);
   free(disable);
-
   mtev_hash_destroy(&configh, free, free);
-
-  if (error == mtev_true) {
-    nc_printf(ncct, "%s\n", error_str);
-    return -1;
-  }
-  return 0;
+  return toRet;
 }
