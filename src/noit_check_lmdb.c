@@ -1163,10 +1163,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   }
 
   if (!MYATTR(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
-    if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
-      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
-    }
-    else {
+    if (INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
       resolve_rtype_inherited = mtev_true;
     }
   }

@@ -93,7 +93,6 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
       if (!mtev_hash_store(table, my_key, mdb_key.mv_size, NULL)) {
         free(my_key);
       }
-      mtevL(mtev_error, "KEY - TYPE %c, NAMESPACE %s, KEY %s\n", data->type, data->ns, data->key);
       noit_lmdb_free_check_data(data);
     }
     else {

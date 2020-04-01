@@ -3389,7 +3389,9 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     CHECK_FROM_LMDB_INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck));
   }
   if (!strlen(resolve_rtype)) {
-    CHECK_FROM_LMDB_INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype));
+    if (!CHECK_FROM_LMDB_INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
+      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
+    }
   }
   if (no_period) {
     period = 0;
