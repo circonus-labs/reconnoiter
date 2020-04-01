@@ -1378,19 +1378,29 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
   int cnt, i, namespace_cnt;
   const char *xpath = "/noit/checks//check";
   char **namespaces = noit_check_get_namespaces(&namespace_cnt);
-  mtev_conf_section_t *sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
+  mtev_conf_section_t *sec = mtev_conf_get_sections_write(MTEV_CONF_ROOT, xpath, &cnt);
 
-  /* TODO: Remove checks from XML config when done */
-  mtevL(mtev_error, "converting %d xml checks to lmdb\n", cnt);
+  if (cnt) {
+    mtevL(mtev_error, "converting %d xml checks to lmdb\n", cnt);
+  }
   for(i=0; i<cnt; i++) {
     noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i], namespaces, namespace_cnt);
+    CONF_REMOVE(sec[i]);
+    xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+    xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
   }
-  mtev_conf_release_sections_read(sec, cnt);
+  mtev_conf_release_sections_write(sec, cnt);
   for(i=0; i<namespace_cnt; i++) {
     free(namespaces[i]);
   }
   free(namespaces);
-  mtevL(mtev_error, "done converting %d xml checks to lmdb\n", cnt);
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0) {
+    mtevL(mtev_error, "local config write failed\n");
+  }
+  if (cnt) {
+    mtevL(mtev_error, "done converting %d xml checks to lmdb\n", cnt);
+  }
 }
 
 int
