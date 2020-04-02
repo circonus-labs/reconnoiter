@@ -1247,13 +1247,32 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
 void
 rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module) {
   xmlNodePtr a = NULL;
+
+  *target = NULL;
+  *name = NULL;
+  *module = NULL;
+
   for(a = attr->children; a; a = a->next) {
-    if(!strcmp((char *)a->name, "target"))
+    if(!strcmp((char *)a->name, "target")) {
       *target = (char *)xmlNodeGetContent(a);
-    if(!strcmp((char *)a->name, "name"))
+    }
+    else if(!strcmp((char *)a->name, "name")) {
       *name = (char *)xmlNodeGetContent(a);
-    if(!strcmp((char *)a->name, "module"))
+    }
+    else if(!strcmp((char *)a->name, "module")) {
       *module = (char *)xmlNodeGetContent(a);
+    }
+  }
+  if (N_L_S_ON(mtev_debug)) {
+    if (!(*target)) {
+      mtevL(mtev_debug, "rest_check_get_attrs: target not found\n");
+    }
+    if (!(*name)) {
+      mtevL(mtev_debug, "rest_check_get_attrs: name not found\n");
+    }
+    if (!(*module)) {
+      mtevL(mtev_debug, "rest_check_get_attrs: module not found\n");
+    }
   }
 }
 

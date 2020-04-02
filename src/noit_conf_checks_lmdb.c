@@ -151,6 +151,9 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
       }
       else {
         /* Will hopefully never happen */
+        snprintf(error_str, sizeof(error_str), "received unknown data type: %c - possible lmdb corruption?\n", data->type);
+        error = mtev_true;
+        break;
       }
 
       noit_lmdb_free_check_data(data);
