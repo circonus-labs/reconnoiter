@@ -78,8 +78,8 @@ static bool initialized = false;
 static mtev_log_stream_t check_error;
 static mtev_log_stream_t check_debug;
 
-static int global_minimum_period = 1000;
-static int global_maximum_period = 300000;
+static int32_t global_minimum_period = 1000;
+static int32_t global_maximum_period = 300000;
 
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
@@ -1008,6 +1008,16 @@ noit_poller_init() {
 
   check_error = mtev_log_stream_find("error/noit/check");
   check_debug = mtev_log_stream_find("debug/noit/check");
+
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@minimum_period", &global_minimum_period);
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@maximum_period", &global_maximum_period);
+
+  if (global_minimum_period <= 0) {
+    global_minimum_period = 1000;
+  }
+  if (global_maximum_period <= 0) {
+    global_maximum_period = 300000;
+  }
 
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
