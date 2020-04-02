@@ -38,4 +38,10 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
                                          char **argv,
                                          mtev_console_state_t *state,
                                          void *closure);
+int
+noit_conf_checks_lmdb_console_watch_check(mtev_console_closure_t ncct,
+                                          int argc,
+                                          char **argv,
+                                          mtev_console_state_t *state,
+                                          void *closure);
 #endif

@@ -366,6 +366,10 @@ noit_console_watch_check(mtev_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
+  if (noit_check_get_lmdb_instance()) {
+    return noit_conf_checks_lmdb_console_watch_check(ncct, argc, argv, state, closure);
+  }
+
   if(argc < 1 || argc > 2) {
     nc_printf(ncct, "requires one or two arguments\n");
     return -1;

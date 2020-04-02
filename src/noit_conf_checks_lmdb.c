@@ -206,3 +206,56 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   mtev_hash_destroy(&configh, free, free);
   return toRet;
 }
+
+int
+noit_conf_checks_lmdb_console_watch_check(mtev_console_closure_t ncct,
+                                          int argc,
+                                          char **argv,
+                                          mtev_console_state_t *state,
+                                          void *closure) {
+  int adding = (int)(intptr_t)closure;
+  int period = 0;
+  mtev_boolean exists = mtev_false;
+  uuid_t checkid;
+  noit_check_t *check = NULL;
+
+  if(argc < 1 || argc > 2) {
+    nc_printf(ncct, "requires one or two arguments\n");
+    return -1;
+  }
+  /* An alternate period */
+  if(argc == 2) {
+    period = atoi(argv[1]);
+  }
+
+  if (mtev_uuid_parse(argv[0], checkid) != 0) {
+    nc_printf(ncct, "%s is invalid uuid\n", argv[0]);
+    return -1;
+  }
+
+  exists = noit_check_lmdb_already_in_db(checkid);
+  if (exists == mtev_false) {
+    nc_printf(ncct, "no checks found\n");
+    return -1;
+  }
+
+  if(adding) {
+    check = noit_check_watch(checkid, period);
+    /* This check must be watched from the console */
+    noit_check_transient_add_feed(check, ncct->feed_path);
+    /* Note the check */
+    noit_check_log_check(check);
+    /* kick it off, if it isn't running already */
+    if(!NOIT_CHECK_LIVE(check)) {
+      noit_check_activate(check);
+    }
+  }
+  else {
+    check = noit_check_get_watch(checkid, period);
+    if(check) {
+      noit_check_transient_remove_feed(check, ncct->feed_path);
+    }
+  }
+
+  return 0;
+}
