@@ -964,6 +964,10 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
 static void
 noit_check_lmdb_poller_process_all_checks() {
   int rc;
+  uint32_t cnt = 0;
+  uint64_t start, end, diff;
+  double per_record;
+
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
@@ -975,6 +979,9 @@ noit_check_lmdb_poller_process_all_checks() {
   mdb_key.mv_size = 0;
   ck_rwlock_read_lock(&instance->lock);
 
+  mtevL(mtev_error, "begin loading checks from db\n");
+  start = mtev_now_us();
+
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
     ck_rwlock_read_unlock(&instance->lock);
@@ -983,7 +990,7 @@ noit_check_lmdb_poller_process_all_checks() {
   }
   mdb_cursor_open(txn, instance->dbi, &cursor);
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
-  mtevL(mtev_error, "begin loading checks from db\n");
+
   while (rc == 0) {
     uuid_t checkid;
     /* The start of the key is always a uuid */
@@ -992,11 +999,22 @@ noit_check_lmdb_poller_process_all_checks() {
     if (rc == 0) {
       rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
     }
+    cnt++;
   }
-  mtevL(mtev_error, "finished loading checks from db\n");
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
   ck_rwlock_read_unlock(&instance->lock);
+  end = mtev_now_us();
+  diff = (end - start) / 1000;
+  if (cnt) {
+    per_record = ((double)(end-start) / (double)cnt) / 1000.0;
+  }
+  else {
+    per_record = 0;
+  }
+
+  mtevL(mtev_error, "finished loading %" PRIu32 " checks from db - took %" PRIu64 " ms (average %0.4f ms per check)\n",
+    cnt, diff, per_record);
 }
 static void
 noit_check_lmdb_poller_process_check(uuid_t checkid) {
