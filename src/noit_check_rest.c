@@ -1263,17 +1263,6 @@ rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module)
       *module = (char *)xmlNodeGetContent(a);
     }
   }
-  if (N_L_S_ON(mtev_debug)) {
-    if (!(*target)) {
-      mtevL(mtev_debug, "rest_check_get_attrs: target not found\n");
-    }
-    if (!(*name)) {
-      mtevL(mtev_debug, "rest_check_get_attrs: name not found\n");
-    }
-    if (!(*module)) {
-      mtevL(mtev_debug, "rest_check_get_attrs: module not found\n");
-    }
-  }
 }
 
 void
