@@ -461,6 +461,8 @@ put_retry:
     ATTR2LMDB(disable);
     ATTR2LMDB(filterset);
     ATTR2LMDB(seq);
+    ATTR2LMDB(transient_min_period);
+    ATTR2LMDB(transient_period_granularity);
     if (!strcmp((char *)node->name, "seq")) {
       xmlChar *v = xmlNodeGetContent(node);
       int64_t new_seq = strtoll((const char *)v, NULL, 10);
