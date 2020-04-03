@@ -130,16 +130,18 @@ typedef struct noit_check {
   char *name;
   char *filterset;
   mtev_hash_table *config;
-  const char *tagset;         /* This is in config, but hoisted for performance */
-  char *oncheck;              /* target`name of the check that fires us */
-  uint32_t period;            /* period of checks in milliseconds */
-  uint32_t timeout;           /* timeout of check in milliseconds */
-  uint32_t flags;             /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */
+  const char *tagset;                    /* This is in config, but hoisted for performance */
+  char *oncheck;                         /* target`name of the check that fires us */
+  uint32_t period;                       /* period of checks in milliseconds */
+  uint32_t timeout;                      /* timeout of check in milliseconds */
+  int32_t transient_min_period;          /* min period in ms for transient observation */
+  int32_t transient_period_granularity;
+  uint32_t flags;                        /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */
 
   dep_list_t *causal_checks;
   eventer_t fire_event;
   struct timeval last_fire_time;
-  uint32_t generation;        /* This can roll, we don't care */
+  uint32_t generation;                   /* This can roll, we don't care */
   void *closure;
 
   mtev_skiplist *feeds;
@@ -147,7 +149,7 @@ typedef struct noit_check {
   void **module_metadata;
   mtev_hash_table **module_configs;
   struct timeval initial_schedule_time;
-  int64_t config_seq;          /* If non-zero, must increase */
+  int64_t config_seq;                    /* If non-zero, must increase */
 
   void *statistics;
   Zipkin_Span *span;
@@ -198,6 +200,8 @@ API_EXPORT(int)
                        mtev_hash_table **mconfig,
                        uint32_t period,
                        uint32_t timeout,
+                       int32_t transient_min_period,
+                       int32_t transient_period_granularity,
                        const char *oncheck,
                        int64_t seq,
                        int flags,
@@ -216,6 +220,8 @@ API_EXPORT(int)
                     mtev_hash_table **mconfig,
                     uint32_t period,
                     uint32_t timeout,
+                    int32_t transient_min_period,
+                    int32_t transient_period_granularity,
                     const char *oncheck,
                     int64_t seq,
                     int flags);

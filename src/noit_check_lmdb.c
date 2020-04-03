@@ -1080,13 +1080,16 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   char resolve_rtype[16] = "";
   char period_string[16] = "";
   char timeout_string[16] = "";
+  char transient_min_period_string[16] = "";
+  char transient_period_granularity_string[16] = "";
   char seq_string[16] = "";
   char delstr[8] = "";
   uuid_t checkid;
   int64_t config_seq = 0;
   mtev_boolean deleted = mtev_false, disabled = mtev_false;
   int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
-  int no_period = 0, no_oncheck = 0;
+  int transient_min_period = 0, transient_period_granularity = 0;
+  int no_period = 0, no_oncheck = 0, no_transient_min_period = 0, no_transient_period_granularity = 0;
   mtev_hash_table *options;
   mtev_hash_iter iter;
   const char *_hash_iter_key;
@@ -1218,6 +1221,15 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
       period = maximum_period;
     }
   }
+  
+  /* We don't care if this is inherited, it's only for setting the database - if it's
+   * not specifically ours, we can skip it */
+  if(!MYATTR(int32, transient_min_period, &transient_min_period)) {
+    no_transient_min_period = 1;
+  }
+  if(!MYATTR(int32, transient_period_granularity, &transient_period_granularity)) {
+    no_transient_period_granularity = 1;
+  }
 
   if(!MYATTR(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
     if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
@@ -1263,6 +1275,14 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   snprintf(seq_string, sizeof(seq_string), "%" PRId64 "", config_seq);
   snprintf(period_string, sizeof(period_string), "%d", period);
   snprintf(timeout_string, sizeof(timeout_string), "%d", timeout);
+  if (!no_transient_min_period) {
+    snprintf(transient_min_period_string, sizeof(transient_min_period_string),
+            "%d", transient_min_period);
+  }
+  if (!no_transient_period_granularity) {
+    snprintf(transient_period_granularity_string, sizeof(transient_period_granularity_string),
+            "%d", transient_period_granularity);
+  }
 
   options = mtev_conf_get_hash(section, "config");
 
@@ -1330,6 +1350,14 @@ put_retry:
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "resolve_rtype", resolve_rtype, resolve_rtype_inherited, false);
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "oncheck", oncheck, oncheck_inherited, false);
   WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "deleted", delstr, mtev_false, false);
+  if (!no_transient_min_period) {
+    WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_min_period",
+            transient_min_period_string, mtev_false, false);
+  }
+  if (!no_transient_period_granularity) {
+    WRITE_ATTR_TO_LMDB(NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_period_granularity",
+            transient_period_granularity_string, mtev_false, false);
+  }
 
   memset(&iter, 0, sizeof(mtev_hash_iter));
   while(mtev_hash_next(options, &iter, &_hash_iter_key, &_hash_iter_klen, (void **)&config_value)) {

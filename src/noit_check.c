@@ -632,6 +632,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   int no_period = 0;
   int no_oncheck = 0;
   int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
+  int transient_min_period = 0, transient_period_granularity = 0;
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   uuid_t uuid, out_uuid;
   int64_t config_seq = 0;
@@ -715,6 +716,14 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 		if(period > maximum_period) period = maximum_period;
 	}
 
+  INHERIT(int32, transient_min_period, &transient_min_period);
+  if (transient_min_period < 0) {
+    transient_min_period = 0;
+  }
+  INHERIT(int32, transient_period_granularity, &transient_period_granularity);
+  if (transient_period_granularity < 0) {
+    transient_period_granularity = 0;
+  }
   if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
     no_oncheck = 1;
   }
@@ -767,7 +776,9 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   else {
     noit_poller_schedule(target, module, name, filterset, options,
                          moptions_used ? moptions : NULL,
-                         period, timeout, oncheck[0] ? oncheck : NULL,
+                         period, timeout,
+                         transient_min_period, transient_period_granularity,
+                         oncheck[0] ? oncheck : NULL,
                          config_seq, flags, uuid, out_uuid);
     mtevL(check_debug, "loaded uuid: %s\n", uuid_str);
     if(deleted) noit_poller_deschedule(uuid, mtev_false, mtev_false);
@@ -1168,19 +1179,56 @@ noit_check_watch(uuid_t in, int period) {
   }
 
   /* Find the check */
-  snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
-  check_node = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
-  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
-  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
-  if(!mtev_conf_section_is_empty(check_node)) {
-    mtev_conf_get_int32(check_node,
-                      "ancestor-or-self::node()/@transient_min_period",
-                      &minimum_pi);
-    mtev_conf_get_int32(check_node,
-                      "ancestor-or-self::node()/@transient_period_granularity",
-                      &granularity_pi);
+  f = noit_poller_lookup(in);
+  if (f) {
+    if (f->transient_min_period > 0) {
+      minimum_pi = f->transient_min_period;
+    }
+    if (f->transient_period_granularity < 0) {
+      granularity_pi = f->transient_period_granularity;
+    }
   }
-  mtev_conf_release_section_read(check_node);
+  else {
+    if (noit_check_get_lmdb_instance()) {
+      char *transient_min_period_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_min_period");
+      char *transient_period_granularity_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_period_granularity");
+      if (transient_min_period_str) {
+        int32_t transient_min_period = atoi(transient_min_period_str);
+        if (transient_min_period > 0) {
+          minimum_pi = transient_min_period;
+        }
+      }
+      else {
+        mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
+      }
+      if (transient_period_granularity_str) {
+        int32_t transient_period_granularity = atoi(transient_period_granularity_str);
+        if (transient_period_granularity > 0) {
+          granularity_pi = transient_period_granularity;
+        }
+      }
+      else {
+        mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
+      }
+      free(transient_min_period_str);
+      free(transient_period_granularity_str);
+    }
+    else {
+      snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
+      check_node = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
+      mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
+      mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
+      if(!mtev_conf_section_is_empty(check_node)) {
+        mtev_conf_get_int32(check_node,
+                          "ancestor-or-self::node()/@transient_min_period",
+                          &minimum_pi);
+        mtev_conf_get_int32(check_node,
+                          "ancestor-or-self::node()/@transient_period_granularity",
+                          &granularity_pi);
+      }
+      mtev_conf_release_section_read(check_node);
+    }
+  }
 
   /* apply the bounds */
   period /= granularity_pi;
@@ -1374,6 +1422,8 @@ noit_check_update(noit_check_t *new_check,
                   mtev_hash_table **mconfigs,
                   uint32_t period,
                   uint32_t timeout,
+                  int32_t transient_min_period,
+                  int32_t transient_period_granularity,
                   const char *oncheck,
                   int64_t seq,
                   int flags) {
@@ -1408,8 +1458,9 @@ noit_check_update(noit_check_t *new_check,
     strlcpy(module, new_check->module, sizeof(module));
     noit_poller_deschedule(id, mtev_false, mtev_true);
     return noit_poller_schedule(target, module, name, filterset,
-                                config, mconfigs, period, timeout, oncheck,
-                                seq, flags, id, dummy);
+                                config, mconfigs, period, timeout,
+                                transient_min_period, transient_period_granularity,
+                                oncheck, seq, flags, id, dummy);
   }
 
   new_check->generation = __config_load_generation;
@@ -1514,6 +1565,8 @@ noit_check_update(noit_check_t *new_check,
   if(new_check->oncheck) system_needs_causality = mtev_true;
   new_check->period = period;
   new_check->timeout = timeout;
+  new_check->transient_min_period = transient_min_period;
+  new_check->transient_period_granularity = transient_period_granularity;
   new_check->config_seq = seq;
   noit_cluster_mark_check_changed(new_check, NULL);
 
@@ -1540,6 +1593,8 @@ noit_poller_schedule(const char *target,
                      mtev_hash_table **mconfigs,
                      uint32_t period,
                      uint32_t timeout,
+                     int32_t transient_min_period,
+                     int32_t transient_period_granularity,
                      const char *oncheck,
                      int64_t seq,
                      int flags,
@@ -1558,7 +1613,8 @@ noit_poller_schedule(const char *target,
 
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
-                    period, timeout, oncheck, seq, flags);
+                    period, timeout, transient_min_period,
+                    transient_period_granularity, oncheck, seq, flags);
   mtev_hash_replace(&polls,
                     (char *)new_check->checkid, UUID_SIZE,
                     new_check, NULL, (NoitHashFreeFunc)noit_poller_free_check);
@@ -3248,13 +3304,15 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   char seq_str[256] = "";
   char period_str[256] = "";
   char timeout_str[256] = "";
+  char transient_min_period_str[256] = "";
+  char transient_period_granularity_str[256] = "";
   uuid_t out_uuid;
   int64_t config_seq = 0;
   int ridx, flags = 0, found = 0;
   int no_oncheck = 1;
   int no_period = 1;
   int no_timeout = 1;
-  int32_t period = 0, timeout = 0;
+  int32_t period = 0, timeout = 0, transient_min_period = 0, transient_period_granularity = 0;
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   mtev_hash_table options;
   mtev_hash_table **moptions = NULL;
@@ -3344,6 +3402,20 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       }
       else if (strcmp(data->key, "resolve_rtype") == 0) {
         COPYSTRING(resolve_rtype);
+      }
+      else if (strcmp(data->key, "transient_min_period") == 0) {
+        COPYSTRING(transient_min_period_str);
+        transient_min_period = atoi(transient_min_period_str);
+        if (transient_min_period < 0) {
+          transient_min_period = 0;
+        }
+      }
+      else if (strcmp(data->key, "transient_period_granularity") == 0) {
+        COPYSTRING(transient_period_granularity_str);
+        transient_period_granularity = atoi(transient_period_granularity_str);
+        if (transient_period_granularity < 0) {
+          transient_period_granularity = 0;
+        }
       }
       else {
         mtevL(mtev_error, "unknown attribute in check: %s\n", data->key);
@@ -3467,7 +3539,9 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   else {
     noit_poller_schedule(target, module, name, filterset, &options,
                          moptions_used ? moptions : NULL,
-                         period, timeout, oncheck[0] ? oncheck : NULL,
+                         period, timeout,
+                         transient_min_period, transient_period_granularity,
+                         oncheck[0] ? oncheck : NULL,
                          config_seq, flags, checkid, out_uuid);
     mtevL(mtev_debug, "loaded uuid: %s\n", uuid_str);
     if(deleted) {
