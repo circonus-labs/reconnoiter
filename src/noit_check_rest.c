@@ -905,6 +905,8 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
     ATTR2PROP(disable);
     ATTR2PROP(filterset);
     ATTR2PROP(seq);
+    ATTR2PROP(transient_min_period);
+    ATTR2PROP(transient_period_granularity);
     xmlUnsetProp(check, (xmlChar*)"deleted");
     if(seq && !strcmp((char *)n->name, "seq")) {
       xmlChar *v = xmlNodeGetContent(n);
