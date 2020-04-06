@@ -49,7 +49,7 @@ static int noit_check_lmdb_add_attribute(xmlNodePtr root, xmlNodePtr attr, noit_
     /* This should be set separately */
     return 0;
   }
-  char *val = (char *)calloc(1, mdb_data.mv_size);
+  char *val = (char *)calloc(1, mdb_data.mv_size + 1);
   memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
   if (separate_stanza) {
     mtevAssert(attr != NULL);
@@ -70,7 +70,7 @@ static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_l
   if ((!mdb_data.mv_data) || (mdb_data. mv_size == 0)) {
     return 0;
   }
-  char *val = (char *)calloc(1, mdb_data.mv_size);
+  char *val = (char *)calloc(1, mdb_data.mv_size + 1);
   memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
   xmlNodePtr child = NULL;
   if (key_data->ns == NULL) {
@@ -776,7 +776,7 @@ put_retry:
       val_string = (char *)alloca(mdb_data.mv_size + 1);
     }
     else {
-      val_string = (char *)malloc(mdb_data.mv_size + 1);
+      val_string = (char *)calloc(1, mdb_data.mv_size + 1);
       allocated = true;
     }
 

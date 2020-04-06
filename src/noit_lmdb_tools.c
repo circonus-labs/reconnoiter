@@ -88,7 +88,7 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
         noit_lmdb_free_check_data(data);
         break;
       }
-      char *my_key = (char *)malloc(mdb_key.mv_size);
+      char *my_key = (char *)calloc(1, mdb_key.mv_size + 1);
       memcpy(my_key, mdb_key.mv_data, mdb_key.mv_size);
       if (!mtev_hash_store(table, my_key, mdb_key.mv_size, NULL)) {
         free(my_key);
