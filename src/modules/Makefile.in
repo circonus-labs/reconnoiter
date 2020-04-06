@@ -201,10 +201,6 @@ snmp.@MODULEEXT@:	snmp.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ snmp.lo -l@LIBNETSNMP@
 
-ssh2.@MODULEEXT@:	ssh2.lo
-	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ ssh2.lo -lssh2
-
 httptrap.@MODULEEXT@:	httptrap.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ httptrap.lo @YAJLLIBS@
@@ -258,8 +254,6 @@ ganglia.@MODULEEXT@:	ganglia.lo
 ganglia.lo:	ganglia.c ganglia.xmlh
 	@echo "- compiling $<"
 	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c ganglia.c -o $@
-
-ssh2.lo:	ssh2.xmlh
 
 ping_icmp.lo:	ping_icmp.xmlh
 
