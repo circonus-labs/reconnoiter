@@ -35,7 +35,7 @@ LUA_FILES=\
 	noit.lua \
 	ffi_libnoit.lua \
 	web.lua \
-	noit/GoogleAnalytics.lua \
+	noit/GoogleAnalytics4.lua \
 	noit/AWSClient.lua \
 	$(LUA_MODULES)
 
