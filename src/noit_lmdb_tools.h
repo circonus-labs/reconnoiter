@@ -38,7 +38,7 @@
 typedef struct noit_lmdb_instance {
   MDB_env *env;
   MDB_dbi dbi;
-  ck_rwlock_t lock;
+  pthread_rwlock_t lock;
   char *path;
 } noit_lmdb_instance_t;
 

@@ -138,7 +138,7 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
   }
   config = xmlNewNode(NULL, (xmlChar *)"config");
 
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
   locked = true;
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
@@ -208,7 +208,7 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
   if (locked) {
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
   }
   free(key);
   return rc;
@@ -407,7 +407,7 @@ put_retry:
   key_size = 0;
   memset(&iter, 0, sizeof(mtev_hash_iter));
 
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
   noit_lmdb_check_keys_to_hash_table(instance, &conf_table, checkid, true);
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
@@ -436,7 +436,7 @@ put_retry:
         mtev_hash_destroy(&conf_table, free, NULL); \
         free(key); \
         xmlFree(val); \
-        ck_rwlock_read_unlock(&instance->lock); \
+        pthread_rwlock_unlock(&instance->lock); \
         noit_lmdb_resize_instance(instance); \
         goto put_retry; \
       } \
@@ -476,7 +476,7 @@ put_retry:
         mtev_hash_destroy(&conf_table, free, NULL);
         mdb_cursor_close(cursor);
         mdb_txn_abort(txn);
-        ck_rwlock_read_unlock(&instance->lock);
+        pthread_rwlock_unlock(&instance->lock);
         return -1;
       }
     }
@@ -515,7 +515,7 @@ put_retry:
           mtev_hash_destroy(&conf_table, free, NULL);
           free(key);
           xmlFree(val);
-          ck_rwlock_read_unlock(&instance->lock);
+          pthread_rwlock_unlock(&instance->lock);
           noit_lmdb_resize_instance(instance);
           goto put_retry;
         }
@@ -540,7 +540,7 @@ put_retry:
         mdb_cursor_close(cursor);
         mdb_txn_abort(txn);
         mtev_hash_destroy(&conf_table, free, NULL);
-        ck_rwlock_read_unlock(&instance->lock);
+        pthread_rwlock_unlock(&instance->lock);
         noit_lmdb_resize_instance(instance);
         goto put_retry;
       }
@@ -553,7 +553,7 @@ put_retry:
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
     mtev_hash_destroy(&conf_table, free, NULL);
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
@@ -561,7 +561,7 @@ put_retry:
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
   mtev_hash_destroy(&conf_table, free, NULL);
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
   return 0;
 }
 
@@ -723,7 +723,7 @@ put_retry:
   mdb_data.mv_data = "deleted";
   mdb_data.mv_size = 7;
 
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
@@ -738,7 +738,7 @@ put_retry:
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     free(key);
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
@@ -806,7 +806,7 @@ put_retry:
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     free(key);
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
@@ -817,14 +817,14 @@ put_retry:
   mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
   else if (rc != 0) {
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
 
   return new_seq;
 }
@@ -846,7 +846,7 @@ noit_check_lmdb_remove_check_from_db(uuid_t checkid) {
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
 
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
 
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
@@ -899,7 +899,7 @@ noit_check_lmdb_remove_check_from_db(uuid_t checkid) {
   rc = 0;
 
 cleanup:
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
   return rc;
 }
 
@@ -979,14 +979,14 @@ noit_check_lmdb_poller_process_all_checks() {
 
   mdb_key.mv_data = NULL;
   mdb_key.mv_size = 0;
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
 
   mtevL(mtev_error, "begin loading checks from db\n");
   start = mtev_now_us();
 
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     mtevL(mtev_error, "failed to create transaction for processing all checks: %d (%s)\n", rc, mdb_strerror(rc));
     return;
   }
@@ -1005,7 +1005,7 @@ noit_check_lmdb_poller_process_all_checks() {
   }
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
   end = mtev_now_us();
   diff = (end - start) / 1000;
   if (cnt) {
@@ -1035,11 +1035,11 @@ noit_check_lmdb_poller_process_check(uuid_t checkid) {
 
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
 
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     mtevL(mtev_error, "failed to create transaction for processing all checks: %d (%s)\n", rc, mdb_strerror(rc));
     return;
   }
@@ -1055,7 +1055,7 @@ noit_check_lmdb_poller_process_check(uuid_t checkid) {
   }
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
 }
 void
 noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
@@ -1305,7 +1305,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
         free(name); \
       } \
       mtev_hash_destroy(&conf_table, free, NULL); \
-      ck_rwlock_read_unlock(&instance->lock); \
+      pthread_rwlock_unlock(&instance->lock); \
       noit_lmdb_resize_instance(instance); \
       goto put_retry; \
     } \
@@ -1329,7 +1329,7 @@ put_retry:
   key = NULL;
   txn = NULL;
   cursor = NULL;
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
 
   noit_lmdb_check_keys_to_hash_table(instance, &conf_table, checkid, true);
 
@@ -1393,7 +1393,7 @@ put_retry:
         mdb_cursor_close(cursor);
         mdb_txn_abort(txn);
         mtev_hash_destroy(&conf_table, free, NULL);
-        ck_rwlock_read_unlock(&instance->lock);
+        pthread_rwlock_unlock(&instance->lock);
         noit_lmdb_resize_instance(instance);
         goto put_retry;
       }
@@ -1407,7 +1407,7 @@ put_retry:
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
     mtev_hash_destroy(&conf_table, free, NULL);
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     noit_lmdb_resize_instance(instance);
     goto put_retry;
   }
@@ -1415,7 +1415,7 @@ put_retry:
     mtevFatal(mtev_error, "failure on txn commmit - %d (%s)\n", rc, mdb_strerror(rc));
   }
   mtev_hash_destroy(&conf_table, free, NULL);
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
 }
 
 void
@@ -1511,7 +1511,7 @@ noit_check_lmdb_already_in_db(uuid_t checkid) {
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
 
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
@@ -1525,7 +1525,7 @@ noit_check_lmdb_already_in_db(uuid_t checkid) {
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
 
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
   free(key);
   return toRet;
 }
@@ -1549,7 +1549,7 @@ noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
 
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
@@ -1563,7 +1563,7 @@ noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
 
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
 
   free(key);
   return toRet;

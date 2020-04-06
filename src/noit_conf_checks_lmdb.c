@@ -84,7 +84,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
 
-  ck_rwlock_read_lock(&instance->lock);
+  pthread_rwlock_rdlock(&instance->lock);
 
   do {
     rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
@@ -163,7 +163,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
 
   if (cursor) mdb_cursor_close(cursor);
   if (txn) mdb_txn_abort(txn);
-  ck_rwlock_read_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
 
 #define NC_PRINT_ATTRIBUTE(attribute) do {\
   nc_printf(ncct, " %s: %s\n", #attribute, attribute ? attribute : "[undef]"); \

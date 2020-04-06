@@ -75,7 +75,7 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
   mdb_key.mv_size = key_size;
 
   if (!locked) {
-    ck_rwlock_read_lock(&instance->lock);
+    pthread_rwlock_rdlock(&instance->lock);
   }
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
@@ -106,7 +106,7 @@ int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash
   free(key);
 
   if (!locked) {
-    ck_rwlock_read_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
   }
 
   return 0;
@@ -256,7 +256,7 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
   noit_lmdb_instance_t *instance = (noit_lmdb_instance_t *)malloc(sizeof(noit_lmdb_instance_t));
   instance->env = env;
   instance->dbi = dbi;
-  ck_rwlock_init(&instance->lock);
+  pthread_rwlock_init(&instance->lock, NULL);
   instance->path = strdup(path);
 
   return instance;
@@ -265,10 +265,10 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
 void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance)
 {
   if (!instance) return;
-  ck_rwlock_write_lock(&instance->lock);
+  pthread_rwlock_wrlock(&instance->lock);
   mdb_dbi_close(instance->env, instance->dbi);
   mdb_env_close(instance->env);
-  ck_rwlock_write_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
   free(instance->path);
   free(instance);
 }
@@ -281,7 +281,7 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
   uint64_t new_mapsize;
 
   /* prevent new transactions on the write side */
-  ck_rwlock_write_lock(&instance->lock);
+  pthread_rwlock_wrlock(&instance->lock);
 
   /* check if resize is necessary.. another thread may have already resized. */
   mdb_env_info(instance->env, &mei);
@@ -291,7 +291,7 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
 
   /* resize on 80% full */
   if ((double)size_used / mei.me_mapsize < 0.8) {
-    ck_rwlock_write_unlock(&instance->lock);
+    pthread_rwlock_unlock(&instance->lock);
     return;
   }
 
@@ -303,6 +303,6 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
   mtevL(mtev_error, "lmdb checks db: mapsize increased. old: %" PRIu64 " MiB, new: %" PRIu64 " MiB\n",
         mei.me_mapsize / (1024 * 1024), new_mapsize / (1024 * 1024));
 
-  ck_rwlock_write_unlock(&instance->lock);
+  pthread_rwlock_unlock(&instance->lock);
 }
 
