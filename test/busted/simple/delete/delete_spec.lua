@@ -56,7 +56,9 @@ describe("noit", function()
     end)
   end)
 
-  describe("check", function()
+  local system = mtev.uname()
+  local test = (system == nil or system.sysname == "SunOS") and pending or describe
+  test("check", function()
     it("tortures w/o delete", function()
       for i=1,100,1 do
         local code, doc, data = api:raw("PUT", "/checks/set/" .. uuid[8], check_xml(8))
