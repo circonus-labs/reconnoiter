@@ -33,24 +33,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <dirent.h>
 
 #include "mtev_log.h"
 #include "mtev_mkdir.h"
-
-static mtev_boolean
-lmdb_instance_mkdir(const char *path)
-{
-  char to_make[PATH_MAX];
-  size_t copy_len = strlen(path);
-  memset(to_make, 0, PATH_MAX);
-  memcpy(to_make, path, MIN(copy_len, PATH_MAX));
-  strlcat(to_make, "/dummy", sizeof(to_make));
-  if (mkdir_for_file(to_make, 0750)) {
-    mtevL(mtev_error, "mkdir %s: %s\n", to_make, strerror(errno));
-    return mtev_false;
-  }
-  return mtev_true;
-}
 
 int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash_table *table, uuid_t id, bool locked) {
   int rc;
@@ -207,8 +193,16 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
 {
   int rc;
   MDB_env *env;
+  DIR *dir = opendir(path);
 
-  mtevAssert(lmdb_instance_mkdir(path));
+  /* This should be checked before we get here.... double-check to make sure */
+  if (dir) {
+    closedir(dir);
+    dir = NULL;
+  }
+  else {
+    return NULL;
+  }
 
   rc = mdb_env_create(&env);
   if (rc != 0) {
