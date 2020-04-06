@@ -20,14 +20,11 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.cloudwatch.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.dhcp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.ec_console.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.googleanalytics.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.googleanalytics4.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.haproxy.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.http.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.imap.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.jezebel.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.keynote.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.keynote_pulse.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.memcached.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.monit.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.munin.xml"/>
@@ -58,3 +55,4 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/snmptrap.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ssh2.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/statsd.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/statsd_tcp.xml"/>
