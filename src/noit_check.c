@@ -1045,6 +1045,11 @@ noit_poller_init() {
       }
       noit_check_lmdb_migrate_xml_checks_to_lmdb();
     }
+    else if (errno != ENOENT) {
+      /* This means the directory was there, but we just couldn't open it - something has gone wrong,
+       * so we should abort */
+      mtevFatal(mtev_error, "noit_check: couldn't open directory for lmdb instance - %s\n", strerror(errno));
+    }
     free(lmdb_path);
   }
 
