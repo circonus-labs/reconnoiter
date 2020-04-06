@@ -45,7 +45,7 @@ lmdb_instance_mkdir(const char *path)
   memset(to_make, 0, PATH_MAX);
   memcpy(to_make, path, MIN(copy_len, PATH_MAX));
   strlcat(to_make, "/dummy", sizeof(to_make));
-  if (mkdir_for_file(to_make, 0777)) {
+  if (mkdir_for_file(to_make, 0750)) {
     mtevL(mtev_error, "mkdir %s: %s\n", to_make, strerror(errno));
     return mtev_false;
   }
@@ -223,7 +223,7 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     return NULL;
   }
 
-  rc = mdb_env_open(env, path, 0, 0644);
+  rc = mdb_env_open(env, path, 0, 0640);
   if (rc != 0) {
     errno = rc;
     mdb_env_close(env);
