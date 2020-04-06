@@ -50,6 +50,7 @@
 #include <libxml/tree.h>
 
 #include "noit_metric.h"
+#include "noit_lmdb_tools.h"
 
 /*
  * Checks:
@@ -129,16 +130,18 @@ typedef struct noit_check {
   char *name;
   char *filterset;
   mtev_hash_table *config;
-  const char *tagset;         /* This is in config, but hoisted for performance */
-  char *oncheck;              /* target`name of the check that fires us */
-  uint32_t period;            /* period of checks in milliseconds */
-  uint32_t timeout;           /* timeout of check in milliseconds */
-  uint32_t flags;             /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */
+  const char *tagset;                    /* This is in config, but hoisted for performance */
+  char *oncheck;                         /* target`name of the check that fires us */
+  uint32_t period;                       /* period of checks in milliseconds */
+  uint32_t timeout;                      /* timeout of check in milliseconds */
+  int32_t transient_min_period;          /* min period in ms for transient observation */
+  int32_t transient_period_granularity;
+  uint32_t flags;                        /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */
 
   dep_list_t *causal_checks;
   eventer_t fire_event;
   struct timeval last_fire_time;
-  uint32_t generation;        /* This can roll, we don't care */
+  uint32_t generation;                   /* This can roll, we don't care */
   void *closure;
 
   mtev_skiplist *feeds;
@@ -146,7 +149,7 @@ typedef struct noit_check {
   void **module_metadata;
   mtev_hash_table **module_configs;
   struct timeval initial_schedule_time;
-  int64_t config_seq;          /* If non-zero, must increase */
+  int64_t config_seq;                    /* If non-zero, must increase */
 
   void *statistics;
   Zipkin_Span *span;
@@ -169,11 +172,17 @@ API_EXPORT(void) noit_check_end(noit_check_t *);
 
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(uint64_t) noit_check_completion_count();
+API_EXPORT(noit_lmdb_instance_t *)noit_check_get_lmdb_instance();
 API_EXPORT(uint64_t) noit_check_metric_count();
 API_EXPORT(void) noit_check_metric_count_add(int);
 API_EXPORT(int) noit_poller_check_count();
 API_EXPORT(int) noit_poller_transient_check_count();
 API_EXPORT(void) noit_poller_reload(const char *xpath); /* NULL for all */
+API_EXPORT(void) noit_poller_reload_lmdb(uuid_t *checks, int cnt); /* NULL for all */
+API_EXPORT(void*) noit_poller_check_found_and_backdated(uuid_t uuid,
+                                                        int64_t config_seq,
+                                                        int *found,
+                                                        mtev_boolean *backdated);
 API_EXPORT(void) noit_poller_process_checks(const char *xpath);
 API_EXPORT(void) noit_poller_make_causal_map();
 API_EXPORT(void) noit_check_dns_ignore_tld(const char* extension, const char* ignore);
@@ -191,6 +200,8 @@ API_EXPORT(int)
                        mtev_hash_table **mconfig,
                        uint32_t period,
                        uint32_t timeout,
+                       int32_t transient_min_period,
+                       int32_t transient_period_granularity,
                        const char *oncheck,
                        int64_t seq,
                        int flags,
@@ -209,6 +220,8 @@ API_EXPORT(int)
                     mtev_hash_table **mconfig,
                     uint32_t period,
                     uint32_t timeout,
+                    int32_t transient_min_period,
+                    int32_t transient_period_granularity,
                     const char *oncheck,
                     int64_t seq,
                     int flags);
@@ -459,6 +472,12 @@ API_EXPORT(int)
 
 API_EXPORT(void)
   noit_check_build_cluster_changelog(void *);
+
+API_EXPORT(int)
+  noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t checkid);
+
+API_EXPORT(char **)
+  noit_check_get_namespaces(int *cnt);
 
 MTEV_HOOK_PROTO(check_config_fixup,
                 (noit_check_t *check),

@@ -50,6 +50,8 @@
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
 #include "noit_check.h"
+#include "noit_check_rest.h"
+#include "noit_check_lmdb.h"
 #include "noit_conf_checks.h"
 #include "noit_check_resolver.h"
 #include "noit_check_tools.h"
@@ -396,12 +398,18 @@ rest_show_checks_json(mtev_http_rest_closure_t *restc,
 static int
 rest_show_checks(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
-  char *cpath = "/checks";
-
-  if(npats == 1 && !strcmp(pats[0], ".json"))
+  if(npats == 1 && !strcmp(pats[0], ".json")) {
     return rest_show_checks_json(restc, npats, pats);
-
-  return noit_rest_show_config(restc, 1, &cpath);
+  }
+  else if (noit_check_get_lmdb_instance()) {
+    return noit_check_lmdb_show_checks(restc, npats, pats);
+  }
+  else {
+    char *cpath = "/checks";
+    return noit_rest_show_config(restc, 1, &cpath);
+  }
+  mtevFatal(mtev_error, "unreachable\n");
+  return 0;
 }
 
 static int
@@ -450,7 +458,7 @@ rest_show_check_owner(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
-static int
+int
 rest_show_check_json(mtev_http_rest_closure_t *restc,
                      uuid_t checkid) {
   noit_check_t *check;
@@ -524,6 +532,10 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   int klen;
   void *data;
   mtev_hash_table *configh;
+
+  if(noit_check_get_lmdb_instance()) {
+    return noit_check_lmdb_show_check(restc, npats, pats);
+  }
   NCINIT_RD;
 
   if(npats != 2 && npats != 3) goto error;
@@ -893,6 +905,8 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
     ATTR2PROP(disable);
     ATTR2PROP(filterset);
     ATTR2PROP(seq);
+    ATTR2PROP(transient_min_period);
+    ATTR2PROP(transient_period_granularity);
     xmlUnsetProp(check, (xmlChar*)"deleted");
     if(seq && !strcmp((char *)n->name, "seq")) {
       xmlChar *v = xmlNodeGetContent(n);
@@ -973,6 +987,7 @@ make_conf_path(char *path) {
   mtev_conf_release_section_write(section);
   return start;
 }
+
 static int
 rest_delete_check(mtev_http_rest_closure_t *restc,
                   int npats, char **pats) {
@@ -986,6 +1001,11 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
+
+  if(noit_check_get_lmdb_instance()) {
+    return noit_check_lmdb_delete_check(restc, npats, pats);
+  }
+
   NCINIT_WR;
 
   if(npats != 2) goto error;
@@ -1071,6 +1091,10 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
   mtev_boolean exists = mtev_false;
+
+  if(noit_check_get_lmdb_instance()) {
+    return noit_check_lmdb_set_check(restc, npats, pats);
+  }
   NCINIT_WR;
 
   if(npats != 2) goto error;
@@ -1081,6 +1105,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) goto error;
 
   if(mtev_uuid_parse(pats[1], checkid)) goto error;
+
   check = noit_poller_lookup(checkid);
   if(check)
     exists = mtev_true;
@@ -1101,22 +1126,13 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       char *target = NULL, *name = NULL, *module = NULL;
       noit_module_t *m = NULL;
       noit_check_t *check = NULL;
-      xmlNodePtr a, newcheck = NULL;
+      xmlNodePtr newcheck = NULL;
       /* make sure this isn't a dup */
-      for(a = attr->children; a; a = a->next) {
-        if(!strcmp((char *)a->name, "target"))
-          target = (char *)xmlNodeGetContent(a);
-        if(!strcmp((char *)a->name, "name"))
-          name = (char *)xmlNodeGetContent(a);
-        if(!strcmp((char *)a->name, "module"))
-          module = (char *)xmlNodeGetContent(a);
-      }
+      rest_check_get_attrs(attr, &target, &name, &module);
       exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
       if(check) old_seq = check->config_seq;
       if(module) m = noit_module_lookup(module);
-      if(target) xmlFree(target);
-      if(name) xmlFree(name);
-      if(module) xmlFree(module);
+      rest_check_free_attrs(target, name, module);
       if(exists) FAILC(409, "target`name already registered");
       if(!m) FAILC(412, "module does not exist");
       /* create a check here */
@@ -1135,7 +1151,6 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     uint64_t old_seq = 0;
     int module_change;
     char *target = NULL, *name = NULL, *module = NULL;
-    xmlNodePtr a;
     noit_check_t *ocheck;
     if(!check)
       FAIL("internal check error");
@@ -1150,19 +1165,11 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     uuid_conf = NULL;
 
     /* make sure this isn't a dup */
-    for(a = attr->children; a; a = a->next) {
-      if(!strcmp((char *)a->name, "target"))
-        target = (char *)xmlNodeGetContent(a);
-      if(!strcmp((char *)a->name, "name"))
-        name = (char *)xmlNodeGetContent(a);
-      if(!strcmp((char *)a->name, "module"))
-        module = (char *)xmlNodeGetContent(a);
-    }
+    rest_check_get_attrs(attr, &target, &name, &module);
+
     ocheck = noit_poller_lookup_by_name(target, name);
     module_change = strcmp(check->module, module);
-    xmlFree(target);
-    xmlFree(name);
-    xmlFree(module);
+    rest_check_free_attrs(target, name, module);
     if(ocheck && ocheck != check) FAILC(409, "new target`name would collide");
     if(module_change) FAILC(400, "cannot change module");
     parent = make_conf_path(pats[0]);
@@ -1237,6 +1244,40 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
   if(doc) xmlFreeDoc(doc);
 
   return 0;
+}
+
+void
+rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module) {
+  xmlNodePtr a = NULL;
+
+  *target = NULL;
+  *name = NULL;
+  *module = NULL;
+
+  for(a = attr->children; a; a = a->next) {
+    if(!strcmp((char *)a->name, "target")) {
+      *target = (char *)xmlNodeGetContent(a);
+    }
+    else if(!strcmp((char *)a->name, "name")) {
+      *name = (char *)xmlNodeGetContent(a);
+    }
+    else if(!strcmp((char *)a->name, "module")) {
+      *module = (char *)xmlNodeGetContent(a);
+    }
+  }
+}
+
+void
+rest_check_free_attrs(char *target, char *name, char *module) {
+  if (target) {
+    xmlFree(target);
+  }
+  if (name) {
+    xmlFree(name);
+  }
+  if (module) {
+    xmlFree(module);
+  }
 }
 
 void

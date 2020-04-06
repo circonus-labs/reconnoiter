@@ -173,7 +173,8 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   c->module = strdup(module);
   c->flags = NP_TRANSIENT;
   noit_check_update(c, target, name, filterset,
-                    conf_hash, moptions, 0, timeout, NULL, 0, flags);
+                    conf_hash, moptions, 0, timeout, 0, 0,
+                    NULL, 0, flags);
   mtev_uuid_generate(c->checkid);
   c->flags |= NP_DISABLED; /* this is hack to know we haven't run it yet */
   if(NOIT_CHECK_SHOULD_RESOLVE(c))

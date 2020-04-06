@@ -1,7 +1,4 @@
-/*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
- * All rights reserved.
- * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
+/* Copyright (c) 2020, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -13,10 +10,9 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
- *       of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written
- *       permission.
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -31,40 +27,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NOIT_CHECK_REST_H
-#define NOIT_CHECK_REST_H
+#ifndef _NOIT_CONF_CHECKS_LMDB_H
+#define _NOIT_CONF_CHECKS_LMDB_H
 
-#include <mtev_defines.h>
-#include <mtev_listener.h>
-#include <mtev_http.h>
-#include <mtev_conf.h>
-#include "noit_check.h"
-#include "noit_check_tools.h"
+#include <mtev_console.h>
 
-#include <libxml/tree.h>
-#include <mtev_json.h>
-
-API_EXPORT(int)
-rest_show_check_json(mtev_http_rest_closure_t *restc,
-                     uuid_t checkid);
-
-API_EXPORT(void)
-  noit_check_rest_init();
-
-API_EXPORT(int)
-  noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
-                                const char **error);
-
-API_EXPORT(xmlNodePtr)
-  noit_check_state_as_xml(noit_check_t *check, int full);
-
-API_EXPORT(struct json_object *)
-  noit_check_state_as_json(noit_check_t *check, int full);
-
-API_EXPORT(void)
-  rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module);
-
-API_EXPORT(void)
-  rest_check_free_attrs(char *target, char *name, char *module);
-
+int
+noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
+                                         int argc,
+                                         char **argv,
+                                         mtev_console_state_t *state,
+                                         void *closure);
+int
+noit_conf_checks_lmdb_console_watch_check(mtev_console_closure_t ncct,
+                                          int argc,
+                                          char **argv,
+                                          mtev_console_state_t *state,
+                                          void *closure);
 #endif

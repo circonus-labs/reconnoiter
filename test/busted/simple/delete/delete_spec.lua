@@ -63,7 +63,7 @@ describe("noit", function()
         assert.is.equal(200, code)
       end
     end)
-    pending("tortures w delete", function()
+    it("tortures w delete", function()
       for i=1,100,1 do
         local code, doc = api:raw("PUT", "/checks/set/" .. uuid[8], check_xml(8))
         assert.is.equal(200, code)

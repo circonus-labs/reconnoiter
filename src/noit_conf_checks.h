@@ -37,6 +37,10 @@
 #include <mtev_defines.h>
 #include <mtev_hash.h>
 #include <mtev_console.h>
+#include <mtev_uuid.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
 
 API_EXPORT(void) noit_console_conf_checks_init();
 API_EXPORT(int)
@@ -52,5 +56,9 @@ API_EXPORT(void)
 
 API_EXPORT(int64_t)
   noit_conf_check_bump_seq(xmlNodePtr node);
+
+API_EXPORT(void)
+  noit_console_get_running_stats(mtev_console_closure_t ncct,
+                                 uuid_t checkid);
 
 #endif

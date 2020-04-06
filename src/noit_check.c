@@ -56,11 +56,11 @@
 #include <mtev_log.h>
 #include <mtev_hash.h>
 #include <mtev_skiplist.h>
-#include <mtev_watchdog.h>
 #include <mtev_conf.h>
 #include <mtev_console.h>
 #include <mtev_cluster.h>
 #include <mtev_str.h>
+#include <mtev_watchdog.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_dtrace_probes.h"
@@ -68,6 +68,7 @@
 #include "noit_module.h"
 #include "noit_check_tools.h"
 #include "noit_check_resolver.h"
+#include "noit_check_lmdb.h"
 #include "modules/histogram.h"
 
 static int check_recycle_period = 60000;
@@ -76,6 +77,9 @@ static bool initialized = false;
 
 static mtev_log_stream_t check_error;
 static mtev_log_stream_t check_debug;
+
+static int32_t global_minimum_period = 1000;
+static int32_t global_maximum_period = 300000;
 
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
@@ -314,6 +318,7 @@ static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
 static mtev_boolean priority_scheduling = mtev_false;
 static int priority_dead_zone_seconds = 3;
+static noit_lmdb_instance_t *lmdb_instance = NULL;
 
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
@@ -398,6 +403,10 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char 
   }
   pthread_mutex_unlock(&polls_lock);
   return rv;
+}
+
+noit_lmdb_instance_t *noit_check_get_lmdb_instance() {
+  return lmdb_instance;
 }
 
 uint64_t noit_check_metric_count() {
@@ -623,6 +632,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   int no_period = 0;
   int no_oncheck = 0;
   int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
+  int transient_min_period = 0, transient_period_granularity = 0;
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   uuid_t uuid, out_uuid;
   int64_t config_seq = 0;
@@ -706,8 +716,17 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 		if(period > maximum_period) period = maximum_period;
 	}
 
-  if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
+  INHERIT(int32, transient_min_period, &transient_min_period);
+  if (transient_min_period < 0) {
+    transient_min_period = 0;
+  }
+  INHERIT(int32, transient_period_granularity, &transient_period_granularity);
+  if (transient_period_granularity < 0) {
+    transient_period_granularity = 0;
+  }
+  if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0]) {
     no_oncheck = 1;
+  }
 
   if(deleted) {
     memcpy(target, "none", 5);
@@ -746,17 +765,8 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   flags |= noit_calc_rtype_flag(resolve_rtype);
 
-  pthread_mutex_lock(&polls_lock);
-  found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
-  if(found) {
-    noit_check_t *check = (noit_check_t *)vcheck;
-    /* Possibly reset the seq */
-    if(config_seq < 0) check->config_seq = 0;
+  vcheck = noit_poller_check_found_and_backdated(uuid, config_seq, &found, &backdated);
 
-    /* Otherwise note a non-increasing sequence */
-    if(check->config_seq > config_seq) backdated = mtev_true;
-  }
-  pthread_mutex_unlock(&polls_lock);
   if(found)
     noit_poller_deschedule(uuid, mtev_false, mtev_true);
   if(backdated) {
@@ -766,7 +776,9 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   else {
     noit_poller_schedule(target, module, name, filterset, options,
                          moptions_used ? moptions : NULL,
-                         period, timeout, oncheck[0] ? oncheck : NULL,
+                         period, timeout,
+                         transient_min_period, transient_period_granularity,
+                         oncheck[0] ? oncheck : NULL,
                          config_seq, flags, uuid, out_uuid);
     mtevL(check_debug, "loaded uuid: %s\n", uuid_str);
     if(deleted) noit_poller_deschedule(uuid, mtev_false, mtev_false);
@@ -780,6 +792,22 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   }
   mtev_hash_destroy(options, free, free);
   free(options);
+}
+void *
+noit_poller_check_found_and_backdated(uuid_t uuid, int64_t config_seq, int *found, mtev_boolean *backdated) {
+  void *vcheck = NULL;
+  pthread_mutex_lock(&polls_lock);
+  *found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
+  if(*found) {
+    noit_check_t *check = (noit_check_t *)vcheck;
+    /* Possibly reset the seq */
+    if(config_seq < 0) check->config_seq = 0;
+
+    /* Otherwise note a non-increasing sequence */
+    if(check->config_seq > config_seq) *backdated = mtev_true;
+  }
+  pthread_mutex_unlock(&polls_lock);
+  return vcheck;
 }
 void
 noit_poller_process_checks(const char *xpath) {
@@ -945,6 +973,16 @@ noit_poller_reload(const char *xpath)
   noit_poller_make_causal_map();
 }
 void
+noit_poller_reload_lmdb(uuid_t *checks, int cnt)
+{
+  noit_check_lmdb_poller_process_checks(checks, cnt);
+  if(!checks) {
+    /* Full reload, we need to wipe old checks */
+    noit_poller_flush_epoch(__config_load_generation);
+  }
+  noit_poller_make_causal_map();
+}
+void
 noit_check_dns_ignore_tld(const char* extension, const char* ignore) {
   mtev_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), free, free);
 }
@@ -982,8 +1020,38 @@ noit_poller_init() {
   check_error = mtev_log_stream_find("error/noit/check");
   check_debug = mtev_log_stream_find("debug/noit/check");
 
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@minimum_period", &global_minimum_period);
+  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@maximum_period", &global_maximum_period);
+
+  if (global_minimum_period <= 0) {
+    global_minimum_period = 1000;
+  }
+  if (global_maximum_period <= 0) {
+    global_maximum_period = 300000;
+  }
+
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
+
+  mtev_boolean use_lmdb = mtev_false;
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@use_lmdb", &use_lmdb);
+
+  mtev_boolean convert_xml_to_lmdb = mtev_false;
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@convert_xml_to_lmdb", &convert_xml_to_lmdb);
+  if (use_lmdb == mtev_true) {
+    char *lmdb_path = NULL;
+    if (!mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@lmdb_path", &lmdb_path)) {
+      mtevFatal(mtev_error, "noit_check: use_lmdb specified, but no path provided\n");
+    }
+    lmdb_instance = noit_lmdb_tools_open_instance(lmdb_path);
+    if (!lmdb_instance) {
+      mtevFatal(mtev_error, "noit_check: couldn't create lmdb instance - %s\n", strerror(errno));
+    }
+    free(lmdb_path);
+    if (convert_xml_to_lmdb == mtev_true) {
+      noit_check_lmdb_migrate_xml_checks_to_lmdb();
+    }
+  }
 
   noit_check_resolver_init();
   noit_check_tools_init();
@@ -1013,7 +1081,12 @@ noit_poller_init() {
     text_size_limit = NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
   noit_check_dns_ignore_list_init();
-  noit_poller_reload(NULL);
+  if (noit_check_get_lmdb_instance()) {
+    noit_poller_reload_lmdb(NULL, 0);
+  }
+  else {
+    noit_poller_reload(NULL);
+  }
   initialized = true;
 }
 
@@ -1106,19 +1179,56 @@ noit_check_watch(uuid_t in, int period) {
   }
 
   /* Find the check */
-  snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
-  check_node = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
-  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
-  mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
-  if(!mtev_conf_section_is_empty(check_node)) {
-    mtev_conf_get_int32(check_node,
-                      "ancestor-or-self::node()/@transient_min_period",
-                      &minimum_pi);
-    mtev_conf_get_int32(check_node,
-                      "ancestor-or-self::node()/@transient_period_granularity",
-                      &granularity_pi);
+  f = noit_poller_lookup(in);
+  if (f) {
+    if (f->transient_min_period > 0) {
+      minimum_pi = f->transient_min_period;
+    }
+    if (f->transient_period_granularity < 0) {
+      granularity_pi = f->transient_period_granularity;
+    }
   }
-  mtev_conf_release_section_read(check_node);
+  else {
+    if (noit_check_get_lmdb_instance()) {
+      char *transient_min_period_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_min_period");
+      char *transient_period_granularity_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_period_granularity");
+      if (transient_min_period_str) {
+        int32_t transient_min_period = atoi(transient_min_period_str);
+        if (transient_min_period > 0) {
+          minimum_pi = transient_min_period;
+        }
+      }
+      else {
+        mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
+      }
+      if (transient_period_granularity_str) {
+        int32_t transient_period_granularity = atoi(transient_period_granularity_str);
+        if (transient_period_granularity > 0) {
+          granularity_pi = transient_period_granularity;
+        }
+      }
+      else {
+        mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
+      }
+      free(transient_min_period_str);
+      free(transient_period_granularity_str);
+    }
+    else {
+      snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
+      check_node = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
+      mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_min_period", &minimum_pi);
+      mtev_conf_get_int32(MTEV_CONF_ROOT, "//checks/@transient_period_granularity", &granularity_pi);
+      if(!mtev_conf_section_is_empty(check_node)) {
+        mtev_conf_get_int32(check_node,
+                          "ancestor-or-self::node()/@transient_min_period",
+                          &minimum_pi);
+        mtev_conf_get_int32(check_node,
+                          "ancestor-or-self::node()/@transient_period_granularity",
+                          &granularity_pi);
+      }
+      mtev_conf_release_section_read(check_node);
+    }
+  }
 
   /* apply the bounds */
   period /= granularity_pi;
@@ -1312,6 +1422,8 @@ noit_check_update(noit_check_t *new_check,
                   mtev_hash_table **mconfigs,
                   uint32_t period,
                   uint32_t timeout,
+                  int32_t transient_min_period,
+                  int32_t transient_period_granularity,
                   const char *oncheck,
                   int64_t seq,
                   int flags) {
@@ -1346,8 +1458,9 @@ noit_check_update(noit_check_t *new_check,
     strlcpy(module, new_check->module, sizeof(module));
     noit_poller_deschedule(id, mtev_false, mtev_true);
     return noit_poller_schedule(target, module, name, filterset,
-                                config, mconfigs, period, timeout, oncheck,
-                                seq, flags, id, dummy);
+                                config, mconfigs, period, timeout,
+                                transient_min_period, transient_period_granularity,
+                                oncheck, seq, flags, id, dummy);
   }
 
   new_check->generation = __config_load_generation;
@@ -1452,6 +1565,8 @@ noit_check_update(noit_check_t *new_check,
   if(new_check->oncheck) system_needs_causality = mtev_true;
   new_check->period = period;
   new_check->timeout = timeout;
+  new_check->transient_min_period = transient_min_period;
+  new_check->transient_period_granularity = transient_period_granularity;
   new_check->config_seq = seq;
   noit_cluster_mark_check_changed(new_check, NULL);
 
@@ -1478,6 +1593,8 @@ noit_poller_schedule(const char *target,
                      mtev_hash_table **mconfigs,
                      uint32_t period,
                      uint32_t timeout,
+                     int32_t transient_min_period,
+                     int32_t transient_period_granularity,
                      const char *oncheck,
                      int64_t seq,
                      int flags,
@@ -1496,7 +1613,8 @@ noit_poller_schedule(const char *target,
 
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
-                    period, timeout, oncheck, seq, flags);
+                    period, timeout, transient_min_period,
+                    transient_period_granularity, oncheck, seq, flags);
   mtev_hash_replace(&polls,
                     (char *)new_check->checkid, UUID_SIZE,
                     new_check, NULL, (NoitHashFreeFunc)noit_poller_free_check);
@@ -1609,31 +1727,7 @@ struct check_remove_todo {
   struct check_remove_todo *next;
 };
 static void
-check_recycle_bin_processor_internal() {
-  struct check_remove_todo *head = NULL;
-  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-  struct _checker_rcb *prev = NULL, *curr = NULL;
-  mtevL(check_debug, "Scanning checks for cluster sync\n");
-  pthread_mutex_lock(&polls_lock);
-  while(mtev_hash_adv(&polls, &iter)) {
-    noit_check_t *check = (noit_check_t *)iter.value.ptr;
-    if(NOIT_CHECK_DELETED(check) && !noit_cluster_checkid_replication_pending(check->checkid)) {
-      char idstr[UUID_STR_LEN+1];
-      mtev_uuid_unparse_lower(check->checkid, idstr);
-
-      struct check_remove_todo *todo = calloc(1, sizeof(*todo));
-      mtev_uuid_copy(todo->id, check->checkid);
-      todo->next = head;
-      head = todo;
-      mtevL(check_debug, "cluster delete of %s complete.\n", idstr);
-      /* Set the config_seq to zero so it can be truly descheduled */
-      check->config_seq = 0;
-      noit_poller_deschedule(check->checkid, mtev_true, mtev_false);
-
-    }
-  }
-  pthread_mutex_unlock(&polls_lock);
-
+check_recycle_bin_processor_internal_cleanup_xml(struct check_remove_todo *head) {
   while(head) {
     char idstr[UUID_STR_LEN+1], xpath[1024];
     mtev_uuid_unparse_lower(head->id, idstr);
@@ -1658,6 +1752,47 @@ check_recycle_bin_processor_internal() {
     free(tofree);
   }
   (void)mtev_conf_write_file(NULL);
+}
+static void
+check_recycle_bin_processor_internal_cleanup_lmdb(struct check_remove_todo *head) {
+  while(head) {
+    noit_check_lmdb_remove_check_from_db(head->id);
+    struct check_remove_todo *tofree = head;
+    head = head->next;
+    free(tofree);
+  }
+}
+static void
+check_recycle_bin_processor_internal() {
+  struct check_remove_todo *head = NULL;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  struct _checker_rcb *prev = NULL, *curr = NULL;
+  mtevL(check_debug, "Scanning checks for cluster sync\n");
+  pthread_mutex_lock(&polls_lock);
+  while(mtev_hash_adv(&polls, &iter)) {
+    noit_check_t *check = (noit_check_t *)iter.value.ptr;
+    if(NOIT_CHECK_DELETED(check) && !noit_cluster_checkid_replication_pending(check->checkid)) {
+      char idstr[UUID_STR_LEN+1];
+      mtev_uuid_unparse_lower(check->checkid, idstr);
+
+      struct check_remove_todo *todo = calloc(1, sizeof(*todo));
+      mtev_uuid_copy(todo->id, check->checkid);
+      todo->next = head;
+      head = todo;
+      mtevL(check_debug, "cluster delete of %s complete.\n", idstr);
+      /* Set the config_seq to zero so it can be truly descheduled */
+      check->config_seq = 0;
+      noit_poller_deschedule(check->checkid, mtev_true, mtev_false);
+    }
+  }
+  pthread_mutex_unlock(&polls_lock);
+
+  if (noit_check_get_lmdb_instance()) {
+    check_recycle_bin_processor_internal_cleanup_lmdb(head);
+  }
+  else {
+    check_recycle_bin_processor_internal_cleanup_xml(head);
+  }
 
   mtevL(check_debug, "Scanning check recycle bin\n");
   pthread_mutex_lock(&recycling_lock);
@@ -3092,6 +3227,9 @@ noit_check_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL, node;
   if(!initialized) return -1;
+  if (noit_check_get_lmdb_instance()) {
+    return noit_check_lmdb_process_repl(doc);
+  }
   root = xmlDocGetRootElement(doc);
   mtev_conf_section_t section;
   mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
@@ -3145,4 +3283,297 @@ noit_check_process_repl(xmlDocPtr doc) {
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(check_error, "local config write failed\n");
   return i;
+}
+
+/* This function assumes that the cursor is pointing at the first element for a uuid
+ * It will iterate the cursor until it hits a new uuid or the end of the database, 
+ * then reeturn the return code fro, the lmdb call
+ * It is the responsibility of the caller to handle this */
+int
+noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t checkid) {
+  void *vcheck = NULL;
+  int rc = 0;
+  char uuid_str[37];
+  char target[256] = "";
+  char module[256] = "";
+  char name[256] = "";
+  char filterset[256] = "";
+  char oncheck[1024] = "";
+  char resolve_rtype[16] = "";
+  char delstr[16] = "";
+  char seq_str[256] = "";
+  char period_str[256] = "";
+  char timeout_str[256] = "";
+  char transient_min_period_str[256] = "";
+  char transient_period_granularity_str[256] = "";
+  uuid_t out_uuid;
+  int64_t config_seq = 0;
+  int ridx, flags = 0, found = 0;
+  int no_oncheck = 1;
+  int no_period = 1;
+  int no_timeout = 1;
+  int32_t period = 0, timeout = 0, transient_min_period = 0, transient_period_granularity = 0;
+  mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
+  mtev_hash_table options;
+  mtev_hash_table **moptions = NULL;
+  mtev_boolean moptions_used = mtev_false, moptions_malloced = mtev_false, backdated = mtev_false;
+  MDB_val mdb_key, mdb_data;
+
+  /* We want to heartbeat here... otherwise, if a lot of checks are 
+   * configured or if we're running on a slower system, we could 
+   * end up getting watchdog killed before we get a chance to run 
+   * any checks */
+  mtev_watchdog_child_heartbeat();
+
+  mtev_uuid_unparse_lower(checkid, uuid_str);
+  mtev_hash_init(&options);
+
+  if(reg_module_id > 0) {
+    if (reg_module_id > 10) {
+      moptions = malloc(reg_module_id * sizeof(mtev_hash_table *));
+      moptions_malloced = mtev_true;
+    }
+    else {
+      moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
+    }
+    memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
+    moptions_used = mtev_true;
+  }
+
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
+  while (rc == 0) {
+    noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
+    mtevAssert(data);
+    /* If the uuid doesn't match, we're done */
+    if (mtev_uuid_compare(checkid, data->id) != 0) {
+      noit_lmdb_free_check_data(data);
+      break;
+    }
+    int copySize = 0;
+    if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
+#define COPYSTRING(val) do { \
+  copySize = MIN(mdb_data.mv_size, sizeof(val) - 1); \
+  memcpy(val, mdb_data.mv_data, copySize); \
+  val[copySize] = 0; \
+} while(0);
+      if (strcmp(data->key, "target") == 0) {
+        COPYSTRING(target);
+      }
+      else if (strcmp(data->key, "module") == 0) {
+        COPYSTRING(module);
+      }
+      else if (strcmp(data->key, "name") == 0) {
+        COPYSTRING(name);
+      }
+      else if (strcmp(data->key, "filterset") == 0) {
+        COPYSTRING(filterset);
+      }
+      else if (strcmp(data->key, "seq") == 0) {
+        COPYSTRING(seq_str);
+        config_seq = strtoll(seq_str, NULL, 10);
+      }
+      else if (strcmp(data->key, "period") == 0) {
+        COPYSTRING(period_str);
+        period = atoi(period_str);
+        no_period = 0;
+        if (period < global_minimum_period) {
+          period = global_minimum_period;
+        }
+	else if (period > global_maximum_period) {
+          period = global_maximum_period;
+        }
+      }
+      else if (strcmp(data->key, "timeout") == 0) {
+        COPYSTRING(timeout_str);
+        no_timeout = 0;
+        timeout = atoi(timeout_str);
+      }
+      else if (strcmp(data->key, "oncheck") == 0) {
+        COPYSTRING(oncheck);
+        no_oncheck = 0;
+      }
+      else if (strcmp(data->key, "deleted") == 0) {
+        COPYSTRING(delstr);
+        if (strcmp(delstr, "deleted") == 0) {
+          deleted = mtev_true;
+          disabled = mtev_true;
+          flags |= NP_DELETED;
+        }
+      }
+      else if (strcmp(data->key, "resolve_rtype") == 0) {
+        COPYSTRING(resolve_rtype);
+      }
+      else if (strcmp(data->key, "transient_min_period") == 0) {
+        COPYSTRING(transient_min_period_str);
+        transient_min_period = atoi(transient_min_period_str);
+        if (transient_min_period < 0) {
+          transient_min_period = 0;
+        }
+      }
+      else if (strcmp(data->key, "transient_period_granularity") == 0) {
+        COPYSTRING(transient_period_granularity_str);
+        transient_period_granularity = atoi(transient_period_granularity_str);
+        if (transient_period_granularity < 0) {
+          transient_period_granularity = 0;
+        }
+      }
+      else {
+        mtevL(mtev_error, "unknown attribute in check: %s\n", data->key);
+      }
+    }
+    else if (data->type == NOIT_LMDB_CHECK_CONFIG_TYPE) {
+      mtev_hash_table *insertTable = NULL;
+      if (data->ns == NULL) {
+        insertTable = &options;
+      }
+      else {
+        for(ridx=0; ridx<reg_module_id; ridx++) {
+          if (strcmp(reg_module_names[ridx], data->ns) == 0) {
+            if (!moptions[ridx]) {
+              moptions[ridx] = calloc(1, sizeof(mtev_hash_table));
+              mtev_hash_init(moptions[ridx]);
+            }
+            insertTable = moptions[ridx];
+            break;
+          }
+        }
+      }
+      if (insertTable) {
+        char *key = strdup(data->key);
+        char *value = (char *)malloc(mdb_data.mv_size + 1);
+        memcpy(value, mdb_data.mv_data, mdb_data.mv_size);
+        value[mdb_data.mv_size] = 0;
+        mtev_hash_store(insertTable, key, strlen(key), value);
+      }
+    }
+    else {
+      mtevFatal(mtev_error, "unknown type\n");
+    }
+    noit_lmdb_free_check_data(data);
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+
+  /* These *may* be defined in the check stanza and not in the db - if this is the case,
+   * we need to set these based on the inheritable values */
+#define CHECK_FROM_LMDB_INHERIT(type,a,...) \
+  mtev_conf_get_##type(checks, "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+  mtev_conf_section_t checks = mtev_conf_get_section_read(MTEV_CONF_ROOT, "/noit/checks");
+  if (!strlen(target)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, target, target, sizeof(target));
+  }
+  if (!strlen(module)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, module, module, sizeof(module));
+  }
+  if (!strlen(filterset)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, filterset, filterset, sizeof(filterset));
+  }
+  if (!strlen(oncheck)) {
+    CHECK_FROM_LMDB_INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck));
+  }
+  if (!strlen(resolve_rtype)) {
+    if (!CHECK_FROM_LMDB_INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype))) {
+      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
+    }
+  }
+  if (no_period) {
+    period = 0;
+    if (CHECK_FROM_LMDB_INHERIT(int32, period, &period)) {
+      no_period = 0;
+      if(period < global_minimum_period) {
+        period = global_minimum_period;
+      }
+      if(period > global_maximum_period) {
+        period = global_maximum_period;
+      }
+    }
+  }
+  if (no_timeout) {
+    timeout = 0;
+    if (CHECK_FROM_LMDB_INHERIT(int32, timeout, &timeout)) {
+      no_timeout = 0;
+    }
+  }
+  mtev_conf_release_section_read(checks);
+
+  if(deleted) {
+    memcpy(target, "none", 5);
+    mtev_uuid_unparse_lower(checkid, name);
+  } else {
+    if(no_period && no_oncheck) {
+      mtevL(mtev_error, "check uuid: '%s' has neither period nor oncheck\n",
+        uuid_str);
+      busted = mtev_true;
+    }
+    if(!(no_period || no_oncheck)) {
+      mtevL(mtev_error, "check uuid: '%s' has oncheck and period.\n",
+        uuid_str);
+      busted = mtev_true;
+    }
+    if (no_timeout) {
+      mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
+      busted = mtev_true;
+    }
+    if(timeout < 0) timeout = 0;
+    if(!no_period && timeout >= period) {
+      mtevL(mtev_error, "check uuid: '%s' timeout > period\n", uuid_str);
+      timeout = period/2;
+    }
+  }
+
+  if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
+  else if(disabled) flags |= NP_DISABLED;
+
+  flags |= noit_calc_rtype_flag(resolve_rtype);
+
+  vcheck = noit_poller_check_found_and_backdated(checkid, config_seq, &found, &backdated);
+
+  if(found) {
+    noit_poller_deschedule(checkid, mtev_false, mtev_true);
+  }
+  if(backdated) {
+    mtevL(mtev_error, "Check config seq backwards, ignored\n");
+    if(found) {
+      noit_check_log_delete((noit_check_t *)vcheck);
+    }
+  }
+  else {
+    noit_poller_schedule(target, module, name, filterset, &options,
+                         moptions_used ? moptions : NULL,
+                         period, timeout,
+                         transient_min_period, transient_period_granularity,
+                         oncheck[0] ? oncheck : NULL,
+                         config_seq, flags, checkid, out_uuid);
+    mtevL(mtev_debug, "loaded uuid: %s\n", uuid_str);
+    if(deleted) {
+      noit_poller_deschedule(checkid, mtev_false, mtev_false);
+    }
+  }
+  for(ridx=0; ridx<reg_module_id; ridx++) {
+    if(moptions[ridx]) {
+      mtev_hash_destroy(moptions[ridx], free, free);
+      free(moptions[ridx]);
+    }
+  }
+  if (moptions_malloced == mtev_true) {
+    free(moptions);
+  }
+  mtev_hash_destroy(&options, free, free);
+
+  return rc;
+}
+
+char **noit_check_get_namespaces(int *cnt) {
+  char **toRet = NULL;
+  int i = 0;
+  mtevAssert(cnt);
+  *cnt = reg_module_id;
+
+  if (reg_module_id == 0) {
+    return toRet;
+  }
+  toRet = (char **)calloc(reg_module_id, sizeof(char *));
+  for (i = 0; i < reg_module_id; i++) {
+    toRet[i] = strdup(reg_module_names[i]);
+  }
+  return toRet;
 }

@@ -52,6 +52,7 @@
 
 #include "noit_filters.h"
 #include "noit_conf_checks.h"
+#include "noit_conf_checks_lmdb.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_clustering.h"
@@ -365,6 +366,10 @@ noit_console_watch_check(mtev_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
+  if (noit_check_get_lmdb_instance()) {
+    return noit_conf_checks_lmdb_console_watch_check(ncct, argc, argv, state, closure);
+  }
+
   if(argc < 1 || argc > 2) {
     nc_printf(ncct, "requires one or two arguments\n");
     return -1;
@@ -467,6 +472,96 @@ nc_print_stat_metrics(mtev_console_closure_t ncct,
     free(sorted_keys);
   }
 }
+void
+noit_console_get_running_stats(mtev_console_closure_t ncct,
+                               uuid_t checkid) {
+  noit_check_t *check;
+
+  check = noit_poller_lookup(checkid);
+  if(!check) {
+    nc_printf(ncct, " ERROR: not in running system\n");
+  }
+  else {
+    int idx = 0;
+    stats_t *c;
+    struct timeval *whence;
+    mtev_hash_table *metrics;
+    nc_printf(ncct, " target_ip: %s\n", check->target_ip);
+    nc_printf(ncct, " currently: %08x ", check->flags);
+    if(NOIT_CHECK_RUNNING(check)) { nc_printf(ncct, "running"); idx++; }
+    if(NOIT_CHECK_KILLED(check)) nc_printf(ncct, "%skilled", idx++?",":"");
+    if(!NOIT_CHECK_CONFIGURED(check)) nc_printf(ncct, "%sunconfig", idx++?",":"");
+    if(NOIT_CHECK_DISABLED(check)) nc_printf(ncct, "%sdisabled", idx++?",":"");
+    if(NOIT_CHECK_DELETED(check)) nc_printf(ncct, "%sdeleted", idx++?",":"");
+    if(!idx) nc_printf(ncct, "idle");
+    nc_write(ncct, "\n", 1);
+    if(mtev_cluster_enabled()) {
+      mtev_cluster_node_t *where = NULL;
+      mtev_boolean mine = noit_should_run_check(check, &where);
+      nc_printf(ncct, " clustered running on %s%s\n",
+                where ? mtev_cluster_node_get_cn(where) : "...",
+                mine ? " (locally)" : "");
+    }
+    if(NOIT_CHECK_DELETED(check)) {
+      /* Nothing more to do here */
+      return;
+    }
+
+    if (check->fire_event != NULL) {
+      struct timeval then, now, diff;
+      mtev_gettimeofday(&now, NULL);
+      then = eventer_get_whence(check->fire_event);
+      sub_timeval(then, now, &diff);
+      nc_printf(ncct, " next run: %0.3f seconds\n",
+                diff.tv_sec + (diff.tv_usec / 1000000.0));
+    }
+    else {
+      nc_printf(ncct, " next run: unscheduled\n");
+    }
+
+    c = noit_check_get_stats_current(check);
+    whence = noit_check_stats_whence(c, NULL);
+    if(whence->tv_sec == 0) {
+      nc_printf(ncct, " last run: never\n");
+    }
+    else {
+      const char *status;
+      struct timeval now, *then, diff;
+      mtev_gettimeofday(&now, NULL);
+      then = noit_check_stats_whence(c, NULL);
+      sub_timeval(now, *then, &diff);
+      nc_printf(ncct, " last run: %0.3f seconds ago\n",
+                diff.tv_sec + (diff.tv_usec / 1000000.0));
+      nc_printf(ncct, " availability/state: %s/%s\n",
+                noit_check_available_string(noit_check_stats_available(c, NULL)),
+                noit_check_state_string(noit_check_stats_state(c, NULL)));
+      status = noit_check_stats_status(c, NULL);
+      nc_printf(ncct, " status: %s\n", status);
+      nc_printf(ncct, " feeds: %d\n", check->feeds ? mtev_skiplist_size(check->feeds) : 0);
+    }
+
+    mtev_memory_begin();
+    c = noit_check_get_stats_inprogress(check);
+    metrics = noit_check_stats_metrics(c);
+    if(mtev_hash_size(metrics) > 0) {
+      nc_printf(ncct, " metrics (inprogress):\n");
+      nc_print_stat_metrics(ncct, check, c);
+    }
+    c = noit_check_get_stats_current(check);
+    metrics = noit_check_stats_metrics(c);
+    if(mtev_hash_size(metrics)) {
+      nc_printf(ncct, " metrics (current):\n");
+      nc_print_stat_metrics(ncct, check, c);
+    }
+    c = noit_check_get_stats_previous(check);
+    metrics = noit_check_stats_metrics(c);
+    if(mtev_hash_size(metrics) > 0) {
+      nc_printf(ncct, " metrics (previous):\n");
+      nc_print_stat_metrics(ncct, check, c);
+    }
+    mtev_memory_end();
+  }
+}
 static int
 noit_console_show_check(mtev_console_closure_t ncct,
                         int argc, char **argv,
@@ -476,6 +571,10 @@ noit_console_show_check(mtev_console_closure_t ncct,
   char xpath[1024];
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
+
+  if (noit_check_get_lmdb_instance()) {
+    return noit_conf_checks_lmdb_console_show_check(ncct, argc, argv, state, closure);
+  }
 
   if(argc > 1) {
     nc_printf(ncct, "requires zero or one arguments\n");
@@ -509,7 +608,6 @@ noit_console_show_check(mtev_console_closure_t ncct,
     int klen;
     void *data;
     uuid_t checkid;
-    noit_check_t *check;
     mtev_hash_table *config;
     xmlNodePtr node, anode, mnode = NULL;
     mtev_conf_section_t section;
@@ -562,89 +660,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
     }
     mtev_hash_destroy(config, free, free);
     free(config);
-
-    check = noit_poller_lookup(checkid);
-    if(!check) {
-      nc_printf(ncct, " ERROR: not in running system\n");
-    }
-    else {
-      int idx = 0;
-      stats_t *c;
-      struct timeval *whence;
-      mtev_hash_table *metrics;
-      nc_printf(ncct, " target_ip: %s\n", check->target_ip);
-      nc_printf(ncct, " currently: %08x ", check->flags);
-      if(NOIT_CHECK_RUNNING(check)) { nc_printf(ncct, "running"); idx++; }
-      if(NOIT_CHECK_KILLED(check)) nc_printf(ncct, "%skilled", idx++?",":"");
-      if(!NOIT_CHECK_CONFIGURED(check)) nc_printf(ncct, "%sunconfig", idx++?",":"");
-      if(NOIT_CHECK_DISABLED(check)) nc_printf(ncct, "%sdisabled", idx++?",":"");
-      if(NOIT_CHECK_DELETED(check)) nc_printf(ncct, "%sdeleted", idx++?",":"");
-      if(!idx) nc_printf(ncct, "idle");
-      nc_write(ncct, "\n", 1);
-      if(mtev_cluster_enabled()) {
-        mtev_cluster_node_t *where = NULL;
-        mtev_boolean mine = noit_should_run_check(check, &where);
-        nc_printf(ncct, " clustered running on %s%s\n",
-                  where ? mtev_cluster_node_get_cn(where) : "...",
-                  mine ? " (locally)" : "");
-      }
-
-      if(NOIT_CHECK_DELETED(check)) goto out;
-
-      if (check->fire_event != NULL) {
-        struct timeval then, now, diff;
-        mtev_gettimeofday(&now, NULL);
-        then = eventer_get_whence(check->fire_event);
-        sub_timeval(then, now, &diff);
-        nc_printf(ncct, " next run: %0.3f seconds\n",
-                diff.tv_sec + (diff.tv_usec / 1000000.0));
-      }
-      else {
-        nc_printf(ncct, " next run: unscheduled\n");
-      }
-
-      c = noit_check_get_stats_current(check);
-      whence = noit_check_stats_whence(c, NULL);
-      if(whence->tv_sec == 0) {
-        nc_printf(ncct, " last run: never\n");
-      }
-      else {
-        const char *status;
-        struct timeval now, *then, diff;
-        mtev_gettimeofday(&now, NULL);
-        then = noit_check_stats_whence(c, NULL);
-        sub_timeval(now, *then, &diff);
-        nc_printf(ncct, " last run: %0.3f seconds ago\n",
-                  diff.tv_sec + (diff.tv_usec / 1000000.0));
-        nc_printf(ncct, " availability/state: %s/%s\n",
-                  noit_check_available_string(noit_check_stats_available(c, NULL)),
-                  noit_check_state_string(noit_check_stats_state(c, NULL)));
-        status = noit_check_stats_status(c, NULL);
-        nc_printf(ncct, " status: %s\n", status);
-        nc_printf(ncct, " feeds: %d\n", check->feeds ? mtev_skiplist_size(check->feeds) : 0);
-      }
-
-      mtev_memory_begin();
-      c = noit_check_get_stats_inprogress(check);
-      metrics = noit_check_stats_metrics(c);
-      if(mtev_hash_size(metrics) > 0) {
-        nc_printf(ncct, " metrics (inprogress):\n");
-        nc_print_stat_metrics(ncct, check, c);
-      }
-      c = noit_check_get_stats_current(check);
-      metrics = noit_check_stats_metrics(c);
-      if(mtev_hash_size(metrics)) {
-        nc_printf(ncct, " metrics (current):\n");
-        nc_print_stat_metrics(ncct, check, c);
-      }
-      c = noit_check_get_stats_previous(check);
-      metrics = noit_check_stats_metrics(c);
-      if(mtev_hash_size(metrics) > 0) {
-        nc_printf(ncct, " metrics (previous):\n");
-        nc_print_stat_metrics(ncct, check, c);
-      }
-      mtev_memory_end();
-    }
+    noit_console_get_running_stats(ncct, checkid);
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -953,8 +969,15 @@ static int
 noit_conf_checks_reload(mtev_console_closure_t ncct,
                         int argc, char **argv,
                         mtev_console_state_t *state, void *closure) {
-  if(mtev_conf_reload(ncct, argc, argv, state, closure)) return -1;
-  noit_poller_reload(NULL);
+  if(mtev_conf_reload(ncct, argc, argv, state, closure)) {
+    return -1;
+  }
+  if (noit_check_get_lmdb_instance()) {
+    noit_poller_reload_lmdb(NULL, 0);
+  }
+  else {
+    noit_poller_reload(NULL);
+  }
   return 0;
 }
 

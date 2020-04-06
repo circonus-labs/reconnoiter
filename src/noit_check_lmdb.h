@@ -1,7 +1,4 @@
-/*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
- * All rights reserved.
- * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
+/* Copyright (c) 2020, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -13,10 +10,9 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
- *       of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written
- *       permission.
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -31,40 +27,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NOIT_CHECK_REST_H
-#define NOIT_CHECK_REST_H
-
-#include <mtev_defines.h>
-#include <mtev_listener.h>
-#include <mtev_http.h>
-#include <mtev_conf.h>
-#include "noit_check.h"
-#include "noit_check_tools.h"
-
+#include <mtev_uuid.h>
+#include <mtev_rest.h>
+#include <libxml/parser.h>
 #include <libxml/tree.h>
-#include <mtev_json.h>
+#include <libxml/xpath.h>
 
-API_EXPORT(int)
-rest_show_check_json(mtev_http_rest_closure_t *restc,
-                     uuid_t checkid);
+#ifndef _NOIT_CHECK_LMDB_H
+#define _NOIT_CHECK_LMDB_H
 
-API_EXPORT(void)
-  noit_check_rest_init();
+typedef enum {
+  NOIT_LMDB_CHECK_ATTRIBUTE_TYPE = 'A',
+  NOIT_LMDB_CHECK_CONFIG_TYPE = 'C'
+} noit_lmdb_check_type_e;
 
-API_EXPORT(int)
-  noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
-                                const char **error);
-
-API_EXPORT(xmlNodePtr)
-  noit_check_state_as_xml(noit_check_t *check, int full);
-
-API_EXPORT(struct json_object *)
-  noit_check_state_as_json(noit_check_t *check, int full);
-
-API_EXPORT(void)
-  rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module);
-
-API_EXPORT(void)
-  rest_check_free_attrs(char *target, char *name, char *module);
+int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char **pats);
+int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
+int noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
+int noit_check_lmdb_remove_check_from_db(uuid_t checkid);
+int noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
+void noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt);
+void noit_check_lmdb_migrate_xml_checks_to_lmdb();
+int noit_check_lmdb_process_repl(xmlDocPtr doc);
+mtev_boolean noit_check_lmdb_already_in_db(uuid_t checkid);
+char *noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search_type,
+                                         char *search_namespace, char *search_key);
 
 #endif

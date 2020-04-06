@@ -438,7 +438,13 @@ function TestConfig:do_check_print(fd, tree)
 end
 
 function TestConfig:make_checks_config(fd, opts)
-  mtev.write(fd,"  <checks minimum_period=\"100\" max_initial_stutter=\"10\" filterset=\"default\">\n")
+  local use_lmdb = os.getenv('NOIT_LMDB_CHECKS') or "0"
+  if use_lmdb == "1" then
+    local path = opts.workspace .. "/" .. opts.name .. "_checks.lmdb"
+    mtev.write(fd,"  <checks minimum_period=\"100\" max_initial_stutter=\"10\" filterset=\"default\" use_lmdb=\"true\" convert_xml_to_lmdb=\"true\" lmdb_path=\"" .. path .. "\">\n")
+  else
+    mtev.write(fd,"  <checks minimum_period=\"100\" max_initial_stutter=\"10\" filterset=\"default\">\n")
+  end
   self:do_check_print(fd, opts.checks)
   mtev.write(fd,"  </checks>\n")
 end

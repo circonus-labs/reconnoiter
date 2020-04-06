@@ -1,7 +1,4 @@
-/*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
- * All rights reserved.
- * Copyright (c) 2015-2017, Circonus, Inc. All rights reserved.
+/* Copyright (c) 2020, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -13,10 +10,9 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
- *       of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written
- *       permission.
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -31,40 +27,37 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NOIT_CHECK_REST_H
-#define NOIT_CHECK_REST_H
+#ifndef _NOIT_LMDB_TOOLS_H
+#define _NOIT_LMDB_TOOLS_H
 
-#include <mtev_defines.h>
-#include <mtev_listener.h>
-#include <mtev_http.h>
-#include <mtev_conf.h>
-#include "noit_check.h"
-#include "noit_check_tools.h"
+#include <ck_rwlock.h>
+#include <lmdb.h>
+#include <mtev_hash.h>
+#include <mtev_uuid.h>
 
-#include <libxml/tree.h>
-#include <mtev_json.h>
+typedef struct noit_lmdb_instance {
+  MDB_env *env;
+  MDB_dbi dbi;
+  pthread_rwlock_t lock;
+  char *path;
+} noit_lmdb_instance_t;
 
-API_EXPORT(int)
-rest_show_check_json(mtev_http_rest_closure_t *restc,
-                     uuid_t checkid);
+typedef struct noit_lmdb_check_data {
+  uuid_t id;
+  char type;
+  unsigned short ns_len;
+  char *ns;
+  unsigned short key_len;
+  char *key;
+} noit_lmdb_check_data_t;
 
-API_EXPORT(void)
-  noit_check_rest_init();
-
-API_EXPORT(int)
-  noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
-                                const char **error);
-
-API_EXPORT(xmlNodePtr)
-  noit_check_state_as_xml(noit_check_t *check, int full);
-
-API_EXPORT(struct json_object *)
-  noit_check_state_as_json(noit_check_t *check, int full);
-
-API_EXPORT(void)
-  rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module);
-
-API_EXPORT(void)
-  rest_check_free_attrs(char *target, char *name, char *module);
+int noit_lmdb_check_keys_to_hash_table(noit_lmdb_instance_t *instance, mtev_hash_table *table, uuid_t id, bool locked);
+char* noit_lmdb_make_check_key(uuid_t id, char type, char *ns, char *key, size_t *size_out);
+char* noit_lmdb_make_check_key_for_iterating(uuid_t id, size_t *size_out);
+noit_lmdb_check_data_t *noit_lmdb_check_data_from_key(char *key);
+void noit_lmdb_free_check_data(noit_lmdb_check_data_t *data);
+noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path);
+void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance);
+void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance);
 
 #endif
