@@ -1034,23 +1034,31 @@ noit_poller_init() {
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
 
-  char *lmdb_path = NULL;
-  if (mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@lmdb_path", &lmdb_path)) {
-    DIR *dir = opendir(lmdb_path);
-    if (dir) {
-      closedir(dir);
-      lmdb_instance = noit_lmdb_tools_open_instance(lmdb_path);
-      if (!lmdb_instance) {
-        mtevFatal(mtev_error, "noit_check: couldn't create lmdb instance - %s\n", strerror(errno));
+  mtev_boolean use_lmdb = mtev_true;
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@use_lmdb", &use_lmdb);
+
+  if (use_lmdb == mtev_true) {
+    char *lmdb_path = NULL;
+    if (mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@lmdb_path", &lmdb_path)) {
+      DIR *dir = opendir(lmdb_path);
+      if (dir) {
+        closedir(dir);
+        lmdb_instance = noit_lmdb_tools_open_instance(lmdb_path);
+        if (!lmdb_instance) {
+          mtevFatal(mtev_error, "noit_check: couldn't create lmdb instance - %s\n", strerror(errno));
+        }
+        noit_check_lmdb_migrate_xml_checks_to_lmdb();
       }
-      noit_check_lmdb_migrate_xml_checks_to_lmdb();
+      else if (errno == ENOENT) {
+        mtevL(mtev_error, "noit_check: lmdb_path (%s) specified, but does not exist - using XML backingstore\n", lmdb_path);
+      }
+      else {
+        /* This means the directory was there, but we just couldn't open it - something has gone wrong,
+         * so we should abort */
+        mtevFatal(mtev_error, "noit_check: couldn't open directory for lmdb instance - %s\n", strerror(errno));
+      }
+      free(lmdb_path);
     }
-    else if (errno != ENOENT) {
-      /* This means the directory was there, but we just couldn't open it - something has gone wrong,
-       * so we should abort */
-      mtevFatal(mtev_error, "noit_check: couldn't open directory for lmdb instance - %s\n", strerror(errno));
-    }
-    free(lmdb_path);
   }
 
   noit_check_resolver_init();
