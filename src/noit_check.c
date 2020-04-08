@@ -1051,6 +1051,7 @@ noit_poller_init() {
       }
       else if (errno == ENOENT) {
         mtevL(mtev_error, "noit_check: lmdb_path (%s) specified, but does not exist - using XML backingstore\n", lmdb_path);
+        use_lmdb = mtev_false;
       }
       else {
         /* This means the directory was there, but we just couldn't open it - something has gone wrong,
@@ -1058,6 +1059,9 @@ noit_poller_init() {
         mtevFatal(mtev_error, "noit_check: couldn't open directory for lmdb instance - %s\n", strerror(errno));
       }
       free(lmdb_path);
+    }
+    else {
+      use_lmdb = mtev_false;
     }
   }
 
