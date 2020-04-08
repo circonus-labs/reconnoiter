@@ -1033,25 +1033,37 @@ noit_poller_init() {
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@priority_scheduling", &priority_scheduling);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@perpetual_metrics", &perpetual_metrics);
 
-  mtev_boolean use_lmdb = mtev_false;
+  /* lmdb_path dictates where an LMDB backing store for checks would live.
+   * use_lmdb defaults to the existence of an lmdb_path...
+   *   explicit true will use one, creating if needed
+   *   explicit false will not use it, if even if it exists
+   *   otherwise, it will use it only if it already exists
+   */
+  char *lmdb_path = NULL;
+  bool lmdb_path_exists = false;
+  (void)mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@lmdb_path", &lmdb_path);
+  if(lmdb_path) {
+    struct stat sb;
+    int rv = -1;
+    while((rv = stat(lmdb_path, &sb)) == -1 && errno == EINTR);
+    if(rv == 0 && (S_IFDIR == (sb.st_mode & S_IFMT))) {
+      lmdb_path_exists = true;
+    }
+  }
+  mtev_boolean use_lmdb = (lmdb_path && lmdb_path_exists);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@use_lmdb", &use_lmdb);
 
-  mtev_boolean convert_xml_to_lmdb = mtev_false;
-  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//checks/@convert_xml_to_lmdb", &convert_xml_to_lmdb);
   if (use_lmdb == mtev_true) {
-    char *lmdb_path = NULL;
-    if (!mtev_conf_get_string(MTEV_CONF_ROOT, "//checks/@lmdb_path", &lmdb_path)) {
+    if (lmdb_path == NULL) {
       mtevFatal(mtev_error, "noit_check: use_lmdb specified, but no path provided\n");
     }
     lmdb_instance = noit_lmdb_tools_open_instance(lmdb_path);
     if (!lmdb_instance) {
       mtevFatal(mtev_error, "noit_check: couldn't create lmdb instance - %s\n", strerror(errno));
     }
-    free(lmdb_path);
-    if (convert_xml_to_lmdb == mtev_true) {
-      noit_check_lmdb_migrate_xml_checks_to_lmdb();
-    }
+    noit_check_lmdb_migrate_xml_checks_to_lmdb();
   }
+  free(lmdb_path);
 
   noit_check_resolver_init();
   noit_check_tools_init();
