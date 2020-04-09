@@ -278,7 +278,7 @@
           <rule type="deny" module="^http$" metric="^cert_(?:start|end)$" />
           <rule type="allow"/> <!-- matches anything -->
         </filterset>
-        <filterset name="default">
+        <filterset name="score">
           <rule type="deny" metric="^\d"/>
           <rule type="allow" metric="_"/>
           <!-- if we fall off the end here, we have a default deny rule -->
