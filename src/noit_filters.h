@@ -43,6 +43,9 @@
 API_EXPORT(void)
   noit_filters_init();
 
+API_EXPORT(noit_lmdb_instance_t *)
+  noit_filters_get_lmdb_instance();
+
 API_EXPORT(void)
   noit_refresh_filtersets();
 

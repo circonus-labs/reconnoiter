@@ -49,6 +49,7 @@
 #include "noit_check.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
+#include "noit_filters_lmdb.h"
 #include "noit_clustering.h"
 #include "noit_metric.h"
 #include "noit_metric_tag_search.h"
@@ -66,6 +67,7 @@ static pcre *fallback_no_match = NULL;
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
 #define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 static char* filtersets_replication_path = NULL;
+static noit_lmdb_instance_t *lmdb_instance = NULL;
 static bool initialized = false;
 
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
@@ -142,6 +144,9 @@ filterrule_free(void *vp) {
   free(r->ruleid);
   free(r->skipto);
   free(r);
+}
+noit_lmdb_instance_t *noit_filters_get_lmdb_instance() {
+  return lmdb_instance;
 }
 static void
 filterset_free(void *vp) {
@@ -1128,6 +1133,38 @@ noit_filters_init() {
 
   nf_error = mtev_log_stream_find("error/noit/filters");
   nf_debug = mtev_log_stream_find("debug/noit/filters");
+
+  /* lmdb_path dictates where an LMDB backing store for checks would live.
+   * use_lmdb defaults to the existence of an lmdb_path...
+   *   explicit true will use one, creating if needed
+   *   explicit false will not use it, if even if it exists
+   *   otherwise, it will use it only if it already exists
+   */
+  char *lmdb_path = NULL;
+  bool lmdb_path_exists = false;
+  (void)mtev_conf_get_string(MTEV_CONF_ROOT, "//filtersets/@lmdb_path", &lmdb_path);
+  if(lmdb_path) {
+    struct stat sb;
+    int rv = -1;
+    while((rv = stat(lmdb_path, &sb)) == -1 && errno == EINTR);
+    if(rv == 0 && (S_IFDIR == (sb.st_mode & S_IFMT))) {
+      lmdb_path_exists = true;
+    }
+  }
+  mtev_boolean use_lmdb = (lmdb_path && lmdb_path_exists);
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//filtersets/@use_lmdb", &use_lmdb);
+
+  if (use_lmdb == mtev_true) {
+    if (lmdb_path == NULL) {
+      mtevFatal(mtev_error, "noit_filters: use_lmdb specified, but no path provided\n");
+    }
+    lmdb_instance = noit_lmdb_tools_open_instance(lmdb_path);
+    if (!lmdb_instance) {
+      mtevFatal(mtev_error, "noit_filters: couldn't create lmdb instance - %s\n", strerror(errno));
+    }
+    noit_filters_lmdb_migrate_xml_filtersets_to_lmdb();
+  }
+  free(lmdb_path);
 
   pthread_mutex_init(&filterset_lock, NULL);
   fallback_no_match = pcre_compile("^(?=a)b", 0, &error, &erroffset, NULL);

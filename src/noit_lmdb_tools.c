@@ -203,6 +203,61 @@ void noit_lmdb_free_check_data(noit_lmdb_check_data_t *data) {
   }
 }
 
+//PHIL STUFF GOES HERE
+inline char *
+noit_lmdb_make_filterset_key(char *name, size_t *size_out)
+{
+  char *toRet = NULL, *current_location = NULL;
+  unsigned short name_len = 0;
+  unsigned short name_len_network_byte_order = 0;
+
+  mtevAssert(name);
+  mtevAssert(size_out);
+  *size_out = 0;
+
+  name_len = strlen(name);
+  name_len_network_byte_order = htons(name_len);
+
+  size_t size = sizeof(unsigned short) + name_len;
+  toRet = current_location = (char *)calloc(1, size);
+  mtevAssert(toRet);
+
+  memcpy(current_location, &name_len_network_byte_order, sizeof(unsigned short));
+  current_location += sizeof(unsigned short);
+
+  memcpy(current_location, name, name_len);
+  current_location += name_len;
+
+  return toRet;
+}
+
+noit_lmdb_filterset_rule_data_t *
+noit_lmdb_filterset_data_from_key(char *key) {
+  noit_lmdb_filterset_rule_data_t *toRet = NULL;
+  size_t current_location = 0;
+  if (!key) {
+    return toRet;
+  }
+  toRet = (noit_lmdb_filterset_rule_data_t *)calloc(1, sizeof(noit_lmdb_filterset_rule_data_t));
+  memcpy(&toRet->filterset_name_len, key + current_location, sizeof(unsigned short));
+  toRet->filterset_name_len = ntohs(toRet->filterset_name_len);
+  current_location += sizeof(unsigned short);
+  if (toRet->filterset_name_len) {
+    toRet->filterset_name = (char *)calloc(1, toRet->filterset_name_len + 1);
+    memcpy(toRet->filterset_name, key + current_location, toRet->filterset_name_len);
+    current_location += toRet->filterset_name_len;
+  }
+  return toRet;
+}
+
+void
+noit_lmdb_free_filterset_data(noit_lmdb_filterset_rule_data_t *data) {
+  if (data) {
+    free(data->filterset_name);
+    free(data);
+  }
+}
+
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
 {
   int rc;
