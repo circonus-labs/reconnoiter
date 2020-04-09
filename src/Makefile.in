@@ -105,7 +105,15 @@ FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
 	flatbuffers/metric_list_json_parser.h \
 	flatbuffers/metric_list_json_printer.h \
 	flatbuffers/metric_list_reader.h \
-	flatbuffers/metric_list_verifier.h
+	flatbuffers/metric_list_verifier.h \
+	flatbuffers/filterset_rule_json_parser.h \
+	flatbuffers/filterset_rule_json_printer.h \
+	flatbuffers/filterset_rule_reader.h \
+	flatbuffers/filterset_rule_verifier.h \
+	flatbuffers/filterset_json_parser.h \
+	flatbuffers/filterset_json_printer.h \
+	flatbuffers/filterset_reader.h \
+	flatbuffers/filterset_verifier.h
 
 HEADERS=noit_metric.h noit_fb.h noit_check_log_helpers.h noit_check_tools_shared.h \
         noit_metric_tag_search.h noit_lmdb_tools.h \

@@ -1,0 +1,7 @@
+namespace circonus;
+
+table FiltersetRule {
+}
+
+root_type FiltersetRule;
+file_identifier "CIMM";
