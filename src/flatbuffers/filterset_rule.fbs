@@ -1,16 +1,26 @@
 namespace circonus;
 
+table AutoAddValue {
+  type: string (id: 0);
+  max: long (id: 1);
+}
+
+table FilterValue {
+  type: string (id: 0);
+  value: string (id: 1);
+}
+
 table AcceptValue {
-  placeholder: string (id: 0);
+  values: [FilterValue] (id: 0);
 }
 table AllowValue {
-  placeholder: string (id: 0);
+  values: [FilterValue] (id: 0);
 }
 table DenyValue {
-  placeholder: string (id: 0);
+  values: [FilterValue] (id: 0);
 }
 table SkiptoValue {
-  placeholder: string (id: 0);
+  values: [FilterValue] (id: 0);
 }
 
 union FiltersetRuleValueUnion {
@@ -24,6 +34,7 @@ table FiltersetRule {
   id: string (id: 0);
   filterset_flush_period: long (id: 1);
   value: FiltersetRuleValueUnion (id: 3);
+  auto_add: [AutoAddValue] (id: 4);
 }
 
 root_type FiltersetRule;
