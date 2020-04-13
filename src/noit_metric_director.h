@@ -36,6 +36,8 @@
 #include <mtev_uuid.h>
 #include "noit_message_decoder.h"
 
+typedef unsigned short caql_cnt_t;
+
 /**
  * Funnel metrics to certain threads for processing.
  * 
@@ -58,12 +60,12 @@ void noit_metric_director_dedupe(mtev_boolean dedupe);
 
 /* Tells noit to funnel all observed lines matching this id-metric
  * back to this thread */
-void noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
+caql_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
 
 /* Tells noit that this thread is interested in recieving "check" information.
  * This includes C records and S records.
  */
-void noit_adjust_checks_interest(short cnt);
+caql_cnt_t noit_adjust_checks_interest(short cnt);
 
 /* This gets the next line you've subscribed to, if avaialable. */
 noit_metric_message_t *noit_metric_director_lane_next();

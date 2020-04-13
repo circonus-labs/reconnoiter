@@ -81,7 +81,6 @@ static int nthreads;
 static volatile void **thread_queues;
 static mtev_hash_table id_level;
 static mtev_hash_table dedupe_hashes;
-typedef unsigned short caql_cnt_t;
 static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
 static uint32_t director_in_use = 0;
@@ -133,7 +132,7 @@ noit_metric_director_my_lane() {
   return get_my_lane();
 }
 
-void
+caql_cnt_t
 noit_adjust_checks_interest(short cnt) {
   int thread_id, icnt;
 
@@ -144,9 +143,10 @@ noit_adjust_checks_interest(short cnt) {
   if(icnt < 0) icnt = 0;
   mtevAssert(icnt <= 0xffff);
   check_interests[thread_id] = icnt;
+  return icnt;
 }
 
-void
+caql_cnt_t
 noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
   int thread_id, icnt;
   void *vhash, *vinterests;
@@ -190,6 +190,7 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
   if(icnt < 0) icnt = 0;
   mtevAssert(icnt <= 0xffff);
   interests[thread_id] = icnt;
+  return icnt;
 }
 
 static void

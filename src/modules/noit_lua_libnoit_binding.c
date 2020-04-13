@@ -59,12 +59,15 @@ noit_lua_tagset_copy_setup(lua_State *, noit_lua_tagset_t *);
 
 static int
 lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
+  const char* uuid = luaL_checkstring(L, 1);
+  const char* metric_name = luaL_checkstring(L, 2);
   uuid_t id;
-  if(mtev_uuid_parse(lua_tostring(L,1), id)) {
-    luaL_error(L, "(un)subscribe expects a uuid as the first parameter");
+  if(mtev_uuid_parse(uuid, id)) {
+    return luaL_error(L, "(un)subscribe expects a uuid as the first parameter");
   }
-  noit_adjust_metric_interest(id, lua_tostring(L,2), bump);
-  return 0;
+  caql_cnt_t cnt = noit_adjust_metric_interest(id, metric_name, bump);
+  lua_pushnumber(L, cnt);
+  return 1;
 }
 
 static int
@@ -79,8 +82,9 @@ lua_noit_metric_unsubscribe(lua_State *L) {
 
 static int
 lua_noit_checks_adjustsubscribe(lua_State *L, short bump) {
-  noit_adjust_checks_interest(bump);
-  return 0;
+  caql_cnt_t cnt = noit_adjust_checks_interest(bump);
+  lua_pushnumber(L, cnt);
+  return 1;
 }
 
 static int
