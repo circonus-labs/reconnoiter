@@ -28,9 +28,41 @@
  */
 
 #include "noit_filters_lmdb.h"
+#include "noit_filters.h"
+#include "noit_lmdb_tools.h"
+#include <mtev_conf.h>
+#include <mtev_watchdog.h>
 
+
+static void
+noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t section) {
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+  mtevAssert(instance != NULL);
+
+  /* We want to heartbeat here... otherwise, if a lot of checks are 
+   * configured or if we're running on a slower system, we could 
+   * end up getting watchdog killed before we get a chance to run 
+   * any checks */
+  mtev_watchdog_child_heartbeat();
+
+  /* TODO: Finish this */
+}
 
 void
 noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
-  /* TODO */
+  int cnt, i;
+  const char *xpath = "/noit/filtersets//filterset";
+  mtev_conf_section_t *sec = mtev_conf_get_sections_write(MTEV_CONF_ROOT, xpath, &cnt);
+  if (cnt) {
+    mtevL(mtev_error, "converting %d xml filtersets to lmdb\n", cnt);
+  }
+  for(i=0; i<cnt; i++) {
+    noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(sec[i]);
+    /* TODO: Remove filtersets once converted
+    CONF_REMOVE(sec[i]);
+    xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+    xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+    */
+  }
+  mtev_conf_release_sections_write(sec, cnt);
 }

@@ -40,6 +40,9 @@
 #include <mtev_conf.h>
 #include "noit_check.h"
 
+/* TODO: Remove this before merging */
+#define ENABLE_LMDB_FILTERSETS 0
+
 API_EXPORT(void)
   noit_filters_init();
 

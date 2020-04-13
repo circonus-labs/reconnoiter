@@ -1154,7 +1154,7 @@ noit_filters_init() {
   mtev_boolean use_lmdb = (lmdb_path && lmdb_path_exists);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//filtersets/@use_lmdb", &use_lmdb);
 
-  if (use_lmdb == mtev_true) {
+  if (ENABLE_LMDB_FILTERSETS && (use_lmdb == mtev_true)) {
     if (lmdb_path == NULL) {
       mtevFatal(mtev_error, "noit_filters: use_lmdb specified, but no path provided\n");
     }
