@@ -33,10 +33,34 @@
 #include <mtev_conf.h>
 #include <mtev_watchdog.h>
 
+typedef struct noit_filter_lmdb_rule_filterset {
+} noit_filter_lmdb_filterset_rule_t;
 
 static void
-noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t section) {
+noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
+  if (rule) {
+    free(rule);
+  }
+}
+
+static void
+noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
+                                         int64_t *sequence,
+                                         mtev_boolean *cull,
+                                         noit_filter_lmdb_filterset_rule_t **rules,
+                                         int64_t rule_cnt) {
+}
+
+static int
+noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_section) {
+  int i = 0;
+  char *filterset_name = NULL;
+  int64_t *sequence = NULL;
+  mtev_boolean *cull = NULL;
+  noit_filter_lmdb_filterset_rule_t **rules = NULL;
+  int64_t rule_cnt = 0;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+  
   mtevAssert(instance != NULL);
 
   /* We want to heartbeat here... otherwise, if a lot of checks are 
@@ -46,6 +70,22 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t section)
   mtev_watchdog_child_heartbeat();
 
   /* TODO: Finish this */
+  if (!mtev_conf_get_string(fs_section, "@name", &filterset_name)) {
+    /* Filterset must have a name */
+    return -1;
+  }
+
+  noit_filters_lmdb_write_flatbuffer_to_db(filterset_name, sequence, cull, rules, rule_cnt);
+
+  free (filterset_name);
+  free(sequence);
+  free(cull);
+  for (i = 0; i < rule_cnt; i++) {
+    noit_filters_lmdb_free_filterset_rule(rules[i]);
+  }
+  free(rules);
+
+  return 0;
 }
 
 void
