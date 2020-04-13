@@ -4,7 +4,8 @@ namespace circonus;
 
 table Filterset {
   name: string (id: 0);
-  rules:[FiltersetRule] (id: 1);
+  seq: long (id: 1);
+  rules:[FiltersetRule] (id: 2);
 }
 
 root_type Filterset;
