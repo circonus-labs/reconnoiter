@@ -43,6 +43,8 @@
 /* TODO: Remove this before merging */
 #define ENABLE_LMDB_FILTERSETS 0
 
+typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
+
 API_EXPORT(void)
   noit_filters_init();
 

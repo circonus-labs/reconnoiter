@@ -70,7 +70,6 @@ static char* filtersets_replication_path = NULL;
 static noit_lmdb_instance_t *lmdb_instance = NULL;
 static bool initialized = false;
 
-typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
 typedef struct _filterrule {
   char *ruleid;
   char *skipto;

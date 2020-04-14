@@ -34,11 +34,26 @@
 #include <mtev_watchdog.h>
 
 typedef struct noit_filter_lmdb_rule_filterset {
+  noit_ruletype_t type;
+  char *skipto;
+  char *ruleid;
+  int32_t filter_flush_period;
+  mtev_boolean filter_flush_period_present;
+  int32_t target_auto_add;
+  mtev_boolean target_auto_add_present;
+  int32_t module_auto_add;
+  mtev_boolean module_auto_add_present;
+  int32_t name_auto_add;
+  mtev_boolean name_auto_add_present;
+  int32_t metric_auto_add;
+  mtev_boolean metric_auto_add_present;
 } noit_filter_lmdb_filterset_rule_t;
 
 static void
 noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
   if (rule) {
+    free(rule->skipto);
+    free(rule->ruleid);
     free(rule);
   }
 }
@@ -49,18 +64,69 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          mtev_boolean *cull,
                                          noit_filter_lmdb_filterset_rule_t **rules,
                                          int64_t rule_cnt) {
+  int i = 0;
   if (!filterset_name) {
     return -1;
+  }
+  for (i = 0; i < rule_cnt; i++) {
+    noit_filter_lmdb_filterset_rule_t *rule = rules[i];
+    if (!rule) {
+      continue;
+    }
   }
   return 0;
 }
 
 static noit_filter_lmdb_filterset_rule_t *
 noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
-  noit_filter_lmdb_filterset_rule_t *toRet =
+#define GET_AUTO_ADD(rtype) do { \
+  if (mtev_conf_get_int32(rule_conf, "@" #rtype "_auto_add", &rule->rtype##_auto_add)) { \
+    if (rule->rtype##_auto_add < 0) { \
+      rule->rtype##_auto_add = 0; \
+    } \
+    else { \
+      rule->rtype##_auto_add_present = mtev_true; \
+    } \
+  } \
+} while(0)
+
+  char buffer[MAX_METRIC_TAGGED_NAME];
+  noit_filter_lmdb_filterset_rule_t *rule =
     (noit_filter_lmdb_filterset_rule_t *)calloc(1, sizeof(noit_filter_lmdb_filterset_rule_t));
 
-  return toRet;
+  if(!mtev_conf_get_stringbuf(rule_conf, "@type", buffer, sizeof(buffer)) ||
+    (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny") &&
+    strncmp(buffer, "skipto:", strlen("skipto:")))) {
+    mtevL(mtev_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
+    free(rule);
+    return NULL;
+  }
+  if(!strncasecmp(buffer, "skipto:", strlen("skipto:"))) {
+    rule->type = NOIT_FILTER_SKIPTO;
+    rule->skipto = strdup(buffer+strlen("skipto:"));
+  }
+  else {
+    rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
+      NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
+  }
+  if(mtev_conf_get_int32(rule_conf, "self::node()/@filter_flush_period", &rule->filter_flush_period)) {
+    if (rule->filter_flush_period < 0) {
+      rule->filter_flush_period = 0;
+    }
+    else {
+      rule->filter_flush_period_present = mtev_true;
+    }
+  }
+  if(mtev_conf_get_stringbuf(rule_conf, "@id", buffer, sizeof(buffer))) {
+    rule->ruleid = strdup(buffer);
+  }
+
+  GET_AUTO_ADD(target);
+  GET_AUTO_ADD(module);
+  GET_AUTO_ADD(name);
+  GET_AUTO_ADD(metric);
+
+  return rule;
 }
 
 static int
