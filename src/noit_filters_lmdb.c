@@ -43,22 +43,36 @@ noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
   }
 }
 
-static void
+static int
 noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          int64_t *sequence,
                                          mtev_boolean *cull,
                                          noit_filter_lmdb_filterset_rule_t **rules,
                                          int64_t rule_cnt) {
+  if (!filterset_name) {
+    return -1;
+  }
+  return 0;
+}
+
+static noit_filter_lmdb_filterset_rule_t *
+noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
+  noit_filter_lmdb_filterset_rule_t *toRet =
+    (noit_filter_lmdb_filterset_rule_t *)calloc(1, sizeof(noit_filter_lmdb_filterset_rule_t));
+
+  return toRet;
 }
 
 static int
 noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_section) {
-  int i = 0;
+  int i = 0, rv = -1;
   char *filterset_name = NULL;
-  int64_t *sequence = NULL;
-  mtev_boolean *cull = NULL;
+  int64_t sequence = 0;
+  mtev_boolean cull = mtev_false;
+  mtev_boolean sequence_present = mtev_false, cull_present = mtev_false;
   noit_filter_lmdb_filterset_rule_t **rules = NULL;
-  int64_t rule_cnt = 0;
+  mtev_conf_section_t *rules_conf;
+  int rule_cnt = 0;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
   
   mtevAssert(instance != NULL);
@@ -74,18 +88,36 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
     /* Filterset must have a name */
     return -1;
   }
+  if (mtev_conf_get_int64(fs_section, "@seq", &sequence)) {
+    sequence_present = mtev_true;
+  }
+  if (mtev_conf_get_boolean(fs_section, "@cull", &cull)) {
+    cull_present = mtev_true;
+  }
 
-  noit_filters_lmdb_write_flatbuffer_to_db(filterset_name, sequence, cull, rules, rule_cnt);
+  rules_conf = mtev_conf_get_sections_read(fs_section, "rule", &rule_cnt);
 
-  free (filterset_name);
-  free(sequence);
-  free(cull);
+  rules = (noit_filter_lmdb_filterset_rule_t **)calloc(rule_cnt, sizeof(noit_filter_lmdb_filterset_rule_t *));
+
+  for (i = 0; i < rule_cnt; i++) {
+    rules[i] = noit_filters_lmdb_one_xml_rule_to_memory(rules_conf[i]);
+  }
+
+  mtev_conf_release_sections_read(rules_conf, rule_cnt);
+
+  rv = noit_filters_lmdb_write_flatbuffer_to_db(filterset_name,
+               (sequence_present) ? &sequence : NULL,
+               (cull_present) ? &cull : NULL,
+               rules,
+               (int64_t)rule_cnt);
+
+  free(filterset_name);
   for (i = 0; i < rule_cnt; i++) {
     noit_filters_lmdb_free_filterset_rule(rules[i]);
   }
   free(rules);
 
-  return 0;
+  return rv;
 }
 
 void
