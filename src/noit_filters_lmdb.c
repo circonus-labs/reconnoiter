@@ -30,6 +30,11 @@
 #include "noit_filters_lmdb.h"
 #include "noit_filters.h"
 #include "noit_lmdb_tools.h"
+#include "noit_fb.h"
+#include "flatbuffers/filterset_builder.h"
+#include "flatbuffers/filterset_verifier.h"
+#include "flatbuffers/filterset_rule_builder.h"
+#include "flatbuffers/filterset_rule_verifier.h"
 #include <mtev_conf.h>
 #include <mtev_watchdog.h>
 
@@ -64,9 +69,21 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          mtev_boolean *cull,
                                          noit_filter_lmdb_filterset_rule_t **rules,
                                          int64_t rule_cnt) {
-  int i = 0;
+  int i = 0, ret = 0;
+  size_t buffer_size;
+  flatcc_builder_t builder;
+  flatcc_builder_t *B = &builder;
   if (!filterset_name) {
     return -1;
+  }
+  flatcc_builder_init(B);
+  ns(Filterset_start_as_root(B));
+  ns(Filterset_name_create_str(B, filterset_name));
+  if (sequence) {
+    ns(Filterset_seq_add)(B, *sequence);
+  }
+  if (cull) {
+    ns(Filterset_cull_add)(B, *cull);
   }
   for (i = 0; i < rule_cnt; i++) {
     noit_filter_lmdb_filterset_rule_t *rule = rules[i];
@@ -74,6 +91,16 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
       continue;
     }
   }
+  ns(Filterset_end_as_root(B));
+  void *buffer = flatcc_builder_finalize_buffer(B, &buffer_size);
+
+  if ((ret = ns(Filterset_verify_as_root(buffer, buffer_size)))) {
+    mtevL(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: could not verify Filterset flatbuffer (name %s, len %zd)\n", filterset_name, buffer_size);
+  }
+  else {
+    mtevL(mtev_debug, "noit_filters_lmdb_write_flatbuffer_to_db: successfully verified Filterset flatbuffer (name %s, len %zd)\n", filterset_name, buffer_size);
+  }
+  flatcc_builder_clear(B);
   return 0;
 }
 
