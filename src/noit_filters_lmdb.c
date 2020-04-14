@@ -85,12 +85,36 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   if (cull) {
     ns(Filterset_cull_add)(B, *cull);
   }
+  ns(Filterset_rules_start(B));
   for (i = 0; i < rule_cnt; i++) {
     noit_filter_lmdb_filterset_rule_t *rule = rules[i];
     if (!rule) {
       continue;
     }
+    ns(Filterset_rules_push_start(B));
+    if (rule->ruleid) {
+      ns(FiltersetRule_id_create_str(B, rule->ruleid));
+    }
+    if (rule->filter_flush_period_present) {
+      ns(FiltersetRule_filterset_flush_period_add(B, rule->filter_flush_period));
+    }
+    switch(rule->type) {
+      case NOIT_FILTER_ACCEPT:
+        /* TODO */
+        break;
+      case NOIT_FILTER_DENY:
+        /* TODO */
+        break;
+      case NOIT_FILTER_SKIPTO:
+        /* TODO */
+        break;
+      default:
+        mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
+        break;
+    }
+    ns(Filterset_rules_push_end(B));
   }
+  ns(Filterset_rules_end(B));
   ns(Filterset_end_as_root(B));
   void *buffer = flatcc_builder_finalize_buffer(B, &buffer_size);
 
