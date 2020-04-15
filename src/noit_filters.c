@@ -52,7 +52,6 @@
 #include "noit_filters_lmdb.h"
 #include "noit_clustering.h"
 #include "noit_metric.h"
-#include "noit_metric_tag_search.h"
 
 #include <pcre.h>
 #include <libxml/tree.h>
@@ -68,55 +67,6 @@ static pcre *fallback_no_match = NULL;
 static char* filtersets_replication_path = NULL;
 static noit_lmdb_instance_t *lmdb_instance = NULL;
 static bool initialized = false;
-
-typedef struct _filterrule {
-  char *ruleid;
-  char *skipto;
-  struct _filterrule *skipto_rule;
-  noit_ruletype_t type;
-  char *target_re;
-  pcre *target_override;
-  pcre *target;
-  pcre_extra *target_e;
-  mtev_hash_table *target_ht;
-  int target_auto_hash_max;
-  char *module_re;
-  pcre *module_override;
-  pcre *module;
-  pcre_extra *module_e;
-  mtev_hash_table *module_ht;
-  int module_auto_hash_max;
-  char *name_re;
-  pcre *name_override;
-  pcre *name;
-  pcre_extra *name_e;
-  mtev_hash_table *name_ht;
-  int name_auto_hash_max;
-  char *metric_re;
-  pcre *metric_override;
-  pcre *metric;
-  pcre_extra *metric_e;
-  mtev_hash_table *metric_ht;
-  int metric_auto_hash_max;
-  char *stream_tags;
-  noit_metric_tag_search_ast_t *stsearch;
-  char *measurement_tags;
-  noit_metric_tag_search_ast_t *mtsearch;
-  struct _filterrule *next;
-  uint32_t executions;
-  uint32_t matches;
-  struct timeval last_flush;
-  struct timeval flush_interval;
-} filterrule_t;
-
-typedef struct {
-  uint32_t ref_cnt;
-  char *name;
-  int64_t seq;
-  filterrule_t *rules;
-  uint32_t executions;
-  uint32_t denies;
-} filterset_t;
 
 #define FRF(r,a) do { \
   free(r->a##_re); \

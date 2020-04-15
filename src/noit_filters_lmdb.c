@@ -348,6 +348,8 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
 
 static int
 noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
+  filterset_t *set = NULL;;
+  int64_t seq = 0;
   /* We need to align the flatbuffer */
   mtev_dyn_buffer_t aligned;
   void *aligned_fb_data = get_aligned_fb(&aligned, fb_data, fb_size);
@@ -357,9 +359,22 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
     mtev_dyn_buffer_destroy(&aligned);
     return -1;
   }
+  set = (filterset_t *)calloc(1, sizeof(filterset_t));
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
   flatbuffers_string_t filterset_name = ns(Filterset_name(filterset));
+  set->name = strdup((char *)filterset_name);
+  if (ns(Filterset_seq_is_present(filterset))) {
+    seq = ns(Filterset_seq(filterset));
+    mtevAssert (seq >= 0);
+  }
+  set->seq = seq;
+  if (ns(Filterset_cull_is_present(filterset))) {
+    /* TODO: Read cull */
+  }
   mtev_dyn_buffer_destroy(&aligned);
+  /* TODO: Handle the set - just free it for now for testing */
+  free(set->name);
+  free(set);
   return 0;
 }
 
