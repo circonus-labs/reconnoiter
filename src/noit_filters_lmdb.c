@@ -54,6 +54,24 @@ typedef struct noit_filter_lmdb_rule_filterset {
   mtev_boolean metric_auto_add_present;
 } noit_filter_lmdb_filterset_rule_t;
 
+
+static void *get_aligned_fb(mtev_dyn_buffer_t *aligned, void *d, uint32_t size)
+{
+  mtev_dyn_buffer_init(aligned);
+  void *fb_data = d;
+  /* If d is unaligned, then align the data within the mtev_dyn_buffer_t aligned. */
+  if((uintptr_t)d & 15) {
+    if(size >= mtev_dyn_buffer_size(aligned)-16) {
+      mtev_dyn_buffer_ensure(aligned, size+16);
+    }
+    size_t oa = (size_t)(uintptr_t)mtev_dyn_buffer_data(aligned) & 15;
+    if(oa) mtev_dyn_buffer_advance(aligned, 16-oa);
+    fb_data = mtev_dyn_buffer_write_pointer(aligned);
+    mtev_dyn_buffer_add(aligned, d, size);
+  }
+  return fb_data;
+}
+
 static void
 noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
   if (rule) {
@@ -327,8 +345,72 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
   return rv;
 }
 
+static int
+noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
+  /* We need to align the flatbuffer */
+  mtev_dyn_buffer_t aligned;
+  void *aligned_fb_data = get_aligned_fb(&aligned, fb_data, fb_size);
+  int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, fb_size));
+  if(fb_ret != 0) {
+    mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
+    mtev_dyn_buffer_destroy(&aligned);
+    return -1;
+  }
+  ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
+  flatbuffers_string_t filterset_name = ns(Filterset_name(filterset));
+  mtev_dyn_buffer_destroy(&aligned);
+  return 0;
+}
+
 void
 noit_filters_lmdb_filters_from_lmdb() {
+  int rc;
+  uint32_t cnt = 0;
+  uint64_t start, end, diff;
+  double per_record;
+
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+  
+  mtevAssert(instance != NULL);
+
+  mdb_key.mv_data = NULL;
+  mdb_key.mv_size = 0;
+  pthread_rwlock_rdlock(&instance->lock);
+
+  mtevL(mtev_error, "begin loading filtersets from db\n");
+  start = mtev_now_us();
+
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    pthread_rwlock_unlock(&instance->lock);
+    mtevL(mtev_error, "failed to create transaction for processing all filtersets: %d (%s)\n", rc, mdb_strerror(rc));
+    return;
+  }
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
+
+  while (rc == 0) {
+    noit_filters_lmdb_load_one_from_db(mdb_data.mv_data, mdb_data.mv_size);
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+    cnt++;
+  }
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+  pthread_rwlock_unlock(&instance->lock);
+  end = mtev_now_us();
+  diff = (end - start) / 1000;
+  if (cnt) {
+    per_record = ((double)(end-start) / (double)cnt) / 1000.0;
+  }
+  else {
+    per_record = 0;
+  }
+
+  mtevL(mtev_error, "finished loading %" PRIu32 " filtersets from db - took %" PRIu64 " ms (average %0.4f ms per filterset)\n",
+    cnt, diff, per_record);
 }
 
 void
