@@ -69,6 +69,15 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          mtev_boolean *cull,
                                          noit_filter_lmdb_filterset_rule_t **rules,
                                          int64_t rule_cnt) {
+#define AUTO_ADD_TO_FB(rtype) do { \
+  if (rule->rtype##_auto_add_present == mtev_true) { \
+    ns(FiltersetRule_auto_add_push_start(B)); \
+    ns(FiltersetAutoAddValue_type_create_str(B, #rtype)); \
+    ns(FiltersetAutoAddValue_max_add(B, rule->rtype##_auto_add)); \
+    ns(FiltersetRule_auto_add_push_end(B)); \
+  } \
+} while (0);
+
   int i = 0, ret = 0;
   size_t buffer_size;
   flatcc_builder_t builder;
@@ -112,6 +121,14 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
         mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
         break;
     }
+
+    ns(FiltersetRule_auto_add_start(B));
+    AUTO_ADD_TO_FB(target);
+    AUTO_ADD_TO_FB(module);
+    AUTO_ADD_TO_FB(name);
+    AUTO_ADD_TO_FB(metric);
+    ns(FiltersetRule_auto_add_end(B));
+
     ns(Filterset_rules_push_end(B));
   }
   ns(Filterset_rules_end(B));
