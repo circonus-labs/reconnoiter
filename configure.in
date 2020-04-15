@@ -479,20 +479,6 @@ else
 	AC_DEFINE(HAVE_NETSNMP, [1], [libnetsnmp])
 fi
 
-# Should we build ssh2 checks?
-SSH2_MODULE="no"
-SAVELIBS="$LIBS"
-AC_CHECK_LIB(ssh2, libssh2_session_init_ex,
-	[
-		BUILD_MODULES="$BUILD_MODULES ssh2.$MODULEEXT"
-		SSH2_MODULE="yes"
-	],
-	[
-		AC_MSG_WARN([No libssh2, skipping ssh2 module])
-	]
-)
-LIBS="$SAVELIBS"
-
 STOMP_DRIVER_MODULE="no"
 AS_IF([test "x$with_module_stomp" != "xno"],
 	[
@@ -722,7 +708,6 @@ AC_MSG_RESULT([
   Postgres module:    $POSTGRES_MODULE
   MySQL module:       $MYSQL_MODULE
   SNMP module:        $SNMP_MODULE
-  SSH2 module:        $SSH2_MODULE
 
   == optional stratcon modules ==
   Postgres ingestor:  $POSTGRES_INGESTOR_MODULE

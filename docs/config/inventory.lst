@@ -53,6 +53,5 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/selfcheck.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/snmp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/snmptrap.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ssh2.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/statsd.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/statsd_tcp.xml"/>
