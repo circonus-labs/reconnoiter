@@ -255,6 +255,10 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
 }
 
 void
+noit_filters_lmdb_filters_from_lmdb() {
+}
+
+void
 noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
   int cnt, i;
   const char *xpath = "/noit/filtersets//filterset";

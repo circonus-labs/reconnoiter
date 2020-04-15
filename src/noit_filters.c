@@ -1173,6 +1173,10 @@ noit_filters_init() {
   }
   mtev_capabilities_add_feature("filterset:hash", NULL);
   register_console_filter_commands();
+
+  if (ENABLE_LMDB_FILTERSETS && (use_lmdb == mtev_true)) {
+    noit_filters_lmdb_filters_from_lmdb();
+  }
   noit_filters_from_conf();
 
   // The replication_prefix attribute instructs noit to put replicated filtersets into a sub-node of

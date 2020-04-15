@@ -37,6 +37,7 @@ typedef enum {
   NOIT_LMDB_FILTERSET_RULE_SKIPTO_TYPE = 'S',
 } noit_lmdb_filterset_rule_type_e;
 
+void noit_filters_lmdb_filters_from_lmdb();
 void noit_filters_lmdb_migrate_xml_filtersets_to_lmdb();
 
 #endif
