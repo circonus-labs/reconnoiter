@@ -463,7 +463,8 @@ handle_metric_buffer(const char *payload, int payload_len,
         stats_add64(stats_msg_seen, 1);
         int rv = noit_message_decoder_parse_line(message, has_noit);
 
-        stats_set_hist_intscale(stats_msg_delay, mtev_now_ms() - message->value.whence_ms, -3, 1);
+        if(message->value.whence_ms) // ignore screwy messages
+          stats_set_hist_intscale(stats_msg_delay, mtev_now_ms() - message->value.whence_ms, -3, 1);
         if(drop_before_threshold_ms && message->value.whence_ms < drop_before_threshold_ms) {
           stats_add64(stats_msg_dropped, 1);
           goto bail;
