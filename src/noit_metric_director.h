@@ -67,8 +67,11 @@ caql_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt)
  */
 caql_cnt_t noit_adjust_checks_interest(short cnt);
 
-/* This gets the next line you've subscribed to, if avaialable. */
+/* This gets the next line you've subscribed to, if available. */
 noit_metric_message_t *noit_metric_director_lane_next();
+/* This gets the next line you've subscribed to and
+ * sets backlog (if not NULL) to the current backlog after a successful fetch. */
+noit_metric_message_t *noit_metric_director_lane_next_backlog(uint32_t *backlog);
 
 void noit_metric_director_message_ref(void *message);
 void noit_metric_director_message_deref(void *message);
