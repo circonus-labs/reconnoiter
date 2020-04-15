@@ -39,5 +39,6 @@ typedef enum {
 
 void noit_filters_lmdb_filters_from_lmdb();
 void noit_filters_lmdb_migrate_xml_filtersets_to_lmdb();
+void noit_filters_lmdb_init();
 
 #endif

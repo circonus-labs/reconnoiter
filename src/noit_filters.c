@@ -65,7 +65,6 @@ static pthread_mutex_t filterset_lock;
 static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
-#define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 static char* filtersets_replication_path = NULL;
 static noit_lmdb_instance_t *lmdb_instance = NULL;
 static bool initialized = false;
@@ -1154,6 +1153,7 @@ noit_filters_init() {
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//filtersets/@use_lmdb", &use_lmdb);
 
   if (ENABLE_LMDB_FILTERSETS && (use_lmdb == mtev_true)) {
+    noit_filters_lmdb_init();
     if (lmdb_path == NULL) {
       mtevFatal(mtev_error, "noit_filters: use_lmdb specified, but no path provided\n");
     }

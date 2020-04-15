@@ -38,6 +38,8 @@
 #include <mtev_conf.h>
 #include <mtev_watchdog.h>
 
+static int32_t global_default_filter_flush_period_ms = DEFAULT_FILTER_FLUSH_PERIOD_MS;
+
 typedef struct noit_filter_lmdb_rule_filterset {
   noit_ruletype_t type;
   char *skipto;
@@ -53,7 +55,6 @@ typedef struct noit_filter_lmdb_rule_filterset {
   int32_t metric_auto_add;
   mtev_boolean metric_auto_add_present;
 } noit_filter_lmdb_filterset_rule_t;
-
 
 static void *get_aligned_fb(mtev_dyn_buffer_t *aligned, void *d, uint32_t size)
 {
@@ -430,4 +431,18 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
     */
   }
   mtev_conf_release_sections_write(sec, cnt);
+}
+
+void
+noit_filters_lmdb_init() {
+  const char *xpath = "/noit/filtersets";
+  mtev_conf_section_t sec = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
+  if(!mtev_conf_section_is_empty(sec)) {
+    if (mtev_conf_get_int32(sec, "ancestor-or-self::node()/@filter_flush_period", &global_default_filter_flush_period_ms)) {
+      if (global_default_filter_flush_period_ms < 0) {
+        global_default_filter_flush_period_ms = DEFAULT_FILTER_FLUSH_PERIOD_MS;
+      }
+    }
+  }
+  mtev_conf_release_section_read(sec);
 }
