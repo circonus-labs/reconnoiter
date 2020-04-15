@@ -371,10 +371,12 @@ noit_lua_setup_message(lua_State *L,
 static int
 lua_noit_metric_next(lua_State *L) {
   noit_metric_message_t *msg;
-  msg = noit_metric_director_lane_next();
+  uint32_t backlog = 0;
+  msg = noit_metric_director_lane_next_backlog(&backlog);
   if(msg) {
     noit_lua_setup_message(L, msg);
-    return 1;
+    lua_pushinteger(L, backlog);
+    return 2;
   }
   return 0;
 }

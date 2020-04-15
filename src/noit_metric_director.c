@@ -74,11 +74,13 @@ struct hash_and_time {
 
 static __thread struct {
   int id;
+  uint32_t *backlog;
   ck_fifo_spsc_t *fifo;
 } my_lane;
 
 static int nthreads;
 static volatile void **thread_queues;
+static uint32_t *thread_queues_backlog;
 static mtev_hash_table id_level;
 static mtev_hash_table dedupe_hashes;
 typedef unsigned short caql_cnt_t;
@@ -123,6 +125,7 @@ get_my_lane() {
     }
     mtevAssert(new_thread<nthreads);
     my_lane.id = new_thread;
+    my_lane.backlog = &thread_queues_backlog[new_thread];
     mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)(uintptr_t)pthread_self(), my_lane.id);
   }
   return my_lane.id;
@@ -202,6 +205,7 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       stats_add64(stats_msg_queued, 1);
       ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
       ck_fifo_spsc_entry_t *fifo_entry;
+      ck_pr_inc_32(&thread_queues_backlog[i]);
       ck_fifo_spsc_enqueue_lock(fifo);
       fifo_entry = ck_fifo_spsc_recycle(fifo);
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
@@ -236,6 +240,7 @@ noit_metric_director_flush(eventer_t e) {
     if(fifo != NULL) {
       ck_pr_inc_32(&ptr->refcnt);
       ck_fifo_spsc_entry_t *fifo_entry;
+      ck_pr_inc_32(&thread_queues_backlog[i]);
       ck_fifo_spsc_enqueue_lock(fifo);
       fifo_entry = ck_fifo_spsc_recycle(fifo);
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
@@ -389,7 +394,7 @@ distribute_message(noit_metric_message_t *message) {
   }
 }
 
-noit_metric_message_t *noit_metric_director_lane_next() {
+noit_metric_message_t *noit_metric_director_lane_next_backlog(uint32_t *backlog) {
   noit_metric_message_t *msg = NULL;
   if(my_lane.fifo == NULL)
     return NULL;
@@ -399,6 +404,7 @@ noit_metric_message_t *noit_metric_director_lane_next() {
     msg = NULL;
   }
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
+  ck_pr_dec_32(my_lane.backlog);
   if((uintptr_t)msg & FLUSHFLAG) {
     dmflush_observe(DMFLUSH_UNFLAG((dmflush_t *)msg));
     goto again;
@@ -406,8 +412,14 @@ noit_metric_message_t *noit_metric_director_lane_next() {
   if (msg) {
     stats_add64(stats_msg_delivered, 1);
   }
+  if(backlog) ck_pr_store_32(backlog, ck_pr_load_32(my_lane.backlog));
   return msg;
 }
+
+noit_metric_message_t *noit_metric_director_lane_next() {
+  return noit_metric_director_lane_next_backlog(NULL);
+}
+
 static noit_noit_t *
 get_noit(const char *payload, int payload_len, noit_noit_t *data) {
   const char *cp = payload, *end = payload + payload_len;
@@ -591,6 +603,7 @@ void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
   thread_queues = calloc(sizeof(*thread_queues),nthreads);
+  thread_queues_backlog = calloc(sizeof(*thread_queues_backlog),nthreads);
   check_interests = calloc(sizeof(*check_interests),nthreads);
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
