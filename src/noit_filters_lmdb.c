@@ -64,6 +64,69 @@ noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
 }
 
 static int
+noit_filters_lmdb_write_finalized_fb_to_lmdb(char *filterset_name, void *buffer, size_t buffer_size) {
+  int rc;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  size_t key_size;
+  char *key = NULL;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+  
+  mtevAssert(instance != NULL);
+
+  do { 
+    key  = noit_lmdb_make_filterset_key(filterset_name, &key_size);
+    mtevAssert(key);
+
+    mdb_key.mv_data = key;
+    mdb_key.mv_size = key_size;
+    mdb_data.mv_data = buffer;
+    mdb_data.mv_size = buffer_size;
+
+    pthread_rwlock_rdlock(&instance->lock);
+
+    rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+    if (rc != 0) {
+      pthread_rwlock_unlock(&instance->lock);
+      return rc;
+    }
+    mdb_cursor_open(txn, instance->dbi, &cursor);
+    rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0);
+    if (rc) {
+      mdb_cursor_close(cursor);
+      mdb_txn_abort(txn);
+      free(key);
+      pthread_rwlock_unlock(&instance->lock);
+      if (rc == MDB_MAP_FULL) {
+        noit_lmdb_resize_instance(instance);
+        continue;
+      }
+      else {
+        return rc;
+      }
+    }
+    mdb_cursor_close(cursor);
+    rc = mdb_txn_commit(txn);
+    if (rc) {
+      free(key);
+      pthread_rwlock_unlock(&instance->lock);
+      if (rc == MDB_MAP_FULL) {
+        noit_lmdb_resize_instance(instance);
+        continue;
+      }
+      else {
+        return rc;
+      }
+    }
+    pthread_rwlock_unlock(&instance->lock);
+    free(key);
+  } while(0);
+
+  return 0;
+}
+
+static int
 noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          int64_t *sequence,
                                          mtev_boolean *cull,
@@ -134,14 +197,24 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   ns(Filterset_rules_end(B));
   ns(Filterset_end_as_root(B));
   void *buffer = flatcc_builder_finalize_buffer(B, &buffer_size);
+  flatcc_builder_clear(B);
 
   if ((ret = ns(Filterset_verify_as_root(buffer, buffer_size)))) {
     mtevL(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: could not verify Filterset flatbuffer (name %s, len %zd)\n", filterset_name, buffer_size);
+    return ret;
   }
   else {
     mtevL(mtev_debug, "noit_filters_lmdb_write_flatbuffer_to_db: successfully verified Filterset flatbuffer (name %s, len %zd)\n", filterset_name, buffer_size);
   }
-  flatcc_builder_clear(B);
+  ret = noit_filters_lmdb_write_finalized_fb_to_lmdb(filterset_name, buffer, buffer_size);
+  free(buffer);
+  if (ret) {
+    mtevL(mtev_error, "failed to write filterset %s to the database: %d (%s)\n", filterset_name, ret, mdb_strerror(ret));
+    return ret;
+  }
+  else {
+    mtevL(mtev_debug, "successfully wrote filterset %s to the database\n", filterset_name);
+  }
   return 0;
 }
 

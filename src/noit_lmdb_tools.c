@@ -203,7 +203,6 @@ void noit_lmdb_free_check_data(noit_lmdb_check_data_t *data) {
   }
 }
 
-//PHIL STUFF GOES HERE
 inline char *
 noit_lmdb_make_filterset_key(char *name, size_t *size_out)
 {
@@ -227,6 +226,13 @@ noit_lmdb_make_filterset_key(char *name, size_t *size_out)
 
   memcpy(current_location, name, name_len);
   current_location += name_len;
+
+  /* Verify that we copied in what we expected to - this is checking for programming
+   * errors */
+  mtevAssert((current_location - size) == toRet);
+  if (size_out) {
+    *size_out = size;
+  }
 
   return toRet;
 }
