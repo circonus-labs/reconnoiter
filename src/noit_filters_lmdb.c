@@ -348,8 +348,10 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
 
 static int
 noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
+  int i = 0, j = 0;
   filterset_t *set = NULL;;
   int64_t seq = 0;
+  size_t num_rules = 0;
   /* We need to align the flatbuffer */
   mtev_dyn_buffer_t aligned;
   void *aligned_fb_data = get_aligned_fb(&aligned, fb_data, fb_size);
@@ -361,8 +363,7 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
   }
   set = (filterset_t *)calloc(1, sizeof(filterset_t));
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
-  flatbuffers_string_t filterset_name = ns(Filterset_name(filterset));
-  set->name = strdup((char *)filterset_name);
+  set->name = strdup(ns(Filterset_name(filterset)));
   if (ns(Filterset_seq_is_present(filterset))) {
     seq = ns(Filterset_seq(filterset));
     mtevAssert (seq >= 0);
@@ -370,6 +371,34 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
   set->seq = seq;
   if (ns(Filterset_cull_is_present(filterset))) {
     /* TODO: Read cull */
+  }
+  ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
+  num_rules = ns(FiltersetRule_vec_len(rule_vec));
+  for (i=num_rules-1; i >= 0; i--) {
+    filterrule_t *rule = NULL;
+    rule = (filterrule_t *)calloc(1, sizeof(filterrule_t));
+    ns(FiltersetRule_table_t) fs_rule = ns(FiltersetRule_vec_at(rule_vec, i));
+    if (ns(FiltersetRule_id_is_present(fs_rule))) {
+      rule->ruleid = strdup(ns(FiltersetRule_id(fs_rule)));
+    }
+    int32_t ffp = global_default_filter_flush_period_ms;
+    if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
+      ffp = ns(FiltersetRule_filterset_flush_period(fs_rule));
+    }
+    if(ffp < 0) {
+      ffp = 0;
+    }
+    rule->flush_interval.tv_sec = ffp/1000;
+    rule->flush_interval.tv_usec = ffp%1000;
+
+    ns(FiltersetAutoAddValue_vec_t) auto_add_vec = ns(FiltersetRule_auto_add(fs_rule));
+    size_t num_auto_add = ns(FiltersetAutoAddValue_vec_len(auto_add_vec));
+    for (j = 0; j < num_auto_add; j++) {
+      ns(FiltersetAutoAddValue_table_t) auto_add_table = ns(FiltersetAutoAddValue_vec_at(auto_add_vec, j));
+      flatbuffers_string_t type = ns(FiltersetAutoAddValue_type(auto_add_table));
+    }
+    rule->next = set->rules;
+    set->rules = rule;
   }
   mtev_dyn_buffer_destroy(&aligned);
   /* TODO: Handle the set - just free it for now for testing */
