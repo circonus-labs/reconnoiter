@@ -33,8 +33,8 @@ union FiltersetRuleValueUnion {
 table FiltersetRule {
   id: string (id: 0);
   filterset_flush_period: long (id: 1);
-  value: FiltersetRuleValueUnion (id: 3);
-  auto_add: [FiltersetAutoAddValue] (id: 4);
+  auto_add: [FiltersetAutoAddValue] (id: 2);
+  value: FiltersetRuleValueUnion (id: 4);
 }
 
 root_type FiltersetRule;

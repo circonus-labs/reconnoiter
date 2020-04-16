@@ -396,6 +396,22 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
     for (j = 0; j < num_auto_add; j++) {
       ns(FiltersetAutoAddValue_table_t) auto_add_table = ns(FiltersetAutoAddValue_vec_at(auto_add_vec, j));
       flatbuffers_string_t type = ns(FiltersetAutoAddValue_type(auto_add_table));
+      int32_t auto_add_max_value = ns(FiltersetAutoAddValue_max(auto_add_table));
+      if (!strcmp(type, "target")) {
+        rule->target_auto_hash_max = auto_add_max_value;
+      }
+      else if (!strcmp(type, "module")) {
+        rule->module_auto_hash_max = auto_add_max_value;
+      }
+      else if (!strcmp(type, "name")) {
+        rule->name_auto_hash_max = auto_add_max_value;
+      }
+      else if (!strcmp(type, "metric")) {
+        rule->metric_auto_hash_max = auto_add_max_value;
+      }
+      else {
+        mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type for auto_add (%s) found in rule, skipping\n", type);
+      }
     }
     rule->next = set->rules;
     set->rules = rule;
