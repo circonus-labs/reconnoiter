@@ -54,6 +54,16 @@ typedef struct noit_filter_lmdb_rule_filterset {
   mtev_boolean name_auto_add_present;
   int32_t metric_auto_add;
   mtev_boolean metric_auto_add_present;
+  mtev_hash_table *target_hash_rules;
+  mtev_hash_table *module_hash_rules;
+  mtev_hash_table *name_hash_rules;
+  mtev_hash_table *metric_hash_rules;
+  char *target_attribute;
+  char *module_attribute;
+  char *name_attribute;
+  char *metric_attribute;
+  char *stream_tags_str;
+  char *measurement_tags_str;
 } noit_filter_lmdb_filterset_rule_t;
 
 static void *get_aligned_fb(mtev_dyn_buffer_t *aligned, void *d, uint32_t size)
@@ -191,13 +201,16 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
     }
     switch(rule->type) {
       case NOIT_FILTER_ACCEPT:
-        /* TODO */
+        ns(FiltersetRule_rule_type_create_str(B, ACCEPT_STRING));
         break;
       case NOIT_FILTER_DENY:
-        /* TODO */
+        ns(FiltersetRule_rule_type_create_str(B, DENY_STRING));
         break;
       case NOIT_FILTER_SKIPTO:
-        /* TODO */
+        ns(FiltersetRule_rule_type_create_str(B, SKIPTO_STRING_NO_COLON));
+        if (rule->skipto) {
+          ns(FiltersetRule_skipto_value_create_str(B, rule->skipto));
+        }
         break;
       default:
         mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
@@ -239,7 +252,7 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
 
 static noit_filter_lmdb_filterset_rule_t *
 noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
-#define GET_AUTO_ADD(rtype) do { \
+#define GET_RULE_AUTO_ADD(rtype) do { \
   if (mtev_conf_get_int32(rule_conf, "@" #rtype "_auto_add", &rule->rtype##_auto_add)) { \
     if (rule->rtype##_auto_add < 0) { \
       rule->rtype##_auto_add = 0; \
@@ -248,25 +261,62 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
       rule->rtype##_auto_add_present = mtev_true; \
     } \
   } \
-} while(0)
+} while(0);
+
+#define GET_RULE_HASH_VALUES(rtype) do { \
+  int hte_cnt, hti, tablesize = 2; \
+  char *htstr = NULL; \
+  mtev_conf_section_t *htentries = mtev_conf_get_sections_read(rule_conf, #rtype, &hte_cnt); \
+  if(hte_cnt) { \
+    rule->rtype##_hash_rules = calloc(1, sizeof(*(rule->rtype##_hash_rules))); \
+    while(tablesize < hte_cnt) { \
+      tablesize <<= 1; \
+    } \
+    mtev_hash_init_size(rule->rtype##_hash_rules, tablesize); \
+    for(hti=0; hti<hte_cnt; hti++) { \
+      if(!mtev_conf_get_string(htentries[hti], "self::node()", &htstr)) { \
+        mtevL(mtev_error, "Error fetching text content from filter match.\n"); \
+      } \
+      else { \
+        mtev_hash_replace(rule->rtype##_hash_rules, htstr, strlen(htstr), NULL, free, NULL); \
+        htstr = NULL; \
+      } \
+    } \
+  } \
+  mtev_conf_release_sections_read(htentries, hte_cnt); \
+} while (0);
+
+#define GET_RULE_ATTRIBUTES(rtype) do { \
+  char *longre = NULL; \
+  if(mtev_conf_get_string(rule_conf, "@" #rtype, &longre)) { \
+    rule->rtype##_attribute = longre; \
+  } \
+} while (0);
+
+#define GET_RULE_TAGS(rtype) do { \
+  char *expr = NULL; \
+  if(mtev_conf_get_string(rule_conf, "@" #rtype, &expr)) { \
+    rule->rtype##_str = expr; \
+  } \
+} while (0);
 
   char buffer[MAX_METRIC_TAGGED_NAME];
   noit_filter_lmdb_filterset_rule_t *rule =
     (noit_filter_lmdb_filterset_rule_t *)calloc(1, sizeof(noit_filter_lmdb_filterset_rule_t));
 
   if(!mtev_conf_get_stringbuf(rule_conf, "@type", buffer, sizeof(buffer)) ||
-    (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny") &&
-    strncmp(buffer, "skipto:", strlen("skipto:")))) {
+    (strcmp(buffer, ACCEPT_STRING) && strcmp(buffer, ALLOW_STRING) && strcmp(buffer, DENY_STRING) &&
+    strncmp(buffer, SKIPTO_STRING, strlen(SKIPTO_STRING)))) {
     mtevL(mtev_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
     free(rule);
     return NULL;
   }
-  if(!strncasecmp(buffer, "skipto:", strlen("skipto:"))) {
+  if(!strncasecmp(buffer, SKIPTO_STRING, strlen(SKIPTO_STRING))) {
     rule->type = NOIT_FILTER_SKIPTO;
-    rule->skipto = strdup(buffer+strlen("skipto:"));
+    rule->skipto = strdup(buffer+strlen(SKIPTO_STRING));
   }
   else {
-    rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
+    rule->type = (!strcmp(buffer, ACCEPT_STRING) || !strcmp(buffer, ALLOW_STRING)) ?
       NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
   }
   if(mtev_conf_get_int32(rule_conf, "self::node()/@filter_flush_period", &rule->filter_flush_period)) {
@@ -281,10 +331,23 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
     rule->ruleid = strdup(buffer);
   }
 
-  GET_AUTO_ADD(target);
-  GET_AUTO_ADD(module);
-  GET_AUTO_ADD(name);
-  GET_AUTO_ADD(metric);
+  GET_RULE_AUTO_ADD(target);
+  GET_RULE_AUTO_ADD(module);
+  GET_RULE_AUTO_ADD(name);
+  GET_RULE_AUTO_ADD(metric);
+
+  GET_RULE_HASH_VALUES(target);
+  GET_RULE_HASH_VALUES(module);
+  GET_RULE_HASH_VALUES(name);
+  GET_RULE_HASH_VALUES(metric);
+
+  GET_RULE_ATTRIBUTES(target);
+  GET_RULE_ATTRIBUTES(module);
+  GET_RULE_ATTRIBUTES(name);
+  GET_RULE_ATTRIBUTES(metric);
+
+  GET_RULE_TAGS(stream_tags);
+  GET_RULE_TAGS(measurement_tags);
 
   return rule;
 }

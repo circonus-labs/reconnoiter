@@ -30,11 +30,17 @@ union FiltersetRuleValueUnion {
   SkiptoValue
 }
 
+table FiltersetRuleInfo {
+}
+
 table FiltersetRule {
   id: string (id: 0);
   filterset_flush_period: long (id: 1);
-  auto_add: [FiltersetAutoAddValue] (id: 2);
-  value: FiltersetRuleValueUnion (id: 4);
+  rule_type: string (id: 2);
+  skipto_value: string(id: 3);
+  info: [FiltersetRuleInfo] (id: 4);
+  auto_add: [FiltersetAutoAddValue] (id: 5);
+  value: FiltersetRuleValueUnion (id: 7);
 }
 
 root_type FiltersetRule;
