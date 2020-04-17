@@ -51,6 +51,11 @@
 #define SKIPTO_STRING "skipto:"
 #define SKIPTO_STRING_NO_COLON "skipto"
 
+#define FILTERSET_TARGET_STRING "target"
+#define FILTERSET_MODULE_STRING "module"
+#define FILTERSET_NAME_STRING "name"
+#define FILTERSET_METRIC_STRING "metric"
+
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
 
 typedef struct _filterrule {

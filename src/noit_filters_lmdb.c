@@ -155,6 +155,51 @@ noit_filters_lmdb_write_finalized_fb_to_lmdb(char *filterset_name, void *buffer,
   return 0;
 }
 
+static void
+noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
+                                          noit_filter_lmdb_filterset_rule_t *rule) {
+#define FILTERSET_RULE_INFO_ADD_HASH(rtype) do { \
+  if ((rule->rtype##_hash_rules) || ((rule->rtype##_auto_add_present) && (rule->rtype##_auto_add > 0))) { \
+  } \
+} while (0);
+
+#define FILTERSET_RULE_INFO_ADD_ATTRIBUTE(rtype) do { \
+  if ((!rule->rtype##_hash_rules) && ((!rule->rtype##_auto_add_present) || (rule->rtype##_auto_add == 0))) { \
+  } \
+} while (0);
+
+  ns(FiltersetRule_info_start(B));
+  if (rule->target_hash_rules || rule->target_attribute) {
+    ns(FiltersetRule_info_push_start(B));
+    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_TARGET_STRING));
+    FILTERSET_RULE_INFO_ADD_HASH(target);
+    FILTERSET_RULE_INFO_ADD_ATTRIBUTE(target);
+    ns(FiltersetRule_info_push_end(B));
+  }
+  if (rule->module_hash_rules || rule->module_attribute) {
+    ns(FiltersetRule_info_push_start(B));
+    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_MODULE_STRING));
+    FILTERSET_RULE_INFO_ADD_HASH(module);
+    FILTERSET_RULE_INFO_ADD_ATTRIBUTE(module);
+    ns(FiltersetRule_info_push_end(B));
+  }
+  if (rule->name_hash_rules || rule->name_attribute) {
+    ns(FiltersetRule_info_push_start(B));
+    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_NAME_STRING));
+    FILTERSET_RULE_INFO_ADD_HASH(name);
+    FILTERSET_RULE_INFO_ADD_ATTRIBUTE(name);
+    ns(FiltersetRule_info_push_end(B));
+  }
+  if (rule->metric_hash_rules || rule->metric_attribute) {
+    ns(FiltersetRule_info_push_start(B));
+    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_METRIC_STRING));
+    FILTERSET_RULE_INFO_ADD_HASH(metric);
+    FILTERSET_RULE_INFO_ADD_ATTRIBUTE(metric);
+    ns(FiltersetRule_info_push_end(B));
+  }
+  ns(FiltersetRule_info_end(B));
+}
+
 static int
 noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          int64_t *sequence,
@@ -216,6 +261,8 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
         mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
         break;
     }
+
+    noit_filters_lmdb_add_filterset_rule_info(B, rule);
 
     ns(FiltersetRule_auto_add_start(B));
     AUTO_ADD_TO_FB(target);

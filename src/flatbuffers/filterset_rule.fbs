@@ -31,6 +31,8 @@ union FiltersetRuleValueUnion {
 }
 
 table FiltersetRuleInfo {
+  type: string (id: 0);
+  auto_add: long (id: 1);
 }
 
 table FiltersetRule {
