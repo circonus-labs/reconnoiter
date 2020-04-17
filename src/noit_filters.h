@@ -45,11 +45,11 @@
 #define ENABLE_LMDB_FILTERSETS 0
 #define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 
-#define ACCEPT_STRING "accept"
-#define ALLOW_STRING "allow"
-#define DENY_STRING "deny"
-#define SKIPTO_STRING "skipto:"
-#define SKIPTO_STRING_NO_COLON "skipto"
+#define FILTERSET_ACCEPT_STRING "accept"
+#define FILTERSET_ALLOW_STRING "allow"
+#define FILTERSET_DENY_STRING "deny"
+#define FILTERSET_SKIPTO_STRING "skipto:"
+#define FILTERSET_SKIPTO_STRING_NO_COLON "skipto"
 
 #define FILTERSET_TARGET_STRING "target"
 #define FILTERSET_MODULE_STRING "module"

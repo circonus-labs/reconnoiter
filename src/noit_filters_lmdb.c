@@ -160,11 +160,18 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
                                           noit_filter_lmdb_filterset_rule_t *rule) {
 #define FILTERSET_RULE_INFO_ADD_HASH(rtype) do { \
   if ((rule->rtype##_hash_rules) || ((rule->rtype##_auto_add_present) && (rule->rtype##_auto_add > 0))) { \
+    ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_start(B)); \
+    if ((rule->rtype##_auto_add_present) && (rule->rtype##_auto_add > 0)) { \
+      ns(FiltersetRuleHashValue_auto_add_max_add(B, rule->rtype##_auto_add)); \
+    } \
+    ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_end(B)); \
   } \
 } while (0);
 
 #define FILTERSET_RULE_INFO_ADD_ATTRIBUTE(rtype) do { \
   if ((!rule->rtype##_hash_rules) && ((!rule->rtype##_auto_add_present) || (rule->rtype##_auto_add == 0))) { \
+    ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_start(B)); \
+    ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_end(B)); \
   } \
 } while (0);
 
@@ -206,15 +213,6 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          mtev_boolean *cull,
                                          noit_filter_lmdb_filterset_rule_t **rules,
                                          int64_t rule_cnt) {
-#define AUTO_ADD_TO_FB(rtype) do { \
-  if (rule->rtype##_auto_add_present == mtev_true) { \
-    ns(FiltersetRule_auto_add_push_start(B)); \
-    ns(FiltersetAutoAddValue_type_create_str(B, #rtype)); \
-    ns(FiltersetAutoAddValue_max_add(B, rule->rtype##_auto_add)); \
-    ns(FiltersetRule_auto_add_push_end(B)); \
-  } \
-} while (0);
-
   int i = 0, ret = 0;
   size_t buffer_size;
   flatcc_builder_t builder;
@@ -246,13 +244,13 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
     }
     switch(rule->type) {
       case NOIT_FILTER_ACCEPT:
-        ns(FiltersetRule_rule_type_create_str(B, ACCEPT_STRING));
+        ns(FiltersetRule_rule_type_create_str(B, FILTERSET_ACCEPT_STRING));
         break;
       case NOIT_FILTER_DENY:
-        ns(FiltersetRule_rule_type_create_str(B, DENY_STRING));
+        ns(FiltersetRule_rule_type_create_str(B, FILTERSET_DENY_STRING));
         break;
       case NOIT_FILTER_SKIPTO:
-        ns(FiltersetRule_rule_type_create_str(B, SKIPTO_STRING_NO_COLON));
+        ns(FiltersetRule_rule_type_create_str(B, FILTERSET_SKIPTO_STRING_NO_COLON));
         if (rule->skipto) {
           ns(FiltersetRule_skipto_value_create_str(B, rule->skipto));
         }
@@ -263,13 +261,6 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
     }
 
     noit_filters_lmdb_add_filterset_rule_info(B, rule);
-
-    ns(FiltersetRule_auto_add_start(B));
-    AUTO_ADD_TO_FB(target);
-    AUTO_ADD_TO_FB(module);
-    AUTO_ADD_TO_FB(name);
-    AUTO_ADD_TO_FB(metric);
-    ns(FiltersetRule_auto_add_end(B));
 
     ns(Filterset_rules_push_end(B));
   }
@@ -352,18 +343,18 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
     (noit_filter_lmdb_filterset_rule_t *)calloc(1, sizeof(noit_filter_lmdb_filterset_rule_t));
 
   if(!mtev_conf_get_stringbuf(rule_conf, "@type", buffer, sizeof(buffer)) ||
-    (strcmp(buffer, ACCEPT_STRING) && strcmp(buffer, ALLOW_STRING) && strcmp(buffer, DENY_STRING) &&
-    strncmp(buffer, SKIPTO_STRING, strlen(SKIPTO_STRING)))) {
+    (strcmp(buffer, FILTERSET_ACCEPT_STRING) && strcmp(buffer, FILTERSET_ALLOW_STRING) && strcmp(buffer, FILTERSET_DENY_STRING) &&
+    strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)))) {
     mtevL(mtev_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
     free(rule);
     return NULL;
   }
-  if(!strncasecmp(buffer, SKIPTO_STRING, strlen(SKIPTO_STRING))) {
+  if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
     rule->type = NOIT_FILTER_SKIPTO;
-    rule->skipto = strdup(buffer+strlen(SKIPTO_STRING));
+    rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
   }
   else {
-    rule->type = (!strcmp(buffer, ACCEPT_STRING) || !strcmp(buffer, ALLOW_STRING)) ?
+    rule->type = (!strcmp(buffer, FILTERSET_ACCEPT_STRING) || !strcmp(buffer, FILTERSET_ALLOW_STRING)) ?
       NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
   }
   if(mtev_conf_get_int32(rule_conf, "self::node()/@filter_flush_period", &rule->filter_flush_period)) {
@@ -505,6 +496,55 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
     rule->flush_interval.tv_sec = ffp/1000;
     rule->flush_interval.tv_usec = ffp%1000;
 
+    flatbuffers_string_t rule_type = ns(FiltersetRule_rule_type(fs_rule));
+
+    if (!strcmp(rule_type, FILTERSET_ACCEPT_STRING)) {
+      rule->type = NOIT_FILTER_ACCEPT;
+    }
+    else if (!strcmp(rule_type, FILTERSET_DENY_STRING)) {
+      rule->type = NOIT_FILTER_DENY;
+    }
+    else if (!strcmp(rule_type, FILTERSET_SKIPTO_STRING_NO_COLON)) {
+      flatbuffers_string_t skipto = NULL;
+      rule->type = NOIT_FILTER_SKIPTO;
+      if (ns(FiltersetRule_skipto_value_is_present(fs_rule))) {
+        skipto = ns(FiltersetRule_skipto_value(fs_rule));
+        if (skipto) {
+          rule->skipto = strdup(skipto);
+        }
+      }
+      else {
+        mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: skipto type with no value\n");
+      }
+    }
+    else {
+      mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type - %s\n", rule_type);
+    }
+
+    ns(FiltersetRuleInfo_vec_t)rule_info_vec = ns(FiltersetRule_info(fs_rule));
+    size_t num_run_info = ns(FiltersetRuleInfo_vec_len(rule_info_vec));
+    circonus_FiltersetRuleHashValue_table_t v;
+    for (j = 0; j < num_run_info; j++) {
+      ns(FiltersetRuleInfo_table_t)rule_info_table = ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
+      flatbuffers_string_t info_type = ns(FiltersetRuleInfo_type(rule_info_table));
+      switch(ns(FiltersetRuleInfo_data_type(rule_info_table))) {
+        case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
+        {
+          ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table));
+          break;
+        }
+        case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
+        {
+          ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table));
+          break;
+        }
+        default:
+          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: got unexpected FiltersetRuleValueUnion type\n");
+          break;
+      }
+    }
+
+#if 0
     ns(FiltersetAutoAddValue_vec_t) auto_add_vec = ns(FiltersetRule_auto_add(fs_rule));
     size_t num_auto_add = ns(FiltersetAutoAddValue_vec_len(auto_add_vec));
     for (j = 0; j < num_auto_add; j++) {
@@ -558,6 +598,7 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
         mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type for auto_add (%s) found in rule, skipping\n", type);
       }
     }
+#endif
     rule->next = set->rules;
     set->rules = rule;
   }

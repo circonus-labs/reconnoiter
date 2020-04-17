@@ -142,19 +142,19 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     filterrule_t *rule;
     char buffer[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
-       (strcmp(buffer, ACCEPT_STRING) && strcmp(buffer, ALLOW_STRING) && strcmp(buffer, DENY_STRING) &&
-        strncmp(buffer, SKIPTO_STRING, strlen(SKIPTO_STRING)))) {
+       (strcmp(buffer, FILTERSET_ACCEPT_STRING) && strcmp(buffer, FILTERSET_ALLOW_STRING) && strcmp(buffer, FILTERSET_DENY_STRING) &&
+        strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)))) {
       mtevL(nf_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
       continue;
     }
     mtevL(nf_debug, "Prepending %s into %s\n", buffer, set->name);
     rule = calloc(1, sizeof(*rule));
-    if(!strncasecmp(buffer, SKIPTO_STRING, strlen(SKIPTO_STRING))) {
+    if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
       rule->type = NOIT_FILTER_SKIPTO;
-      rule->skipto = strdup(buffer+strlen(SKIPTO_STRING));
+      rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
     }
     else {
-      rule->type = (!strcmp(buffer, ACCEPT_STRING) || !strcmp(buffer, ALLOW_STRING)) ?
+      rule->type = (!strcmp(buffer, FILTERSET_ACCEPT_STRING) || !strcmp(buffer, FILTERSET_ALLOW_STRING)) ?
                      NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
     }
     int32_t ffp = DEFAULT_FILTER_FLUSH_PERIOD_MS;
@@ -958,7 +958,7 @@ noit_console_filter_show_running(mtev_console_closure_t ncct,
         nc_printf(ncct, "[%d:%s] skipto %s", i, r->ruleid ? r->ruleid : "", r->skipto);
       }
       else {
-        nc_printf(ncct, "[%d:%s] %s", i, r->ruleid ? r->ruleid : "", (r->type == NOIT_FILTER_ACCEPT) ? ACCEPT_STRING : DENY_STRING);
+        nc_printf(ncct, "[%d:%s] %s", i, r->ruleid ? r->ruleid : "", (r->type == NOIT_FILTER_ACCEPT) ? FILTERSET_ACCEPT_STRING : FILTERSET_DENY_STRING);
       }
       nc_printf(ncct, " matched: %u/%u\n", ck_pr_load_32(&r->matches), ck_pr_load_32(&r->executions));
 

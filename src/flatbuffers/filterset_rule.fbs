@@ -1,38 +1,20 @@
 namespace circonus;
 
-table FiltersetAutoAddValue {
-  type: string (id: 0);
-  max: long (id: 1);
+table FiltersetRuleHashValue {
+  auto_add_max: long (id: 0);
 }
 
-table FilterValue {
-  type: string (id: 0);
-  value: string (id: 1);
-}
-
-table AcceptValue {
-  values: [FilterValue] (id: 0);
-}
-table AllowValue {
-  values: [FilterValue] (id: 0);
-}
-table DenyValue {
-  values: [FilterValue] (id: 0);
-}
-table SkiptoValue {
-  values: [FilterValue] (id: 0);
+table FiltersetRuleAttributeValue {
 }
 
 union FiltersetRuleValueUnion {
-  AcceptValue,
-  AllowValue,
-  DenyValue,
-  SkiptoValue
+  FiltersetRuleHashValue,
+  FiltersetRuleAttributeValue
 }
 
 table FiltersetRuleInfo {
   type: string (id: 0);
-  auto_add: long (id: 1);
+  data: FiltersetRuleValueUnion (id: 2);
 }
 
 table FiltersetRule {
@@ -41,8 +23,6 @@ table FiltersetRule {
   rule_type: string (id: 2);
   skipto_value: string(id: 3);
   info: [FiltersetRuleInfo] (id: 4);
-  auto_add: [FiltersetAutoAddValue] (id: 5);
-  value: FiltersetRuleValueUnion (id: 7);
 }
 
 root_type FiltersetRule;
