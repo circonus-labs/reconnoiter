@@ -164,14 +164,32 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
     if ((rule->rtype##_auto_add_present) && (rule->rtype##_auto_add > 0)) { \
       ns(FiltersetRuleHashValue_auto_add_max_add(B, rule->rtype##_auto_add)); \
     } \
+    ns(FiltersetRuleHashValue_rules_start(B)); \
+    if (rule->rtype##_hash_rules) { \
+      mtev_hash_iter iter = MTEV_HASH_ITER_ZERO; \
+      const char *k; \
+      int klen; \
+      void *data; \
+      while(mtev_hash_next(rule->rtype##_hash_rules, &iter, &k, &klen, \
+        &data)) { \
+        char *tmp = (char *)calloc(1, klen+1); \
+        memcpy(tmp, k, klen); \
+        ns(FiltersetRuleHashValue_rules_push_create_str(B, tmp)); \
+        free(tmp); \
+      } \
+    } \
+    ns(FiltersetRuleHashValue_rules_end(B)); \
     ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_end(B)); \
   } \
 } while (0);
 
 #define FILTERSET_RULE_INFO_ADD_ATTRIBUTE(rtype) do { \
   if ((!rule->rtype##_hash_rules) && ((!rule->rtype##_auto_add_present) || (rule->rtype##_auto_add == 0))) { \
-    ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_start(B)); \
-    ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_end(B)); \
+    if (rule->rtype##_attribute) { \
+      ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_start(B)); \
+      ns(FiltersetRuleAttributeValue_regex_create_str(B, rule->rtype##_attribute)); \
+      ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_end(B)); \
+    } \
   } \
 } while (0);
 

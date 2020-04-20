@@ -2,9 +2,11 @@ namespace circonus;
 
 table FiltersetRuleHashValue {
   auto_add_max: long (id: 0);
+  rules: [string] (id: 1);
 }
 
 table FiltersetRuleAttributeValue {
+  regex: string (id: 0);
 }
 
 union FiltersetRuleValueUnion {
