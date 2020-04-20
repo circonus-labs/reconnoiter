@@ -559,62 +559,6 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
           break;
       }
     }
-
-#if 0
-    ns(FiltersetAutoAddValue_vec_t) auto_add_vec = ns(FiltersetRule_auto_add(fs_rule));
-    size_t num_auto_add = ns(FiltersetAutoAddValue_vec_len(auto_add_vec));
-    for (j = 0; j < num_auto_add; j++) {
-      ns(FiltersetAutoAddValue_table_t) auto_add_table = ns(FiltersetAutoAddValue_vec_at(auto_add_vec, j));
-      flatbuffers_string_t type = ns(FiltersetAutoAddValue_type(auto_add_table));
-      int32_t auto_add_max_value = ns(FiltersetAutoAddValue_max(auto_add_table));
-      if (auto_add_max_value < 0) {
-        auto_add_max_value = 0;
-      }
-      if (!strcmp(type, "target")) {
-        if (target_auto_add_set) {
-          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: duplicate target auto add found in rule for %s, skipping\n",
-            set->name);
-        }
-        else {
-          rule->target_auto_hash_max = auto_add_max_value;
-          target_auto_add_set = mtev_true;
-        }
-      }
-      else if (!strcmp(type, "module")) {
-        if (module_auto_add_set) {
-          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: duplicate module auto add found in rule for %s, skipping\n",
-            set->name);
-        }
-        else {
-          rule->module_auto_hash_max = auto_add_max_value;
-          module_auto_add_set = mtev_true;
-        }
-      }
-      else if (!strcmp(type, "name")) {
-        if (name_auto_add_set) {
-          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: duplicate name auto add found in rule for %s, skipping\n",
-            set->name);
-        }
-        else {
-          rule->name_auto_hash_max = auto_add_max_value;
-          name_auto_add_set = mtev_true;
-        }
-      }
-      else if (!strcmp(type, "metric")) {
-        if (metric_auto_add_set) {
-          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: duplicate metric auto add found in rule for %s, skipping\n",
-            set->name);
-        }
-        else {
-          rule->metric_auto_hash_max = auto_add_max_value;
-          metric_auto_add_set = mtev_true;
-        }
-      }
-      else {
-        mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type for auto_add (%s) found in rule, skipping\n", type);
-      }
-    }
-#endif
     rule->next = set->rules;
     set->rules = rule;
   }
