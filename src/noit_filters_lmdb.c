@@ -176,28 +176,28 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
 } while (0);
 
   ns(FiltersetRule_info_start(B));
-  if (rule->target_hash_rules || rule->target_attribute) {
+  if (rule->target_hash_rules || rule->target_attribute || (rule->target_auto_add_present && rule->target_auto_add)) {
     ns(FiltersetRule_info_push_start(B));
     ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_TARGET_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(target);
     FILTERSET_RULE_INFO_ADD_ATTRIBUTE(target);
     ns(FiltersetRule_info_push_end(B));
   }
-  if (rule->module_hash_rules || rule->module_attribute) {
+  if (rule->module_hash_rules || rule->module_attribute || (rule->module_auto_add_present && rule->module_auto_add)) {
     ns(FiltersetRule_info_push_start(B));
     ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_MODULE_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(module);
     FILTERSET_RULE_INFO_ADD_ATTRIBUTE(module);
     ns(FiltersetRule_info_push_end(B));
   }
-  if (rule->name_hash_rules || rule->name_attribute) {
+  if (rule->name_hash_rules || rule->name_attribute || (rule->name_auto_add_present && rule->name_auto_add)) {
     ns(FiltersetRule_info_push_start(B));
     ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_NAME_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(name);
     FILTERSET_RULE_INFO_ADD_ATTRIBUTE(name);
     ns(FiltersetRule_info_push_end(B));
   }
-  if (rule->metric_hash_rules || rule->metric_attribute) {
+  if (rule->metric_hash_rules || rule->metric_attribute || (rule->metric_auto_add_present && rule->metric_auto_add)) {
     ns(FiltersetRule_info_push_start(B));
     ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_METRIC_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(metric);
@@ -476,10 +476,6 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
   ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
   num_rules = ns(FiltersetRule_vec_len(rule_vec));
   for (i=num_rules-1; i >= 0; i--) {
-    mtev_boolean target_auto_add_set = mtev_false,
-                 module_auto_add_set = mtev_false,
-                 name_auto_add_set = mtev_false,
-                 metric_auto_add_set = mtev_false;
     filterrule_t *rule = NULL;
     rule = (filterrule_t *)calloc(1, sizeof(filterrule_t));
     ns(FiltersetRule_table_t) fs_rule = ns(FiltersetRule_vec_at(rule_vec, i));
@@ -527,10 +523,30 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
     for (j = 0; j < num_run_info; j++) {
       ns(FiltersetRuleInfo_table_t)rule_info_table = ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
       flatbuffers_string_t info_type = ns(FiltersetRuleInfo_type(rule_info_table));
+      if ((strcmp(info_type, FILTERSET_TARGET_STRING)) && (strcmp(info_type, FILTERSET_MODULE_STRING)) &&
+          (strcmp(info_type, FILTERSET_NAME_STRING)) && (strcmp(info_type, FILTERSET_METRIC_STRING))) {
+        mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type (%s), skipping...\n", info_type);
+        continue;
+      }
       switch(ns(FiltersetRuleInfo_data_type(rule_info_table))) {
         case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
         {
           ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table));
+          if (ns(FiltersetRuleHashValue_auto_add_max_is_present(v))) {
+            int32_t auto_add_max_value = ns(FiltersetRuleHashValue_auto_add_max(v));
+            if (!strcmp(info_type, FILTERSET_TARGET_STRING)) {
+              rule->target_auto_hash_max = auto_add_max_value;
+            }
+            else if (!strcmp(info_type, FILTERSET_MODULE_STRING)) {
+              rule->module_auto_hash_max = auto_add_max_value;
+            }
+            else if (!strcmp(info_type, FILTERSET_NAME_STRING)) {
+              rule->name_auto_hash_max = auto_add_max_value;
+            }
+            else if (!strcmp(info_type, FILTERSET_METRIC_STRING)) {
+              rule->metric_auto_hash_max = auto_add_max_value;
+            }
+          }
           break;
         }
         case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
