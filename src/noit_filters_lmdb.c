@@ -62,8 +62,8 @@ typedef struct noit_filter_lmdb_rule_filterset {
   char *module_attribute;
   char *name_attribute;
   char *metric_attribute;
-  char *stream_tags_str;
-  char *measurement_tags_str;
+  char *stream_tags_tag_str;
+  char *measurement_tags_tag_str;
 } noit_filter_lmdb_filterset_rule_t;
 
 static void *get_aligned_fb(mtev_dyn_buffer_t *aligned, void *d, uint32_t size)
@@ -193,6 +193,15 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
   } \
 } while (0);
 
+#define FILTERSET_RULE_ADD_TAG(rtype) do { \
+  if (rule->rtype##_tag_str) { \
+    ns(FiltersetRule_tags_push_start(B)); \
+    ns(FiltersetRuleTagInfo_type_create_str(B, #rtype)); \
+    ns(FiltersetRuleTagInfo_value_create_str(B, rule->rtype##_tag_str)); \
+    ns(FiltersetRule_tags_push_end(B)); \
+  } \
+} while (0);
+
   ns(FiltersetRule_info_start(B));
   if (rule->target_hash_rules || rule->target_attribute || (rule->target_auto_add_present && rule->target_auto_add)) {
     ns(FiltersetRule_info_push_start(B));
@@ -223,6 +232,10 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
     ns(FiltersetRule_info_push_end(B));
   }
   ns(FiltersetRule_info_end(B));
+  ns(FiltersetRule_tags_start(B));
+  FILTERSET_RULE_ADD_TAG(stream_tags);
+  FILTERSET_RULE_ADD_TAG(measurement_tags);
+  ns(FiltersetRule_tags_end(B));
 }
 
 static int
@@ -352,7 +365,7 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
 #define GET_RULE_TAGS(rtype) do { \
   char *expr = NULL; \
   if(mtev_conf_get_string(rule_conf, "@" #rtype, &expr)) { \
-    rule->rtype##_str = expr; \
+    rule->rtype##_tag_str = expr; \
   } \
 } while (0);
 
