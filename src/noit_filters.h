@@ -42,7 +42,7 @@
 #include "noit_metric_tag_search.h"
 
 /* TODO: Remove this before merging */
-#define ENABLE_LMDB_FILTERSETS 0
+#define ENABLE_LMDB_FILTERSETS 1
 #define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 
 #define FILTERSET_ACCEPT_STRING "accept"

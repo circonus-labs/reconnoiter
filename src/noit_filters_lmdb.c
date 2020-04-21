@@ -39,6 +39,7 @@
 #include <mtev_watchdog.h>
 
 static int32_t global_default_filter_flush_period_ms = DEFAULT_FILTER_FLUSH_PERIOD_MS;
+static pcre *fallback_no_match = NULL;
 
 typedef struct noit_filter_lmdb_rule_filterset {
   noit_ruletype_t type;
@@ -65,6 +66,14 @@ typedef struct noit_filter_lmdb_rule_filterset {
   char *stream_tags_tag_str;
   char *measurement_tags_tag_str;
 } noit_filter_lmdb_filterset_rule_t;
+
+typedef enum {
+  FILTERSET_RULE_UNKNOWN_TYPE = 0,
+  FILTERSET_RULE_TARGET_TYPE,
+  FILTERSET_RULE_MODULE_TYPE,
+  FILTERSET_RULE_NAME_TYPE,
+  FILTERSET_RULE_METRIC_TYPE
+} noit_filter_lmdb_rule_type_e;
 
 static void *get_aligned_fb(mtev_dyn_buffer_t *aligned, void *d, uint32_t size)
 {
@@ -164,7 +173,7 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
     if ((rule->rtype##_auto_add_present) && (rule->rtype##_auto_add > 0)) { \
       ns(FiltersetRuleHashValue_auto_add_max_add(B, rule->rtype##_auto_add)); \
     } \
-    ns(FiltersetRuleHashValue_rules_start(B)); \
+    ns(FiltersetRuleHashValue_values_start(B)); \
     if (rule->rtype##_hash_rules) { \
       mtev_hash_iter iter = MTEV_HASH_ITER_ZERO; \
       const char *k; \
@@ -174,11 +183,11 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
         &data)) { \
         char *tmp = (char *)calloc(1, klen+1); \
         memcpy(tmp, k, klen); \
-        ns(FiltersetRuleHashValue_rules_push_create_str(B, tmp)); \
+        ns(FiltersetRuleHashValue_values_push_create_str(B, tmp)); \
         free(tmp); \
       } \
     } \
-    ns(FiltersetRuleHashValue_rules_end(B)); \
+    ns(FiltersetRuleHashValue_values_end(B)); \
     ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_end(B)); \
   } \
 } while (0);
@@ -480,6 +489,79 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
 
 static int
 noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
+
+#define LMDB_HT_COMPILE(rtype, canon) do { \
+  int32_t auto_max = 0; \
+  int hte_cnt, hti, tablesize = 2; \
+  flatbuffers_string_vec_t values_vec; \
+  ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table)); \
+  if (ns(FiltersetRuleHashValue_auto_add_max_is_present(v))) { \
+    auto_max = ns(FiltersetRuleHashValue_auto_add_max(v)); \
+    if (auto_max < 0) { \
+      auto_max = 0; \
+    } \
+  } \
+  if (ns(FiltersetRuleHashValue_values_is_present(v))) { \
+    values_vec = ns(FiltersetRuleHashValue_values(v)); \
+    hte_cnt = flatbuffers_string_vec_len(values_vec); \
+  } \
+  if (auto_max || hte_cnt) { \
+    rule->rtype##_auto_hash_max = auto_max; \
+    rule->rtype##_ht = calloc(1, sizeof(*(rule->rtype##_ht))); \
+    while(tablesize < hte_cnt) tablesize <<= 1; \
+    mtev_hash_init_size(rule->rtype##_ht, tablesize); \
+    for(hti=0; hti<hte_cnt; hti++) { \
+      flatbuffers_string_t r = flatbuffers_string_vec_at(values_vec, hti); \
+      char *htstr = strdup(r); \
+      if(canon) { \
+        char tgt[MAX_METRIC_TAGGED_NAME]; \
+        if(noit_metric_canonicalize(htstr, strlen(htstr), tgt, sizeof(tgt), mtev_true) > 0) { \
+          free(htstr); \
+          htstr = strdup(tgt); \
+        } \
+      } \
+      mtevL(mtev_debug, "LMDB_HT_COMPILE(%p) -> (%s)\n", rule->rtype##_ht, htstr); \
+      mtev_hash_replace(rule->rtype##_ht, htstr, strlen(htstr), NULL, free, NULL); \
+    } \
+  } \
+} while (0);
+
+#define LMDB_RULE_COMPILE(rtype) do { \
+  char *longre = NULL; \
+  const char *error; \
+  int erroffset; \
+  ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table)); \
+  flatbuffers_string_t r = ns(FiltersetRuleAttributeValue_regex(v)); \
+  longre = strdup(r); \
+  rule->rtype = pcre_compile(longre, 0, &error, &erroffset, NULL); \
+  if(!rule->rtype) { \
+    mtevL(mtev_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
+          set->name, #rtype, longre, error ? error : "???"); \
+    rule->rtype##_override = fallback_no_match; \
+    mtevAssert(asprintf(&rule->rtype##_re, "/%s/ failed to compile", longre)); \
+  } \
+  else { \
+    rule->rtype##_re = strdup(longre); \
+    rule->rtype##_e = pcre_study(rule->rtype, 0, &error); \
+  } \
+  free(longre); \
+} while (0);
+
+#define LMDB_TAGS_COMPILE(rtype, search) do { \
+  char *expr = NULL; \
+  if(mtev_conf_get_string(rules[j], "@" #rtype, &expr)) { \
+    int erroffset; \
+    rule->rtype = strdup(expr); \
+    rule->search = noit_metric_tag_search_parse(rule->rtype, &erroffset); \
+    if(!rule->search) { \
+      mtevL(mtev_error, "set '%s' rule '%s: %s' compile failed at offset %d\n", \
+            set->name, #rtype, expr, erroffset); \
+      rule->metric_override = fallback_no_match; \
+    } \
+    free(expr); \
+  } \
+} while(0)
+
   int i = 0, j = 0;
   filterset_t *set = NULL;;
   int64_t seq = 0;
@@ -554,35 +636,65 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
     for (j = 0; j < num_run_info; j++) {
       ns(FiltersetRuleInfo_table_t)rule_info_table = ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
       flatbuffers_string_t info_type = ns(FiltersetRuleInfo_type(rule_info_table));
-      if ((strcmp(info_type, FILTERSET_TARGET_STRING)) && (strcmp(info_type, FILTERSET_MODULE_STRING)) &&
-          (strcmp(info_type, FILTERSET_NAME_STRING)) && (strcmp(info_type, FILTERSET_METRIC_STRING))) {
+      noit_filter_lmdb_rule_type_e local_type = FILTERSET_RULE_UNKNOWN_TYPE;
+
+      if (!strcmp(info_type, FILTERSET_TARGET_STRING)) {
+        local_type = FILTERSET_RULE_TARGET_TYPE;
+      }
+      else if (!strcmp(info_type, FILTERSET_MODULE_STRING)) {
+        local_type = FILTERSET_RULE_MODULE_TYPE;
+      }
+      else if (!strcmp(info_type, FILTERSET_NAME_STRING)) {
+        local_type = FILTERSET_RULE_NAME_TYPE;
+      }
+      else if (!strcmp(info_type, FILTERSET_METRIC_STRING)) {
+        local_type = FILTERSET_RULE_METRIC_TYPE;
+      }
+      else {
         mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type (%s), skipping...\n", info_type);
         continue;
       }
       switch(ns(FiltersetRuleInfo_data_type(rule_info_table))) {
         case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
         {
-          ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table));
-          if (ns(FiltersetRuleHashValue_auto_add_max_is_present(v))) {
-            int32_t auto_add_max_value = ns(FiltersetRuleHashValue_auto_add_max(v));
-            if (!strcmp(info_type, FILTERSET_TARGET_STRING)) {
-              rule->target_auto_hash_max = auto_add_max_value;
-            }
-            else if (!strcmp(info_type, FILTERSET_MODULE_STRING)) {
-              rule->module_auto_hash_max = auto_add_max_value;
-            }
-            else if (!strcmp(info_type, FILTERSET_NAME_STRING)) {
-              rule->name_auto_hash_max = auto_add_max_value;
-            }
-            else if (!strcmp(info_type, FILTERSET_METRIC_STRING)) {
-              rule->metric_auto_hash_max = auto_add_max_value;
-            }
+          switch(local_type) {
+            case FILTERSET_RULE_TARGET_TYPE:
+              LMDB_HT_COMPILE(target, mtev_false);
+              break;
+            case FILTERSET_RULE_MODULE_TYPE:
+              LMDB_HT_COMPILE(module, mtev_false);
+              break;
+            case FILTERSET_RULE_NAME_TYPE:
+              LMDB_HT_COMPILE(name, mtev_false);
+              break;
+            case FILTERSET_RULE_METRIC_TYPE:
+              LMDB_HT_COMPILE(metric, mtev_true);
+              break;
+            default:
+              /* Should be impossible */
+              break;
           }
           break;
         }
         case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
         {
-          ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table));
+          switch(local_type) {
+            case FILTERSET_RULE_TARGET_TYPE:
+              LMDB_RULE_COMPILE(target);
+              break;
+            case FILTERSET_RULE_MODULE_TYPE:
+              LMDB_RULE_COMPILE(module);
+              break;
+            case FILTERSET_RULE_NAME_TYPE:
+              LMDB_RULE_COMPILE(name);
+              break;
+            case FILTERSET_RULE_METRIC_TYPE:
+              LMDB_RULE_COMPILE(metric);
+              break;
+            default:
+              /* Should be impossible */
+              break;
+          }
           break;
         }
         default:
@@ -672,6 +784,8 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
 
 void
 noit_filters_lmdb_init() {
+  const char *error;
+  int erroffset;
   const char *xpath = "/noit/filtersets";
   mtev_conf_section_t sec = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
   if(!mtev_conf_section_is_empty(sec)) {
@@ -682,4 +796,9 @@ noit_filters_lmdb_init() {
     }
   }
   mtev_conf_release_section_read(sec);
+  fallback_no_match = pcre_compile("^(?=a)b", 0, &error, &erroffset, NULL);
+  if(!fallback_no_match) {
+    mtevL(mtev_error, "Filter initialization failed (nomatch filter)\n");
+    exit(-1);
+  }
 }
