@@ -319,11 +319,11 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   ret = noit_filters_lmdb_write_finalized_fb_to_lmdb(filterset_name, buffer, buffer_size);
   free(buffer);
   if (ret) {
-    mtevL(mtev_error, "failed to write filterset %s to the database: %d (%s)\n", filterset_name, ret, mdb_strerror(ret));
+    mtevL(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: failed to write filterset %s to the database: %d (%s)\n", filterset_name, ret, mdb_strerror(ret));
     return ret;
   }
   else {
-    mtevL(mtev_debug, "successfully wrote filterset %s to the database\n", filterset_name);
+    mtevL(mtev_debug, "noit_filters_lmdb_write_flatbuffer_to_db: successfully wrote filterset %s to the database\n", filterset_name);
   }
   return 0;
 }
@@ -488,7 +488,7 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
 }
 
 static mtev_boolean
-noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
+noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
 
 #define LMDB_HT_COMPILE(rtype, canon) do { \
   int32_t auto_max = 0; \
@@ -576,8 +576,10 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
     mtev_dyn_buffer_destroy(&aligned);
     return mtev_false;
   }
-  set = (filterset_t *)calloc(1, sizeof(filterset_t));
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
+
+  set = (filterset_t *)calloc(1, sizeof(filterset_t));
+  set->ref_cnt = 1;
   set->name = strdup(ns(Filterset_name(filterset)));
   if (ns(Filterset_seq_is_present(filterset))) {
     seq = ns(Filterset_seq(filterset));
@@ -628,7 +630,8 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
       }
     }
     else {
-      mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type - %s\n", rule_type);
+      mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type - %s - setting to deny\n", rule_type);
+      rule->type = NOIT_FILTER_DENY;
     }
 
     ns(FiltersetRuleInfo_vec_t)rule_info_vec = ns(FiltersetRule_info(fs_rule));
@@ -653,6 +656,7 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
       }
       else {
         mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type (%s), skipping...\n", info_type);
+        free(rule);
         continue;
       }
       switch(ns(FiltersetRuleInfo_data_type(rule_info_table))) {
@@ -778,7 +782,7 @@ noit_filters_lmdb_filters_from_lmdb() {
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
 
   while (rc == 0) {
-    noit_filters_lmdb_load_one_from_db(mdb_data.mv_data, mdb_data.mv_size);
+    noit_filters_lmdb_load_one_from_db_locked(mdb_data.mv_data, mdb_data.mv_size);
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
     cnt++;
   }
