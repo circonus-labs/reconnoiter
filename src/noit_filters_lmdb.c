@@ -548,8 +548,9 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
 } while (0);
 
 #define LMDB_TAGS_COMPILE(rtype, search) do { \
-  char *expr = NULL; \
-  if(mtev_conf_get_string(rules[j], "@" #rtype, &expr)) { \
+  if (rule->metric_ht == NULL) { \
+    flatbuffers_string_t tag_value = ns(FiltersetRuleTagInfo_value(rule_tag_info_table)); \
+    char *expr = strdup(tag_value); \
     int erroffset; \
     rule->rtype = strdup(expr); \
     rule->search = noit_metric_tag_search_parse(rule->rtype, &erroffset); \
@@ -702,13 +703,28 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
           break;
       }
     }
+    if (ns(FiltersetRule_tags_is_present(fs_rule))) {
+      int ii = 0;
+      ns(FiltersetRuleTagInfo_vec_t)rule_tag_info_vec = ns(FiltersetRule_tags(fs_rule));
+      size_t num_tags_info = ns(FiltersetRuleTagInfo_vec_len(rule_tag_info_vec));
+      for (ii = 0; ii < num_tags_info; ii++) {
+        ns(FiltersetRuleTagInfo_table_t)rule_tag_info_table = ns(FiltersetRuleTagInfo_vec_at(rule_tag_info_vec, ii));
+        flatbuffers_string_t tag_type = ns(FiltersetRuleTagInfo_type(rule_tag_info_table));
+        if (!strcmp(tag_type, FILTERSET_TAG_STREAM_TAGS_STRING)) {
+          LMDB_TAGS_COMPILE(stream_tags, stsearch);
+        }
+        else if (!strcmp(tag_type, FILTERSET_TAG_MEASUREMENT_TAGS_STRING)) {
+          LMDB_TAGS_COMPILE(measurement_tags, mtsearch);
+        }
+        else {
+          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: got unexpected tag type in db: %s\n", tag_type);
+        }
+      }
+    }
     rule->next = set->rules;
     set->rules = rule;
   }
   mtev_dyn_buffer_destroy(&aligned);
-  /* TODO: Handle the set - just free it for now for testing */
-  free(set->name);
-  free(set);
   return 0;
 }
 

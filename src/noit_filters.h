@@ -56,6 +56,9 @@
 #define FILTERSET_NAME_STRING "name"
 #define FILTERSET_METRIC_STRING "metric"
 
+#define FILTERSET_TAG_STREAM_TAGS_STRING "stream_tags"
+#define FILTERSET_TAG_MEASUREMENT_TAGS_STRING "measurement_tags"
+
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
 
 typedef struct _filterrule {
