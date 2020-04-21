@@ -122,6 +122,8 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
   size_t json_len = 0;
   int sent = 0;
 
+  if(!wcl || !wcl->restc || !wcl->restc->http_ctx) return 0;
+
   int rval = noit_message_decoder_parse_line(&message, mtev_false);
   if (rval < 0) {
     noit_metric_message_clear(&message);
@@ -145,12 +147,12 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
       }
     }
   } else {
-        noit_metric_to_json(&message, &json, &json_len, mtev_false);
-        mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
-                                      WSLAY_TEXT_FRAME,
-                                      (const unsigned char *)json, json_len);
-        sent++;
-        free(json);
+    noit_metric_to_json(&message, &json, &json_len, mtev_false);
+    mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
+                                  WSLAY_TEXT_FRAME,
+                                  (const unsigned char *)json, json_len);
+    sent++;
+    free(json);
   }
   noit_metric_message_clear(&message);
 #endif
