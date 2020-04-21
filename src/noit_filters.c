@@ -113,6 +113,31 @@ filterset_free(void *vp) {
   free(fs);
 }
 mtev_boolean
+noit_filter_compile_add_load_set(filterset_t *set) {
+  mtev_boolean used_new_one = mtev_false;
+  void *vset;
+  LOCKFS();
+  if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
+    filterset_t *oldset = vset;
+    if(oldset->seq >= set->seq) { /* no update */
+      filterset_free(set);
+    } else {
+      mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
+                        NULL, filterset_free);
+      used_new_one = mtev_true;
+    }
+  }
+  else {
+    mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
+    used_new_one = mtev_true;
+  }
+  UNLOCKFS();
+  if(used_new_one && set->seq >= 0) {
+    noit_cluster_mark_filter_changed(set->name, NULL);
+  }
+  return used_new_one;
+}
+mtev_boolean
 noit_filter_compile_add(mtev_conf_section_t setinfo) {
   mtev_conf_section_t *rules;
   int j, fcnt;
@@ -268,25 +293,9 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     }
   }
   mtev_conf_release_sections_read(rules, fcnt);
-  mtev_boolean used_new_one = mtev_false;
-  void *vset;
-  LOCKFS();
-  if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
-    filterset_t *oldset = vset;
-    if(oldset->seq >= set->seq) { /* no update */
-      filterset_free(set);
-    } else {
-      mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
-                        NULL, filterset_free);
-      used_new_one = mtev_true;
-    }
-  }
-  else {
-    mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
-    used_new_one = mtev_true;
-  }
-  UNLOCKFS();
-  if(used_new_one && set->seq >= 0) noit_cluster_mark_filter_changed(set->name, NULL);
+
+  mtev_boolean used_new_one = noit_filter_compile_add_load_set(set);
+
   return used_new_one;
 }
 int
@@ -1127,7 +1136,9 @@ noit_filters_init() {
   if (ENABLE_LMDB_FILTERSETS && (use_lmdb == mtev_true)) {
     noit_filters_lmdb_filters_from_lmdb();
   }
-  noit_filters_from_conf();
+  else {
+    noit_filters_from_conf();
+  }
 
   // The replication_prefix attribute instructs noit to put replicated filtersets into a sub-node of
   // of /noit/filtersets in noit.conf. This was introduced to for situations filtersets should be

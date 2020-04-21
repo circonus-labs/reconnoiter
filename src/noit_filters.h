@@ -42,7 +42,7 @@
 #include "noit_metric_tag_search.h"
 
 /* TODO: Remove this before merging */
-#define ENABLE_LMDB_FILTERSETS 1
+#define ENABLE_LMDB_FILTERSETS 0
 #define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 
 #define FILTERSET_ACCEPT_STRING "accept"
@@ -123,6 +123,9 @@ API_EXPORT(mtev_boolean)
   noit_apply_filterset(const char *filterset,
                        noit_check_t *check,
                        metric_t *metric);
+
+API_EXPORT(mtev_boolean)
+  noit_filter_compile_add_load_set(filterset_t *set);
 
 API_EXPORT(mtev_boolean)
   noit_filter_compile_add(mtev_conf_section_t setinfo);

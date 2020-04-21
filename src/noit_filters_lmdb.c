@@ -487,7 +487,7 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
   return rv;
 }
 
-static int
+static mtev_boolean
 noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
 
 #define LMDB_HT_COMPILE(rtype, canon) do { \
@@ -574,7 +574,7 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
   if(fb_ret != 0) {
     mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
     mtev_dyn_buffer_destroy(&aligned);
-    return -1;
+    return mtev_false;
   }
   set = (filterset_t *)calloc(1, sizeof(filterset_t));
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
@@ -725,7 +725,26 @@ noit_filters_lmdb_load_one_from_db(void *fb_data, size_t fb_size) {
     set->rules = rule;
   }
   mtev_dyn_buffer_destroy(&aligned);
-  return 0;
+
+  filterrule_t *cursor;
+  for(cursor = set->rules; cursor && cursor->next; cursor = cursor->next) {
+    if(cursor->skipto) {
+      filterrule_t *target;
+      for(target = cursor->next; target; target = target->next) {
+        if(target->ruleid && !strcmp(cursor->skipto, target->ruleid)) {
+          cursor->skipto_rule = target;
+          break;
+        }
+      }
+      if(!cursor->skipto_rule) {
+        mtevL(mtev_error, "filterset %s skipto:%s not found\n",
+              set->name, cursor->skipto);
+      }
+    }
+  }
+
+  mtev_boolean used_new_one = noit_filter_compile_add_load_set(set);
+  return used_new_one;
 }
 
 void
