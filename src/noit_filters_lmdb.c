@@ -913,9 +913,7 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
                                    int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
-  mtev_conf_section_t section = MTEV_CONF_EMPTY;
   xmlNodePtr root;
-  char xpath[1024];
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
@@ -924,15 +922,16 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
     goto not_found;
   }
 
-  snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
-           pats[0], pats[1]);
-
-  section = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
-  if(mtev_conf_section_is_empty(section)) goto not_found;
+  if (!noit_filters_lmdb_already_in_db(pats[1])) {
+    goto not_found;
+  }
 
   doc = xmlNewDoc((xmlChar *)"1.0");
-  root = xmlCopyNode(mtev_conf_section_to_xmlnodeptr(section), 1);
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"filterset", NULL);
   xmlDocSetRootElement(doc, root);
+
+  /* TODO: Fill in the data from the DB */
+
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
@@ -944,8 +943,9 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
-  if(doc) xmlFreeDoc(doc);
-  mtev_conf_release_section_read(section);
+  if(doc) {
+    xmlFreeDoc(doc);
+  }
   return 0;
 }
 
