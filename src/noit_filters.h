@@ -110,6 +110,9 @@ typedef struct {
   uint32_t denies;
 } filterset_t;
 
+API_EXPORT(xmlNodePtr)
+  noit_filter_validate_filter(xmlDocPtr doc, char *name, int64_t *seq, const char **err);
+
 API_EXPORT(void)
   noit_filters_init();
 
