@@ -47,6 +47,7 @@
 
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
+#include "noit_filters_lmdb.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_clustering.h"
@@ -61,6 +62,10 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
   mtev_conf_section_t section = MTEV_CONF_EMPTY;
   xmlNodePtr root;
   char xpath[1024];
+
+  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_rest_show_filter(restc, npats, pats);
+  }
 
   if(npats != 2) goto not_found;
 
@@ -259,6 +264,10 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   int64_t seq = 0;
   int64_t old_seq = 0;
   const char *error = "internal error";
+
+  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_rest_set_filter(restc, npats, pats);
+  }
 
   if(npats != 2) {
     error = "invalid URI";

@@ -821,6 +821,103 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
   mtev_conf_release_sections_write(sec, cnt);
 }
 
+int
+noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
+                                   int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL;
+  mtev_conf_section_t section = MTEV_CONF_EMPTY;
+  xmlNodePtr root;
+  char xpath[1024];
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  if(npats != 2) {
+    goto not_found;
+  }
+
+  snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
+           pats[0], pats[1]);
+
+  section = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
+  if(mtev_conf_section_is_empty(section)) goto not_found;
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlCopyNode(mtev_conf_section_to_xmlnodeptr(section), 1);
+  xmlDocSetRootElement(doc, root);
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ not_found:
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(doc) xmlFreeDoc(doc);
+  mtev_conf_release_section_read(section);
+  return 0;
+}
+
+int
+noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
+                                  int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL, indoc = NULL;
+  xmlNodePtr parent, root, newfilter;
+  char xpath[1024];
+  int error_code = 500, complete = 0, mask = 0;
+  mtev_boolean exists;
+  int64_t seq = 0;
+  int64_t old_seq = 0;
+  const char *error = "internal error";
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  if(npats != 2) {
+    error = "invalid URI";
+    error_code = 404;
+    goto error;
+  }
+
+  indoc = rest_get_xml_upload(restc, &mask, &complete);
+  if(!complete) {
+    return mask;
+  }
+  if(indoc == NULL) {
+    error = "xml parse error";
+    error_code = 406;
+    goto error;
+  }
+
+  //noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(newfilter));
+  if(restc->call_closure_free) {
+    restc->call_closure_free(restc->call_closure);
+  }
+  restc->call_closure_free = NULL;
+  restc->call_closure = NULL;
+  restc->fastpath = noit_filters_lmdb_rest_show_filter;
+  return restc->fastpath(restc, restc->nparams, restc->params);
+
+ error:
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+  xmlDocSetRootElement(doc, root);
+  xmlNodeAddContent(root, (xmlChar *)error);
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(doc) xmlFreeDoc(doc);
+  return 0;
+}
+
 void
 noit_filters_lmdb_init() {
   const char *error;
