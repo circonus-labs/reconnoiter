@@ -838,6 +838,47 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   return used_new_one;
 }
 
+static int
+noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) {
+  int rc;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  key = noit_lmdb_make_filterset_key(name, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  pthread_rwlock_rdlock(&instance->lock);
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, NULL, MDB_SET_KEY);
+  if (rc != 0) {
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    pthread_rwlock_unlock(&instance->lock);
+    free(key);
+    return -1;
+  }
+
+  /* TODO: Read data in here */
+
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+
+  pthread_rwlock_unlock(&instance->lock);
+  free(key);
+  return 0;
+}
+
 void
 noit_filters_lmdb_filters_from_lmdb() {
   int rc;
@@ -930,7 +971,9 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"filterset", NULL);
   xmlDocSetRootElement(doc, root);
 
-  /* TODO: Fill in the data from the DB */
+  if (noit_filters_lmdb_populate_filterset_xml_from_lmdb(root, pats[1])) {
+    goto not_found;
+  }
 
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
