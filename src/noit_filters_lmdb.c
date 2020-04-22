@@ -92,6 +92,93 @@ static void *get_aligned_fb(mtev_dyn_buffer_t *aligned, void *d, uint32_t size)
   return fb_data;
 }
 
+static mtev_boolean
+noit_filters_lmdb_already_in_db(char *name) {
+  int rc;
+  mtev_boolean toRet = mtev_false;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  key = noit_lmdb_make_filterset_key(name, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  pthread_rwlock_rdlock(&instance->lock);
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, NULL, MDB_SET_KEY);
+  if (rc == 0) {
+    toRet = mtev_true;
+  }
+
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+
+  pthread_rwlock_unlock(&instance->lock);
+  free(key);
+  return toRet;
+}
+
+static int64_t
+noit_filters_lmdb_get_seq(char *name) {
+  int rc;
+  int toRet = 0;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  key = noit_lmdb_make_filterset_key(name, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  pthread_rwlock_rdlock(&instance->lock);
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_KEY);
+  if (rc == 0) {
+    mtev_dyn_buffer_t aligned;
+    void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
+    int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
+    if(fb_ret != 0) {
+      mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
+    }
+    else {
+      ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
+      if (ns(Filterset_seq_is_present(filterset))) {
+        toRet = ns(Filterset_seq(filterset));
+        if (toRet < 0) {
+          toRet = 0;
+        }
+      }
+    }
+    mtev_dyn_buffer_destroy(&aligned);
+  }
+
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+
+  pthread_rwlock_unlock(&instance->lock);
+  free(key);
+  return toRet;
+}
+
 static void
 noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
   if (rule) {
@@ -893,8 +980,24 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
     error_code = 406;
     goto error;
   }
+  
+  exists = noit_filters_lmdb_already_in_db(pats[1]);
+  if (exists) {
+    old_seq = noit_filters_lmdb_get_seq(pats[1]);
+  }
 
-  //noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(newfilter));
+  if((newfilter = noit_filter_validate_filter(indoc, pats[1], &seq, &error)) == NULL) {
+    goto error;
+  }
+
+  if(exists && (old_seq >= seq && seq != 0)) {
+    error = "sequencing error";
+    error_code = 409;
+    goto error;
+  }
+  noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(newfilter));
+  noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(newfilter));
+
   if(restc->call_closure_free) {
     restc->call_closure_free(restc->call_closure);
   }
@@ -914,7 +1017,9 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
-  if(doc) xmlFreeDoc(doc);
+  if(doc) {
+    xmlFreeDoc(doc);
+  }
   return 0;
 }
 

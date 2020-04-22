@@ -161,17 +161,25 @@ noit_filter_validate_filter(xmlDocPtr doc, char *name, int64_t *seq, const char 
         return NULL;
       }
       rulecnt++;
-      if(type) xmlFree(type);
+      if(type) {
+        xmlFree(type);
+      }
     }
     else CHECK_N_SET(seq) {
       xmlChar *v = xmlNodeGetContent(r);
-      if(v) xmlSetProp(root, r->name, v);
-      else xmlUnsetProp(root, r->name);
+      if(v) {
+        xmlSetProp(root, r->name, v);
+      }
+      else {
+        xmlUnsetProp(root, r->name);
+      }
       xmlUnlinkNode(r);
       xmlFreeNode(r);
       r = previous_child;
 
-      if (seq && v) *seq = strtoll((const char *)v, NULL, 10);
+      if (seq && v) {
+        *seq = strtoll((const char *)v, NULL, 10);
+      }
 
       xmlFree(v);
     }
