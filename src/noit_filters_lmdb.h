@@ -43,6 +43,8 @@ void noit_filters_lmdb_filters_from_lmdb();
 void noit_filters_lmdb_migrate_xml_filtersets_to_lmdb();
 int noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
                                        int npats, char **pats);
+int noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
+                                         int npats, char **pats);
 int noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
                                       int npats, char **pats);
 void noit_filters_lmdb_init();

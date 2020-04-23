@@ -1126,6 +1126,34 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
 }
 
 int
+noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
+                                     int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+
+  if(npats != 2) {
+    goto not_found;
+  }
+
+  if (!noit_filters_lmdb_already_in_db(pats[1])) {
+    goto not_found;
+  }
+
+  /* TODO: Remove */
+
+  mtev_http_response_ok(ctx, "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ not_found:
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  return 0;
+}
+
+int
 noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
                                   int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;

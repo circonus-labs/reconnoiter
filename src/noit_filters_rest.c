@@ -128,7 +128,11 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
                    int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_conf_section_t section = MTEV_CONF_EMPTY;
+
   char xpath[1024];
+  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_rest_delete_filter(restc, npats, pats);
+  }
 
   if(npats != 2) goto not_found;
 
