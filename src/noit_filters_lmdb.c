@@ -1129,7 +1129,7 @@ int
 noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
                                      int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
-  int rc;
+  int rc = 0;
   MDB_txn *txn = NULL;
   MDB_val mdb_key;
   char *key = NULL;
@@ -1156,17 +1156,31 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
+  if (rc != 0) {
+    mtevL(mtev_error, "failed to delete key in filters: %d (%s)\n", rc, mdb_strerror(rc));
+    mdb_txn_abort(txn);
+    pthread_rwlock_unlock(&instance->lock);
+    free(key);
+    goto error;
+  }
 
-  int ret = mdb_txn_commit(txn);
+  rc = mdb_txn_commit(txn);
+  if (rc != 0) {
+    mtevL(mtev_error, "failed to delete key in filters: %d (%s)\n", rc, mdb_strerror(rc));
+    pthread_rwlock_unlock(&instance->lock);
+    free(key);
+    goto error;
+  }
 
   pthread_rwlock_unlock(&instance->lock);
   free(key);
 
-  if (rc != 0 || ret != 0) {
-    goto not_found;
-  }
-
   mtev_http_response_ok(ctx, "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ error:
+  mtev_http_response_standard(ctx, 500, mdb_strerror(rc), "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
