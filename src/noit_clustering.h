@@ -53,6 +53,9 @@ void
 void
   noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
                                   int64_t prev_end, int64_t limit, xmlNodePtr parent);
+void
+  noit_cluster_lmdb_filter_changes(uuid_t peerid, const char *cn,
+                                  int64_t prev_end, int64_t limit, xmlNodePtr parent);
 
 mtev_boolean
   noit_cluster_checkid_replication_pending(uuid_t);

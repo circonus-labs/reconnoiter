@@ -294,7 +294,12 @@ rest_show_filter_updates(mtev_http_rest_closure_t *restc,
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewNode(NULL, (xmlChar *)"filtersets");
   xmlDocSetRootElement(doc, root);
-  noit_cluster_xml_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+    noit_cluster_lmdb_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  }
+  else {
+    noit_cluster_xml_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  }
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);

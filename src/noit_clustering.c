@@ -341,6 +341,49 @@ noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
   mtev_hash_destroy(&dedup, NULL, NULL);
 }
 
+void
+noit_cluster_lmdb_filter_changes(uuid_t peerid, const char *cn,
+                                int64_t prev_end, int64_t limit,
+                                xmlNodePtr parent) {
+  void *vp;
+  int64_t last_seen = 0;
+  noit_peer_t *peer;
+  mtev_hash_table dedup;
+  mtev_hash_init(&dedup);
+  pthread_mutex_lock(&noit_peer_lock);
+
+  if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
+    mtevL(clerr, "Check changes request by unknown peer.\n");
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+  peer = vp;
+  if(strcmp(peer->cn, cn)) {
+    mtevL(clerr, "Check changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+
+  struct filter_changes *node = peer->filters.head;
+  /* First eat anything we know they've seen */
+  while(peer->filters.head && peer->filters.head->seq <= prev_end) {
+    struct filter_changes *tofree = peer->filters.head;
+    peer->filters.head = peer->filters.head->next;
+    if(NULL == peer->filters.head) peer->filters.tail = NULL;
+    filter_changes_free(tofree);
+  }
+  for(node = peer->filters.head; node && node->seq <= limit; node = node->next) {
+    if(mtev_hash_store(&dedup, (const char *)node->name, strlen(node->name), NULL)) {
+      /* TODO: Get data out of LMDB */
+    }
+  }
+  pthread_mutex_unlock(&noit_peer_lock);
+  char produced_str[32];
+  snprintf(produced_str, sizeof(produced_str), "%"PRId64, last_seen);
+  xmlSetProp(parent, (xmlChar *)"seq", (xmlChar *)produced_str);
+  mtev_hash_destroy(&dedup, NULL, NULL);
+}
+
 static void
 clear_old_peers() {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
