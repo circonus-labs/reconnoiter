@@ -1129,6 +1129,14 @@ int
 noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
                                      int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
+  int rc;
+  MDB_txn *txn = NULL;
+  MDB_val mdb_key;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
 
   if(npats != 2) {
     goto not_found;
@@ -1138,7 +1146,25 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
     goto not_found;
   }
 
-  /* TODO: Remove */
+  key = noit_lmdb_make_filterset_key(pats[1], &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  pthread_rwlock_rdlock(&instance->lock);
+
+  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
+  rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
+
+  int ret = mdb_txn_commit(txn);
+
+  pthread_rwlock_unlock(&instance->lock);
+  free(key);
+
+  if (rc != 0 || ret != 0) {
+    goto not_found;
+  }
 
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_end(ctx);
