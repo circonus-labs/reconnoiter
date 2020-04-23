@@ -870,8 +870,6 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
     return -1;
   }
 
-  /* TODO: Read data in here */
-  //PHIL
   mtev_dyn_buffer_t aligned;
   void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
   int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
@@ -898,6 +896,9 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
     mtev_boolean cull = ns(Filterset_cull(filterset));
     snprintf(buffer, sizeof(buffer), "%s", (cull) ? "true" : "false");
     xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)buffer);
+  }
+  else {
+    xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)"false");
   }
   if (ns(Filterset_rules_is_present(filterset))) {
     ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
