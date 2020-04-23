@@ -841,9 +841,10 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
 static int
 noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) {
   int rc;
+  char buffer[65535];
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
-  MDB_val mdb_key;
+  MDB_val mdb_key, mdb_data;
   char *key = NULL;
   size_t key_size;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
@@ -860,7 +861,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
-  rc = mdb_cursor_get(cursor, &mdb_key, NULL, MDB_SET_KEY);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_KEY);
   if (rc != 0) {
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
@@ -870,7 +871,138 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
   }
 
   /* TODO: Read data in here */
+  //PHIL
+  mtev_dyn_buffer_t aligned;
+  void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
+  int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
+  if(fb_ret != 0) {
+    mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
+    mtev_dyn_buffer_destroy(&aligned);
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    pthread_rwlock_unlock(&instance->lock);
+    free(key);
+    return -1;
+  }
+  ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
+  if (ns(Filterset_name_is_present(filterset))) {
+    flatbuffers_string_t name = ns(Filterset_name(filterset));
+    xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
+  }
+  if (ns(Filterset_seq_is_present(filterset))) {
+    int64_t seq = ns(Filterset_seq(filterset));
+    snprintf(buffer, sizeof(buffer), "%" PRId64 "", seq);
+    xmlSetProp(root, (xmlChar *)"seq", (xmlChar *)buffer);
+  }
+  if (ns(Filterset_cull_is_present(filterset))) {
+    mtev_boolean cull = ns(Filterset_cull(filterset));
+    snprintf(buffer, sizeof(buffer), "%s", (cull) ? "true" : "false");
+    xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)buffer);
+  }
+  if (ns(Filterset_rules_is_present(filterset))) {
+    ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
+    size_t num_rules = ns(FiltersetRule_vec_len(rule_vec));
+    size_t i = 0;
+    for (i=0; i < num_rules; i++) {
+      xmlNodePtr rule = xmlNewNode(NULL, (xmlChar *)"rule");
+      ns(FiltersetRule_table_t) fs_rule = ns(FiltersetRule_vec_at(rule_vec, i));
+      if (ns(FiltersetRule_id_is_present(fs_rule))) {
+        flatbuffers_string_t id = ns(FiltersetRule_id(fs_rule));
+        xmlSetProp(rule, (xmlChar *)"id", (xmlChar *)id);
+      }
+      if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
+        int64_t ffs = ns(FiltersetRule_filterset_flush_period_is_present(fs_rule));
+        snprintf(buffer, sizeof(buffer), "%" PRId64 "", ffs);
+        xmlSetProp(rule, (xmlChar *)"filter_flush_period", (xmlChar *)buffer);
+      }
+      if (ns(FiltersetRule_rule_type_is_present(fs_rule))) {
+        flatbuffers_string_t type = ns(FiltersetRule_rule_type(fs_rule));
+        if (!strcmp(type, FILTERSET_SKIPTO_STRING_NO_COLON)) {
+          flatbuffers_string_t skipto = NULL;
+          if (ns(FiltersetRule_skipto_value_is_present(fs_rule))) {
+            skipto = ns(FiltersetRule_skipto_value(fs_rule));
+          }
+          if (skipto) {
+            snprintf(buffer, sizeof(buffer), "%s:%s", type, skipto);
+            xmlSetProp(rule, (xmlChar *)"buffer", (xmlChar *)type);
+          }
+          else {
+            xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
+          }
+        }
+        else {
+          xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
+        }
+      }
+      if(ns(FiltersetRule_info_is_present(fs_rule))) {
+        ns(FiltersetRuleInfo_vec_t) rule_info_vec = ns(FiltersetRule_info(fs_rule));
+        size_t num_rule_info = ns(FiltersetRuleInfo_vec_len(rule_info_vec));
+        size_t j = 0;
+        for (j=0; j < num_rule_info; j++) {
+          ns(FiltersetRuleInfo_table_t) fs_rule_info = ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
+          if (ns(FiltersetRuleInfo_type_is_present(fs_rule_info)) &&
+              ns(FiltersetRuleInfo_data_is_present(fs_rule_info))) {
+            flatbuffers_string_t type = ns(FiltersetRuleInfo_type(fs_rule_info));
+            switch(ns(FiltersetRuleInfo_data_type(fs_rule_info))) {
+              case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
+              {
+                ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
+                if (ns(FiltersetRuleHashValue_auto_add_max_is_present(v))) {
+                  int64_t auto_add = ns(FiltersetRuleHashValue_auto_add_max(v));
+                  char key_buffer[65535];
+                  snprintf(key_buffer, sizeof(key_buffer), "%s_auto_add", type);
+                  snprintf(buffer, sizeof(buffer), "%" PRId64 "", auto_add);
+                  xmlSetProp(rule, (xmlChar *)key_buffer, (xmlChar *)buffer);
+                }
+                if (ns(FiltersetRuleHashValue_values_is_present(v))) {
+                  flatbuffers_string_vec_t values_vec = ns(FiltersetRuleHashValue_values(v));
+                  size_t hte_cnt = flatbuffers_string_vec_len(values_vec);
+                  size_t ii = 0;
+                  for (ii = 0; ii < hte_cnt; ii++) {
+                    flatbuffers_string_t value = flatbuffers_string_vec_at(values_vec, ii);
+                    xmlNodePtr node = xmlNewNode(NULL, (xmlChar *)type);
+                    xmlNodeAddContent(node, (xmlChar *)value);
+                    xmlAddChild(rule, node);
+                  }
+                }
+                break;
+              }
+              case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
+              {
+                ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
+                flatbuffers_string_t regex = ns(FiltersetRuleAttributeValue_regex(v));
+                xmlSetProp(rule, (xmlChar *)type, (xmlChar *)regex);
+                break;
+              }
+              default:
+              {
+                /* Shouldn't happen */
+                break;
+              }
+            }
+          }
+        }
+      }
+      if(ns(FiltersetRule_tags_is_present(fs_rule))) {
+        ns(FiltersetRuleTagInfo_vec_t) rule_tag_info_vec = ns(FiltersetRule_tags(fs_rule));
+        size_t num_rule_tag_info = ns(FiltersetRuleTagInfo_vec_len(rule_tag_info_vec));
+        size_t j = 0;
+        for (j=0; j < num_rule_tag_info; j++) {
+          ns(FiltersetRuleTagInfo_table_t) fs_rule_tag_info = ns(FiltersetRuleTagInfo_vec_at(rule_tag_info_vec, j));
+          if (ns(FiltersetRuleTagInfo_type_is_present(fs_rule_tag_info)) &&
+              ns(FiltersetRuleTagInfo_value_is_present(fs_rule_tag_info))) {
+            flatbuffers_string_t type = ns(FiltersetRuleTagInfo_type(fs_rule_tag_info));
+            flatbuffers_string_t value = ns(FiltersetRuleTagInfo_value(fs_rule_tag_info));
+            xmlSetProp(rule, (xmlChar *)type, (xmlChar *)value);
+          }
+        }
+      }
+      xmlAddChild(root, rule);
+    }
+  }
 
+
+  mtev_dyn_buffer_destroy(&aligned);
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
 
