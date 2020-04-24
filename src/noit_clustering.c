@@ -202,7 +202,7 @@ void
 noit_cluster_mark_check_changed(noit_check_t *check, void *vpeer) {
   if(!strcmp(check->module, "selfcheck")) return;
   if(check->config_seq <= 0) return;
-  // mtevL(cldeb, "marking check %s [%s] %"PRId64" for repl\n", check->name, check->module, check->config_seq);
+  mtevL(cldeb, "marking check %s [%s] %"PRId64" for repl\n", check->name, check->module, check->config_seq);
   pthread_mutex_lock(&noit_peer_lock);
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   checks_produced++;
