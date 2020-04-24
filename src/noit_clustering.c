@@ -71,6 +71,7 @@
 static char *cainfo;
 static char *certinfo;
 static char *keyinfo;
+static uint32_t batch_size = 500; /* for fetching clusters and filters */
 
 static void
 noit_cluster_setup_ssl(int port) {
@@ -867,9 +868,10 @@ void noit_mtev_cluster_init() {
   showcmd = mtev_console_state_get_cmd(tl, "show");
   mtevAssert(showcmd && showcmd->dstate);
 
+  mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &batch_size);
+
   mtev_console_state_add_cmd(showcmd->dstate,
   NCSCMD("noit-cluster", noit_clustering_show, NULL, NULL, NULL));
-
 
   repl_jobq = eventer_jobq_create_ms("noit_cluster", EVENTER_JOBQ_MS_GC);
   mtevAssert(repl_jobq);
