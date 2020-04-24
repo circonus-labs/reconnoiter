@@ -96,8 +96,8 @@ filterrule_free(void *vp) {
 noit_lmdb_instance_t *noit_filters_get_lmdb_instance() {
   return lmdb_instance;
 }
-static void
-filterset_free(void *vp) {
+void
+noit_filter_filterset_free(void *vp) {
   filterset_t *fs = vp;
   filterrule_t *r;
   bool zero;
@@ -206,10 +206,10 @@ noit_filter_compile_add_load_set(filterset_t *set) {
   if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
     filterset_t *oldset = vset;
     if(oldset->seq >= set->seq) { /* no update */
-      filterset_free(set);
+      noit_filter_filterset_free(set);
     } else {
       mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
-                        NULL, filterset_free);
+                        NULL, noit_filter_filterset_free);
       used_new_one = mtev_true;
     }
   }
@@ -414,7 +414,7 @@ noit_filter_remove(mtev_conf_section_t vnode) {
   if(!name) return 0;
   LOCKFS();
   removed = mtev_hash_delete(filtersets, name, strlen(name),
-                             NULL, filterset_free);
+                             NULL, noit_filter_filterset_free);
   UNLOCKFS();
   xmlFree(name);
 
@@ -651,7 +651,7 @@ noit_apply_filterset(const char *filterset,
         break;
       }
     }
-    filterset_free(fs);
+    noit_filter_filterset_free(fs);
     if(!ret) ck_pr_inc_32(&fs->denies);
     return ret;
   }
@@ -1089,7 +1089,7 @@ noit_console_filter_show_running(mtev_console_closure_t ncct,
       i++;
     }
 
-    filterset_free(fs);
+    noit_filter_filterset_free(fs);
   } else {
     nc_printf(ncct, "no such filterset\n");
   }
