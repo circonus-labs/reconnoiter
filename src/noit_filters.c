@@ -912,8 +912,8 @@ noit_console_filter_configure(mtev_console_closure_t ncct,
   return rv;
 }
 
-static int
-filterset_accum(noit_check_t *check, void *closure) {
+int
+noit_filters_filterset_accum(noit_check_t *check, void *closure) {
   mtev_hash_table *active = closure;
   if(!check->filterset) return 0;
   if(mtev_hash_delete(active, check->filterset, strlen(check->filterset), free, NULL))
@@ -973,7 +973,7 @@ noit_filtersets_cull_unused() {
   free(buffer);
   
 
-  n_uses = noit_poller_do(filterset_accum, &active);
+  n_uses = noit_poller_do(noit_filters_filterset_accum, &active);
 
   if(n_uses > 0 && mtev_hash_size(&active) > 0) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;

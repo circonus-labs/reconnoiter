@@ -814,7 +814,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
     xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)buffer);
   }
   else {
-    xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)"false");
+    xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)"true");
   }
   if (ns(Filterset_rules_is_present(filterset))) {
     ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
@@ -1196,9 +1196,86 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+//PHIL
 int
 noit_filters_lmdb_cull_unused() {
-  return 0;
+  int rc;
+  mtev_hash_table active;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key, mdb_data;
+  int i, n_uses = 0, n_declares = 0, removed = 0;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+  
+  mtevAssert(instance != NULL);
+  mtev_hash_init(&active);
+
+  mdb_key.mv_data = NULL;
+  mdb_key.mv_size = 0;
+  pthread_rwlock_rdlock(&instance->lock);
+
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    pthread_rwlock_unlock(&instance->lock);
+    mtevL(mtev_error, "failed to create transaction for cull: %d (%s)\n", rc, mdb_strerror(rc));
+    return -1;
+  }
+  mdb_cursor_open(txn, instance->dbi, &cursor);
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_FIRST);
+
+  while (rc == 0) {
+    mtev_dyn_buffer_t aligned;
+    void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
+    int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
+    if(fb_ret != 0) {
+      mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
+      mtev_dyn_buffer_destroy(&aligned);
+      rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+      continue;
+    }
+    ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
+    if (ns(Filterset_cull_is_present(filterset))) {
+      mtev_boolean cull = ns(Filterset_cull(filterset));
+      if (cull == mtev_false) {
+        mtev_dyn_buffer_destroy(&aligned);
+        rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+        continue;
+      }
+    }
+    flatbuffers_string_t name = ns(Filterset_name(filterset));
+    mtev_hash_store(&active, strdup(name), strlen(name), NULL);
+    mtev_dyn_buffer_destroy(&aligned);
+    rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+  }
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+
+  n_uses = noit_poller_do(noit_filters_filterset_accum, &active);
+
+  if(n_uses > 0 && mtev_hash_size(&active) > 0) {
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    const char *filter_name;
+    int filter_name_len;
+    void *vnode;
+    while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len,
+                         &vnode)) {
+#if 0
+      mtev_conf_section_t *sptr = vnode;
+      if(noit_filter_remove(*sptr)) {
+        CONF_REMOVE(*sptr);
+        xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);
+        xmlUnlinkNode(node);
+        xmlFreeNode(node);
+        removed++;
+      }
+#endif
+    }
+  }
+
+  mtev_hash_destroy(&active, free, NULL);
+
+  pthread_rwlock_unlock(&instance->lock);
+  return removed;
 }
 
 int

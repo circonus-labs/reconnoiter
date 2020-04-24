@@ -154,6 +154,9 @@ API_EXPORT(void)
 API_EXPORT(int)
   noit_filters_process_repl(xmlDocPtr);
 
+API_EXPORT(int)
+  noit_filters_filterset_accum(noit_check_t *check, void *closure);
+
 API_EXPORT(void)
   noit_filtersets_build_cluster_changelog(void *);
 
