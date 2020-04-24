@@ -71,6 +71,7 @@
 static char *cainfo;
 static char *certinfo;
 static char *keyinfo;
+static uint32_t batch_size = 500; /* for fetching clusters and filters */
 
 static void
 noit_cluster_setup_ssl(int port) {
@@ -501,7 +502,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       }
       snprintf(connect_str, sizeof(connect_str), "%s:43191:%s", cn, host_port);
       connect_to = curl_slist_append(NULL, connect_str);
-      
+
       /* First pull filtersets */
       if(rj->filters.end) {
         snprintf(url, sizeof(url),
@@ -531,7 +532,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
         }
         if(!rj->checks.success) usleep(REPL_FAIL_WAIT_US);
       }
-      
+
       curl_easy_setopt(curl, CURLOPT_CONNECT_TO, NULL);
       curl_slist_free_all(connect_to);
     }
@@ -586,8 +587,14 @@ possibly_start_job(noit_peer_t *peer) {
     mtev_uuid_copy(rj->peerid, peer->id);
     rj->checks.prev = peer->checks.fetched;
     rj->checks.end = peer->checks.available;
+    if (batch_size > 0 && (rj->checks.end - rj->checks.prev > batch_size)) {
+      rj->checks.end = rj->checks.prev + batch_size;
+    }
     rj->filters.prev = peer->filters.fetched;
     rj->filters.end = peer->filters.available;
+    if (batch_size > 0 && (rj->filters.end - rj->filters.prev > batch_size)) {
+      rj->filters.end = rj->filters.prev + batch_size;
+    }
     if(peer->checks.prev_fetched == rj->checks.end && peer->checks.last_batch == 0) {
       rj->checks.prev = rj->checks.end = 0;
     }
@@ -867,9 +874,10 @@ void noit_mtev_cluster_init() {
   showcmd = mtev_console_state_get_cmd(tl, "show");
   mtevAssert(showcmd && showcmd->dstate);
 
+  mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &batch_size);
+
   mtev_console_state_add_cmd(showcmd->dstate,
   NCSCMD("noit-cluster", noit_clustering_show, NULL, NULL, NULL));
-
 
   repl_jobq = eventer_jobq_create_ms("noit_cluster", EVENTER_JOBQ_MS_GC);
   mtevAssert(repl_jobq);
