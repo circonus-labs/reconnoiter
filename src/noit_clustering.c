@@ -61,6 +61,7 @@
 #include "noit_clustering.h"
 #include "noit_check.h"
 #include "noit_filters.h"
+#include "noit_filters_lmdb.h"
 #include <curl/curl.h>
 #include <sys/mman.h>
 #include <errno.h>
@@ -374,7 +375,10 @@ noit_cluster_lmdb_filter_changes(uuid_t peerid, const char *cn,
   }
   for(node = peer->filters.head; node && node->seq <= limit; node = node->next) {
     if(mtev_hash_store(&dedup, (const char *)node->name, strlen(node->name), NULL)) {
-      /* TODO: Get data out of LMDB */
+      if(noit_filters_lmdb_already_in_db(node->name)) {
+        noit_filters_lmdb_populate_filterset_xml_from_lmdb(parent, node->name);
+        last_seen = node->seq;
+      }
     }
   }
   pthread_mutex_unlock(&noit_peer_lock);

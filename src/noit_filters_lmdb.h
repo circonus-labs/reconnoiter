@@ -31,6 +31,7 @@
 #define _NOIT_FILTERS_LMDB_H
 
 #include <mtev_rest.h>
+#include <libxml/tree.h>
 
 typedef enum {
   NOIT_LMDB_FILTERSET_RULE_ACCEPT_TYPE = 'A',
@@ -39,6 +40,9 @@ typedef enum {
   NOIT_LMDB_FILTERSET_RULE_SKIPTO_TYPE = 'S',
 } noit_lmdb_filterset_rule_type_e;
 
+int noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name);
+mtev_boolean noit_filters_lmdb_already_in_db(char *name);
+int64_t noit_filters_lmdb_get_seq(char *name);
 void noit_filters_lmdb_filters_from_lmdb();
 void noit_filters_lmdb_migrate_xml_filtersets_to_lmdb();
 int noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
