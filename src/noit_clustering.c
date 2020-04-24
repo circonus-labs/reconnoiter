@@ -202,7 +202,7 @@ void
 noit_cluster_mark_check_changed(noit_check_t *check, void *vpeer) {
   if(!strcmp(check->module, "selfcheck")) return;
   if(check->config_seq <= 0) return;
-  mtevL(cldeb, "marking check %s [%s] %"PRId64" for repl\n", check->name, check->module, check->config_seq);
+  // mtevL(cldeb, "marking check %s [%s] %"PRId64" for repl\n", check->name, check->module, check->config_seq);
   pthread_mutex_lock(&noit_peer_lock);
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   checks_produced++;
@@ -502,7 +502,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       }
       snprintf(connect_str, sizeof(connect_str), "%s:43191:%s", cn, host_port);
       connect_to = curl_slist_append(NULL, connect_str);
-      
+
       /* First pull filtersets */
       if(rj->filters.end) {
         snprintf(url, sizeof(url),
@@ -532,7 +532,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
         }
         if(!rj->checks.success) usleep(REPL_FAIL_WAIT_US);
       }
-      
+
       curl_easy_setopt(curl, CURLOPT_CONNECT_TO, NULL);
       curl_slist_free_all(connect_to);
     }
@@ -585,10 +585,12 @@ possibly_start_job(noit_peer_t *peer) {
     /* We have work to do */
     repl_job_t *rj = calloc(1, sizeof(*rj));
     mtev_uuid_copy(rj->peerid, peer->id);
+    uint64_t new_checks = peer->checks.available - peer->checks.fetched;
     rj->checks.prev = peer->checks.fetched;
-    rj->checks.end = peer->checks.available;
+    rj->checks.end = (new_checks > batch_size) ? rj->checks.prev + batch_size : peer->checks.available;
+    uint64_t new_filters = peer->filters.available - peer->filters.fetched;
     rj->filters.prev = peer->filters.fetched;
-    rj->filters.end = peer->filters.available;
+    rj->filters.end = (new_filters > batch_size) ? rj->filters.prev + batch_size : peer->filters.available;
     if(peer->checks.prev_fetched == rj->checks.end && peer->checks.last_batch == 0) {
       rj->checks.prev = rj->checks.end = 0;
     }
