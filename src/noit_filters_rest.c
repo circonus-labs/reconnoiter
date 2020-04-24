@@ -169,8 +169,15 @@ rest_cull_filter(mtev_http_rest_closure_t *restc,
   char cnt_str[32];
   mtev_http_session_ctx *ctx = restc->http_ctx;
 
-  rv = noit_filtersets_cull_unused();
-  if(rv > 0) mtev_conf_mark_changed();
+  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+    rv = noit_filters_lmdb_cull_unused();
+  }
+  else {
+    rv = noit_filtersets_cull_unused();
+    if(rv > 0) {
+      mtev_conf_mark_changed();
+    }
+  }
   snprintf(cnt_str, sizeof(cnt_str), "%d", rv);
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_header_set(ctx, "X-Filters-Removed", cnt_str);

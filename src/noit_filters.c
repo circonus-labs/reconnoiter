@@ -1017,7 +1017,12 @@ noit_console_filter_cull(mtev_console_closure_t ncct,
               info->path);
     return -1;
   }
-  rv = noit_filtersets_cull_unused();
+  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+    rv = noit_filters_lmdb_cull_unused();
+  }
+  else {
+    rv = noit_filtersets_cull_unused();
+  }
   nc_printf(ncct, "Culled %d unused filtersets\n", rv);
   return 0;
 }

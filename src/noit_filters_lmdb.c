@@ -1194,6 +1194,11 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
 }
 
 int
+noit_filters_lmdb_cull_unused() {
+  return 0;
+}
+
+int
 noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
                                   int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;

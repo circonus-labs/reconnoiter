@@ -49,6 +49,7 @@ int noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
                                        int npats, char **pats);
 int noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
                                          int npats, char **pats);
+int noit_filters_lmdb_cull_unused();
 int noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
                                       int npats, char **pats);
 void noit_filters_lmdb_init();
