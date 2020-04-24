@@ -585,12 +585,16 @@ possibly_start_job(noit_peer_t *peer) {
     /* We have work to do */
     repl_job_t *rj = calloc(1, sizeof(*rj));
     mtev_uuid_copy(rj->peerid, peer->id);
-    uint64_t new_checks = peer->checks.available - peer->checks.fetched;
     rj->checks.prev = peer->checks.fetched;
-    rj->checks.end = (new_checks > batch_size) ? rj->checks.prev + batch_size : peer->checks.available;
-    uint64_t new_filters = peer->filters.available - peer->filters.fetched;
+    rj->checks.end = peer->checks.available;
+    if (batch_size > 0 && (rj->checks.end - rj->checks.prev > batch_size)) {
+      rj->checks.end = rj->checks.prev + batch_size;
+    }
     rj->filters.prev = peer->filters.fetched;
-    rj->filters.end = (new_filters > batch_size) ? rj->filters.prev + batch_size : peer->filters.available;
+    rj->filters.end = peer->filters.available;
+    if (batch_size > 0 && (rj->filters.end - rj->filters.prev > batch_size)) {
+      rj->filters.end = rj->filters.prev + batch_size;
+    }
     if(peer->checks.prev_fetched == rj->checks.end && peer->checks.last_batch == 0) {
       rj->checks.prev = rj->checks.end = 0;
     }
