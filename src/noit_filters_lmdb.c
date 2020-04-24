@@ -269,6 +269,9 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   if (cull) {
     ns(Filterset_cull_add)(B, *cull);
   }
+  else {
+    ns(Filterset_cull_add)(B, true);
+  }
   ns(Filterset_rules_start(B));
   for (i = 0; i < rule_cnt; i++) {
     noit_filter_lmdb_filterset_rule_t *rule = rules[i];
