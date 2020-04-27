@@ -1026,7 +1026,7 @@ noit_console_filter_cull(mtev_console_closure_t ncct,
               info->path);
     return -1;
   }
-  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+  if (noit_filters_get_lmdb_instance()) {
     rv = noit_filters_lmdb_cull_unused();
   }
   else {
@@ -1211,7 +1211,7 @@ noit_filters_init() {
   mtev_boolean use_lmdb = (lmdb_path && lmdb_path_exists);
   mtev_conf_get_boolean(MTEV_CONF_ROOT, "//filtersets/@use_lmdb", &use_lmdb);
 
-  if (ENABLE_LMDB_FILTERSETS && (use_lmdb == mtev_true)) {
+  if (use_lmdb == mtev_true) {
     noit_filters_lmdb_init();
     if (lmdb_path == NULL) {
       mtevFatal(mtev_error, "noit_filters: use_lmdb specified, but no path provided\n");
@@ -1233,7 +1233,7 @@ noit_filters_init() {
   mtev_capabilities_add_feature("filterset:hash", NULL);
   register_console_filter_commands();
 
-  if (ENABLE_LMDB_FILTERSETS && (use_lmdb == mtev_true)) {
+  if (use_lmdb == mtev_true) {
     noit_filters_lmdb_filters_from_lmdb();
   }
   else {

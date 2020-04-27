@@ -63,7 +63,7 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
   xmlNodePtr root;
   char xpath[1024];
 
-  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+  if (noit_filters_get_lmdb_instance()) {
     return noit_filters_lmdb_rest_show_filter(restc, npats, pats);
   }
 
@@ -130,7 +130,7 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
   mtev_conf_section_t section = MTEV_CONF_EMPTY;
 
   char xpath[1024];
-  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+  if (noit_filters_get_lmdb_instance()) {
     return noit_filters_lmdb_rest_delete_filter(restc, npats, pats);
   }
 
@@ -169,7 +169,7 @@ rest_cull_filter(mtev_http_rest_closure_t *restc,
   char cnt_str[32];
   mtev_http_session_ctx *ctx = restc->http_ctx;
 
-  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+  if (noit_filters_get_lmdb_instance()) {
     rv = noit_filters_lmdb_cull_unused();
   }
   else {
@@ -199,7 +199,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   int64_t old_seq = 0;
   const char *error = "internal error";
 
-  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+  if (noit_filters_get_lmdb_instance()) {
     return noit_filters_lmdb_rest_set_filter(restc, npats, pats);
   }
 
@@ -301,7 +301,7 @@ rest_show_filter_updates(mtev_http_rest_closure_t *restc,
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewNode(NULL, (xmlChar *)"filtersets");
   xmlDocSetRootElement(doc, root);
-  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+  if (noit_filters_get_lmdb_instance()) {
     noit_cluster_lmdb_filter_changes(peerid, restc->remote_cn, prev, end, root);
   }
   else {

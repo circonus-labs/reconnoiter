@@ -100,7 +100,7 @@ nl_register_dns_ignore_domain(lua_State *L) {
 static int
 lua_general_filtersets_cull(lua_State *L) {
   int rv;
-  if (ENABLE_LMDB_FILTERSETS && noit_filters_get_lmdb_instance()) {
+  if (noit_filters_get_lmdb_instance()) {
     rv = noit_filters_lmdb_cull_unused();
   }
   else {
