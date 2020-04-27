@@ -754,6 +754,53 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   return used_new_one;
 }
 
+static int
+noit_filters_lmdb_remove_from_db(char *name) {
+  int rc = MDB_SUCCESS;
+  MDB_txn *txn = NULL;
+  MDB_cursor *cursor = NULL;
+  MDB_val mdb_key;
+  char *key = NULL;
+  size_t key_size;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+  if (!noit_filters_lmdb_already_in_db(name)) {
+    return MDB_NOTFOUND;
+  }
+
+  key = noit_lmdb_make_filterset_key(name, &key_size);
+  mtevAssert(key);
+
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+
+  pthread_rwlock_rdlock(&instance->lock);
+
+  mdb_txn_begin(instance->env, NULL, 0, &txn);
+  rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
+  if (rc != MDB_SUCCESS) {
+    mtevL(mtev_error, "failed to delete key in filters: %d (%s)\n", rc, mdb_strerror(rc));
+    mdb_txn_abort(txn);
+    pthread_rwlock_unlock(&instance->lock);
+    free(key);
+    return rc;
+  }
+
+  rc = mdb_txn_commit(txn);
+  if (rc != MDB_SUCCESS) {
+    mtevL(mtev_error, "failed to delete key in filters: %d (%s)\n", rc, mdb_strerror(rc));
+    pthread_rwlock_unlock(&instance->lock);
+    free(key);
+    return rc;
+  }
+
+  pthread_rwlock_unlock(&instance->lock);
+  free(key);
+
+  return MDB_SUCCESS;
+}
+
 int
 noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) {
   int rc;
@@ -1145,38 +1192,13 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
     goto not_found;
   }
 
-  if (!noit_filters_lmdb_already_in_db(pats[1])) {
+  rc = noit_filters_lmdb_remove_from_db(pats[1]);
+  if (rc == MDB_NOTFOUND) {
     goto not_found;
   }
-
-  key = noit_lmdb_make_filterset_key(pats[1], &key_size);
-  mtevAssert(key);
-
-  mdb_key.mv_data = key;
-  mdb_key.mv_size = key_size;
-
-  pthread_rwlock_rdlock(&instance->lock);
-
-  mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
-  rc = mdb_del(txn, instance->dbi, &mdb_key, NULL);
-  if (rc != 0) {
-    mtevL(mtev_error, "failed to delete key in filters: %d (%s)\n", rc, mdb_strerror(rc));
-    mdb_txn_abort(txn);
-    pthread_rwlock_unlock(&instance->lock);
-    free(key);
+  else if (rc != MDB_SUCCESS) {
     goto error;
   }
-
-  rc = mdb_txn_commit(txn);
-  if (rc != 0) {
-    mtevL(mtev_error, "failed to delete key in filters: %d (%s)\n", rc, mdb_strerror(rc));
-    pthread_rwlock_unlock(&instance->lock);
-    free(key);
-    goto error;
-  }
-
-  pthread_rwlock_unlock(&instance->lock);
-  free(key);
 
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_end(ctx);
@@ -1196,7 +1218,6 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
-//PHIL
 int
 noit_filters_lmdb_cull_unused() {
   int rc;
@@ -1254,21 +1275,15 @@ noit_filters_lmdb_cull_unused() {
 
   if(n_uses > 0 && mtev_hash_size(&active) > 0) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-    const char *filter_name;
-    int filter_name_len;
-    void *vnode;
-    while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len,
-                         &vnode)) {
-#if 0
-      mtev_conf_section_t *sptr = vnode;
-      if(noit_filter_remove(*sptr)) {
-        CONF_REMOVE(*sptr);
-        xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);
-        xmlUnlinkNode(node);
-        xmlFreeNode(node);
-        removed++;
+    const char *filter_name = NULL;
+    int filter_name_len = 0;
+    while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len, NULL)) {
+      char *name = (char *)calloc(1, filter_name_len + 1);
+      memcpy(name, filter_name, filter_name_len);
+      if(noit_filter_remove_from_name(name)) {
+        noit_filters_lmdb_remove_from_db(name);
       }
-#endif
+      free(name);
     }
   }
 

@@ -140,6 +140,9 @@ API_EXPORT(int)
   noit_filter_remove(mtev_conf_section_t setinfo);
 
 API_EXPORT(int)
+  noit_filter_remove_from_name(char *name);
+
+API_EXPORT(int)
   noit_filter_exists(const char *name);
 
 API_EXPORT(int)

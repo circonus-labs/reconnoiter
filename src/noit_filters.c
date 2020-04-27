@@ -420,6 +420,15 @@ noit_filter_remove(mtev_conf_section_t vnode) {
 
   return removed;
 }
+int
+noit_filter_remove_from_name(char *name) {
+  int removed = 0;
+  LOCKFS();
+  removed = mtev_hash_delete(filtersets, name, strlen(name),
+                             NULL, noit_filter_filterset_free);
+  UNLOCKFS();
+  return removed;
+}
 void
 noit_filters_from_conf() {
   mtev_conf_section_t *sets;
