@@ -375,9 +375,9 @@ noit_cluster_lmdb_filter_changes(uuid_t peerid, const char *cn,
   }
   for(node = peer->filters.head; node && node->seq <= limit; node = node->next) {
     if(mtev_hash_store(&dedup, (const char *)node->name, strlen(node->name), NULL)) {
-      if(noit_filters_lmdb_already_in_db(node->name)) {
+      if(noit_filters_lmdb_already_in_db(node->name) == mtev_true) {
         xmlNodePtr new_node = xmlNewNode(NULL, (xmlChar *)"filterset");
-        if (noit_filters_lmdb_populate_filterset_xml_from_lmdb(new_node, node->name)) {
+        if (noit_filters_lmdb_populate_filterset_xml_from_lmdb(new_node, node->name) == 0) {
           xmlAddChild(parent, new_node);
           last_seen = node->seq;
         }
