@@ -1150,7 +1150,7 @@ noit_filters_lmdb_process_repl(xmlDocPtr doc) {
     mtevAssert(mtev_conf_get_stringbuf(mtev_conf_section_from_xmlnodeptr(child), "@name",
                                        filterset_name, sizeof(filterset_name)));
     if(noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(child))) {
-      /* TODO: Write to the DB */
+      noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(child));
     }
     i++;
   }
