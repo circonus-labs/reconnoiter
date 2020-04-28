@@ -45,6 +45,7 @@ mtev_boolean noit_filters_lmdb_already_in_db(char *name);
 int64_t noit_filters_lmdb_get_seq(char *name);
 void noit_filters_lmdb_filters_from_lmdb();
 void noit_filters_lmdb_migrate_xml_filtersets_to_lmdb();
+int noit_filters_lmdb_process_repl(xmlDocPtr doc);
 int noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
                                        int npats, char **pats);
 int noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,

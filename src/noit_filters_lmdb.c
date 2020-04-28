@@ -1133,6 +1133,31 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
 }
 
 int
+noit_filters_lmdb_process_repl(xmlDocPtr doc) {
+  int i = 0;
+  xmlNodePtr root, child, next = NULL;
+
+  if(!noit_filter_initialized()) {
+    mtevL(mtev_debug, "filterset replication pending initialization\n");
+    return -1;
+  }
+
+  root = xmlDocGetRootElement(doc);
+  for(child = xmlFirstElementChild(root); child; child = next) {
+    next = xmlNextElementSibling(child);
+
+    char filterset_name[MAX_METRIC_TAGGED_NAME];
+    mtevAssert(mtev_conf_get_stringbuf(mtev_conf_section_from_xmlnodeptr(child), "@name",
+                                       filterset_name, sizeof(filterset_name)));
+    if(noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(child))) {
+      /* TODO: Write to the DB */
+    }
+    i++;
+  }
+  return i;
+}
+
+int
 noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
                                    int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;

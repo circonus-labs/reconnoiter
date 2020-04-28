@@ -96,6 +96,10 @@ filterrule_free(void *vp) {
 noit_lmdb_instance_t *noit_filters_get_lmdb_instance() {
   return lmdb_instance;
 }
+bool
+noit_filter_initialized() {
+  return initialized;
+}
 void
 noit_filter_filterset_free(void *vp) {
   filterset_t *fs = vp;
@@ -446,6 +450,11 @@ int
 noit_filters_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL;
+
+  if (noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_process_repl(doc);
+  }
+
   if(!initialized) {
     mtevL(nf_debug, "filterset replication pending initialization\n");
     return -1;

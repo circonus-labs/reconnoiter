@@ -108,6 +108,9 @@ typedef struct {
   uint32_t denies;
 } filterset_t;
 
+API_EXPORT(bool)
+  noit_filter_initialized();
+
 API_EXPORT(void)
   noit_filter_filterset_free(void *vp);
 
