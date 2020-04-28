@@ -1302,7 +1302,8 @@ noit_filters_lmdb_cull_unused() {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *filter_name = NULL;
     int filter_name_len = 0;
-    while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len, NULL)) {
+    void *unused = NULL;
+    while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len, &unused)) {
       char *name = (char *)calloc(1, filter_name_len + 1);
       memcpy(name, filter_name, filter_name_len);
       if(noit_filter_remove_from_name(name)) {
