@@ -878,13 +878,10 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
       flatbuffers_string_t type = ns(FiltersetRule_rule_type(fs_rule));
       if (type != NULL) {
         if (!strcmp(type, FILTERSET_SKIPTO_STRING_NO_COLON)) {
-          flatbuffers_string_t skipto = NULL;
-          if (ns(FiltersetRule_skipto_value_is_present(fs_rule))) {
-            skipto = ns(FiltersetRule_skipto_value(fs_rule));
-          }
+          flatbuffers_string_t skipto = ns(FiltersetRule_skipto_value(fs_rule));
           if (skipto) {
             snprintf(buffer, sizeof(buffer), "%s:%s", type, skipto);
-            xmlSetProp(rule, (xmlChar *)"buffer", (xmlChar *)type);
+            xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)buffer);
           }
           else {
             xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
