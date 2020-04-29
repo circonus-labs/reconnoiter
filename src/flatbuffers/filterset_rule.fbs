@@ -24,9 +24,14 @@ table FiltersetRuleTagInfo {
   value: string (id: 1);
 }
 
+table FiltersetRuleFlushPeriod {
+  present: bool (id: 0);
+  value: long (id: 1);
+}
+
 table FiltersetRule {
   id: string (id: 0);
-  filterset_flush_period: long (id: 1);
+  filterset_flush_period: FiltersetRuleFlushPeriod (id: 1);
   rule_type: string (id: 2);
   skipto_value: string(id: 3);
   info: [FiltersetRuleInfo] (id: 4);

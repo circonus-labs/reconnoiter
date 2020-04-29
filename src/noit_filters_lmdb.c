@@ -282,9 +282,15 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
     if (rule->ruleid) {
       ns(FiltersetRule_id_create_str(B, rule->ruleid));
     }
+    ns(FiltersetRule_filterset_flush_period_start(B));
     if (rule->filter_flush_period_present) {
-      ns(FiltersetRule_filterset_flush_period_add(B, rule->filter_flush_period));
+      ns(FiltersetRuleFlushPeriod_present_add(B, true));
+      ns(FiltersetRuleFlushPeriod_value_add(B, rule->filter_flush_period));
     }
+    else {
+      ns(FiltersetRuleFlushPeriod_present_add(B, false));
+    }
+    ns(FiltersetRule_filterset_flush_period_end(B));
     switch(rule->type) {
       case NOIT_FILTER_ACCEPT:
         ns(FiltersetRule_rule_type_create_str(B, FILTERSET_ACCEPT_STRING));
@@ -601,7 +607,10 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
     }
     int32_t ffp = global_default_filter_flush_period_ms;
     if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
-      ffp = ns(FiltersetRule_filterset_flush_period(fs_rule));
+      ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(FiltersetRule_filterset_flush_period(fs_rule));
+      if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
+        ffp = ns(FiltersetRuleFlushPeriod_value(fpt));
+      }
     }
     if(ffp < 0) {
       ffp = 0;
@@ -869,9 +878,12 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
         xmlSetProp(rule, (xmlChar *)"id", (xmlChar *)id);
       }
       if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
-        int64_t ffs = ns(FiltersetRule_filterset_flush_period_is_present(fs_rule));
-        snprintf(buffer, sizeof(buffer), "%" PRId64 "", ffs);
-        xmlSetProp(rule, (xmlChar *)"filter_flush_period", (xmlChar *)buffer);
+        ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(FiltersetRule_filterset_flush_period(fs_rule));
+        if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
+          int64_t ffs = ns(FiltersetRuleFlushPeriod_value(fpt));
+          snprintf(buffer, sizeof(buffer), "%" PRId64 "", ffs);
+          xmlSetProp(rule, (xmlChar *)"filter_flush_period", (xmlChar *)buffer);
+        }
       }
       flatbuffers_string_t type = ns(FiltersetRule_rule_type(fs_rule));
       if (type != NULL) {
