@@ -498,11 +498,9 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   int hte_cnt, hti, tablesize = 2; \
   flatbuffers_string_vec_t values_vec; \
   ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table)); \
-  if (ns(FiltersetRuleHashValue_auto_add_max_is_present(v))) { \
-    auto_max = ns(FiltersetRuleHashValue_auto_add_max(v)); \
-    if (auto_max < 0) { \
-      auto_max = 0; \
-    } \
+  auto_max = ns(FiltersetRuleHashValue_auto_add_max(v)); \
+  if (auto_max < 0) { \
+    auto_max = 0; \
   } \
   if (ns(FiltersetRuleHashValue_values_is_present(v))) { \
     values_vec = ns(FiltersetRuleHashValue_values(v)); \
@@ -904,8 +902,8 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
               case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
               {
                 ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
-                if (ns(FiltersetRuleHashValue_auto_add_max_is_present(v))) {
-                  int64_t auto_add = ns(FiltersetRuleHashValue_auto_add_max(v));
+                int64_t auto_add = ns(FiltersetRuleHashValue_auto_add_max(v));
+                if (auto_add > 0) {
                   char key_buffer[65535];
                   snprintf(key_buffer, sizeof(key_buffer), "%s_auto_add", type);
                   snprintf(buffer, sizeof(buffer), "%" PRId64 "", auto_add);
