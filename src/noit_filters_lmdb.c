@@ -597,7 +597,8 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
     filterrule_t *rule = NULL;
     rule = (filterrule_t *)calloc(1, sizeof(filterrule_t));
     ns(FiltersetRule_table_t) fs_rule = ns(FiltersetRule_vec_at(rule_vec, i));
-    if (ns(FiltersetRule_id_is_present(fs_rule))) {
+    flatbuffers_string_t ruleid = ns(FiltersetRule_id(fs_rule));
+    if (ruleid != NULL) {
       rule->ruleid = strdup(ns(FiltersetRule_id(fs_rule)));
     }
     int32_t ffp = global_default_filter_flush_period_ms;
@@ -621,11 +622,9 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
     else if (!strcmp(rule_type, FILTERSET_SKIPTO_STRING_NO_COLON)) {
       flatbuffers_string_t skipto = NULL;
       rule->type = NOIT_FILTER_SKIPTO;
-      if (ns(FiltersetRule_skipto_value_is_present(fs_rule))) {
-        skipto = ns(FiltersetRule_skipto_value(fs_rule));
-        if (skipto) {
-          rule->skipto = strdup(skipto);
-        }
+      skipto = ns(FiltersetRule_skipto_value(fs_rule));
+      if (skipto != NULL) {
+        rule->skipto = strdup(skipto);
       }
       else {
         mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: skipto type with no value\n");
@@ -876,8 +875,8 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
         snprintf(buffer, sizeof(buffer), "%" PRId64 "", ffs);
         xmlSetProp(rule, (xmlChar *)"filter_flush_period", (xmlChar *)buffer);
       }
-      if (ns(FiltersetRule_rule_type_is_present(fs_rule))) {
-        flatbuffers_string_t type = ns(FiltersetRule_rule_type(fs_rule));
+      flatbuffers_string_t type = ns(FiltersetRule_rule_type(fs_rule));
+      if (type != NULL) {
         if (!strcmp(type, FILTERSET_SKIPTO_STRING_NO_COLON)) {
           flatbuffers_string_t skipto = NULL;
           if (ns(FiltersetRule_skipto_value_is_present(fs_rule))) {
