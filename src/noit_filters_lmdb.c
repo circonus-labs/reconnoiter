@@ -584,14 +584,13 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   set = (filterset_t *)calloc(1, sizeof(filterset_t));
   set->ref_cnt = 1;
   set->name = strdup(ns(Filterset_name(filterset)));
-  if (ns(Filterset_seq_is_present(filterset))) {
-    seq = ns(Filterset_seq(filterset));
-    mtevAssert (seq >= 0);
-  }
+
+  seq = ns(Filterset_seq(filterset));
+  mtevAssert (seq >= 0);
   set->seq = seq;
-  if (ns(Filterset_cull_is_present(filterset))) {
-    /* TODO: Read cull */
-  }
+
+  /* TODO: Read/handle cull */
+
   ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
   num_rules = ns(FiltersetRule_vec_len(rule_vec));
   for (i=num_rules-1; i >= 0; i--) {
@@ -802,7 +801,7 @@ noit_filters_lmdb_remove_from_db(char *name) {
 }
 
 int
-noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) {
+noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_name) {
   int rc;
   char buffer[65535];
   MDB_txn *txn = NULL;
@@ -814,7 +813,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
 
   mtevAssert(instance != NULL);
 
-  key = noit_lmdb_make_filterset_key(name, &key_size);
+  key = noit_lmdb_make_filterset_key(fs_name, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -846,23 +845,21 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
     return -1;
   }
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
-  if (ns(Filterset_name_is_present(filterset))) {
-    flatbuffers_string_t name = ns(Filterset_name(filterset));
+  flatbuffers_string_t name = ns(Filterset_name(filterset));
+  if (name != NULL) {
     xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
   }
-  if (ns(Filterset_seq_is_present(filterset))) {
-    int64_t seq = ns(Filterset_seq(filterset));
+
+  int64_t seq = ns(Filterset_seq(filterset));
+  if (seq > 0) {
     snprintf(buffer, sizeof(buffer), "%" PRId64 "", seq);
     xmlSetProp(root, (xmlChar *)"seq", (xmlChar *)buffer);
   }
-  if (ns(Filterset_cull_is_present(filterset))) {
-    mtev_boolean cull = ns(Filterset_cull(filterset));
-    snprintf(buffer, sizeof(buffer), "%s", (cull) ? "true" : "false");
-    xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)buffer);
-  }
-  else {
-    xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)"true");
-  }
+
+  mtev_boolean cull = ns(Filterset_cull(filterset));
+  snprintf(buffer, sizeof(buffer), "%s", (cull == mtev_true) ? "true" : "false");
+  xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)buffer);
+
   if (ns(Filterset_rules_is_present(filterset))) {
     ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
     size_t num_rules = ns(FiltersetRule_vec_len(rule_vec));
@@ -870,8 +867,8 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *name) 
     for (i=0; i < num_rules; i++) {
       xmlNodePtr rule = xmlNewNode(NULL, (xmlChar *)"rule");
       ns(FiltersetRule_table_t) fs_rule = ns(FiltersetRule_vec_at(rule_vec, i));
-      if (ns(FiltersetRule_id_is_present(fs_rule))) {
-        flatbuffers_string_t id = ns(FiltersetRule_id(fs_rule));
+      flatbuffers_string_t id = ns(FiltersetRule_id(fs_rule));
+      if (id != NULL) {
         xmlSetProp(rule, (xmlChar *)"id", (xmlChar *)id);
       }
       if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
@@ -1044,11 +1041,9 @@ noit_filters_lmdb_get_seq(char *name) {
     }
     else {
       ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
-      if (ns(Filterset_seq_is_present(filterset))) {
-        toRet = ns(Filterset_seq(filterset));
-        if (toRet < 0) {
-          toRet = 0;
-        }
+      toRet = ns(Filterset_seq(filterset));
+      if (toRet < 0) {
+        toRet = 0;
       }
     }
     mtev_dyn_buffer_destroy(&aligned);
@@ -1280,13 +1275,12 @@ noit_filters_lmdb_cull_unused() {
       continue;
     }
     ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
-    if (ns(Filterset_cull_is_present(filterset))) {
-      mtev_boolean cull = ns(Filterset_cull(filterset));
-      if (cull == mtev_false) {
-        mtev_dyn_buffer_destroy(&aligned);
-        rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
-        continue;
-      }
+
+    mtev_boolean cull = ns(Filterset_cull(filterset));
+    if (cull == mtev_false) {
+      mtev_dyn_buffer_destroy(&aligned);
+      rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
+      continue;
     }
     flatbuffers_string_t name = ns(Filterset_name(filterset));
     mtev_hash_store(&active, strdup(name), strlen(name), NULL);
