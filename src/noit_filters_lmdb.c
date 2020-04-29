@@ -251,6 +251,7 @@ static int
 noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          int64_t *sequence,
                                          mtev_boolean *cull,
+                                         int32_t *filter_flush_global,
                                          noit_filter_lmdb_filterset_rule_t **rules,
                                          int64_t rule_cnt) {
   int i = 0, ret = 0;
@@ -272,6 +273,15 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   else {
     ns(Filterset_cull_add)(B, true);
   }
+  ns(Filterset_filterset_flush_period_start(B));
+  if (filter_flush_global) {
+    ns(FiltersetRuleFlushPeriod_present_add(B, true));
+    ns(FiltersetRuleFlushPeriod_value_add(B, *filter_flush_global));
+  }
+  else {
+    ns(FiltersetRuleFlushPeriod_present_add(B, false));
+  }
+  ns(Filterset_filterset_flush_period_end(B));
   ns(Filterset_rules_start(B));
   for (i = 0; i < rule_cnt; i++) {
     noit_filter_lmdb_filterset_rule_t *rule = rules[i];
@@ -444,8 +454,9 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
   int i = 0, rv = -1;
   char *filterset_name = NULL;
   int64_t sequence = 0;
+  int32_t filter_flush_period = 0;
   mtev_boolean cull = mtev_false;
-  mtev_boolean sequence_present = mtev_false, cull_present = mtev_false;
+  mtev_boolean sequence_present = mtev_false, cull_present = mtev_false, filter_flush_period_present = mtev_false;
   noit_filter_lmdb_filterset_rule_t **rules = NULL;
   mtev_conf_section_t *rules_conf;
   int rule_cnt = 0;
@@ -460,15 +471,18 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
   mtev_watchdog_child_heartbeat();
 
   /* TODO: Finish this */
-  if (!mtev_conf_get_string(fs_section, "@name", &filterset_name)) {
+  if (!mtev_conf_get_string(fs_section, "self::node()/@name", &filterset_name)) {
     /* Filterset must have a name */
     return -1;
   }
-  if (mtev_conf_get_int64(fs_section, "@seq", &sequence)) {
+  if (mtev_conf_get_int64(fs_section, "self::node()/@seq", &sequence)) {
     sequence_present = mtev_true;
   }
-  if (mtev_conf_get_boolean(fs_section, "@cull", &cull)) {
+  if (mtev_conf_get_boolean(fs_section, "self::node()/@cull", &cull)) {
     cull_present = mtev_true;
+  }
+  if(mtev_conf_get_int32(fs_section, "self::node()/@filter_flush_period", &filter_flush_period)) {
+    filter_flush_period_present = mtev_true;
   }
 
   rules_conf = mtev_conf_get_sections_read(fs_section, "rule", &rule_cnt);
@@ -484,6 +498,7 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
   rv = noit_filters_lmdb_write_flatbuffer_to_db(filterset_name,
                (sequence_present) ? &sequence : NULL,
                (cull_present) ? &cull : NULL,
+               (filter_flush_period_present) ? &filter_flush_period : NULL,
                rules,
                (int64_t)rule_cnt);
 
@@ -595,6 +610,17 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
 
   /* TODO: Read/handle cull */
 
+  int local_default_filter_flush_period_ms = global_default_filter_flush_period_ms;
+  if (ns(Filterset_filterset_flush_period_is_present(filterset))) {
+    ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(Filterset_filterset_flush_period(filterset));
+    if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
+      local_default_filter_flush_period_ms = ns(FiltersetRuleFlushPeriod_value(fpt));
+    }
+  }
+  if (local_default_filter_flush_period_ms < 0) {
+    local_default_filter_flush_period_ms = 0;
+  }
+
   ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
   num_rules = ns(FiltersetRule_vec_len(rule_vec));
   for (i=num_rules-1; i >= 0; i--) {
@@ -605,7 +631,7 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
     if (ruleid != NULL) {
       rule->ruleid = strdup(ns(FiltersetRule_id(fs_rule)));
     }
-    int32_t ffp = global_default_filter_flush_period_ms;
+    int32_t ffp = local_default_filter_flush_period_ms;
     if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
       ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(FiltersetRule_filterset_flush_period(fs_rule));
       if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
@@ -865,6 +891,15 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
   mtev_boolean cull = ns(Filterset_cull(filterset));
   snprintf(buffer, sizeof(buffer), "%s", (cull == mtev_true) ? "true" : "false");
   xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)buffer);
+
+  if (ns(Filterset_filterset_flush_period_is_present(filterset))) {
+    ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(Filterset_filterset_flush_period(filterset));
+    if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
+      int32_t ffp = ns(FiltersetRuleFlushPeriod_value(fpt));
+      snprintf(buffer, sizeof(buffer), "%" PRId32 "", ffp);
+      xmlSetProp(root, (xmlChar *)"filter_flush_period", (xmlChar *)buffer);
+    }
+  }
 
   if (ns(Filterset_rules_is_present(filterset))) {
     ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));

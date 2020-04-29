@@ -6,7 +6,8 @@ table Filterset {
   name: string (id: 0);
   seq: long (id: 1);
   cull: bool (id: 2);
-  rules:[FiltersetRule] (id: 3);
+  filterset_flush_period: FiltersetRuleFlushPeriod (id: 3);
+  rules:[FiltersetRule] (id: 4);
 }
 
 root_type Filterset;
