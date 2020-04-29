@@ -895,45 +895,51 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
         size_t j = 0;
         for (j=0; j < num_rule_info; j++) {
           ns(FiltersetRuleInfo_table_t) fs_rule_info = ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
-          if (ns(FiltersetRuleInfo_type_is_present(fs_rule_info)) &&
-              ns(FiltersetRuleInfo_data_is_present(fs_rule_info))) {
-            flatbuffers_string_t type = ns(FiltersetRuleInfo_type(fs_rule_info));
-            switch(ns(FiltersetRuleInfo_data_type(fs_rule_info))) {
-              case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
-              {
-                ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
-                int64_t auto_add = ns(FiltersetRuleHashValue_auto_add_max(v));
-                if (auto_add > 0) {
-                  char key_buffer[65535];
-                  snprintf(key_buffer, sizeof(key_buffer), "%s_auto_add", type);
-                  snprintf(buffer, sizeof(buffer), "%" PRId64 "", auto_add);
-                  xmlSetProp(rule, (xmlChar *)key_buffer, (xmlChar *)buffer);
+          flatbuffers_string_t type = ns(FiltersetRuleInfo_type(fs_rule_info));
+          if (type == NULL) {
+            mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_type missing\n");
+            continue;
+          }
+          if (!ns(FiltersetRuleInfo_data_is_present(fs_rule_info))) {
+            mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_data missing\n");
+            continue;
+          }
+          switch(ns(FiltersetRuleInfo_data_type(fs_rule_info))) {
+            case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
+            {
+              ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
+              int64_t auto_add = ns(FiltersetRuleHashValue_auto_add_max(v));
+              if (auto_add > 0) {
+                char key_buffer[65535];
+                snprintf(key_buffer, sizeof(key_buffer), "%s_auto_add", type);
+                snprintf(buffer, sizeof(buffer), "%" PRId64 "", auto_add);
+                xmlSetProp(rule, (xmlChar *)key_buffer, (xmlChar *)buffer);
+              }
+              if (ns(FiltersetRuleHashValue_values_is_present(v))) {
+                flatbuffers_string_vec_t values_vec = ns(FiltersetRuleHashValue_values(v));
+                size_t hte_cnt = flatbuffers_string_vec_len(values_vec);
+                size_t ii = 0;
+                for (ii = 0; ii < hte_cnt; ii++) {
+                  flatbuffers_string_t value = flatbuffers_string_vec_at(values_vec, ii);
+                  xmlNodePtr node = xmlNewNode(NULL, (xmlChar *)type);
+                  xmlNodeAddContent(node, (xmlChar *)value);
+                  xmlAddChild(rule, node);
                 }
-                if (ns(FiltersetRuleHashValue_values_is_present(v))) {
-                  flatbuffers_string_vec_t values_vec = ns(FiltersetRuleHashValue_values(v));
-                  size_t hte_cnt = flatbuffers_string_vec_len(values_vec);
-                  size_t ii = 0;
-                  for (ii = 0; ii < hte_cnt; ii++) {
-                    flatbuffers_string_t value = flatbuffers_string_vec_at(values_vec, ii);
-                    xmlNodePtr node = xmlNewNode(NULL, (xmlChar *)type);
-                    xmlNodeAddContent(node, (xmlChar *)value);
-                    xmlAddChild(rule, node);
-                  }
-                }
-                break;
               }
-              case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
-              {
-                ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
-                flatbuffers_string_t regex = ns(FiltersetRuleAttributeValue_regex(v));
-                xmlSetProp(rule, (xmlChar *)type, (xmlChar *)regex);
-                break;
-              }
-              default:
-              {
-                /* Shouldn't happen */
-                break;
-              }
+              break;
+            }
+            case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
+            {
+              ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
+              flatbuffers_string_t regex = ns(FiltersetRuleAttributeValue_regex(v));
+              xmlSetProp(rule, (xmlChar *)type, (xmlChar *)regex);
+              break;
+            }
+            default:
+            {
+              /* Shouldn't happen */
+              mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: Uknown FiltersetRuleInfo_data type\n");
+              break;
             }
           }
         }
