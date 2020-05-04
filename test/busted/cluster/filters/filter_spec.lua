@@ -66,6 +66,12 @@ describe("cluster", function()
     expected.seq = tostring(global_filter_seq)
     expected.cull = cull
     expected.rules = {}
+    local allow_rule = {}
+    allow_rule.type = "allow"
+    local deny_rule = {}
+    deny_rule.type = "deny"
+    table.insert(expected.rules, allow_rule)
+    table.insert(expected.rules, deny_rule)
     return xml, expected
   end
   function put_cluster(api, nodes, idx)
@@ -90,7 +96,22 @@ describe("cluster", function()
       assert.is_equal(expected_doc["cull"], cull)
       local seq = rootnode:attr("seq")
       assert.is_equal(expected_doc["seq"], seq)
-
+      local rule
+      local rule_count = 0
+      for rule in doc:xpath("/filterset/rule") do
+        rule_count = rule_count + 1
+      end
+      local expected_rule_count = #expected_doc["rules"]
+      assert.is_equal(expected_rule_count, rule_count)
+      rule_count = 0
+      for rule in doc:xpath("/filterset/rule") do
+        rule_count = rule_count + 1
+        local expect_rule = expected_doc["rules"][rule_count]
+        assert.is_not_nil(expect_rule)
+        local rule_type = rule:attr("type")
+        assert.is_not_nil(rule_type)
+        assert.is_equal(expect_rule["type"], rule_type)
+      end
     end
   end
 
@@ -129,10 +150,10 @@ describe("cluster", function()
     basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false")
 
     it("is missing on node1", function()
-      local code  = api1:xml("GET", "/filters/show/basic_cull_true")
-      check_filter_value(404, code)
-      code  = api1:xml("GET", "/filters/show/basic_cull_false")
-      check_filter_value(404, code)
+      local code, doc  = api1:xml("GET", "/filters/show/basic_cull_true")
+      check_filter_value(404, code, nil, doc)
+      code, doc  = api1:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(404, code, nil, doc)
     end)
     it("is missing on node2", function()
       local code  = api2:xml("GET", "/filters/show/basic_cull_true")
