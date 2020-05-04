@@ -9,11 +9,39 @@ describe("cluster", function()
   local check_uuid = '39568546-da44-465e-abd8-a348a27b2fd5'
   local basic_cull_true_filterset, basic_cull_true_filterset_expected
   local basic_cull_false_filterset, basic_cull_false_filterset_expected
+  local rule_data_set_one
   setup(function()
     Reconnoiter.clean_workspace()
     noit1 = Reconnoiter.TestNoit:new("node1")
     noit2 = Reconnoiter.TestNoit:new("node2")
     cluster = { { id = uuid1, port = noit1:api_port() }, { id = uuid2, port = noit2:api_port() } }
+
+    -- Set up some dummy sets of rules
+    local rule
+    rule_data_set_one = {}
+
+    rule = {}
+    rule.type = "allow"
+    rule.metric = "^dummymetric$"
+    rule.target = "^www.github.com$"
+    rule.module = "^httptrap$"
+    table.insert(rule_data_set_one, rule)
+    rule = {}
+    rule.type = "allow"
+    rule.name = "^blarg$"
+    table.insert(rule_data_set_one, rule)
+    rule = {}
+    rule.type = "allow"
+    rule.metric_hash = {}
+    rule.module_hash = {}
+    table.insert(rule.metric_hash, "a")
+    table.insert(rule.metric_hash, "b")
+    table.insert(rule.metric_hash, "c")
+    table.insert(rule.module_hash, "http")
+    table.insert(rule_data_set_one, rule)
+    rule = {}
+    rule.type = "deny"
+    table.insert(rule_data_set_one, rule)
   end)
   teardown(function()
     if noit1 ~= nil then noit1:stop() end
@@ -38,40 +66,83 @@ describe("cluster", function()
   <config/>
 </check>]=])
   end
-  function make_filter_xml(name, cull, m)
-    m = m or "dummy"
-    cull = cull or "true"
-    global_filter_seq = global_filter_seq + 1
-    local xml = [=[<?xml version="1.0" encoding="utf8"?>
-<filterset name="]=] .. name .. [=[" cull="]=] .. cull .. [=[" seq="]=] .. global_filter_seq .. [=[">
-]=]
-    if type(m) == "string" then
-      xml = xml .. [=[
-  <rule type="allow" metric="]=] .. m .. [=["/>
-  <rule type="deny"/>
-</filterset>]=]
-    else
-      xml = xml .. [=[
-  <rule type="allow">]=]
-      for k,v in pairs(m) do 
-        xml = xml .. '<metric>' .. k .. '</metric>'
-      end
-      xml = xml .. [=[
-  </rule>
-  <rule type="deny"  />
-</filterset>]=]
-    end
+  function make_filter_xml(name, cull, rule_data_table)
     local expected = {}
+    global_filter_seq = global_filter_seq + 1
     expected.name = name
     expected.seq = tostring(global_filter_seq)
     expected.cull = cull
     expected.rules = {}
-    local allow_rule = {}
-    allow_rule.type = "allow"
-    local deny_rule = {}
-    deny_rule.type = "deny"
-    table.insert(expected.rules, allow_rule)
-    table.insert(expected.rules, deny_rule)
+
+    local xml = [=[<?xml version="1.0" encoding="utf8"?>
+<filterset name="]=] .. name .. [=[" cull="]=] .. cull .. [=[" seq="]=] .. global_filter_seq .. [=[">
+]=]
+    for index, rule in ipairs(rule_data_table) do
+      local expected_rule = {}
+      expected_rule.type = rule.type
+      xml = xml .. [=[
+  <rule type="]=] .. rule.type .. [=["]=]
+      if rule.metric ~= nil then
+        xml = xml .. [=[ metric="]=] .. rule.metric .. [=["]=]
+        expected_rule.metric = rule.metric
+      end
+      if rule.target ~= nil then
+        xml = xml .. [=[ target="]=] .. rule.target .. [=["]=]
+        expected_rule.target = rule.target
+      end
+      if rule.module ~= nil then
+        xml = xml .. [=[ module="]=] .. rule.module .. [=["]=]
+        expected_rule.module = rule.module
+      end
+      if rule.name ~= nil then
+        xml = xml .. [=[ name="]=] .. rule.name .. [=["]=]
+        expected_rule.name = rule.name
+      end
+      xml = xml .. [=[>
+]=]
+      if rule.metric_hash ~= nil then
+        expected_rule.metric_hash = {}
+        for i, metric in ipairs(rule.metric_hash) do
+          xml = xml .. [=[
+    <metric>]=] .. metric .. [=[</metric>
+]=]
+          table.insert(expected_rule.metric_hash, metric)
+        end
+      end
+      if rule.target_hash ~= nil then
+        expected_rule.target_hash = {}
+        for i, target in ipairs(rule.target_hash) do
+          xml = xml .. [=[
+    <target>]=] .. target .. [=[</target>
+]=]
+          table.insert(expected_rule.target_hash, target)
+        end
+      end
+      if rule.module_hash ~= nil then
+        expected_rule.module_hash = {}
+        for i, module in ipairs(rule.module_hash) do
+          xml = xml .. [=[
+    <module>]=] .. module .. [=[</module>
+]=]
+          table.insert(expected_rule.module_hash, module)
+        end
+      end
+      if rule.name_hash ~= nil then
+        expected_rule.name_hash = {}
+        for i, name in ipairs(rule.name_hash) do
+          xml = xml .. [=[
+    <name>]=] .. name .. [=[</name>
+]=]
+          table.insert(expected_rule.name_hash, name)
+        end
+      end
+      xml = xml .. [=[
+  </rule>
+]=]
+      table.insert(expected.rules, expected_rule)
+    end
+    xml = xml .. [=[
+</filterset>]=]
     return xml, expected
   end
   function put_cluster(api, nodes, idx)
@@ -146,8 +217,8 @@ describe("cluster", function()
   end)
 
   describe("filter", function()
-    basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true")
-    basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false")
+    basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", rule_data_set_one)
+    basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", rule_data_set_one)
 
     it("is missing on node1", function()
       local code, doc  = api1:xml("GET", "/filters/show/basic_cull_true")
