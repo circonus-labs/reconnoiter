@@ -7,8 +7,8 @@ describe("cluster", function()
   local uuid1 = '5a74f6f2-3125-44de-84e7-6ea7275e5fee'
   local uuid2 = 'ab419eda-6f51-466f-b086-63ae940c8147'
   local check_uuid = '39568546-da44-465e-abd8-a348a27b2fd5'
-  local basic_cull_true_filterset
-  local basic_cull_false_filterset
+  local basic_cull_true_filterset, basic_cull_true_filterset_expected
+  local basic_cull_false_filterset, basic_cull_false_filterset_expected
   setup(function()
     Reconnoiter.clean_workspace()
     noit1 = Reconnoiter.TestNoit:new("node1")
@@ -61,7 +61,12 @@ describe("cluster", function()
   <rule type="deny"  />
 </filterset>]=]
     end
-    return xml
+    local expected = {}
+    expected.name = name
+    expected.seq = tostring(global_filter_seq)
+    expected.cull = cull
+    expected.rules = {}
+    return xml, expected
   end
   function put_cluster(api, nodes, idx)
     local payload = '<?xml version="1.0" encoding="utf8"?><cluster name="noit" port="' .. tostring(nodes[idx].port) .. '" period="200" timeout="1000" maturity="2000" key="poison" seq="1">'
@@ -70,6 +75,23 @@ describe("cluster", function()
     end
     payload = payload .. '</cluster>'
     return api:xml("POST", "/cluster", payload)
+  end
+
+  function check_filter_value(expected_code, code, expected_doc, doc)
+    assert.is_equal(expected_code, code)
+    if expected_doc == nil then
+      assert.is_nil(doc)
+    else
+      assert.is_not_nil(doc)
+      local rootnode = doc:root()
+      local name = rootnode:attr("name")
+      assert.is_equal(expected_doc["name"], name)
+      local cull = rootnode:attr("cull")
+      assert.is_equal(expected_doc["cull"], cull)
+      local seq = rootnode:attr("seq")
+      assert.is_equal(expected_doc["seq"], seq)
+
+    end
   end
 
   it("node1 should start", function()
@@ -103,39 +125,39 @@ describe("cluster", function()
   end)
 
   describe("filter", function()
-    basic_cull_true_filterset = make_filter_xml("basic_cull_true", "true")
-    basic_cull_false_filterset = make_filter_xml("basic_cull_false", "false")
+    basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true")
+    basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false")
 
     it("is missing on node1", function()
       local code  = api1:xml("GET", "/filters/show/basic_cull_true")
-      assert.is.equal(404, code)
+      check_filter_value(404, code)
       code  = api1:xml("GET", "/filters/show/basic_cull_false")
-      assert.is.equal(404, code)
+      check_filter_value(404, code)
     end)
     it("is missing on node2", function()
       local code  = api2:xml("GET", "/filters/show/basic_cull_true")
-      assert.is.equal(404, code)
+      check_filter_value(404, code)
       code  = api2:xml("GET", "/filters/show/basic_cull_false")
-      assert.is.equal(404, code)
+      check_filter_value(404, code)
     end)
     it("puts one on node1", function()
-      local code  = api1:raw("PUT", "/filters/set/basic_cull_true", basic_cull_true_filterset)
-      assert.is_equal(200, code)
+      local code, doc  = api1:xml("PUT", "/filters/set/basic_cull_true", basic_cull_true_filterset)
+      check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
     end)
     it("puts other one on node2", function()
-      local code = api2:raw("PUT", "/filters/set/basic_cull_false", basic_cull_false_filterset)
-      assert.is_equal(200, code)
+      local code, doc = api2:xml("PUT", "/filters/set/basic_cull_false", basic_cull_false_filterset)
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
     end)
     it("has replicated filters across the cluster", function()
       mtev.sleep(5)
-      local code = api1:xml("GET", "/filters/show/basic_cull_true")
-      assert.is_equal(200, code)
-      code = api2:xml("GET", "/filters/show/basic_cull_true")
-      assert.is_equal(200, code)
-      code = api1:xml("GET", "/filters/show/basic_cull_false")
-      assert.is_equal(200, code)
-      code = api2:xml("GET", "/filters/show/basic_cull_false")
-      assert.is_equal(200, code)
+      local code, doc = api1:xml("GET", "/filters/show/basic_cull_true")
+      check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
+      code, doc = api2:xml("GET", "/filters/show/basic_cull_true")
+      check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
+      code, doc = api1:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
+      code, doc = api2:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
     end)
     it("culls from nodes", function()
       local code = api1:raw("POST", "/filters/cull")
@@ -145,15 +167,15 @@ describe("cluster", function()
     end)
     it("culled where cull is true", function()
       local code = api1:xml("GET", "/filters/show/basic_cull_true")
-      assert.is_equal(404, code)
+      check_filter_value(404, code)
       code = api2:xml("GET", "/filters/show/basic_cull_true")
-      assert.is_equal(404, code)
+      check_filter_value(404, code)
     end)
     it("didn't cull where cull is false", function()
-      local code = api1:xml("GET", "/filters/show/basic_cull_false")
-      assert.is_equal(200, code)
-      code = api2:xml("GET", "/filters/show/basic_cull_false")
-      assert.is_equal(200, code)
+      local code, doc = api1:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
+      code, doc = api2:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
     end)
     it("deletes a filter from nodes", function()
       local code = api1:raw("DELETE", "/filters/delete/basic_cull_false")
@@ -162,16 +184,16 @@ describe("cluster", function()
       assert.is_equal(200, code)
     end)
     it("is missing from nodes", function()
-      local code = api1:raw("GET", "/filters/show/basic_cull_false")
-      assert.is_equal(404, code)
-      code = api2:raw("GET", "/filters/show/basic_cull_false")
-      assert.is_equal(404, code)
+      local code = api1:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(404, code)
+      code = api2:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(404, code)
     end)
     it("still has allowall on all nodes", function()
       local code = api1:xml("GET", "/filters/show/allowall")
-      assert.is_equal(200, code)
+      check_filter_value(200, code)
       code = api2:xml("GET", "/filters/show/allowall")
-      assert.is_equal(200, code)
+      check_filter_value(200, code)
     end)
   end)
 end)
