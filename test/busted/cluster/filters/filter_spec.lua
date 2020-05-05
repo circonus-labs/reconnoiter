@@ -21,17 +21,17 @@ describe("cluster", function()
     rule_data_set_one = {}
 
     rule = {}
-    rule.type = "allow"
+    rule.type = "accept"
     rule.metric = "^dummymetric$"
     rule.target = "^www.github.com$"
     rule.module = "^httptrap$"
     table.insert(rule_data_set_one, rule)
     rule = {}
-    rule.type = "allow"
+    rule.type = "accept"
     rule.name = "^blarg$"
     table.insert(rule_data_set_one, rule)
     rule = {}
-    rule.type = "allow"
+    rule.type = "accept"
     rule.metric_hash = {}
     rule.module_hash = {}
     table.insert(rule.metric_hash, "a")
@@ -182,6 +182,9 @@ describe("cluster", function()
         local rule_type = rule:attr("type")
         assert.is_not_nil(rule_type)
         assert.is_equal(expect_rule["type"], rule_type)
+        local child_iter = rule:children()
+        for child_node in child_iter do
+        end
       end
     end
   end
