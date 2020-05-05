@@ -183,8 +183,50 @@ describe("cluster", function()
         assert.is_not_nil(rule_type)
         assert.is_equal(expect_rule["type"], rule_type)
         local child_iter = rule:children()
-        for child_node in child_iter do
+        local cnt = 1
+        local metric_nodes, expected_metric_nodes = 0, 0
+        local module_nodes, expected_module_nodes = 0, 0
+        local target_nodes, expected_target_nodes = 0, 0
+        local name_nodes, expected_name_nodes = 0, 0
+        local unknown_nodes = 0
+        if expect_rule.metric_hash ~= nil then
+          expected_metric_nodes = #expect_rule.metric_hash
         end
+        if expect_rule.module_hash ~= nil then
+          expected_module_nodes = #expect_rule.module_hash
+        end
+        if expect_rule.target_hash ~= nil then
+          expected_target_nodes = #expect_rule.target_hash
+        end
+        if expect_rule.name_hash ~= nil then
+          expected_name_nodes = #expect_rule.name_hash
+        end
+        for child_node in child_iter do
+          if child_node:name() == "text" and child_node:contents():match("%S") == nil then
+            -- Text node formatting - endlines/indentation/etc could result in blank text
+            -- nodes. Just ignore these
+          else
+            local node_type = child_node:name()
+            local node_value = child_node:contents()
+            if node_type == "metric" then
+              metric_nodes = metric_nodes + 1
+            elseif node_type == "module" then
+              module_nodes = module_nodes + 1
+            elseif node_type == "target" then
+              target_nodes = target_nodes + 1
+            elseif node_type == "name" then
+              name_nodes = name_nodes + 1
+            else
+              unknown_nodes = unknown_nodes + 1
+            end
+            cnt = cnt + 1
+          end
+        end
+        assert.is_equal(expected_metric_nodes, metric_nodes)
+        assert.is_equal(expected_module_nodes, module_nodes)
+        assert.is_equal(expected_target_nodes, target_nodes)
+        assert.is_equal(expected_name_nodes, name_nodes)
+        assert.is_equal(0, unknown_nodes)
       end
     end
   end
