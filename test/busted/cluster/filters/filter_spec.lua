@@ -183,7 +183,6 @@ describe("cluster", function()
         assert.is_not_nil(rule_type)
         assert.is_equal(expect_rule["type"], rule_type)
         local child_iter = rule:children()
-        local cnt = 1
         local metric_nodes, expected_metric_nodes, matched_metric_nodes = 0, 0, 0
         local module_nodes, expected_module_nodes, matched_module_nodes = 0, 0, 0
         local target_nodes, expected_target_nodes, matched_target_nodes = 0, 0, 0
@@ -243,7 +242,6 @@ describe("cluster", function()
             else
               unknown_nodes = unknown_nodes + 1
             end
-            cnt = cnt + 1
           end
         end
         assert.is_equal(expected_metric_nodes, metric_nodes)
