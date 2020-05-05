@@ -184,10 +184,10 @@ describe("cluster", function()
         assert.is_equal(expect_rule["type"], rule_type)
         local child_iter = rule:children()
         local cnt = 1
-        local metric_nodes, expected_metric_nodes = 0, 0
-        local module_nodes, expected_module_nodes = 0, 0
-        local target_nodes, expected_target_nodes = 0, 0
-        local name_nodes, expected_name_nodes = 0, 0
+        local metric_nodes, expected_metric_nodes, matched_metric_nodes = 0, 0, 0
+        local module_nodes, expected_module_nodes, matched_module_nodes = 0, 0, 0
+        local target_nodes, expected_target_nodes, matched_target_nodes = 0, 0, 0
+        local name_nodes, expected_name_nodes, matched_name_nodes = 0, 0, 0
         local unknown_nodes = 0
         if expect_rule.metric_hash ~= nil then
           expected_metric_nodes = #expect_rule.metric_hash
@@ -210,12 +210,36 @@ describe("cluster", function()
             local node_value = child_node:contents()
             if node_type == "metric" then
               metric_nodes = metric_nodes + 1
+              assert.is_not_nil(expect_rule.metric_hash)
+              for i, expect_value in ipairs(expect_rule.metric_hash) do
+                if node_value == expect_value then
+                  matched_metric_nodes = matched_metric_nodes + 1
+                end
+              end
             elseif node_type == "module" then
               module_nodes = module_nodes + 1
+              assert.is_not_nil(expect_rule.module_hash)
+              for i, expect_value in ipairs(expect_rule.module_hash) do
+                if node_value == expect_value then
+                  matched_module_nodes = matched_module_nodes + 1
+                end
+              end
             elseif node_type == "target" then
               target_nodes = target_nodes + 1
+              assert.is_not_nil(expect_rule.target_hash)
+              for i, expect_value in ipairs(expect_rule.target_hash) do
+                if node_value == expect_value then
+                  matched_target_nodes = matched_target_nodes + 1
+                end
+              end
             elseif node_type == "name" then
               name_nodes = name_nodes + 1
+              assert.is_not_nil(expect_rule.name_hash)
+              for i, expect_value in ipairs(expect_rule.name_hash) do
+                if node_value == expect_value then
+                  matched_name_nodes = matched_name_nodes + 1
+                end
+              end
             else
               unknown_nodes = unknown_nodes + 1
             end
@@ -227,6 +251,10 @@ describe("cluster", function()
         assert.is_equal(expected_target_nodes, target_nodes)
         assert.is_equal(expected_name_nodes, name_nodes)
         assert.is_equal(0, unknown_nodes)
+        assert.is_equal(expected_metric_nodes, matched_metric_nodes)
+        assert.is_equal(expected_module_nodes, matched_module_nodes)
+        assert.is_equal(expected_target_nodes, matched_target_nodes)
+        assert.is_equal(expected_name_nodes, matched_name_nodes)
       end
     end
   end
