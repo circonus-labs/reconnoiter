@@ -256,7 +256,9 @@ noit_cluster_xml_check_changes(uuid_t peerid, const char *cn,
   pthread_mutex_lock(&noit_peer_lock);
 
   if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
-    mtevL(clerr, "Check changes request by unknown peer.\n");
+    char peerid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(peerid, peerid_str);
+    mtevL(clerr, "Check changes request by unknown peer [%s].\n", peerid_str);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
@@ -304,13 +306,15 @@ noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
   pthread_mutex_lock(&noit_peer_lock);
 
   if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
-    mtevL(clerr, "Check changes request by unknown peer.\n");
+    char peerid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(peerid, peerid_str);
+    mtevL(clerr, "Filter changes request by unknown peer [%s].\n", peerid_str);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
   peer = vp;
   if(strcmp(peer->cn, cn)) {
-    mtevL(clerr, "Check changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
+    mtevL(clerr, "Filter changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
@@ -354,13 +358,15 @@ noit_cluster_lmdb_filter_changes(uuid_t peerid, const char *cn,
   pthread_mutex_lock(&noit_peer_lock);
 
   if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
-    mtevL(clerr, "Check changes request by unknown peer.\n");
+    char peerid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(peerid, peerid_str);
+    mtevL(clerr, "Filter changes request by unknown peer [%s].\n", peerid_str);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
   peer = vp;
   if(strcmp(peer->cn, cn)) {
-    mtevL(clerr, "Check changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
+    mtevL(clerr, "Filter changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
