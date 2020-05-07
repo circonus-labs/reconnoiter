@@ -253,6 +253,12 @@ describe("cluster", function()
         assert.is_equal(expected_module_nodes, matched_module_nodes)
         assert.is_equal(expected_target_nodes, matched_target_nodes)
         assert.is_equal(expected_name_nodes, matched_name_nodes)
+        if rule:attr("id") ~= nil then
+          assert.is_not_nil(expect_rule["id"])
+          assert.is_equal(expect_rule["id"], rule:attr("id"))
+        else
+          assert.is_nil(expect_rule["id"])
+        end
       end
     end
   end
