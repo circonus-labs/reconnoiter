@@ -32,6 +32,7 @@ describe("cluster", function()
     table.insert(rule_data_set_one, rule)
     rule = {}
     rule.type = "accept"
+    rule.id = "test_id"
     rule.metric_hash = {}
     rule.module_hash = {}
     table.insert(rule.metric_hash, "a")
@@ -97,6 +98,10 @@ describe("cluster", function()
       if rule.name ~= nil then
         xml = xml .. [=[ name="]=] .. rule.name .. [=["]=]
         expected_rule.name = rule.name
+      end
+      if rule.id ~= nil then
+        xml = xml .. [=[ id="]=] .. rule.id .. [=["]=]
+        expected_rule.id = rule.id
       end
       xml = xml .. [=[>
 ]=]
@@ -310,7 +315,7 @@ describe("cluster", function()
       check_filter_value(404, code, nil, doc)
     end)
     it("puts one on node1", function()
-      local code, doc  = api1:xml("PUT", "/filters/set/basic_cull_true", basic_cull_true_filterset)
+      local code, doc = api1:xml("PUT", "/filters/set/basic_cull_true", basic_cull_true_filterset)
       check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
     end)
     it("puts other one on node2", function()
