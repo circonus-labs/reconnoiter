@@ -151,7 +151,7 @@ describe("cluster", function()
       payload = payload .. '<node id="' .. node.id .. '" cn="noit-test" address="127.0.0.1" port="' .. tostring(node.port) .. '"/>'
     end
     payload = payload .. '</cluster>'
-    return api:xml("POST", "/cluster", payload)
+    return api:xmlforcewrite("POST", "/cluster", payload)
   end
 
   function check_filter_value(expected_code, code, expected_doc, doc)
