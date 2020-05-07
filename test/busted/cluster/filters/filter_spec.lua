@@ -29,6 +29,7 @@ describe("cluster", function()
     rule = {}
     rule.type = "accept"
     rule.name = "^blarg$"
+    rule.unused_junk = "abcde"
     table.insert(rule_data_set_one, rule)
     rule = {}
     rule.type = "accept"
@@ -102,6 +103,10 @@ describe("cluster", function()
       if rule.id ~= nil then
         xml = xml .. [=[ id="]=] .. rule.id .. [=["]=]
         expected_rule.id = rule.id
+      end
+      if rule.unused_junk ~= nil then
+        xml = xml .. [=[ unused_junk="]=] .. rule.unused_junk .. [=["]=]
+        --Don't set expected - this shouldn't be written to the XML
       end
       xml = xml .. [=[>
 ]=]
@@ -264,6 +269,7 @@ describe("cluster", function()
         else
           assert.is_nil(expect_rule["id"])
         end
+        assert.is_nil(rule:attr("unused_junk"))
       end
     end
   end
