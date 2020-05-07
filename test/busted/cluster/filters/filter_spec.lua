@@ -10,6 +10,7 @@ describe("cluster", function()
   local basic_cull_true_filterset, basic_cull_true_filterset_expected
   local basic_cull_false_filterset, basic_cull_false_filterset_expected
   local rule_data_set_one
+  local use_lmdb = os.getenv('NOIT_LMDB_FILTERSETS') or "0"
   setup(function()
     Reconnoiter.clean_workspace()
     noit1 = Reconnoiter.TestNoit:new("node1")
@@ -106,7 +107,11 @@ describe("cluster", function()
       end
       if rule.unused_junk ~= nil then
         xml = xml .. [=[ unused_junk="]=] .. rule.unused_junk .. [=["]=]
-        --Don't set expected - this shouldn't be written to the XML
+        if use_lmdb == "1" then
+          --Don't set expected - this shouldn't be written to the XML
+        else
+          expected_rule.unused_junk = rule.unused_junk
+        end
       end
       xml = xml .. [=[>
 ]=]
@@ -269,7 +274,16 @@ describe("cluster", function()
         else
           assert.is_nil(expect_rule["id"])
         end
-        assert.is_nil(rule:attr("unused_junk"))
+        if use_lmdb == "1" then
+          assert.is_nil(rule:attr("unused_junk"))
+        else
+          if rule:attr("unused_junk") ~= nil then
+            assert.is_not_nil(expect_rule["unused_junk"])
+            assert.is_equal(expect_rule["unused_junk"], rule:attr("unused_junk"))
+          else
+            assert.is_nil(expect_rule["unused_junk"])
+          end
+        end
       end
     end
   end
