@@ -40,7 +40,7 @@ describe("cluster", function()
       payload = payload .. '<node id="' .. node.id .. '" cn="noit-test" address="127.0.0.1" port="' .. tostring(node.port) .. '"/>'
     end
     payload = payload .. '</cluster>'
-    return api:xml("POST", "/cluster", payload)
+    return api:xmlforcewrite("POST", "/cluster", payload)
   end
   it("node1 should start", function()
     assert.is_true(noit1:start():is_booted())

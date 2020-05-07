@@ -35,6 +35,10 @@ function API:new(port, cert)
   }
   obj.api = MBAPI:new("127.0.0.1", obj.port):ssl(obj.sslconfig)
   obj.xmlapi = MBAPI:new("127.0.0.1", obj.port):headers({accept = "text/xml"}):ssl(obj.sslconfig)
+  force_headers = {}
+  force_headers["accept"] = "text/xml"
+  force_headers["x-mtev-conf-sync"] = "1"
+  obj.xmlforceapi = MBAPI:new("127.0.0.1", obj.port):headers(force_headers):ssl(obj.sslconfig)
   obj.curl_count = 0
   setmetatable(obj, API)
   return obj
@@ -85,6 +89,17 @@ end
 function API:json(method, uri, payload, _pp, config)
   self:curl_logger({}, method, uri, payload)
   return self.api:HTTPS(method, uri, payload, _pp, config)
+end
+
+function API:xmlforcewrite(method, uri, payload, _pp, config)
+  if _pp == nil then
+    _pp = function(result)
+      local doc = mtev.parsexml(result)
+      return doc
+    end
+  end
+  self:curl_logger({accept = "text/xml"}, method, uri, payload)
+  return self.xmlforceapi:HTTPS(method, uri, payload, _pp, config)
 end
 
 function API:xml(method, uri, payload, _pp, config)
