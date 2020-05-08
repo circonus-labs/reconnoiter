@@ -607,8 +607,6 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   mtevAssert (seq >= 0);
   set->seq = seq;
 
-  /* TODO: Read/handle cull */
-
   int local_default_filter_flush_period_ms = global_default_filter_flush_period_ms;
   if (ns(Filterset_filterset_flush_period_is_present(filterset))) {
     ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(Filterset_filterset_flush_period(filterset));
