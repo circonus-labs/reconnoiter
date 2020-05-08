@@ -1169,6 +1169,10 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
     xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
   }
   mtev_conf_release_sections_write(sec, cnt);
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0) {
+    mtevL(mtev_error, "local config write failed\n");
+  }
 }
 
 int
