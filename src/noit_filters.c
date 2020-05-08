@@ -496,7 +496,12 @@ noit_filters_process_repl(xmlDocPtr doc) {
 void
 noit_refresh_filtersets(mtev_console_closure_t ncct,
                         mtev_conf_t_userdata_t *info) {
-  noit_filters_from_conf();
+  if (noit_filters_get_lmdb_instance()) {
+    noit_filters_lmdb_filters_from_lmdb();
+  }
+  else {
+    noit_filters_from_conf();
+  }
   nc_printf(ncct, "Reloaded %d filtersets.\n",
             filtersets ? mtev_hash_size(filtersets) : 0);
 }
