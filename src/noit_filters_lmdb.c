@@ -470,7 +470,6 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
    * any checks */
   mtev_watchdog_child_heartbeat();
 
-  /* TODO: Finish this */
   if (!mtev_conf_get_string(fs_section, "self::node()/@name", &filterset_name)) {
     /* Filterset must have a name */
     return -1;
@@ -1165,11 +1164,9 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
   }
   for(i=0; i<cnt; i++) {
     noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(sec[i]);
-    /* TODO: Remove filtersets once converted
     CONF_REMOVE(sec[i]);
     xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
     xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
-    */
   }
   mtev_conf_release_sections_write(sec, cnt);
 }
