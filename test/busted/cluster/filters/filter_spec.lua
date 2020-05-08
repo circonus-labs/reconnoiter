@@ -45,6 +45,7 @@ describe("cluster", function()
     table.insert(rule_data, rule)
     rule = {}
     rule.type = "deny"
+    rule.filter_flush_period = "20"
     table.insert(rule_data, rule)
   end)
   teardown(function()
@@ -70,16 +71,21 @@ describe("cluster", function()
   <config/>
 </check>]=])
   end
-  function make_filter_xml(name, cull, rule_data_table)
+  function make_filter_xml(name, cull, filter_flush_period, rule_data_table)
     local expected = {}
     global_filter_seq = global_filter_seq + 1
     expected.name = name
     expected.seq = tostring(global_filter_seq)
     expected.cull = cull
+    expected.filter_flush_period = filter_flush_period
     expected.rules = {}
 
     local xml = [=[<?xml version="1.0" encoding="utf8"?>
-<filterset name="]=] .. name .. [=[" cull="]=] .. cull .. [=[" seq="]=] .. global_filter_seq .. [=[">
+<filterset name="]=] .. name .. [=[" cull="]=] .. cull .. [=[" seq="]=] .. global_filter_seq .. [=[" ]=]
+    if filter_flush_period ~= nil then
+      xml = xml .. [=[ filter_flush_period="]=] .. filter_flush_period .. [=[" ]=]
+    end
+    xml = xml .. [=[>
 ]=]
     for index, rule in ipairs(rule_data_table) do
       local expected_rule = {}
@@ -105,6 +111,10 @@ describe("cluster", function()
       if rule.id ~= nil then
         xml = xml .. [=[ id="]=] .. rule.id .. [=["]=]
         expected_rule.id = rule.id
+      end
+      if rule.filter_flush_period ~= nil then
+        xml = xml .. [=[ filter_flush_period="]=] .. rule.filter_flush_period .. [=["]=]
+        expected_rule.filter_flush_period = rule.filter_flush_period
       end
       if rule.unused_junk ~= nil then
         xml = xml .. [=[ unused_junk="]=] .. rule.unused_junk .. [=["]=]
@@ -183,6 +193,13 @@ describe("cluster", function()
       assert.is_equal(expected_doc["cull"], cull)
       local seq = rootnode:attr("seq")
       assert.is_equal(expected_doc["seq"], seq)
+      local filter_flush_period = rootnode:attr("filter_flush_period")
+      if filter_flush_period ~= nil then
+        assert.is_not_nil(expected_doc["filter_flush_period"])
+        assert.is_equal(expected_doc["filter_flush_period"], filter_flush_period)
+      else
+        assert.is_nil(expected_doc["filter_flush_period"])
+      end
       local rule
       local rule_count = 0
       for rule in doc:xpath("/filterset/rule") do
@@ -275,6 +292,12 @@ describe("cluster", function()
         else
           assert.is_nil(expect_rule["id"])
         end
+        if rule:attr("filter_flush_period") ~= nil then
+          assert.is_not_nil(expect_rule["filter_flush_period"])
+          assert.is_equal(expect_rule["filter_flush_period"], rule:attr("filter_flush_period"))
+        else
+          assert.is_nil(expect_rule["filter_flush_period"])
+        end
         if use_lmdb == "1" then
           assert.is_nil(rule:attr("unused_junk"))
         else
@@ -320,8 +343,8 @@ describe("cluster", function()
   end)
 
   describe("filter", function()
-    basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", rule_data)
-    basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", rule_data)
+    basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", "50", rule_data)
+    basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", "50", rule_data)
 
     it("is missing on node1", function()
       local code, doc  = api1:xml("GET", "/filters/show/basic_cull_true")
@@ -358,8 +381,8 @@ describe("cluster", function()
       local old_size = #rule_data
       table.remove(rule_data, 1)
       assert.is_equal(old_size - 1, #rule_data)
-      basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", rule_data)
-      basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", rule_data)
+      basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", nil, rule_data)
+      basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", nil, rule_data)
       local code, doc = api1:xml("PUT", "/filters/set/basic_cull_true", basic_cull_true_filterset)
       check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
       code, doc = api2:xml("PUT", "/filters/set/basic_cull_false", basic_cull_false_filterset)
@@ -411,8 +434,8 @@ describe("cluster", function()
       check_filter_value(200, code)
     end)
     it("puts filtersets back", function()
-      basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", rule_data)
-      basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", rule_data)
+      basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", "50", rule_data)
+      basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", "50", rule_data)
       local code, doc = api1:xml("PUT", "/filters/set/basic_cull_true", basic_cull_true_filterset)
       check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
       code, doc = api2:xml("PUT", "/filters/set/basic_cull_false", basic_cull_false_filterset)
