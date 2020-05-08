@@ -715,6 +715,11 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   mtev_conf_section_t *rules;
   int i, rulecnt;
 
+  if (noit_filters_get_lmdb_instance()) {
+    nc_printf(ncct, "not supported in lmdb mode\n");
+    return -1;
+  }
+
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   snprintf(xpath, sizeof(xpath), "/%s",
            info->path);
@@ -862,6 +867,11 @@ noit_console_filter_configure(mtev_console_closure_t ncct,
   int rv = -1;
   mtev_conf_t_userdata_t *info;
   char xpath[1024];
+
+  if (noit_filters_get_lmdb_instance()) {
+    nc_printf(ncct, "not supported in lmdb mode\n");
+    return -1;
+  }
 
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) {
@@ -1028,6 +1038,11 @@ noit_console_filter_cull(mtev_console_closure_t ncct,
                          void *closure) {
   int rv = 0;
   mtev_conf_t_userdata_t *info;
+
+  if (noit_filters_get_lmdb_instance()) {
+    nc_printf(ncct, "not supported in lmdb mode\n");
+    return -1;
+  }
 
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) {
