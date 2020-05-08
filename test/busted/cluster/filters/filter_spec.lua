@@ -9,7 +9,7 @@ describe("cluster", function()
   local check_uuid = '39568546-da44-465e-abd8-a348a27b2fd5'
   local basic_cull_true_filterset, basic_cull_true_filterset_expected
   local basic_cull_false_filterset, basic_cull_false_filterset_expected
-  local rule_data_set_one
+  local rule_data
   local use_lmdb = os.getenv('NOIT_LMDB_FILTERSETS') or "0"
   setup(function()
     Reconnoiter.clean_workspace()
@@ -19,19 +19,19 @@ describe("cluster", function()
 
     -- Set up some dummy sets of rules
     local rule
-    rule_data_set_one = {}
+    rule_data = {}
 
     rule = {}
     rule.type = "accept"
     rule.metric = "^dummymetric$"
     rule.target = "^www.github.com$"
     rule.module = "^httptrap$"
-    table.insert(rule_data_set_one, rule)
+    table.insert(rule_data, rule)
     rule = {}
     rule.type = "accept"
     rule.name = "^blarg$"
     rule.unused_junk = "abcde"
-    table.insert(rule_data_set_one, rule)
+    table.insert(rule_data, rule)
     rule = {}
     rule.type = "accept"
     rule.id = "test_id"
@@ -41,10 +41,10 @@ describe("cluster", function()
     table.insert(rule.metric_hash, "b")
     table.insert(rule.metric_hash, "c")
     table.insert(rule.module_hash, "http")
-    table.insert(rule_data_set_one, rule)
+    table.insert(rule_data, rule)
     rule = {}
     rule.type = "deny"
-    table.insert(rule_data_set_one, rule)
+    table.insert(rule_data, rule)
   end)
   teardown(function()
     if noit1 ~= nil then noit1:stop() end
@@ -319,8 +319,8 @@ describe("cluster", function()
   end)
 
   describe("filter", function()
-    basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", rule_data_set_one)
-    basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", rule_data_set_one)
+    basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", rule_data)
+    basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", rule_data)
 
     it("is missing on node1", function()
       local code, doc  = api1:xml("GET", "/filters/show/basic_cull_true")
@@ -345,6 +345,27 @@ describe("cluster", function()
     it("has replicated filters across the cluster", function()
       mtev.sleep(5)
       local code, doc = api1:xml("GET", "/filters/show/basic_cull_true")
+      check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
+      code, doc = api2:xml("GET", "/filters/show/basic_cull_true")
+      check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
+      code, doc = api1:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
+      code, doc = api2:xml("GET", "/filters/show/basic_cull_false")
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
+    end)
+    it("removes rules and verifies that everything updated", function()
+      local old_size = #rule_data
+      table.remove(rule_data)
+      table.remove(rule_data)
+      assert.is_equal(old_size - 2, #rule_data)
+      basic_cull_true_filterset, basic_cull_true_filterset_expected = make_filter_xml("basic_cull_true", "true", rule_data)
+      basic_cull_false_filterset, basic_cull_false_filterset_expected = make_filter_xml("basic_cull_false", "false", rule_data)
+      local code, doc = api1:xml("PUT", "/filters/set/basic_cull_true", basic_cull_true_filterset)
+      check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
+      code, doc = api2:xml("PUT", "/filters/set/basic_cull_false", basic_cull_false_filterset)
+      check_filter_value(200, code, basic_cull_false_filterset_expected, doc)
+      mtev.sleep(5)
+      code, doc = api1:xml("GET", "/filters/show/basic_cull_true")
       check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
       code, doc = api2:xml("GET", "/filters/show/basic_cull_true")
       check_filter_value(200, code, basic_cull_true_filterset_expected, doc)
