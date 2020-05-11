@@ -161,7 +161,7 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
                       char *payload, int len) {
   char *cp, *ecp, *endptr;
   cp = ecp = payload;
-  endptr = payload + len - 1;
+  endptr = payload + len;
   while(ecp != NULL && ecp < endptr) {
     int i, idx = 0, last_space = 0;
     char key[MAX_METRIC_TAGGED_NAME], *value;
