@@ -61,6 +61,7 @@
 #include "noit_clustering.h"
 #include "noit_check.h"
 #include "noit_filters.h"
+#include "noit_filters_lmdb.h"
 #include <curl/curl.h>
 #include <sys/mman.h>
 #include <errno.h>
@@ -255,7 +256,9 @@ noit_cluster_xml_check_changes(uuid_t peerid, const char *cn,
   pthread_mutex_lock(&noit_peer_lock);
 
   if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
-    mtevL(clerr, "Check changes request by unknown peer.\n");
+    char peerid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(peerid, peerid_str);
+    mtevL(clerr, "Check changes request by unknown peer [%s].\n", peerid_str);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
@@ -303,13 +306,15 @@ noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
   pthread_mutex_lock(&noit_peer_lock);
 
   if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
-    mtevL(clerr, "Check changes request by unknown peer.\n");
+    char peerid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(peerid, peerid_str);
+    mtevL(clerr, "Filter changes request by unknown peer [%s].\n", peerid_str);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
   peer = vp;
   if(strcmp(peer->cn, cn)) {
-    mtevL(clerr, "Check changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
+    mtevL(clerr, "Filter changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
     pthread_mutex_unlock(&noit_peer_lock);
     return;
   }
@@ -332,6 +337,61 @@ noit_cluster_xml_filter_changes(uuid_t peerid, const char *cn,
         last_seen = node->seq;
       }
       mtev_conf_release_section_read(filternode);
+    }
+  }
+  pthread_mutex_unlock(&noit_peer_lock);
+  char produced_str[32];
+  snprintf(produced_str, sizeof(produced_str), "%"PRId64, last_seen);
+  xmlSetProp(parent, (xmlChar *)"seq", (xmlChar *)produced_str);
+  mtev_hash_destroy(&dedup, NULL, NULL);
+}
+
+void
+noit_cluster_lmdb_filter_changes(uuid_t peerid, const char *cn,
+                                int64_t prev_end, int64_t limit,
+                                xmlNodePtr parent) {
+  void *vp;
+  int64_t last_seen = 0;
+  noit_peer_t *peer;
+  mtev_hash_table dedup;
+  mtev_hash_init(&dedup);
+  pthread_mutex_lock(&noit_peer_lock);
+
+  if(!mtev_hash_retrieve(&peers, (const char *)peerid, UUID_SIZE, &vp)) {
+    char peerid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(peerid, peerid_str);
+    mtevL(clerr, "Filter changes request by unknown peer [%s].\n", peerid_str);
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+  peer = vp;
+  if(strcmp(peer->cn, cn)) {
+    mtevL(clerr, "Filter changes request by peer with bad cn [%s != %s].\n", cn, peer->cn);
+    pthread_mutex_unlock(&noit_peer_lock);
+    return;
+  }
+
+  struct filter_changes *node = peer->filters.head;
+  /* First eat anything we know they've seen */
+  while(peer->filters.head && peer->filters.head->seq <= prev_end) {
+    struct filter_changes *tofree = peer->filters.head;
+    peer->filters.head = peer->filters.head->next;
+    if(NULL == peer->filters.head) peer->filters.tail = NULL;
+    filter_changes_free(tofree);
+  }
+  for(node = peer->filters.head; node && node->seq <= limit; node = node->next) {
+    if(mtev_hash_store(&dedup, (const char *)node->name, strlen(node->name), NULL)) {
+      if(noit_filters_lmdb_already_in_db(node->name) == mtev_true) {
+        xmlNodePtr new_node = xmlNewNode(NULL, (xmlChar *)"filterset");
+        if (noit_filters_lmdb_populate_filterset_xml_from_lmdb(new_node, node->name) == 0) {
+          xmlAddChild(parent, new_node);
+          last_seen = node->seq;
+        }
+        else {
+          mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: could not add node %s\n", node->name);
+          xmlFreeNode(new_node);
+        }
+      }
     }
   }
   pthread_mutex_unlock(&noit_peer_lock);

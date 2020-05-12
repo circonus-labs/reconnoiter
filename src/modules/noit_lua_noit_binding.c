@@ -36,6 +36,7 @@
 #include "noit_check.h"
 #include "noit_check_resolver.h"
 #include "noit_filters.h"
+#include "noit_filters_lmdb.h"
 #include "lua_check.h"
 
 typedef struct lua_callback_ref{
@@ -99,8 +100,15 @@ nl_register_dns_ignore_domain(lua_State *L) {
 static int
 lua_general_filtersets_cull(lua_State *L) {
   int rv;
-  rv = noit_filtersets_cull_unused();
-  if(rv > 0) mtev_conf_mark_changed();
+  if (noit_filters_get_lmdb_instance()) {
+    rv = noit_filters_lmdb_cull_unused();
+  }
+  else {
+    rv = noit_filtersets_cull_unused();
+    if(rv > 0) {
+      mtev_conf_mark_changed();
+    }
+  }
   lua_pushinteger(L, rv);
   return 1;
 }

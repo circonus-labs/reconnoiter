@@ -469,7 +469,13 @@ function TestConfig:make_clusters_config(fd, opts)
 end
 
 function TestConfig:make_filtersets_config(fd, opts)
-  mtev.write(fd,"<filtersets>\n")
+  local use_lmdb = os.getenv('NOIT_LMDB_FILTERSETS') or "0"
+  if use_lmdb == "1" then
+    local path = opts.workspace .. "/" .. opts.name .. "_filtersets.lmdb"
+    mtev.write(fd,"<filtersets use_lmdb=\"true\" lmdb_path=\"" .. path .. "\">\n")
+  else
+    mtev.write(fd,"<filtersets>\n")
+  end
   for name, set in pairs(opts.filtersets or {}) do
     mtev.write(fd,"  <filterset name=\"" .. name .. "\">\n")
     for i, rule in ipairs(set) do

@@ -49,9 +49,9 @@
 #include "noit_check.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
+#include "noit_filters_lmdb.h"
 #include "noit_clustering.h"
 #include "noit_metric.h"
-#include "noit_metric_tag_search.h"
 
 #include <pcre.h>
 #include <libxml/tree.h>
@@ -64,59 +64,9 @@ static pthread_mutex_t filterset_lock;
 static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
-#define DEFAULT_FILTER_FLUSH_PERIOD_MS 300000 /* 5 minutes */
 static char* filtersets_replication_path = NULL;
+static noit_lmdb_instance_t *lmdb_instance = NULL;
 static bool initialized = false;
-
-typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
-typedef struct _filterrule {
-  char *ruleid;
-  char *skipto;
-  struct _filterrule *skipto_rule;
-  noit_ruletype_t type;
-  char *target_re;
-  pcre *target_override;
-  pcre *target;
-  pcre_extra *target_e;
-  mtev_hash_table *target_ht;
-  int target_auto_hash_max;
-  char *module_re;
-  pcre *module_override;
-  pcre *module;
-  pcre_extra *module_e;
-  mtev_hash_table *module_ht;
-  int module_auto_hash_max;
-  char *name_re;
-  pcre *name_override;
-  pcre *name;
-  pcre_extra *name_e;
-  mtev_hash_table *name_ht;
-  int name_auto_hash_max;
-  char *metric_re;
-  pcre *metric_override;
-  pcre *metric;
-  pcre_extra *metric_e;
-  mtev_hash_table *metric_ht;
-  int metric_auto_hash_max;
-  char *stream_tags;
-  noit_metric_tag_search_ast_t *stsearch;
-  char *measurement_tags;
-  noit_metric_tag_search_ast_t *mtsearch;
-  struct _filterrule *next;
-  uint32_t executions;
-  uint32_t matches;
-  struct timeval last_flush;
-  struct timeval flush_interval;
-} filterrule_t;
-
-typedef struct {
-  uint32_t ref_cnt;
-  char *name;
-  int64_t seq;
-  filterrule_t *rules;
-  uint32_t executions;
-  uint32_t denies;
-} filterset_t;
 
 #define FRF(r,a) do { \
   free(r->a##_re); \
@@ -143,8 +93,15 @@ filterrule_free(void *vp) {
   free(r->skipto);
   free(r);
 }
-static void
-filterset_free(void *vp) {
+noit_lmdb_instance_t *noit_filters_get_lmdb_instance() {
+  return lmdb_instance;
+}
+bool
+noit_filter_initialized() {
+  return initialized;
+}
+void
+noit_filter_filterset_free(void *vp) {
   filterset_t *fs = vp;
   filterrule_t *r;
   bool zero;
@@ -158,6 +115,117 @@ filterset_free(void *vp) {
   }
   if(fs->name) free(fs->name);
   free(fs);
+}
+xmlNodePtr
+noit_filter_validate_filter(xmlDocPtr doc, char *name, int64_t *seq, const char **err) {
+  xmlNodePtr root, r, previous_child;
+  char *old_name;
+  *err = "data validation error";
+
+  if(seq) *seq = 0;
+  root = xmlDocGetRootElement(doc);
+  if(!root) return NULL;
+  if(strcmp((char *)root->name, "filterset")) {
+    *err = "bad root node";
+    return NULL;
+  }
+
+  old_name = (char *)xmlGetProp(root, (xmlChar *)"name");
+  if(old_name == NULL) {
+    xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
+  } else if(name == NULL || strcmp(old_name, name)) {
+    xmlFree(old_name);
+    *err = "name mismatch";
+    return NULL;
+  }
+  if(old_name) xmlFree(old_name);
+
+  if(!root->children) {
+    *err = "no rules";
+    return NULL;
+  }
+
+  xmlChar *seqstr = xmlGetProp(root, (xmlChar *)"seq");
+  if(seqstr && seq) {
+    *seq = strtoll((const char *)seqstr, NULL, 10);
+  }
+  if(seqstr) xmlFree(seqstr);
+
+  previous_child = root;
+  int rulecnt = 0;
+  for(r = root->children; r; r = r->next) {
+#define CHECK_N_SET(a) if(!strcmp((char *)r->name, #a))
+    char *type;
+    CHECK_N_SET(rule) {
+      type = (char *)xmlGetProp(r, (xmlChar *)"type");
+      if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow") &&
+                   strncmp(type, "skipto:", strlen("skipto:")))) {
+        if(type) xmlFree(type);
+        *err = "unknown type";
+        return NULL;
+      }
+      rulecnt++;
+      if(type) {
+        xmlFree(type);
+      }
+    }
+    else CHECK_N_SET(seq) {
+      xmlChar *v = xmlNodeGetContent(r);
+      if(v) {
+        xmlSetProp(root, r->name, v);
+      }
+      else {
+        xmlUnsetProp(root, r->name);
+      }
+      xmlUnlinkNode(r);
+      xmlFreeNode(r);
+      r = previous_child;
+
+      if (seq && v) {
+        *seq = strtoll((const char *)v, NULL, 10);
+      }
+
+      xmlFree(v);
+    }
+    else if(strcmp((char *)r->name, "text") != 0) {
+      /* ignore text nodes */
+      *err = "unknown attribute";
+      return NULL;
+    }
+    previous_child = r;
+  }
+
+  if(rulecnt == 0) {
+    *err = "no rules";
+    return NULL;
+  }
+  return root;
+}
+
+mtev_boolean
+noit_filter_compile_add_load_set(filterset_t *set) {
+  mtev_boolean used_new_one = mtev_false;
+  void *vset;
+  LOCKFS();
+  if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
+    filterset_t *oldset = vset;
+    if(oldset->seq >= set->seq) { /* no update */
+      noit_filter_filterset_free(set);
+    } else {
+      mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
+                        NULL, noit_filter_filterset_free);
+      used_new_one = mtev_true;
+    }
+  }
+  else {
+    mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
+    used_new_one = mtev_true;
+  }
+  UNLOCKFS();
+  if(used_new_one && set->seq >= 0) {
+    noit_cluster_mark_filter_changed(set->name, NULL);
+  }
+  return used_new_one;
 }
 mtev_boolean
 noit_filter_compile_add(mtev_conf_section_t setinfo) {
@@ -189,19 +257,19 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     filterrule_t *rule;
     char buffer[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
-       (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny") &&
-        strncmp(buffer, "skipto:", strlen("skipto:")))) {
+       (strcmp(buffer, FILTERSET_ACCEPT_STRING) && strcmp(buffer, FILTERSET_ALLOW_STRING) && strcmp(buffer, FILTERSET_DENY_STRING) &&
+        strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)))) {
       mtevL(nf_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
       continue;
     }
     mtevL(nf_debug, "Prepending %s into %s\n", buffer, set->name);
     rule = calloc(1, sizeof(*rule));
-    if(!strncasecmp(buffer, "skipto:", strlen("skipto:"))) {
+    if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
       rule->type = NOIT_FILTER_SKIPTO;
-      rule->skipto = strdup(buffer+strlen("skipto:"));
+      rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
     }
     else {
-      rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
+      rule->type = (!strcmp(buffer, FILTERSET_ACCEPT_STRING) || !strcmp(buffer, FILTERSET_ALLOW_STRING)) ?
                      NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
     }
     int32_t ffp = DEFAULT_FILTER_FLUSH_PERIOD_MS;
@@ -315,25 +383,9 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     }
   }
   mtev_conf_release_sections_read(rules, fcnt);
-  mtev_boolean used_new_one = mtev_false;
-  void *vset;
-  LOCKFS();
-  if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
-    filterset_t *oldset = vset;
-    if(oldset->seq >= set->seq) { /* no update */
-      filterset_free(set);
-    } else {
-      mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
-                        NULL, filterset_free);
-      used_new_one = mtev_true;
-    }
-  }
-  else {
-    mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
-    used_new_one = mtev_true;
-  }
-  UNLOCKFS();
-  if(used_new_one && set->seq >= 0) noit_cluster_mark_filter_changed(set->name, NULL);
+
+  mtev_boolean used_new_one = noit_filter_compile_add_load_set(set);
+
   return used_new_one;
 }
 int
@@ -366,10 +418,19 @@ noit_filter_remove(mtev_conf_section_t vnode) {
   if(!name) return 0;
   LOCKFS();
   removed = mtev_hash_delete(filtersets, name, strlen(name),
-                             NULL, filterset_free);
+                             NULL, noit_filter_filterset_free);
   UNLOCKFS();
   xmlFree(name);
 
+  return removed;
+}
+int
+noit_filter_remove_from_name(char *name) {
+  int removed = 0;
+  LOCKFS();
+  removed = mtev_hash_delete(filtersets, name, strlen(name),
+                             NULL, noit_filter_filterset_free);
+  UNLOCKFS();
   return removed;
 }
 void
@@ -389,6 +450,11 @@ int
 noit_filters_process_repl(xmlDocPtr doc) {
   int i = 0;
   xmlNodePtr root, child, next = NULL;
+
+  if (noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_process_repl(doc);
+  }
+
   if(!initialized) {
     mtevL(nf_debug, "filterset replication pending initialization\n");
     return -1;
@@ -430,7 +496,12 @@ noit_filters_process_repl(xmlDocPtr doc) {
 void
 noit_refresh_filtersets(mtev_console_closure_t ncct,
                         mtev_conf_t_userdata_t *info) {
-  noit_filters_from_conf();
+  if (noit_filters_get_lmdb_instance()) {
+    noit_filters_lmdb_filters_from_lmdb();
+  }
+  else {
+    noit_filters_from_conf();
+  }
   nc_printf(ncct, "Reloaded %d filtersets.\n",
             filtersets ? mtev_hash_size(filtersets) : 0);
 }
@@ -603,7 +674,7 @@ noit_apply_filterset(const char *filterset,
         break;
       }
     }
-    filterset_free(fs);
+    noit_filter_filterset_free(fs);
     if(!ret) ck_pr_inc_32(&fs->denies);
     return ret;
   }
@@ -643,6 +714,11 @@ noit_console_filter_show(mtev_console_closure_t ncct,
   mtev_conf_section_t fsnode;
   mtev_conf_section_t *rules;
   int i, rulecnt;
+
+  if (noit_filters_get_lmdb_instance()) {
+    nc_printf(ncct, "not supported in lmdb mode\n");
+    return -1;
+  }
 
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   snprintf(xpath, sizeof(xpath), "/%s",
@@ -792,6 +868,11 @@ noit_console_filter_configure(mtev_console_closure_t ncct,
   mtev_conf_t_userdata_t *info;
   char xpath[1024];
 
+  if (noit_filters_get_lmdb_instance()) {
+    nc_printf(ncct, "not supported in lmdb mode\n");
+    return -1;
+  }
+
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) {
     nc_printf(ncct, "internal error\n");
@@ -864,8 +945,8 @@ noit_console_filter_configure(mtev_console_closure_t ncct,
   return rv;
 }
 
-static int
-filterset_accum(noit_check_t *check, void *closure) {
+int
+noit_filters_filterset_accum(noit_check_t *check, void *closure) {
   mtev_hash_table *active = closure;
   if(!check->filterset) return 0;
   if(mtev_hash_delete(active, check->filterset, strlen(check->filterset), free, NULL))
@@ -925,7 +1006,7 @@ noit_filtersets_cull_unused() {
   free(buffer);
   
 
-  n_uses = noit_poller_do(filterset_accum, &active);
+  n_uses = noit_poller_do(noit_filters_filterset_accum, &active);
 
   if(n_uses > 0 && mtev_hash_size(&active) > 0) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
@@ -958,6 +1039,11 @@ noit_console_filter_cull(mtev_console_closure_t ncct,
   int rv = 0;
   mtev_conf_t_userdata_t *info;
 
+  if (noit_filters_get_lmdb_instance()) {
+    nc_printf(ncct, "not supported in lmdb mode\n");
+    return -1;
+  }
+
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) {
     nc_printf(ncct, "internal error\n");
@@ -969,7 +1055,12 @@ noit_console_filter_cull(mtev_console_closure_t ncct,
               info->path);
     return -1;
   }
-  rv = noit_filtersets_cull_unused();
+  if (noit_filters_get_lmdb_instance()) {
+    rv = noit_filters_lmdb_cull_unused();
+  }
+  else {
+    rv = noit_filtersets_cull_unused();
+  }
   nc_printf(ncct, "Culled %d unused filtersets\n", rv);
   return 0;
 }
@@ -1005,7 +1096,7 @@ noit_console_filter_show_running(mtev_console_closure_t ncct,
         nc_printf(ncct, "[%d:%s] skipto %s", i, r->ruleid ? r->ruleid : "", r->skipto);
       }
       else {
-        nc_printf(ncct, "[%d:%s] %s", i, r->ruleid ? r->ruleid : "", (r->type == NOIT_FILTER_ACCEPT) ? "accept" : "deny");
+        nc_printf(ncct, "[%d:%s] %s", i, r->ruleid ? r->ruleid : "", (r->type == NOIT_FILTER_ACCEPT) ? FILTERSET_ACCEPT_STRING : FILTERSET_DENY_STRING);
       }
       nc_printf(ncct, " matched: %u/%u\n", ck_pr_load_32(&r->matches), ck_pr_load_32(&r->executions));
 
@@ -1036,7 +1127,7 @@ noit_console_filter_show_running(mtev_console_closure_t ncct,
       i++;
     }
 
-    filterset_free(fs);
+    noit_filter_filterset_free(fs);
   } else {
     nc_printf(ncct, "no such filterset\n");
   }
@@ -1129,6 +1220,39 @@ noit_filters_init() {
   nf_error = mtev_log_stream_find("error/noit/filters");
   nf_debug = mtev_log_stream_find("debug/noit/filters");
 
+  /* lmdb_path dictates where an LMDB backing store for checks would live.
+   * use_lmdb defaults to the existence of an lmdb_path...
+   *   explicit true will use one, creating if needed
+   *   explicit false will not use it, if even if it exists
+   *   otherwise, it will use it only if it already exists
+   */
+  char *lmdb_path = NULL;
+  bool lmdb_path_exists = false;
+  (void)mtev_conf_get_string(MTEV_CONF_ROOT, "//filtersets/@lmdb_path", &lmdb_path);
+  if(lmdb_path) {
+    struct stat sb;
+    int rv = -1;
+    while((rv = stat(lmdb_path, &sb)) == -1 && errno == EINTR);
+    if(rv == 0 && (S_IFDIR == (sb.st_mode & S_IFMT))) {
+      lmdb_path_exists = true;
+    }
+  }
+  mtev_boolean use_lmdb = (lmdb_path && lmdb_path_exists);
+  mtev_conf_get_boolean(MTEV_CONF_ROOT, "//filtersets/@use_lmdb", &use_lmdb);
+
+  if (use_lmdb == mtev_true) {
+    noit_filters_lmdb_init();
+    if (lmdb_path == NULL) {
+      mtevFatal(mtev_error, "noit_filters: use_lmdb specified, but no path provided\n");
+    }
+    lmdb_instance = noit_lmdb_tools_open_instance(lmdb_path);
+    if (!lmdb_instance) {
+      mtevFatal(mtev_error, "noit_filters: couldn't create lmdb instance - %s\n", strerror(errno));
+    }
+    noit_filters_lmdb_migrate_xml_filtersets_to_lmdb();
+  }
+  free(lmdb_path);
+
   pthread_mutex_init(&filterset_lock, NULL);
   fallback_no_match = pcre_compile("^(?=a)b", 0, &error, &erroffset, NULL);
   if(!fallback_no_match) {
@@ -1137,7 +1261,13 @@ noit_filters_init() {
   }
   mtev_capabilities_add_feature("filterset:hash", NULL);
   register_console_filter_commands();
-  noit_filters_from_conf();
+
+  if (use_lmdb == mtev_true) {
+    noit_filters_lmdb_filters_from_lmdb();
+  }
+  else {
+    noit_filters_from_conf();
+  }
 
   // The replication_prefix attribute instructs noit to put replicated filtersets into a sub-node of
   // of /noit/filtersets in noit.conf. This was introduced to for situations filtersets should be

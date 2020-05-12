@@ -47,6 +47,7 @@
 
 #include "noit_mtev_bridge.h"
 #include "noit_filters.h"
+#include "noit_filters_lmdb.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_clustering.h"
@@ -61,6 +62,10 @@ rest_show_filter(mtev_http_rest_closure_t *restc,
   mtev_conf_section_t section = MTEV_CONF_EMPTY;
   xmlNodePtr root;
   char xpath[1024];
+
+  if (noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_rest_show_filter(restc, npats, pats);
+  }
 
   if(npats != 2) goto not_found;
 
@@ -118,89 +123,16 @@ make_conf_path(char *path) {
   mtev_conf_release_section_write(section);
   return start;
 }
-static xmlNodePtr
-validate_filter_post(xmlDocPtr doc, char *name, int64_t *seq, const char **err) {
-  xmlNodePtr root, r, previous_child;
-  char *old_name;
-  *err = "data validation error";
-
-  if(seq) *seq = 0;
-  root = xmlDocGetRootElement(doc);
-  if(!root) return NULL;
-  if(strcmp((char *)root->name, "filterset")) {
-    *err = "bad root node";
-    return NULL;
-  }
-
-  old_name = (char *)xmlGetProp(root, (xmlChar *)"name");
-  if(old_name == NULL) {
-    xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
-  } else if(name == NULL || strcmp(old_name, name)) {
-    xmlFree(old_name);
-    *err = "name mismatch";
-    return NULL;
-  }
-  if(old_name) xmlFree(old_name);
-
-  if(!root->children) {
-    *err = "no rules";
-    return NULL;
-  }
-
-  xmlChar *seqstr = xmlGetProp(root, (xmlChar *)"seq");
-  if(seqstr && seq) {
-    *seq = strtoll((const char *)seqstr, NULL, 10);
-  }
-  if(seqstr) xmlFree(seqstr);
-
-  previous_child = root;
-  int rulecnt = 0;
-  for(r = root->children; r; r = r->next) {
-#define CHECK_N_SET(a) if(!strcmp((char *)r->name, #a))
-    char *type;
-    CHECK_N_SET(rule) {
-      type = (char *)xmlGetProp(r, (xmlChar *)"type");
-      if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow") &&
-                   strncmp(type, "skipto:", strlen("skipto:")))) {
-        if(type) xmlFree(type);
-        *err = "unknown type";
-        return NULL;
-      }
-      rulecnt++;
-      if(type) xmlFree(type);
-    }
-    else CHECK_N_SET(seq) {
-      xmlChar *v = xmlNodeGetContent(r);
-      if(v) xmlSetProp(root, r->name, v);
-      else xmlUnsetProp(root, r->name);
-      xmlUnlinkNode(r);
-      xmlFreeNode(r);
-      r = previous_child;
-
-      if (seq && v) *seq = strtoll((const char *)v, NULL, 10);
-
-      xmlFree(v);
-    }
-    else if(strcmp((char *)r->name, "text") != 0) {
-      /* ignore text nodes */
-      *err = "unknown attribute";
-      return NULL;
-    }
-    previous_child = r;
-  }
-
-  if(rulecnt == 0) {
-    *err = "no rules";
-    return NULL;
-  }
-  return root;
-}
 static int
 rest_delete_filter(mtev_http_rest_closure_t *restc,
                    int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_conf_section_t section = MTEV_CONF_EMPTY;
+
   char xpath[1024];
+  if (noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_rest_delete_filter(restc, npats, pats);
+  }
 
   if(npats != 2) goto not_found;
 
@@ -237,8 +169,15 @@ rest_cull_filter(mtev_http_rest_closure_t *restc,
   char cnt_str[32];
   mtev_http_session_ctx *ctx = restc->http_ctx;
 
-  rv = noit_filtersets_cull_unused();
-  if(rv > 0) mtev_conf_mark_changed();
+  if (noit_filters_get_lmdb_instance()) {
+    rv = noit_filters_lmdb_cull_unused();
+  }
+  else {
+    rv = noit_filtersets_cull_unused();
+    if(rv > 0) {
+      mtev_conf_mark_changed();
+    }
+  }
   snprintf(cnt_str, sizeof(cnt_str), "%d", rv);
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_header_set(ctx, "X-Filters-Removed", cnt_str);
@@ -259,6 +198,10 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   int64_t seq = 0;
   int64_t old_seq = 0;
   const char *error = "internal error";
+
+  if (noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_rest_set_filter(restc, npats, pats);
+  }
 
   if(npats != 2) {
     error = "invalid URI";
@@ -284,7 +227,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
     goto error;
   }
 
-  if((newfilter = validate_filter_post(indoc, pats[1], &seq, &error)) == NULL) {
+  if((newfilter = noit_filter_validate_filter(indoc, pats[1], &seq, &error)) == NULL) {
     goto error;
   }
   if(exists && (old_seq >= seq && seq != 0)) {
@@ -358,7 +301,12 @@ rest_show_filter_updates(mtev_http_rest_closure_t *restc,
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewNode(NULL, (xmlChar *)"filtersets");
   xmlDocSetRootElement(doc, root);
-  noit_cluster_xml_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  if (noit_filters_get_lmdb_instance()) {
+    noit_cluster_lmdb_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  }
+  else {
+    noit_cluster_xml_filter_changes(peerid, restc->remote_cn, prev, end, root);
+  }
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
