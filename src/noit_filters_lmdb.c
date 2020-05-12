@@ -413,6 +413,8 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
     rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
   }
   else {
+    /* NOTE: With XML filtersets, "accept" and "allow" were both accepted and did the same thing. With
+     * LMDB filtersets, we coerce both into ACCEPT in the DB */
     rule->type = (!strcmp(buffer, FILTERSET_ACCEPT_STRING) || !strcmp(buffer, FILTERSET_ALLOW_STRING)) ?
       NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
   }
