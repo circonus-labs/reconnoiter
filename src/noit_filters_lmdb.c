@@ -517,8 +517,8 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
 
 #define LMDB_HT_COMPILE(rtype, canon) do { \
   int32_t auto_max = 0; \
-  int hte_cnt, hti, tablesize = 2; \
-  flatbuffers_string_vec_t values_vec; \
+  int hte_cnt = 0, hti, tablesize = 2; \
+  flatbuffers_string_vec_t values_vec = NULL; \
   ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table)); \
   auto_max = ns(FiltersetRuleHashValue_auto_add_max(v)); \
   if (auto_max < 0) { \
