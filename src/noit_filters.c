@@ -403,7 +403,7 @@ noit_filters_process_repl(xmlDocPtr doc) {
     mtevAssert(mtev_conf_get_stringbuf(mtev_conf_section_from_xmlnodeptr(child), "@name",
                                        filterset_name, sizeof(filterset_name)));
     if(noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(child))) {
-      char xpath[MAX_METRIC_TAGGED_NAME];
+      char xpath[MAX_METRIC_TAGGED_NAME+128];
       snprintf(xpath, sizeof(xpath), "/noit/filtersets//filterset[@name=\"%s\"]",
                filterset_name);
       mtev_conf_section_t oldsection = mtev_conf_get_section_write(MTEV_CONF_ROOT, xpath);

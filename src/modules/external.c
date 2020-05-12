@@ -255,7 +255,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
     int metric_count = 0;
     while((rc = pcre_exec(ci->matcher, NULL, output, len, startoffset, 0,
                           ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
-      char metric[MAX_METRIC_TAGGED_NAME];
+      char metric[MAX_METRIC_TAGGED_NAME - UOM_SIZE - 1];
       char value[128];
       startoffset = ovector[1];
       mtevL(data->nldeb, "matched at offset %d\n", rc);

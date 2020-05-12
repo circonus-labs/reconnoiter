@@ -476,7 +476,7 @@ repl_work(eventer_t e, int mask, void *closure, struct timeval *now) {
       const char *cn = mtev_cluster_node_get_cn(node);
       char port_str[10];
       char host_port[128];
-      char connect_str[128];
+      char connect_str[256];
       char url[1024];
       struct curl_slist *connect_to = NULL;
       switch(mtev_cluster_node_get_addr(node, &addr, &addrlen)) {

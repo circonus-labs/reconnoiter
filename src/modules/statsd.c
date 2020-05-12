@@ -126,7 +126,7 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
 static void
 update_check(noit_check_t *check, const char *key, char type,
              double diff, double sample) {
-  char buff[MAX_METRIC_TAGGED_NAME];
+  char buff[MAX_METRIC_TAGGED_NAME + 24];
 
   if (sample == 0.0) return; /* would be a div-by-zero */
   if (check->closure == NULL) return;
