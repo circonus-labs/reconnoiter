@@ -825,7 +825,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   void *vconn;
   int klen, n = 0, i;
   char str[1024];
-  char uuid_str[1024], tmp_uuid_str[UUID_STR_LEN+1];
+  char uuid_str[64], tmp_uuid_str[UUID_STR_LEN+1];
   struct timeval epoch, diff;
   uint64_t uptime = 0;
   char ip_str[128];
