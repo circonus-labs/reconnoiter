@@ -91,7 +91,7 @@ describe("cluster", function()
       local expected_rule = {}
       if use_lmdb == "1" then
         if rule.type == "allow" then
-          -- LMDB filtersets coerces "accept" into "allow" - they were treated as synonyms in the XML
+          -- LMDB filtersets coerces "allow" into "accept" - they were treated as synonyms in the XML
           -- filtersets, but here, we just coerce
           expected_rule.type = "accept"
         else
