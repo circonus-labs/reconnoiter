@@ -361,7 +361,6 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     mtev_http_response_ok(ctx, "text/xml");
   }
 
-  mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
   goto cleanup;
