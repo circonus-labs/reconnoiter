@@ -444,8 +444,12 @@ describe("cluster", function()
     end)
     it("adds new test check", function()
       local code = make_check(api1, "cull_test", "http", uuid3, "basic_cull_true")
-      assert.is.equal(200, code)
+      -- This check belongs on the second node - we should get a 302, then
+      -- get a 200 from the other node
+      assert.is.equal(302, code)
       mtev.sleep(1)
+      code = api2:xml("GET", "/checks/show/" .. uuid3)
+      assert.is.equal(200, code)
     end)
     it("culls from nodes again", function()
       local code = api1:raw("POST", "/filters/cull")
