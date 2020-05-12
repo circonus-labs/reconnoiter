@@ -34,7 +34,7 @@ describe("cluster", function()
     rule.unused_junk = "abcde"
     table.insert(rule_data, rule)
     rule = {}
-    rule.type = "accept"
+    rule.type = "allow"
     rule.id = "test_id"
     rule.metric_hash = {}
     rule.module_hash = {}
@@ -89,7 +89,17 @@ describe("cluster", function()
 ]=]
     for index, rule in ipairs(rule_data_table) do
       local expected_rule = {}
-      expected_rule.type = rule.type
+      if use_lmdb == "1" then
+        if rule.type == "allow" then
+          -- LMDB filtersets coerces "accept" into "allow" - they were treated as synonyms in the XML
+          -- filtersets, but here, we just coerce
+          expected_rule.type = "accept"
+        else
+          expected_rule.type = rule.type
+        end
+      else
+        expected_rule.type = rule.type
+      end
       xml = xml .. [=[
   <rule type="]=] .. rule.type .. [=["]=]
       if rule.metric ~= nil then
