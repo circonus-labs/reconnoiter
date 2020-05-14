@@ -1039,20 +1039,9 @@ noit_console_filter_cull(mtev_console_closure_t ncct,
   int rv = 0;
   mtev_conf_t_userdata_t *info;
 
-  if (noit_filters_get_lmdb_instance()) {
-    nc_printf(ncct, "not supported in lmdb mode\n");
-    return -1;
-  }
-
   info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) {
     nc_printf(ncct, "internal error\n");
-    return -1;
-  }
-  if(strncmp(info->path, "/filtersets/", strlen("/filtersets/")) &&
-     strcmp(info->path, "/filtersets")) {
-    nc_printf(ncct, "filterset only allows inside /filtersets (not %s)\n",
-              info->path);
     return -1;
   }
   if (noit_filters_get_lmdb_instance()) {
