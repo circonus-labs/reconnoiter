@@ -337,7 +337,8 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   flatcc_builder_clear(B);
 
   if ((ret = ns(Filterset_verify_as_root(buffer, buffer_size)))) {
-    asprintf(error, "could not verify Filterset flatbuffer (name %s, len %zd)", filterset_name, buffer_size);
+    if(asprintf(error, "could not verify Filterset flatbuffer (name %s, len %zd)", filterset_name, buffer_size) < 0)
+      *error = strdup("could not verify flatbuffer");
     return ret;
   }
   else {
@@ -346,7 +347,8 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   ret = noit_filters_lmdb_write_finalized_fb_to_lmdb(filterset_name, buffer, buffer_size);
   free(buffer);
   if (ret) {
-    asprintf(error, "failed to write filterset %s to the database: %d (%s)", filterset_name, ret, mdb_strerror(ret));
+    if(asprintf(error, "failed to write filterset %s to the database: %d (%s)", filterset_name, ret, mdb_strerror(ret)) < 0)
+      *error = strdup("failed to write");
     return ret;
   }
   else {
