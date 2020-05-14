@@ -461,6 +461,28 @@ function TestConfig:make_checks_config(fd, opts)
     mtev.write(fd,"  <checks minimum_period=\"100\" max_initial_stutter=\"10\" filterset=\"default\">\n")
   end
   self:do_check_print(fd, opts.checks)
+  --Write some bad checks that should be skipped
+  --No uuid
+  mtev.write(fd,"    <check>\n")
+  mtev.write(fd,"    </check>\n")
+  -- Bad UUID
+  mtev.write(fd,"    <check uuid=\"badness\">\n")
+  mtev.write(fd,"    </check>\n")
+  -- No Target
+  mtev.write(fd,"    <check uuid=\"12345678-1234-1234-1234-123456789010\" module=\"http\" period=\"60000\">\n")
+  mtev.write(fd,"    </check>\n")
+  -- No Module
+  mtev.write(fd,"    <check uuid=\"12345678-1234-1234-1234-123456789011\" target=\"127.0.0.1\" period=\"60000\">\n")
+  mtev.write(fd,"    </check>\n")
+  -- No period
+  mtev.write(fd,"    <check uuid=\"12345678-1234-1234-1234-123456789012\" module=\"http\" target=\"127.0.0.1\" timeout=\"30000\">\n")
+  mtev.write(fd,"    </check>\n")
+  -- No Timeout
+  mtev.write(fd,"    <check uuid=\"12345678-1234-1234-1234-123456789013\" module=\"http\" target=\"127.0.0.1\" period=\"60000\">\n")
+  mtev.write(fd,"    </check>\n")
+  -- Good
+  mtev.write(fd,"    <check uuid=\"12345678-1234-1234-1234-123456789014\" module=\"http\" target=\"127.0.0.1\" period=\"300000\" timeout=\"150000\">\n")
+  mtev.write(fd,"    </check>\n")
   mtev.write(fd,"  </checks>\n")
 end
 
@@ -489,6 +511,9 @@ function TestConfig:make_filtersets_config(fd, opts)
   end
   --Broken filterset with no name
   mtev.write(fd,"  <filterset>\n")
+  mtev.write(fd,"  </filterset>\n")
+  -- Valid (but empty) filterset
+  mtev.write(fd,"  <filterset name=\"some_test_filterset\">\n")
   mtev.write(fd,"  </filterset>\n")
   mtev.write(fd,"</filtersets>\n")
 end
