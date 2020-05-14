@@ -1176,7 +1176,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
     if(!INHERIT(stringbuf, module, module, sizeof(module))) {
       if(!deleted) {
         if(asprintf(error, "check uuid '%s' has no module", uuid_str) < 0)
-          *error = strdup("check as no module");
+          *error = strdup("check has no module");
         return -1;
       }
     }
