@@ -1141,9 +1141,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   MYATTR(int64, seq, &config_seq);
 
   if(mtev_uuid_parse(uuid_str, checkid)) {
-    char buf[65535];
-    snprintf(buf, sizeof(buf), "check uuid '%s' is invalid", uuid_str);
-    *error = strdup(buf);
+    asprintf(error, "check uuid '%s' is invalid", uuid_str);
     return -1;
   }
   memset(delstr, 0, sizeof(delstr));
@@ -1155,9 +1153,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   if(!MYATTR(stringbuf, target, target, sizeof(target))) {
     if(!INHERIT(stringbuf, target, target, sizeof(target))) {
       if(!deleted) {
-        char buf[65535];
-        snprintf(buf, sizeof(buf), "check uuid '%s' has no target", uuid_str);
-        *error = strdup(buf);
+        asprintf(error, "check uuid '%s' has no target", uuid_str);
         return -1;
       }
     }
@@ -1168,9 +1164,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
 
   if(!noit_check_validate_target(target)) {
     if(!deleted) {
-      char buf[65535];
-      snprintf(buf, sizeof(buf), "check uuid '%s' has malformed target", uuid_str);
-      *error = strdup(buf);
+      asprintf(error, "check uuid '%s' has malformed target", uuid_str);
       return -1;
     }
   }
@@ -1178,9 +1172,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   if(!MYATTR(stringbuf, module, module, sizeof(module))) {
     if(!INHERIT(stringbuf, module, module, sizeof(module))) {
       if(!deleted) {
-        char buf[65535];
-        snprintf(buf, sizeof(buf), "check uuid '%s' has no module", uuid_str);
-        *error = strdup(buf);
+        asprintf(error, "check uuid '%s' has no module", uuid_str);
         return -1;
       }
     }
@@ -1210,9 +1202,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
 
   if(!noit_check_validate_name(name)) {
     if(!deleted) {
-      char buf[65535];
-      snprintf(buf, sizeof(buf), "check uuid '%s' has malformed name", uuid_str);
-      *error = strdup(buf);
+      asprintf(error, "check uuid '%s' has malformed name", uuid_str);
       return -1;
     }
   }
@@ -1264,22 +1254,16 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   }
   else {
     if(no_period && no_oncheck) {
-      char buf[65535];
-      snprintf(buf, sizeof(buf), "check uuid '%s' has neither period nor oncheck", uuid_str);
-      *error = strdup(buf);
+      asprintf(error, "check uuid '%s' has neither period nor oncheck", uuid_str);
       return -1;
     }
     if(!(no_period || no_oncheck)) {
-      char buf[65535];
-      snprintf(buf, sizeof(buf), "check uuid '%s' has oncheck and period", uuid_str);
-      *error = strdup(buf);
+      asprintf(error, "check uuid '%s' has oncheck and period", uuid_str);
       return -1;
     }
     if(!MYATTR(int32, timeout, &timeout)) {
       if(!INHERIT(int32, timeout, &timeout)) {
-        char buf[65535];
-        snprintf(buf, sizeof(buf), "check uuid '%s' has no timeout", uuid_str);
-        *error = strdup(buf);
+        asprintf(error, "check uuid '%s' has no timeout", uuid_str);
         return -1;
       }
       else {
