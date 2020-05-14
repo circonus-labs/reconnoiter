@@ -1271,7 +1271,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
     if(!MYATTR(int32, timeout, &timeout)) {
       if(!INHERIT(int32, timeout, &timeout)) {
         if(asprintf(error, "check uuid '%s' has no timeout", uuid_str) < 0)
-          *error = strdup("check as no timeout");
+          *error = strdup("check has no timeout");
         return -1;
       }
       else {
@@ -1596,4 +1596,3 @@ noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search
   free(key);
   return toRet;
 }
-
