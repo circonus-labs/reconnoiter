@@ -487,6 +487,9 @@ function TestConfig:make_filtersets_config(fd, opts)
     end
     mtev.write(fd,"  </filterset>\n")
   end
+  --Broken filterset with no name
+  mtev.write(fd,"  <filterset>\n")
+  mtev.write(fd,"  </filterset>\n")
   mtev.write(fd,"</filtersets>\n")
 end
 

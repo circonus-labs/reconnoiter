@@ -253,12 +253,20 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
                                          mtev_boolean *cull,
                                          int32_t *filter_flush_global,
                                          noit_filter_lmdb_filterset_rule_t **rules,
-                                         int64_t rule_cnt) {
+                                         int64_t rule_cnt,
+                                         char **error) {
   int i = 0, ret = 0;
   size_t buffer_size;
   flatcc_builder_t builder;
   flatcc_builder_t *B = &builder;
+
+  mtevAssert(error != NULL);
+  if (*error) {
+    free(*error);
+    *error = NULL;
+  }
   if (!filterset_name) {
+    *error = strdup("no filterset name provided");
     return -1;
   }
   flatcc_builder_init(B);
@@ -329,7 +337,9 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   flatcc_builder_clear(B);
 
   if ((ret = ns(Filterset_verify_as_root(buffer, buffer_size)))) {
-    mtevL(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: could not verify Filterset flatbuffer (name %s, len %zd)\n", filterset_name, buffer_size);
+    char error_message[65535];
+    snprintf(error_message, sizeof(error_message), "could not verify Filterset flatbuffer (name %s, len %zd)\n", filterset_name, buffer_size);
+    *error = strdup(error_message);
     return ret;
   }
   else {
@@ -338,7 +348,9 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
   ret = noit_filters_lmdb_write_finalized_fb_to_lmdb(filterset_name, buffer, buffer_size);
   free(buffer);
   if (ret) {
-    mtevL(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: failed to write filterset %s to the database: %d (%s)\n", filterset_name, ret, mdb_strerror(ret));
+    char error_message[65535];
+    snprintf(error_message, sizeof(error_message), "failed to write filterset %s to the database: %d (%s)\n", filterset_name, ret, mdb_strerror(ret));
+    *error = strdup(error_message);
     return ret;
   }
   else {
@@ -452,7 +464,7 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
 }
 
 static int
-noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_section) {
+noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_section, char **error) {
   int i = 0, rv = -1;
   char *filterset_name = NULL;
   int64_t sequence = 0;
@@ -466,6 +478,12 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
   
   mtevAssert(instance != NULL);
 
+  mtevAssert(error != NULL);
+  if (*error) {
+    free(*error);
+    *error = NULL;
+  }
+
   /* We want to heartbeat here... otherwise, if a lot of checks are 
    * configured or if we're running on a slower system, we could 
    * end up getting watchdog killed before we get a chance to run 
@@ -474,6 +492,7 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
 
   if (!mtev_conf_get_string(fs_section, "self::node()/@name", &filterset_name)) {
     /* Filterset must have a name */
+    *error = strdup("no name found for filterset");
     return -1;
   }
   if (mtev_conf_get_int64(fs_section, "self::node()/@seq", &sequence)) {
@@ -501,7 +520,8 @@ noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_t fs_secti
                (cull_present) ? &cull : NULL,
                (filter_flush_period_present) ? &filter_flush_period : NULL,
                rules,
-               (int64_t)rule_cnt);
+               (int64_t)rule_cnt,
+               error);
 
   free(filterset_name);
   for (i = 0; i < rule_cnt; i++) {
@@ -1163,10 +1183,17 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
     mtevL(mtev_error, "converting %d xml filtersets to lmdb\n", cnt);
   }
   for(i=0; i<cnt; i++) {
-    noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(sec[i]);
-    CONF_REMOVE(sec[i]);
-    xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
-    xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+    char *error = NULL;
+    int rv = noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(sec[i], &error);
+    if (rv || error) {
+      mtevL(mtev_error, "noit_filters_lmdb_migrate_xml_filtersets_to_lmdb: error converting filterset from xml to lmdb: %s\n", error ? error : "(unknown error)");
+      free(error);
+    }
+    else {
+      CONF_REMOVE(sec[i]);
+      xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+      xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+    }
   }
   mtev_conf_release_sections_write(sec, cnt);
   mtev_conf_mark_changed();
@@ -1193,7 +1220,12 @@ noit_filters_lmdb_process_repl(xmlDocPtr doc) {
     mtevAssert(mtev_conf_get_stringbuf(mtev_conf_section_from_xmlnodeptr(child), "@name",
                                        filterset_name, sizeof(filterset_name)));
     if(noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(child))) {
-      noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(child));
+      char *error = NULL;
+      int rv = noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(child), &error);
+      if (rv || error) {
+        mtevL(mtev_error, "noit_filters_lmdb_process_repl: error converting filterset from xml to lmdb: %s\n", error ? error : "(unknown error)");
+        free(error);
+      }
     }
     i++;
   }
@@ -1373,7 +1405,10 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
   int64_t seq = 0;
   int64_t old_seq = 0;
   const char *error = "internal error";
+  char *error_str = NULL;
+  mtev_boolean allocated_error = mtev_false;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+  int rv = 0;
 
   mtevAssert(instance != NULL);
 
@@ -1407,7 +1442,15 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
     error_code = 409;
     goto error;
   }
-  noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(newfilter));
+  error_str = NULL;
+  rv = noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(newfilter), &error_str);
+  if (rv || error_str) {
+    mtevL(mtev_error, "noit_filters_lmdb_process_repl: error converting filterset from xml to lmdb: %s\n", error_str ? error_str : "(unknown error)");
+    error_code = 500;
+    error = error_str;
+    allocated_error = mtev_true;
+    goto error;
+  }
   noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(newfilter));
 
   if(restc->call_closure_free) {
@@ -1426,6 +1469,9 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
   xmlNodeAddContent(root, (xmlChar *)error);
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
+  if (allocated_error) {
+    free((char *)error);
+  }
   goto cleanup;
 
  cleanup:
