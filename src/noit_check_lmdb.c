@@ -1069,8 +1069,8 @@ noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
   }
 }
 
-static void
-noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char **namespaces, int namespace_cnt) {
+static int
+noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char **namespaces, int namespace_cnt, char **error) {
   int i = 0;
   char uuid_str[37];
   char target[256] = "";
@@ -1118,6 +1118,12 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance != NULL);
 
+  mtevAssert(error != NULL);
+  if (*error) {
+    free(*error);
+    *error = NULL;
+  }
+
   /* We want to heartbeat here... otherwise, if a lot of checks are 
    * configured or if we're running on a slower system, we could 
    * end up getting watchdog killed before we get a chance to run 
@@ -1129,14 +1135,16 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   mtev_conf_get_##type(section, "ancestor::node()/@" #a, __VA_ARGS__)
 
   if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
-    mtevL(mtev_error, "check has no uuid\n");
-    return;
+    *error = strdup("check has no uuid");
+    return -1;
   }
   MYATTR(int64, seq, &config_seq);
 
   if(mtev_uuid_parse(uuid_str, checkid)) {
-    mtevL(mtev_error, "check uuid: '%s' is invalid\n", uuid_str);
-    return;
+    char buf[65535];
+    snprintf(buf, sizeof(buf), "check uuid '%s' is invalid", uuid_str);
+    *error = strdup(buf);
+    return -1;
   }
   memset(delstr, 0, sizeof(delstr));
   MYATTR(stringbuf, deleted, delstr, sizeof(delstr));
@@ -1147,8 +1155,10 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   if(!MYATTR(stringbuf, target, target, sizeof(target))) {
     if(!INHERIT(stringbuf, target, target, sizeof(target))) {
       if(!deleted) {
-        mtevL(mtev_error, "check uuid: '%s' has no target\n", uuid_str);
-        return;
+        char buf[65535];
+        snprintf(buf, sizeof(buf), "check uuid '%s' has no target", uuid_str);
+        *error = strdup(buf);
+        return -1;
       }
     }
     else {
@@ -1158,16 +1168,20 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
 
   if(!noit_check_validate_target(target)) {
     if(!deleted) {
-      mtevL(mtev_error, "check uuid: '%s' has malformed target\n", uuid_str);
-      return;
+      char buf[65535];
+      snprintf(buf, sizeof(buf), "check uuid '%s' has malformed target", uuid_str);
+      *error = strdup(buf);
+      return -1;
     }
   }
 
   if(!MYATTR(stringbuf, module, module, sizeof(module))) {
     if(!INHERIT(stringbuf, module, module, sizeof(module))) {
       if(!deleted) {
-        mtevL(mtev_error, "check uuid: '%s' has no module\n", uuid_str);
-        return;
+        char buf[65535];
+        snprintf(buf, sizeof(buf), "check uuid '%s' has no module", uuid_str);
+        *error = strdup(buf);
+        return -1;
       }
     }
     else {
@@ -1196,8 +1210,10 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
 
   if(!noit_check_validate_name(name)) {
     if(!deleted) {
-      mtevL(mtev_error, "check uuid: '%s' has malformed name\n", uuid_str);
-      return;
+      char buf[65535];
+      snprintf(buf, sizeof(buf), "check uuid '%s' has malformed name", uuid_str);
+      *error = strdup(buf);
+      return -1;
     }
   }
 
@@ -1248,17 +1264,23 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   }
   else {
     if(no_period && no_oncheck) {
-      mtevL(mtev_error, "check uuid: '%s' has neither period nor oncheck\n", uuid_str);
-      return;
+      char buf[65535];
+      snprintf(buf, sizeof(buf), "check uuid '%s' has neither period nor oncheck", uuid_str);
+      *error = strdup(buf);
+      return -1;
     }
     if(!(no_period || no_oncheck)) {
-      mtevL(mtev_error, "check uuid: '%s' has oncheck and period.\n", uuid_str);
-      return;
+      char buf[65535];
+      snprintf(buf, sizeof(buf), "check uuid '%s' has oncheck and period", uuid_str);
+      *error = strdup(buf);
+      return -1;
     }
     if(!MYATTR(int32, timeout, &timeout)) {
       if(!INHERIT(int32, timeout, &timeout)) {
-        mtevL(mtev_error, "check uuid: '%s' has no timeout\n", uuid_str);
-        return;
+        char buf[65535];
+        snprintf(buf, sizeof(buf), "check uuid '%s' has no timeout", uuid_str);
+        *error = strdup(buf);
+        return -1;
       }
       else {
         timeout_inherited = mtev_false;
@@ -1415,6 +1437,7 @@ put_retry:
   }
   mtev_hash_destroy(&conf_table, free, NULL);
   pthread_rwlock_unlock(&instance->lock);
+  return 0;
 }
 
 void
@@ -1428,10 +1451,17 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
     mtevL(mtev_error, "converting %d xml checks to lmdb\n", cnt);
   }
   for(i=0; i<cnt; i++) {
-    noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i], namespaces, namespace_cnt);
-    CONF_REMOVE(sec[i]);
-    xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
-    xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+    char *error = NULL;
+    int rv = noit_check_lmdb_convert_one_xml_check_to_lmdb(sec[i], namespaces, namespace_cnt, &error);
+    if (rv || error) {
+      mtevL(mtev_error, "noit_check_lmdb_process_repl: failed to convert check: %s\n", error ? error : "(unknown error)");
+      free(error);
+    }
+    else {
+      CONF_REMOVE(sec[i]);
+      xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+      xmlFreeNode(mtev_conf_section_to_xmlnodeptr(sec[i]));
+    }
   }
   mtev_conf_release_sections_write(sec, cnt);
   for(i=0; i<namespace_cnt; i++) {
@@ -1463,6 +1493,7 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
     uuid_t checkid;
     int64_t seq;
     char uuid_str[UUID_STR_LEN+1], seq_str[32];
+    char *error = NULL;
     section = mtev_conf_section_from_xmlnodeptr(child);
     mtevAssert(mtev_conf_get_stringbuf(section, "@uuid",
                                        uuid_str, sizeof(uuid_str)));
@@ -1478,8 +1509,14 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
       i++;
       continue;
     }
-    noit_check_lmdb_convert_one_xml_check_to_lmdb(section, namespaces, namespace_cnt);
-    noit_check_lmdb_poller_process_checks(&checkid, 1);
+    int rv = noit_check_lmdb_convert_one_xml_check_to_lmdb(section, namespaces, namespace_cnt, &error);
+    if (rv || error) {
+      mtevL(mtev_error, "noit_check_lmdb_process_repl: failed to convert check: %s\n", error ? error : "(unknown error)");
+      free(error);
+    }
+    else {
+      noit_check_lmdb_poller_process_checks(&checkid, 1);
+    }
 
     i++;
   }
