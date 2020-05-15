@@ -35,6 +35,10 @@
 #include <mtev_hash.h>
 #include <mtev_uuid.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct noit_lmdb_instance {
   MDB_env *env;
   MDB_dbi dbi;
@@ -68,4 +72,7 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path);
 void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance);
 void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

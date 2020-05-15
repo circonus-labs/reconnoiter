@@ -36,10 +36,15 @@
 #include <mtev_uuid.h>
 #include <circllhist.h>
 
-#include "noit_metric.h"
-#include "flatbuffers/metric_batch_builder.h"
-#include "flatbuffers/metric_common_builder.h"
-#include "flatbuffers/metric_list_builder.h"
+#include <noit_metric.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <flatbuffers/metric_batch_builder.h>
+#include <flatbuffers/metric_common_builder.h>
+#include <flatbuffers/metric_list_builder.h>
 
 /*!
   \fn noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
@@ -146,5 +151,9 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
 #define ns(x) FLATBUFFERS_WRAP_NAMESPACE(circonus, x)
 #undef nsc
 #define nsc(x) FLATBUFFERS_WRAP_NAMESPACE(flatbuffers, x)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NOIT_FB_H */

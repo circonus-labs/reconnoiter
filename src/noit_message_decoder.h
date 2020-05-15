@@ -35,7 +35,11 @@
 #include <stdint.h>
 #include <mtev_uuid.h>
 
-#include "noit_metric.h"
+#include <noit_metric.h>
+
+#ifdef __cplusplus
+extern "C"  {
+#endif
 
 API_EXPORT(int)
   noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit);
@@ -51,4 +55,8 @@ API_EXPORT(void)
 
 API_EXPORT(void)
   noit_metric_message_free(noit_metric_message_t* message);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

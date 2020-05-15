@@ -35,7 +35,11 @@
 #include <stdint.h>
 #include <mtev_uuid.h>
 
-#include "noit_metric.h"
+#include <noit_metric.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
   metric_type_t type;
@@ -66,4 +70,7 @@ typedef struct {
 API_EXPORT(void)
 noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accumulator, noit_metric_value_t* value);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

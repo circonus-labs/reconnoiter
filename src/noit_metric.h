@@ -38,6 +38,10 @@
 #include <mtev_hooks.h>
 #include <mtev_uuid.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_METRIC_TAGGED_NAME 4096
 #define MAX_TAGS 256
 
@@ -237,4 +241,7 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
                 void *, closure,
                 (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset))
 
+#ifdef __cplusplus
+}
+#endif
 #endif

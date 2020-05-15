@@ -37,7 +37,11 @@
 #include <mtev_defines.h>
 #include <eventer/eventer.h>
 #include <mtev_hash.h>
-#include "noit_module.h"
+#include <noit_module.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef int (*intperpolate_oper_fn)(char *, int len,
                                     const char *key, const char *replacement);
@@ -67,5 +71,8 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_check_tools_shared_init_globals();
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
