@@ -1379,7 +1379,9 @@ noit_filters_lmdb_cull_unused() {
       char *name = (char *)calloc(1, filter_name_len + 1);
       memcpy(name, filter_name, filter_name_len);
       if(noit_filter_remove_from_name(name)) {
-        noit_filters_lmdb_remove_from_db(name);
+        if (noit_filters_lmdb_remove_from_db(name) == MDB_SUCCESS) {
+          removed++;
+        }
       }
       free(name);
     }

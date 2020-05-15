@@ -512,7 +512,7 @@ function TestConfig:make_filtersets_config(fd, opts)
   mtev.write(fd,"  <filterset>\n")
   mtev.write(fd,"  </filterset>\n")
   -- Valid (but empty) filterset
-  mtev.write(fd,"  <filterset name=\"some_test_filterset\">\n")
+  mtev.write(fd,"  <filterset name=\"some_test_filterset\" cull=\"false\">\n")
   mtev.write(fd,"  </filterset>\n")
   mtev.write(fd,"</filtersets>\n")
 end
