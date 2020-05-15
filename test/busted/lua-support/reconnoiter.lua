@@ -14,7 +14,6 @@ local O_NEW = bit.bor(O_CREAT,bit.bor(O_TRUNC,O_WRONLY))
 local noitd = cwd .. '/../../src/noitd'
 local stratcond = cwd .. '/../../src/stratcond'
 local system = run_command_synchronously_return_output
-local pgmoon = require 'pgmoon'
 
 local inheritsFrom = require('lua-support/inherits.lua')
 
@@ -211,8 +210,8 @@ function TestConfig:L(err)
   if self.verbose ~= nil and self.verbose > 1 then mtevL("stderr", "%s\n", err) end
 end
 
-local pgmoon = require('pgmoon')
 function pgclient(db,user)
+  local pgmoon = require('pgmoon')
   local conn = pgmoon.new({
     host = 'localhost',
     port = NOIT_TEST_DB_PORT,
@@ -918,6 +917,7 @@ end
 
 function TestPostgres:client()
   if self._client then return self._client end
+  local pgmoon = require 'pgmoon'
   self._client = pgmoon.new({ host = 'localhost', port = self.db_port,
                               database = 'reconnoiter', user = 'reconnoiter'})
   local success, err = self._client:connect()
