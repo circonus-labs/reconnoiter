@@ -450,10 +450,10 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
   if(toff) token_off = toff - job->line + 1;
 
   line = (char*)calloc(line_len + 1 /* \t */ + remote_len + 2, 1);
-  strncpy(line, job->line, token_off);
-  strncat(line, job->remote, remote_len);
-  strncat(line, "\t", 1);
-  strncat(line, job->line + token_off, line_len - token_off);
+  memcpy(line, job->line, token_off);
+  memcpy(line + token_off, job->remote, remote_len);
+  memcpy(line + token_off + remote_len, "\t", 1);
+  memcpy(line + token_off + remote_len + 1, job->line + token_off, line_len - token_off);
   job->doc_str = line;
 
   for(struct driver_list *d = drivers; d; d = d->next) {
