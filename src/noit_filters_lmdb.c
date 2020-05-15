@@ -619,9 +619,11 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   }
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
 
+  char *fs_name = (char *)ns(Filterset_name(filterset));
+  noit_filter_update_last_touched(fs_name);
   set = (filterset_t *)calloc(1, sizeof(filterset_t));
   set->ref_cnt = 1;
-  set->name = strdup(ns(Filterset_name(filterset)));
+  set->name = strdup(fs_name);
 
   seq = ns(Filterset_seq(filterset));
   mtevAssert (seq >= 0);
@@ -1378,9 +1380,11 @@ noit_filters_lmdb_cull_unused() {
     while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len, &unused)) {
       char *name = (char *)calloc(1, filter_name_len + 1);
       memcpy(name, filter_name, filter_name_len);
-      if(noit_filter_remove_from_name(name)) {
-        if (noit_filters_lmdb_remove_from_db(name) == MDB_SUCCESS) {
-          removed++;
+      if (noit_filter_check_is_cull_timedout(name, NULL)) {
+        if(noit_filter_remove_from_name(name)) {
+          if (noit_filters_lmdb_remove_from_db(name) == MDB_SUCCESS) {
+            removed++;
+          }
         }
       }
       free(name);

@@ -112,6 +112,12 @@ API_EXPORT(bool)
   noit_filter_initialized();
 
 API_EXPORT(void)
+  noit_filter_update_last_touched(const char *filterset_name);
+
+API_EXPORT(mtev_boolean)
+  noit_filter_check_is_cull_timedout(const char *filterset_name, struct timeval *now);
+
+API_EXPORT(void)
   noit_filter_filterset_free(void *vp);
 
 API_EXPORT(xmlNodePtr)

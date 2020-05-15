@@ -493,9 +493,9 @@ function TestConfig:make_filtersets_config(fd, opts)
   local use_lmdb = os.getenv('NOIT_LMDB_FILTERSETS') or "0"
   if use_lmdb == "1" then
     local path = opts.workspace .. "/" .. opts.name .. "_filtersets.lmdb"
-    mtev.write(fd,"<filtersets use_lmdb=\"true\" lmdb_path=\"" .. path .. "\">\n")
+    mtev.write(fd,"<filtersets use_lmdb=\"true\" lmdb_path=\"" .. path .. "\" cull_idle_threshold=\"500\">\n")
   else
-    mtev.write(fd,"<filtersets>\n")
+    mtev.write(fd,"<filtersets cull_idle_threshold=\"500\">\n")
   end
   for name, set in pairs(opts.filtersets or {}) do
     mtev.write(fd,"  <filterset name=\"" .. name .. "\">\n")
