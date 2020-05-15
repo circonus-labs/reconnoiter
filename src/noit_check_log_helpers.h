@@ -34,6 +34,10 @@
 #ifndef _NOIT_CHECK_LOG_HELPERS_H
 #define _NOIT_CHECK_LOG_HELPERS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
   NOIT_COMPRESS_NONE = 0,
   NOIT_COMPRESS_ZLIB = 1,
@@ -59,4 +63,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip);
 
 int noit_conf_write_log(void *);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

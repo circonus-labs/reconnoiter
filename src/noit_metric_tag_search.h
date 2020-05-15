@@ -62,7 +62,11 @@
  */
 
 #include <pcre.h>
-#include "noit_metric.h"
+#include <noit_metric.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum {
   OP_AND_ARGS,
@@ -119,4 +123,7 @@ API_EXPORT(mtev_boolean)
 API_EXPORT(char *)
   noit_metric_tag_search_unparse(noit_metric_tag_search_ast_t *);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -34,7 +34,11 @@
 #include <mtev_defines.h>
 #include <mtev_hooks.h>
 #include <mtev_uuid.h>
-#include "noit_message_decoder.h"
+#include <noit_message_decoder.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef unsigned short caql_cnt_t;
 
@@ -86,4 +90,7 @@ void noit_metric_director_drop_before(double t);
 MTEV_HOOK_PROTO(metric_director_want, (noit_metric_message_t *, int *, int),
                 void *, closure, (void *closure, noit_metric_message_t *m, int *wants, int want_len));
 
+#ifdef __cplusplus
+}
+#endif
 #endif
