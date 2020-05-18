@@ -253,15 +253,18 @@ noit_filter_compile_add_load_set(filterset_t *set) {
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
     filterset_t *oldset = vset;
+    noit_filter_update_last_touched(oldset);
     if(oldset->seq >= set->seq) { /* no update */
       noit_filter_filterset_free(set);
     } else {
+      noit_filter_update_last_touched(set);
       mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
                         NULL, noit_filter_filterset_free);
       used_new_one = mtev_true;
     }
   }
   else {
+    noit_filter_update_last_touched(set);
     mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
     used_new_one = mtev_true;
   }
