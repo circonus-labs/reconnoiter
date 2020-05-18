@@ -101,6 +101,7 @@ typedef struct _filterrule {
 
 typedef struct {
   uint32_t ref_cnt;
+  struct timeval last_touched;
   char *name;
   int64_t seq;
   filterrule_t *rules;
@@ -110,6 +111,12 @@ typedef struct {
 
 API_EXPORT(bool)
   noit_filter_initialized();
+
+API_EXPORT(void)
+  noit_filter_update_last_touched(filterset_t *fs);
+
+API_EXPORT(mtev_boolean)
+  noit_filter_check_is_cull_timedout(const char* fs_name, struct timeval *now);
 
 API_EXPORT(void)
   noit_filter_filterset_free(void *vp);

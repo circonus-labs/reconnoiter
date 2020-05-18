@@ -620,6 +620,7 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
 
   set = (filterset_t *)calloc(1, sizeof(filterset_t));
+  noit_filter_update_last_touched(set);
   set->ref_cnt = 1;
   set->name = strdup(ns(Filterset_name(filterset)));
 
