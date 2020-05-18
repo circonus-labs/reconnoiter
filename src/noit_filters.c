@@ -1061,13 +1061,15 @@ noit_filtersets_cull_unused() {
     void *vnode;
     while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len,
                          &vnode)) {
-      mtev_conf_section_t *sptr = vnode;
-      if(noit_filter_remove(*sptr)) {
-        CONF_REMOVE(*sptr);
-        xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);
-        xmlUnlinkNode(node);
-        xmlFreeNode(node);
-        removed++;
+      if (noit_filter_check_is_cull_timedout(filter_name, NULL)) {
+        mtev_conf_section_t *sptr = vnode;
+        if(noit_filter_remove(*sptr)) {
+          CONF_REMOVE(*sptr);
+          xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);
+          xmlUnlinkNode(node);
+          xmlFreeNode(node);
+          removed++;
+        }
       }
     }
   }
