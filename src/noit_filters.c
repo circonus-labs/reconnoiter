@@ -66,6 +66,7 @@ static pcre *fallback_no_match = NULL;
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
 static char* filtersets_replication_path = NULL;
 static noit_lmdb_instance_t *lmdb_instance = NULL;
+static uint64_t cull_idle_threshold_ms = 300000;
 static bool initialized = false;
 
 #define FRF(r,a) do { \
@@ -99,6 +100,49 @@ noit_lmdb_instance_t *noit_filters_get_lmdb_instance() {
 bool
 noit_filter_initialized() {
   return initialized;
+}
+void
+noit_filter_update_last_touched(filterset_t *fs) {
+  mtev_gettimeofday(&fs->last_touched, NULL);
+}
+mtev_boolean
+noit_filter_check_is_cull_timedout(const char *fs_name, struct timeval *now) {
+  struct timeval now_local, diff;
+  uint64_t diff_ms = 0;
+  filterset_t *fs = NULL;
+  void *vfs;
+  /* If this is set to zero, we've timed out no matter what */
+  if (cull_idle_threshold_ms == 0) {
+    return mtev_true;
+  }
+  /* Allow passing in a now parameter to save computation; if null, use the
+   * current time */
+  if (!now) {
+    mtev_gettimeofday(&now_local, NULL);
+    now = &now_local;
+  }
+
+  LOCKFS();
+  if(!mtev_hash_retrieve(filtersets, fs_name, strlen(fs_name), &vfs)) {
+    UNLOCKFS();
+    return mtev_false;
+  }
+  fs = (filterset_t *)vfs;
+  /* If we're not initialized for some reason - initialize and return
+   * false */
+  if (fs->last_touched.tv_sec == 0) {
+    noit_filter_update_last_touched(fs);
+    UNLOCKFS();
+    return mtev_false;
+  }
+  sub_timeval(*now, fs->last_touched, &diff);
+  UNLOCKFS();
+  diff_ms = (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
+  if (diff_ms < cull_idle_threshold_ms) {
+    /* We haven't hit the threshold */
+    return mtev_false;
+  }
+  return mtev_true;
 }
 void
 noit_filter_filterset_free(void *vp) {
@@ -209,15 +253,18 @@ noit_filter_compile_add_load_set(filterset_t *set) {
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, set->name, strlen(set->name), &vset)) {
     filterset_t *oldset = vset;
+    noit_filter_update_last_touched(oldset);
     if(oldset->seq >= set->seq) { /* no update */
       noit_filter_filterset_free(set);
     } else {
+      noit_filter_update_last_touched(set);
       mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
                         NULL, noit_filter_filterset_free);
       used_new_one = mtev_true;
     }
   }
   else {
+    noit_filter_update_last_touched(set);
     mtev_hash_store(filtersets, set->name, strlen(set->name), (void *)set);
     used_new_one = mtev_true;
   }
@@ -241,6 +288,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     return mtev_false;
   }
   set = calloc(1, sizeof(*set));
+  noit_filter_update_last_touched(set);
   set->ref_cnt = 1;
   set->name = strdup(filterset_name);
   mtev_conf_get_int64(setinfo, "@seq", &seq);
@@ -599,6 +647,7 @@ noit_apply_filterset(const char *filterset,
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
+    noit_filter_update_last_touched(fs);
     filterrule_t *r, *skipto_rule = NULL;
     mtev_boolean ret = mtev_false;
     ck_pr_inc_32(&fs->ref_cnt);
@@ -1015,13 +1064,15 @@ noit_filtersets_cull_unused() {
     void *vnode;
     while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len,
                          &vnode)) {
-      mtev_conf_section_t *sptr = vnode;
-      if(noit_filter_remove(*sptr)) {
-        CONF_REMOVE(*sptr);
-        xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);
-        xmlUnlinkNode(node);
-        xmlFreeNode(node);
-        removed++;
+      if (noit_filter_check_is_cull_timedout(filter_name, NULL)) {
+        mtev_conf_section_t *sptr = vnode;
+        if(noit_filter_remove(*sptr)) {
+          CONF_REMOVE(*sptr);
+          xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);
+          xmlUnlinkNode(node);
+          xmlFreeNode(node);
+          removed++;
+        }
       }
     }
   }
@@ -1208,6 +1259,8 @@ noit_filters_init() {
 
   nf_error = mtev_log_stream_find("error/noit/filters");
   nf_debug = mtev_log_stream_find("debug/noit/filters");
+
+  mtev_conf_get_uint64(MTEV_CONF_ROOT, "//filtersets/@cull_idle_threshold", &cull_idle_threshold_ms);
 
   /* lmdb_path dictates where an LMDB backing store for checks would live.
    * use_lmdb defaults to the existence of an lmdb_path...
