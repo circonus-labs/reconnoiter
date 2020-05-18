@@ -117,6 +117,9 @@ API_EXPORT(void)
 API_EXPORT(mtev_boolean)
   noit_filter_check_is_cull_timedout(const char *filterset_name, struct timeval *now);
 
+API_EXPORT(int)
+  noit_filter_remove_filterset_from_last_touched_hash(const char *filterset_name);
+
 API_EXPORT(void)
   noit_filter_filterset_free(void *vp);
 

@@ -1383,6 +1383,7 @@ noit_filters_lmdb_cull_unused() {
       if (noit_filter_check_is_cull_timedout(name, NULL)) {
         if(noit_filter_remove_from_name(name)) {
           if (noit_filters_lmdb_remove_from_db(name) == MDB_SUCCESS) {
+            noit_filter_remove_filterset_from_last_touched_hash(filter_name);
             removed++;
           }
         }

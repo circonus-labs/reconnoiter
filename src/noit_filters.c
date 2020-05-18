@@ -62,9 +62,12 @@ static mtev_log_stream_t nf_debug;
 static mtev_hash_table *filtersets = NULL;
 static mtev_hash_table *filterset_last_touched = NULL;
 static pthread_mutex_t filterset_lock;
+static pthread_mutex_t filterset_last_touched_lock;
 static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
+#define LOCKFSLT() pthread_mutex_lock(&filterset_last_touched_lock)
+#define UNLOCKFSLT() pthread_mutex_unlock(&filterset_last_touched_lock)
 static char* filtersets_replication_path = NULL;
 static noit_lmdb_instance_t *lmdb_instance = NULL;
 static uint64_t cull_idle_threshold_ms = 300000;
@@ -106,7 +109,9 @@ void
 noit_filter_update_last_touched(const char *filterset_name) {
   struct timeval *now = (struct timeval *)calloc(1, sizeof(struct timeval));
   mtev_gettimeofday(now, NULL);
+  LOCKFSLT();
   mtev_hash_replace(filterset_last_touched, strdup(filterset_name), strlen(filterset_name), (void *)now, free, free);
+  UNLOCKFSLT();
 }
 mtev_boolean
 noit_filter_check_is_cull_timedout(const char *filterset_name, struct timeval *now) {
@@ -124,18 +129,30 @@ noit_filter_check_is_cull_timedout(const char *filterset_name, struct timeval *n
     mtev_gettimeofday(&now_local, NULL);
     now = &now_local;
   }
+  LOCKFSLT();
   if (!mtev_hash_retrieve(filterset_last_touched, filterset_name, strlen(filterset_name), &data)) {
+    UNLOCKFSLT();
     noit_filter_update_last_touched(filterset_name);
     return mtev_false;
   }
   last_touched = data;
   sub_timeval(*now, *last_touched, &diff);
   diff_ms = (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
+  UNLOCKFSLT();
   if (diff_ms < cull_idle_threshold_ms) {
     /* We haven't hit the threshold */
     return mtev_false;
   }
   return mtev_true;
+}
+int
+noit_filter_remove_filterset_from_last_touched_hash(const char *filterset_name) {
+  int rv = 0;
+  LOCKFSLT();
+  rv = mtev_hash_delete(filterset_last_touched, filterset_name, strlen(filterset_name),
+    free, free);
+  UNLOCKFSLT();
+  return rv;
 }
 void
 noit_filter_filterset_free(void *vp) {
@@ -1058,6 +1075,7 @@ noit_filtersets_cull_unused() {
       mtev_conf_section_t *sptr = vnode;
       if (noit_filter_check_is_cull_timedout(filter_name, NULL)) {
         if(noit_filter_remove(*sptr)) {
+          noit_filter_remove_filterset_from_last_touched_hash(filter_name);
           CONF_REMOVE(*sptr);
           xmlNodePtr node = mtev_conf_section_to_xmlnodeptr(*sptr);
           xmlUnlinkNode(node);
@@ -1323,4 +1341,5 @@ noit_filters_init_globals(void) {
   mtev_hash_init(filtersets);
   filterset_last_touched = calloc(1, sizeof(mtev_hash_table));
   mtev_hash_init(filterset_last_touched);
+  pthread_mutex_init(&filterset_last_touched_lock, NULL);
 }
