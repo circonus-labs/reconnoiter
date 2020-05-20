@@ -1263,7 +1263,18 @@ noit_filters_lmdb_rest_show_filters(mtev_http_rest_closure_t *restc,
     props = props->next;
   }
 
-  /* TODO: Actually put the filtersets in */
+  char **names = NULL;
+  int size = 0;
+
+  noit_filter_get_name_list(&names, &size);
+
+  for (int i = 0; i < size; i++) {
+    xmlNodePtr fs_node = xmlNewNode(NULL, (xmlChar *)"filterset");
+    noit_filters_lmdb_populate_filterset_xml_from_lmdb(fs_node, names[i]);
+    xmlAddChild(root, fs_node);
+  }
+
+  noit_filter_free_name_list(names, size);
 
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);

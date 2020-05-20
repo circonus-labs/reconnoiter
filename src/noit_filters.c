@@ -439,17 +439,26 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
 void
 noit_filter_get_name_list(char ***names, int *size) {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-  int cnt = 0;
+  int cnt = 0, hash_size = 0;
   mtevAssert(names);
   mtevAssert(size);
-  *size = mtev_hash_size(filtersets);
-  *names = calloc(*size, sizeof(char *));
   LOCKFS();
+  hash_size = mtev_hash_size(filtersets);
+  if (!hash_size) {
+    UNLOCKFS();
+    *size = 0;
+    return;
+  }
+  *names = calloc(hash_size, sizeof(char *));
+  char **list = *names;
   while(mtev_hash_adv(filtersets, &iter)) {
     filterset_t *fs = iter.value.ptr;
-    *names[cnt++] = strdup(fs->name);
+    if (fs->name) {
+      list[cnt++] = strdup(fs->name);
+    }
   }
   UNLOCKFS();
+  *size = cnt;
 }
 void
 noit_filter_free_name_list(char **names, int size) {
@@ -458,6 +467,7 @@ noit_filter_free_name_list(char **names, int size) {
   for (i=0; i < size; i++) {
     free(names[i]);
   }
+  free(names);
 }
 int
 noit_filter_exists(const char *name) {
