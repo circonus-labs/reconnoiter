@@ -386,6 +386,13 @@ lua_noit_metric_next(lua_State *L) {
 }
 
 static int
+lua_noit_metric_drop_backlogged(lua_State *L) {
+  uint32_t t = luaL_checknumber(L, 1);
+  noit_metric_director_drop_backlogged(t);
+  return 0;
+}
+
+static int
 lua_noit_metric_drop_before(lua_State *L) {
   double t = luaL_checknumber(L, 1);
   noit_metric_director_drop_before(t);
@@ -578,6 +585,7 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_next", lua_noit_metric_next },
   { "metric_director_subscribe_all", lua_noit_metric_subscribe_all},
   { "metric_director_subscribe_account", lua_noit_metric_subscribe_account},
+  { "metric_director_drop_backlogged", lua_noit_metric_drop_backlogged},
   { "metric_director_drop_before", lua_noit_metric_drop_before},
   { "tag_parse", lua_noit_tag_parse},
   { "tag_tostring", lua_noit_tag_tostring},
