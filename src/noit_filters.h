@@ -150,6 +150,12 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_filter_remove_from_name(char *name);
 
+API_EXPORT(void)
+  noit_filter_get_name_list(char ***names, int *size);
+
+API_EXPORT(void)
+  noit_filter_free_name_list(char **names, int size);
+
 API_EXPORT(int)
   noit_filter_exists(const char *name);
 
