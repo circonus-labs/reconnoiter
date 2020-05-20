@@ -87,6 +87,7 @@ static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
 static uint32_t director_in_use = 0;
 static uint64_t drop_before_threshold_ms = 0;
+static uint32_t drop_backlog_over = 0;
 
 static stats_ns_t *stats_ns;
 static stats_handle_t *stats_msg_delay;
@@ -202,6 +203,10 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
   mtev_boolean msg_distributed = mtev_false;
   for(i = 0; i < nthreads; i++) {
     if(interests[i] > 0) {
+      if(drop_backlog_over && ck_pr_load_32(&thread_queues_backlog[i]) > drop_backlog_over) {
+        stats_add64(stats_msg_dropped, 1);
+        continue;
+      }
       msg_distributed = mtev_true;
       stats_add64(stats_msg_queued, 1);
       ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
@@ -591,7 +596,7 @@ void noit_metric_director_init() {
   stats_ns_add_tag(stats_ns, "units", "messages");
   /* total count of messages read from fq */
   stats_msg_seen = stats_register_fanout(stats_ns, "seen", STATS_TYPE_COUNTER, 16);
-  /* count of messages dropped due to drop_before_threshold */
+  /* count of messages dropped due to drop_* */
   stats_msg_dropped = stats_register_fanout(stats_ns, "dropped", STATS_TYPE_COUNTER, 16);
   /* count of messages distributed to at least one lane */
   stats_msg_distributed = stats_register_fanout(stats_ns, "distributed", STATS_TYPE_COUNTER, 16);
@@ -622,6 +627,11 @@ void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&dedupe_hashes, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   eventer_name_callback("noit_metric_director_prune_dedup",
                         noit_metric_director_prune_dedup);
+}
+
+void
+noit_metric_director_drop_backlogged(uint32_t limit) {
+  drop_backlog_over = limit;
 }
 
 void
