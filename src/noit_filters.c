@@ -111,8 +111,10 @@ noit_filter_check_is_cull_timedout(const char *fs_name, struct timeval *now) {
   uint64_t diff_ms = 0;
   filterset_t *fs = NULL;
   void *vfs;
+  mtevL(mtev_error, "PHIL: enter noit_filter_check_is_cull_timedout - %s\n", fs_name);
   /* If this is set to zero, we've timed out no matter what */
   if (cull_idle_threshold_ms == 0) {
+    mtevL(mtev_error, "PHIL: leave noit_filter_check_is_cull_timedout 1 - return true\n");
     return mtev_true;
   }
   /* Allow passing in a now parameter to save computation; if null, use the
@@ -125,6 +127,7 @@ noit_filter_check_is_cull_timedout(const char *fs_name, struct timeval *now) {
   LOCKFS();
   if(!mtev_hash_retrieve(filtersets, fs_name, strlen(fs_name), &vfs)) {
     UNLOCKFS();
+    mtevL(mtev_error, "PHIL: leave noit_filter_check_is_cull_timedout 2 - return false\n");
     return mtev_false;
   }
   fs = (filterset_t *)vfs;
@@ -133,15 +136,19 @@ noit_filter_check_is_cull_timedout(const char *fs_name, struct timeval *now) {
   if (fs->last_touched.tv_sec == 0) {
     noit_filter_update_last_touched(fs);
     UNLOCKFS();
+    mtevL(mtev_error, "PHIL: leave noit_filter_check_is_cull_timedout 3 - return false\n");
     return mtev_false;
   }
   sub_timeval(*now, fs->last_touched, &diff);
   UNLOCKFS();
   diff_ms = (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
+  mtevL(mtev_error, "PHIL: CHECK FOR %s - %" PRIu64 "\n", fs_name, diff_ms);
   if (diff_ms < cull_idle_threshold_ms) {
     /* We haven't hit the threshold */
+    mtevL(mtev_error, "PHIL: leave noit_filter_check_is_cull_timedout 4 - return false\n");
     return mtev_false;
   }
+  mtevL(mtev_error, "PHIL: leave noit_filter_check_is_cull_timedout 5 - return true\n");
   return mtev_true;
 }
 void

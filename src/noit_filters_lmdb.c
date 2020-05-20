@@ -1232,6 +1232,58 @@ noit_filters_lmdb_process_repl(xmlDocPtr doc) {
 }
 
 int
+noit_filters_lmdb_rest_show_filters(mtev_http_rest_closure_t *restc,
+                                    int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  int error_code = 500;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root;
+  noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
+
+  mtevAssert(instance != NULL);
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"filtersets", NULL);
+  xmlDocSetRootElement(doc, root);
+
+  mtev_conf_section_t filters = mtev_conf_get_section_read(MTEV_CONF_ROOT, "//filtersets");
+  xmlNodePtr filters_xmlnode = mtev_conf_section_to_xmlnodeptr(filters);
+  if (!filters_xmlnode) {
+    goto error;
+  }
+
+  /* First, set the properties */
+  xmlAttr* props = filters_xmlnode->properties;
+  while (props != NULL) {
+    xmlChar* value = xmlNodeListGetString(filters_xmlnode->doc, props->children, 1);
+    if (value) {
+      xmlSetProp(root, props->name, value);
+      xmlFree(value);
+    }
+    props = props->next;
+  }
+
+  /* TODO: Actually put the filtersets in */
+
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ error:
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(doc) {
+    xmlFreeDoc(doc);
+  }
+  mtev_conf_release_section_read(filters);
+  return 0;
+}
+
+int
 noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
                                    int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;

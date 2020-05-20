@@ -55,6 +55,45 @@
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
 static int
+rest_show_filters(mtev_http_rest_closure_t *restc,
+                  int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL;
+  mtev_conf_section_t section = MTEV_CONF_EMPTY;
+  xmlNodePtr root;
+  char xpath[1024];
+
+  if (noit_filters_get_lmdb_instance()) {
+    return noit_filters_lmdb_rest_show_filters(restc, npats, pats);
+  }
+
+  snprintf(xpath, sizeof(xpath), "//filtersets");
+
+  section = mtev_conf_get_section_read(MTEV_CONF_ROOT, xpath);
+  if(mtev_conf_section_is_empty(section)) goto not_found;
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlCopyNode(mtev_conf_section_to_xmlnodeptr(section), 1);
+  xmlDocSetRootElement(doc, root);
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ not_found:
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(doc) {
+    xmlFreeDoc(doc);
+  }
+  mtev_conf_release_section_read(section);
+  return 0;
+}
+
+static int
 rest_show_filter(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
@@ -322,6 +361,10 @@ noit_filters_rest_init() {
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^updates$",
     rest_show_filter_updates, mtev_http_rest_client_cert_auth
+  ) == 0);
+  mtevAssert(mtev_http_rest_register_auth(
+    "GET", "/filters/", "^show$",
+    rest_show_filters, mtev_http_rest_client_cert_auth
   ) == 0);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^show(/.*)(?<=/)([^/]+)$",
