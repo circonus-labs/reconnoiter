@@ -85,6 +85,7 @@ void noit_metric_director_flush(eventer_t e);
 int64_t noit_metric_director_get_messages_received();
 int64_t noit_metric_director_get_messages_distributed();
 
+void noit_metric_director_drop_backlogged(uint32_t limit);
 void noit_metric_director_drop_before(double t);
 
 MTEV_HOOK_PROTO(metric_director_want, (noit_metric_message_t *, int *, int),
