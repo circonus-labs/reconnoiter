@@ -410,12 +410,12 @@ noit_metric_message_t *noit_metric_director_lane_next_backlog(uint32_t *backlog)
     msg = NULL;
   }
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
-  ck_pr_dec_32(my_lane.backlog);
   if((uintptr_t)msg & FLUSHFLAG) {
     dmflush_observe(DMFLUSH_UNFLAG((dmflush_t *)msg));
     goto again;
   }
   if (msg) {
+    ck_pr_dec_32(my_lane.backlog);
     stats_add64(stats_msg_delivered, 1);
   }
   if(backlog) ck_pr_store_32(backlog, ck_pr_load_32(my_lane.backlog));
