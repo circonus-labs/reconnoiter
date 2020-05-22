@@ -874,25 +874,25 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_KEY);
-  if (rc != 0) {
+  if (rc != MDB_SUCCESS) {
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     pthread_rwlock_unlock(&instance->lock);
     free(key);
-    return -1;
+    return rc;
   }
 
   mtev_dyn_buffer_t aligned;
   void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
   int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
-  if(fb_ret != 0) {
+  if(fb_ret != MDB_SUCCESS) {
     mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
     mtev_dyn_buffer_destroy(&aligned);
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     pthread_rwlock_unlock(&instance->lock);
     free(key);
-    return -1;
+    return fb_ret;
   }
   ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
   flatbuffers_string_t name = ns(Filterset_name(filterset));
@@ -1034,7 +1034,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
 
   pthread_rwlock_unlock(&instance->lock);
   free(key);
-  return 0;
+  return MDB_SUCCESS;
 }
 
 mtev_boolean
@@ -1269,9 +1269,19 @@ noit_filters_lmdb_rest_show_filters(mtev_http_rest_closure_t *restc,
   noit_filter_get_name_list(&names, &size);
 
   for (int i = 0; i < size; i++) {
+    if (!names[i]) {
+      mtevL(mtev_error, "noit_filters_lmdb_rest_show_filters: got null name at position %d, skipping\n", i);
+      continue;
+    }
     xmlNodePtr fs_node = xmlNewNode(NULL, (xmlChar *)"filterset");
-    noit_filters_lmdb_populate_filterset_xml_from_lmdb(fs_node, names[i]);
-    xmlAddChild(root, fs_node);
+    int rc = noit_filters_lmdb_populate_filterset_xml_from_lmdb(fs_node, names[i]);
+    if (rc == MDB_SUCCESS) {
+      xmlAddChild(root, fs_node);
+    }
+    else {
+      mtevL(mtev_error, "noit_filters_lmdb_rest_show_filters: Could not add filter %s - %s\n", names[i], mdb_strerror(rc));
+      xmlFree(fs_node);
+    }
   }
 
   noit_filter_free_name_list(names, size);
@@ -1316,7 +1326,7 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"filterset", NULL);
   xmlDocSetRootElement(doc, root);
 
-  if (noit_filters_lmdb_populate_filterset_xml_from_lmdb(root, pats[1])) {
+  if (noit_filters_lmdb_populate_filterset_xml_from_lmdb(root, pats[1]) != MDB_SUCCESS) {
     goto not_found;
   }
 
