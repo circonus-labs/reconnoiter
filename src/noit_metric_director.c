@@ -92,7 +92,8 @@ static uint32_t drop_backlog_over = 0;
 static stats_ns_t *stats_ns;
 static stats_handle_t *stats_msg_delay;
 static stats_handle_t *stats_msg_seen;
-static stats_handle_t *stats_msg_dropped;
+static stats_handle_t *stats_msg_dropped_threshold;
+static stats_handle_t *stats_msg_dropped_backlogged;
 static stats_handle_t *stats_msg_distributed;
 static stats_handle_t *stats_msg_queued;
 static stats_handle_t *stats_msg_delivered;
@@ -204,7 +205,7 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
   for(i = 0; i < nthreads; i++) {
     if(interests[i] > 0) {
       if(drop_backlog_over && ck_pr_load_32(&thread_queues_backlog[i]) > drop_backlog_over) {
-        stats_add64(stats_msg_dropped, 1);
+        stats_add64(stats_msg_dropped_backlogged, 1);
         continue;
       }
       msg_distributed = mtev_true;
@@ -472,7 +473,7 @@ handle_metric_buffer(const char *payload, int payload_len,
         if(message->value.whence_ms) // ignore screwy messages
           stats_set_hist_intscale(stats_msg_delay, mtev_now_ms() - message->value.whence_ms, -3, 1);
         if(drop_before_threshold_ms && message->value.whence_ms < drop_before_threshold_ms) {
-          stats_add64(stats_msg_dropped, 1);
+          stats_add64(stats_msg_dropped_threshold, 1);
           goto bail;
         }
 
@@ -596,8 +597,15 @@ void noit_metric_director_init() {
   stats_ns_add_tag(stats_ns, "units", "messages");
   /* total count of messages read from fq */
   stats_msg_seen = stats_register_fanout(stats_ns, "seen", STATS_TYPE_COUNTER, 16);
-  /* count of messages dropped due to drop_* */
-  stats_msg_dropped = stats_register_fanout(stats_ns, "dropped", STATS_TYPE_COUNTER, 16);
+  /* count of messages dropped due to drop_threshold */
+  stats_ns_t *stats_ns_dropped = mtev_stats_ns(stats_ns, "dropped");
+  stats_msg_dropped_threshold = stats_register_fanout(stats_ns_dropped, "too_late", STATS_TYPE_COUNTER, 16);
+  stats_handle_tagged_name(stats_msg_dropped_threshold, "dropped");
+  stats_handle_add_tag(stats_msg_dropped_threshold, "reason", "too_late");
+  /* count of messages dropped due to drop_backlogged */
+  stats_msg_dropped_backlogged = stats_register_fanout(stats_ns_dropped, "too_full", STATS_TYPE_COUNTER, 16);
+  stats_handle_tagged_name(stats_msg_dropped_backlogged, "dropped");
+  stats_handle_add_tag(stats_msg_dropped_backlogged, "reason", "too_full");
   /* count of messages distributed to at least one lane */
   stats_msg_distributed = stats_register_fanout(stats_ns, "distributed", STATS_TYPE_COUNTER, 16);
   /* count of messages queued for delivery */
