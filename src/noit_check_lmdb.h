@@ -44,13 +44,14 @@ typedef enum {
 int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char **pats);
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
 int noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
-int noit_check_lmdb_remove_check_from_db(uuid_t checkid);
+int noit_check_lmdb_remove_check_from_db(uuid_t checkid, mtev_boolean force);
 int noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
 void noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt);
 void noit_check_lmdb_migrate_xml_checks_to_lmdb();
 int noit_check_lmdb_process_repl(xmlDocPtr doc);
 mtev_boolean noit_check_lmdb_already_in_db(uuid_t checkid);
 char *noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search_type,
-                                         char *search_namespace, char *search_key);
+                                         char *search_namespace, char *search_key,
+                                         mtev_boolean locked);
 
 #endif

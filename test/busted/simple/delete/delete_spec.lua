@@ -60,13 +60,13 @@ describe("noit", function()
   local test = (system == nil or system.sysname == "SunOS") and pending or describe
   test("check", function()
     it("tortures w/o delete", function()
-      for i=1,100,1 do
+      for i=1,500,1 do
         local code, doc, data = api:raw("PUT", "/checks/set/" .. uuid[8], check_xml(8))
         assert.is.equal(200, code)
       end
     end)
-    pending("tortures w delete", function()
-      for i=1,100,1 do
+    it("tortures w delete", function()
+      for i=1,500,1 do
         local code, doc = api:raw("PUT", "/checks/set/" .. uuid[8], check_xml(8))
         assert.is.equal(200, code)
         code, doc = api:raw("DELETE", "/checks/delete/" .. uuid[8])
