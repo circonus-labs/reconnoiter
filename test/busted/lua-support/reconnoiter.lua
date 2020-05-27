@@ -880,7 +880,7 @@ end
 TestNoit = inheritsFrom(TestProc)
 function TestNoit:new(...) return TestNoit:create():configure(...) end
 function TestNoit:path() return noitd end
-function TestNoit:argv() return { 'noitd', '-D', '-D', '-c', self.conffile } end
+function TestNoit:argv() return { 'noitd', '-D', '-c', self.conffile } end
 function TestNoit:api_port() return self.opts.noit_api_port end
 function TestNoit:setup_config(opts)
   self.conf = TestConfig:new(self.name, opts)
@@ -890,7 +890,7 @@ end
 TestStratcon = inheritsFrom(TestProc)
 function TestStratcon:new(...) return TestStratcon:create():configure(...) end
 function TestStratcon:path() return stratcond end
-function TestStratcon:argv() return { 'stratcond', '-D', '-D', '-c', self.conffile } end
+function TestStratcon:argv() return { 'stratcond', '-D', '-c', self.conffile } end
 function TestStratcon:api_port() return self.opts.stratcon_api_port end
 function TestStratcon:web_port() return self.opts.stratcon_web_port end
 function TestStratcon:stomp_port() return self.opts.stratcon_stomp_port end

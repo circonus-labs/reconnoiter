@@ -656,7 +656,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
     if(module_change) {
       GOTO_ERROR(400, "cannot change module");
     }
-    old_seq_string = noit_check_lmdb_get_specific_field(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq");
+    old_seq_string = noit_check_lmdb_get_specific_field(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", mtev_false);
     if (old_seq_string) {
       old_seq = strtoll(old_seq_string, NULL, 10);
       if (old_seq < 0) {
@@ -829,7 +829,7 @@ put_retry:
 }
 
 int
-noit_check_lmdb_remove_check_from_db(uuid_t checkid) {
+noit_check_lmdb_remove_check_from_db(uuid_t checkid, mtev_boolean force) {
   int rc = 0;
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn = NULL;
@@ -845,7 +845,27 @@ noit_check_lmdb_remove_check_from_db(uuid_t checkid) {
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
 
-  pthread_rwlock_rdlock(&instance->lock);
+  pthread_rwlock_wrlock(&instance->lock);
+
+  /* If we're forcing the delete, we don't care if it's marked deleted - just
+   * delete it. Otherwise - make sure it's actually flagged */
+  if (force == mtev_false) {
+    char *deleted_string = noit_check_lmdb_get_specific_field(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "deleted", mtev_true);
+    if (!deleted_string) {
+      /* "deleted" isn't set for some reason - the check has very likely been restored since being
+       * flagged for delete, so bail */
+      rc = -1;
+      goto cleanup;
+    }
+    else {
+      /* If it's set to "deleted" or "true", we continue - otherwise, we bail */
+      if ((strcmp(deleted_string, "deleted")) && (strcmp(deleted_string, "true"))) {
+        /* Anything but "deleted" or "true" and we bail */
+        rc = -1;
+        goto cleanup;
+      }
+    }
+  }
 
   rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
   if (rc != 0) {
@@ -935,7 +955,7 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
     }
   }
   else {
-    rc = noit_check_lmdb_remove_check_from_db(checkid);
+    rc = noit_check_lmdb_remove_check_from_db(checkid, mtev_true);
     if (rc == MDB_NOTFOUND) {
       goto not_found;
     }
@@ -1559,7 +1579,8 @@ noit_check_lmdb_already_in_db(uuid_t checkid) {
 }
 
 char *
-noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search_type, char *search_namespace, char *search_key) {
+noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search_type, char *search_namespace, char *search_key,
+                                  mtev_boolean locked) {
   int rc;
   char *toRet = NULL;
   MDB_txn *txn = NULL;
@@ -1577,7 +1598,10 @@ noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search
   mdb_key.mv_data = key;
   mdb_key.mv_size = key_size;
 
-  pthread_rwlock_rdlock(&instance->lock);
+  /* Take the lock if we're not already locked */
+  if (locked == mtev_false) {
+    pthread_rwlock_rdlock(&instance->lock);
+  }
 
   mdb_txn_begin(instance->env, NULL, MDB_RDONLY, &txn);
   mdb_cursor_open(txn, instance->dbi, &cursor);
@@ -1591,7 +1615,10 @@ noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
 
-  pthread_rwlock_unlock(&instance->lock);
+  /* If we locked in this function, we have to unlock here */
+  if (locked == mtev_false) {
+    pthread_rwlock_unlock(&instance->lock);
+  }
 
   free(key);
   return toRet;

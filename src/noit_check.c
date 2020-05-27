@@ -1202,8 +1202,8 @@ noit_check_watch(uuid_t in, int period) {
   }
   else {
     if (noit_check_get_lmdb_instance()) {
-      char *transient_min_period_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_min_period");
-      char *transient_period_granularity_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_period_granularity");
+      char *transient_min_period_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_min_period", mtev_false);
+      char *transient_period_granularity_str = noit_check_lmdb_get_specific_field(in, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "transient_period_granularity", mtev_false);
       if (transient_min_period_str) {
         int32_t transient_min_period = atoi(transient_min_period_str);
         if (transient_min_period > 0) {
@@ -1752,9 +1752,23 @@ check_recycle_bin_processor_internal_cleanup_xml(struct check_remove_todo *head)
       if(pobj && pobj->type == XPATH_NODESET && !xmlXPathNodeSetIsEmpty(pobj->nodesetval) &&
          xmlXPathNodeSetGetLength(pobj->nodesetval) >= 1) {
         xmlNodePtr node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
-        CONF_REMOVE(mtev_conf_section_from_xmlnodeptr(node));
-        xmlUnlinkNode(node);
-        mtev_conf_mark_changed();
+        mtev_conf_section_t section = mtev_conf_section_from_xmlnodeptr(node);
+        char *delstring = NULL;
+        mtev_boolean remove = mtev_false;
+        if(mtev_conf_get_string(section, "self::node()/@deleted", &delstring)) {
+          if ((!strcmp(delstring, "deleted")) || (!strcmp(delstring, "true"))) {
+            remove = mtev_true;
+          }
+          free(delstring);
+        }
+        if (remove == mtev_true) {
+          CONF_REMOVE(section);
+          xmlUnlinkNode(node);
+          mtev_conf_mark_changed();
+        }
+        else {
+          mtevL(mtev_error, "check_recycle_bin_processor_internal_cleanup_xml: check %s has been restored, not deleting\n", idstr);
+        }
       }
       if(pobj) xmlXPathFreeObject(pobj);
     }
@@ -1768,7 +1782,11 @@ check_recycle_bin_processor_internal_cleanup_xml(struct check_remove_todo *head)
 static void
 check_recycle_bin_processor_internal_cleanup_lmdb(struct check_remove_todo *head) {
   while(head) {
-    noit_check_lmdb_remove_check_from_db(head->id);
+    if (noit_check_lmdb_remove_check_from_db(head->id, mtev_false)) {
+      char id_str[UUID_STR_LEN + 1];
+      mtev_uuid_unparse_lower(head->id, id_str);
+      mtevL(mtev_error, "check_recycle_bin_processor_internal_cleanup_lmdb: check %s has been restored, not deleting\n", id_str);
+    }
     struct check_remove_todo *tofree = head;
     head = head->next;
     free(tofree);
