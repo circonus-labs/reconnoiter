@@ -576,6 +576,11 @@ noit_lua_libnoit_init() {
   ck_spinlock_unlock(&noit_lua_libnoit_init_lock);
 }
 
+static int
+lua_noit_metric_subscribe_tag_search(lua_State *L) {
+  return 0;
+}
+
 #ifndef NO_LUAOPEN_LIBNOIT
 static const luaL_Reg libnoit_binding[] = {
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
