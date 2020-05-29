@@ -66,6 +66,8 @@ void noit_metric_director_dedupe(mtev_boolean dedupe);
  * back to this thread */
 caql_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
 
+caql_cnt_t noit_adjust_account_interest(int account_id, short cnt);
+
 /* Tells noit that this thread is interested in recieving "check" information.
  * This includes C records and S records.
  */

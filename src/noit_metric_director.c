@@ -83,6 +83,8 @@ static volatile void **thread_queues;
 static uint32_t *thread_queues_backlog;
 static mtev_hash_table id_level;
 static mtev_hash_table dedupe_hashes;
+static mtev_hash_table account_interests_map;
+
 static caql_cnt_t *check_interests;
 static mtev_boolean dedupe = mtev_true;
 static uint32_t director_in_use = 0;
@@ -137,15 +139,52 @@ noit_metric_director_my_lane() {
   return get_my_lane();
 }
 
+mtev_hook_return_t
+hook_metric_subscribe_account(void *closure, noit_metric_message_t *m, int *w, int wlen) {
+  int account_id = m->id.account_id;
+  int *account_interests;
+  if(mtev_hash_retrieve(&account_interests_map, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
+    for(int i=0; i<wlen; i++){
+      if(w[i] == 0 && account_interests[i] > 0)
+        w[i] = 1;
+    }
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+caql_cnt_t
+noit_adjust_account_interest(int account_id, short cnt) {
+  int thread_id, icnt, *account_interests = NULL, rc, *account_id_copy;
+  while(!mtev_hash_retrieve(&account_interests_map, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
+    account_interests = calloc(nthreads, (sizeof(*account_interests)));
+    account_id_copy = calloc(1, sizeof(int));
+    *account_id_copy = account_id;
+    rc = mtev_hash_store(&account_interests_map, (const char *)account_id_copy, sizeof(*account_id_copy), (void **)account_interests);
+    if(!rc) { // Lost race. Try again.
+      free(account_id_copy);
+      free(account_interests);
+    }
+    else {
+      break;
+    }
+  }
+  mtevAssert(account_interests);
+  thread_id = get_my_lane();
+  icnt = account_interests[thread_id];
+  icnt += cnt;
+  if (icnt < 0) icnt = 0;
+  mtevAssert(icnt <= 0xffff);
+  account_interests[thread_id] = icnt;
+  return 0;
+}
+
 caql_cnt_t
 noit_adjust_checks_interest(short cnt) {
   int thread_id, icnt;
-
   thread_id = get_my_lane();
-
   icnt = check_interests[thread_id];
   icnt += cnt;
-  if(icnt < 0) icnt = 0;
+  if (icnt < 0) icnt = 0;
   mtevAssert(icnt <= 0xffff);
   check_interests[thread_id] = icnt;
   return icnt;
@@ -620,6 +659,9 @@ void noit_metric_director_init() {
   thread_queues = calloc(sizeof(*thread_queues),nthreads);
   thread_queues_backlog = calloc(sizeof(*thread_queues_backlog),nthreads);
   check_interests = calloc(sizeof(*check_interests),nthreads);
+  mtev_hash_init(&account_interests_map);
+  metric_director_want_hook_register("metrics_select", hook_metric_subscribe_account, NULL);
+
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);

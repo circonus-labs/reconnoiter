@@ -40,19 +40,11 @@
 #include "noit_metric_director.h"
 #include "noit_metric_tag_search.h"
 
-void noit_lua_libnoit_init();
-static ck_spinlock_t noit_lua_libnoit_init_lock = CK_SPINLOCK_INITIALIZER;
-
 // We need to hold-on to a reference to the metric name as long as we make use of the tagset
 typedef struct {
   noit_metric_tagset_t tagset;
   int lua_name_ref;
 } noit_lua_tagset_t;
-
-// account_set is a map: account_id => account_interests
-// account_interests is an array of integers, such that account_interests[lane] > 0
-//   if we should deliver messages for the given account_id to the lane.
-static mtev_hash_table *account_set = NULL;
 
 static int
 noit_lua_tagset_copy_setup(lua_State *, noit_lua_tagset_t *);
@@ -113,46 +105,10 @@ lua_noit_metric_subscribe_all(lua_State *L) {
   return 0;
 }
 
-mtev_hook_return_t
-hook_metric_subscribe_account(void *closure, noit_metric_message_t *m, int *w, int wlen) {
-  if(account_set == NULL) {
-    return MTEV_HOOK_ABORT;
-  }
-  int account_id = m->id.account_id;
-  int *account_interests;
-  if(mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
-    for(int i=0; i<wlen; i++){
-      w[i] = account_interests[i];
-    }
-  }
-  return MTEV_HOOK_CONTINUE;
-}
-
 static int
 lua_noit_metric_subscribe_account(lua_State *L) {
-  if(account_set == NULL) {
-    noit_lua_libnoit_init();
-  }
   int account_id = luaL_checkint(L, 1);
-  int *account_interests = NULL;
-  while(!mtev_hash_retrieve(account_set, (const char *)&account_id, sizeof(account_id), (void **)&account_interests)){
-    int nthreads = eventer_loop_concurrency();
-    account_interests = calloc(nthreads, (sizeof(*account_interests)));
-    int *account_id_copy = calloc(1, sizeof(int));
-    *account_id_copy = account_id;
-    int rc = mtev_hash_store(account_set, (const char *)account_id_copy, sizeof(*account_id_copy), (void **)account_interests);
-    if(!rc) {
-      // We lost the race. Try again
-      free(account_id_copy);
-      free(account_interests);
-    }
-    else {
-      break;
-    }
-  }
-  assert(account_interests);
-  account_interests[noit_metric_director_my_lane()] += 1;
-  return 0;
+  return noit_adjust_account_interest(account_id, 1);
 }
 
 static int noit_metric_id_index_func(lua_State *L) {
@@ -558,22 +514,6 @@ lua_noit_tag_search_eval_message(lua_State *L) {
   mtev_boolean ok = noit_metric_tag_search_evaluate_against_metric_id(*ast_ud, &msg->id);
   lua_pushboolean(L, ok);
   return 1;
-}
-
-
-void
-noit_lua_libnoit_init() {
-  // It would be better to call this function once during startup.
-  // However, I did not find a good place to put this, so we are using locks instead,
-  // to ensure this get's called only once.
-  ck_spinlock_lock(&noit_lua_libnoit_init_lock);
-  if (account_set == NULL) {
-    mtev_hash_table *tmp = calloc(1, sizeof(*account_set));
-    mtev_hash_init(tmp);
-    ck_pr_store_ptr(&account_set, tmp);
-    metric_director_want_hook_register("metrics_select", hook_metric_subscribe_account, NULL);
-  }
-  ck_spinlock_unlock(&noit_lua_libnoit_init_lock);
 }
 
 static int
