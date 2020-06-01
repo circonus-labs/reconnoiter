@@ -130,7 +130,7 @@ get_my_lane() {
     my_lane.fifo = calloc(1, sizeof(ck_fifo_spsc_t));
     ck_fifo_spsc_init(my_lane.fifo, malloc(sizeof(ck_fifo_spsc_entry_t)));
     for(new_thread=0;new_thread<nthreads;new_thread++) {
-      if(ck_pr_cas_ptr(&queues[new_thread].thread.backlog, NULL, my_lane.fifo)) break;
+      if(ck_pr_cas_ptr(&queues[new_thread].thread.queue, NULL, my_lane.fifo)) break;
     }
     mtevAssert(new_thread<nthreads);
     my_lane.id = new_thread;
