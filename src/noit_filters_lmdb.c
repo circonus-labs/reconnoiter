@@ -1276,12 +1276,14 @@ noit_filters_lmdb_rest_show_filters(mtev_http_rest_closure_t *restc,
 
   noit_filter_free_name_list(names, size);
 
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
@@ -1320,12 +1322,14 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
     goto not_found;
   }
 
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_not_found(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
@@ -1362,16 +1366,19 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
     goto error;
   }
 
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, 500, mdb_strerror(rc), "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_not_found(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
@@ -1528,6 +1535,7 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
+  noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);

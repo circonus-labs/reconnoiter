@@ -387,6 +387,7 @@ rest_show_checks_json(mtev_http_rest_closure_t *restc,
   doc = json_object_new_object();
   noit_poller_do(json_check_accum, doc);
 
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(restc->http_ctx, "application/json");
   jsonstr = json_object_to_json_string(doc);
   mtev_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
@@ -417,11 +418,13 @@ rest_show_check_owner(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
   uuid_t checkid;
   if(npats != 1 || mtev_uuid_parse(pats[0], checkid) != 0) {
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_not_found(restc->http_ctx, "application/json");
     mtev_http_response_end(restc->http_ctx);
   }
   noit_check_t *check = noit_poller_lookup(checkid);
   if(!check) {
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_not_found(restc->http_ctx, "application/json");
     mtev_http_response_end(restc->http_ctx);
     return 0;
@@ -449,10 +452,12 @@ rest_show_check_owner(mtev_http_rest_closure_t *restc,
     snprintf(url, sizeof(url), "https://%s:%u/checks/owner/%s",
              cn, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_standard(restc->http_ctx, 302, "NOT IT", "application/json");
     mtev_http_response_end(restc->http_ctx);
     return 0;
   }
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(restc->http_ctx, 204, "OK", "application/json");
   mtev_http_response_end(restc->http_ctx);
   return 0;
@@ -466,6 +471,7 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
   const char *jsonstr;
   check = noit_poller_lookup(checkid);
   if(!check) {
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_not_found(restc->http_ctx, "application/json");
     mtev_http_response_end(restc->http_ctx);
     return 0;
@@ -502,9 +508,11 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s.json",
              cn, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_standard(ctx, redirect ? 302 : 200, "NOT IT", "application/json");
   }
   else {
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_ok(restc->http_ctx, "application/json");
   }
   jsonstr = json_object_to_json_string(doc);
@@ -696,9 +704,11 @@ rest_show_check(mtev_http_rest_closure_t *restc,
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s",
              cn, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_standard(ctx, redirect ? 302 : 200, "NOT IT", "text/xml");
   }
   else {
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_ok(ctx, "text/xml");
   }
   mtev_http_response_xml(ctx, doc);
@@ -706,11 +716,13 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  not_found:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_not_found(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
@@ -1055,16 +1067,19 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   mtev_conf_mark_changed();
   if(mtev_conf_write_file(NULL) != 0)
     mtevL(noit_error, "local config write failed\n");
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_not_found(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
@@ -1195,6 +1210,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
@@ -1228,6 +1244,7 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
   const char *peer_str = mtev_http_request_querystring(req, "peer");
   uuid_t peerid;
   if(!peer_str || !restc->remote_cn || mtev_uuid_parse(peer_str, peerid) != 0) {
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_server_error(ctx, "text/xml");
     mtev_http_response_end(ctx);
     return 0;
@@ -1237,6 +1254,7 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
   root = xmlNewNode(NULL, (xmlChar *)"checks");
   xmlDocSetRootElement(doc, root);
   noit_cluster_xml_check_changes(peerid, restc->remote_cn, prev, end, root);
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);

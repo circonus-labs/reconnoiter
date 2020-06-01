@@ -41,6 +41,7 @@
 
 #include <eventer/eventer.h>
 #include <mtev_hash.h>
+#include <mtev_http.h>
 #include <mtev_skiplist.h>
 #include <mtev_hooks.h>
 #include <mtev_conf.h>
@@ -478,6 +479,9 @@ API_EXPORT(int)
 
 API_EXPORT(char **)
   noit_check_get_namespaces(int *cnt);
+
+API_EXPORT(void)
+  noit_check_set_db_source_header(mtev_http_session_ctx *ctx);
 
 MTEV_HOOK_PROTO(check_config_fixup,
                 (noit_check_t *check),

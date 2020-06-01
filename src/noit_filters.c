@@ -69,6 +69,8 @@ static noit_lmdb_instance_t *lmdb_instance = NULL;
 static uint64_t cull_idle_threshold_ms = 300000;
 static bool initialized = false;
 
+#define FILTERSET_DB_HEADER_STRING "X-Filterset-DB-Type"
+
 #define FRF(r,a) do { \
   free(r->a##_re); \
   if(r->a) pcre_free(r->a); \
@@ -100,6 +102,14 @@ noit_lmdb_instance_t *noit_filters_get_lmdb_instance() {
 bool
 noit_filter_initialized() {
   return initialized;
+}
+void
+noit_filter_set_db_source_header(mtev_http_session_ctx *ctx) {
+  if (!ctx) {
+    return;
+  }
+  mtev_http_response_header_set(ctx, FILTERSET_DB_HEADER_STRING,
+    (noit_filters_get_lmdb_instance()) ? "LMDB" : "XML");
 }
 void
 noit_filter_update_last_touched(filterset_t *fs) {

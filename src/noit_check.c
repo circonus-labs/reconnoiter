@@ -85,6 +85,8 @@ static int32_t global_maximum_period = 300000;
 #define CHECKS_XPATH_PARENT "checks"
 #define CHECKS_XPATH_BASE CHECKS_XPATH_ROOT "/" CHECKS_XPATH_PARENT
 
+#define CHECK_DB_HEADER_STRING "X-Check-DB-Type"
+
 MTEV_HOOK_IMPL(check_config_fixup,
   (noit_check_t *check),
   void *, closure,
@@ -3606,4 +3608,13 @@ char **noit_check_get_namespaces(int *cnt) {
     toRet[i] = strdup(reg_module_names[i]);
   }
   return toRet;
+}
+
+void
+noit_check_set_db_source_header(mtev_http_session_ctx *ctx) {
+  if (!ctx) {
+    return;
+  }
+  mtev_http_response_header_set(ctx, CHECK_DB_HEADER_STRING,
+    (noit_check_get_lmdb_instance()) ? "LMDB" : "XML");
 }
