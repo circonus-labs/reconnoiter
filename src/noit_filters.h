@@ -36,6 +36,7 @@
 
 #include <mtev_defines.h>
 #include <mtev_hash.h>
+#include <mtev_http.h>
 #include <mtev_console.h>
 #include <mtev_conf.h>
 #include "noit_check.h"
@@ -111,6 +112,9 @@ typedef struct {
 
 API_EXPORT(bool)
   noit_filter_initialized();
+
+API_EXPORT(void)
+   noit_filter_set_db_source_header(mtev_http_session_ctx *ctx);
 
 API_EXPORT(void)
   noit_filter_update_last_touched(filterset_t *fs);

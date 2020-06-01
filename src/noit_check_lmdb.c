@@ -261,12 +261,14 @@ int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char
   /* Next, iterate the checks and set the data from LMDB */
   noit_poller_do(noit_check_lmdb_scan_lmdb_for_each_check_cb, root);
 
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/xml");
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
@@ -355,9 +357,11 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
     snprintf(url, sizeof(url), "https://%s:%u/checks/show/%s",
              cn, port, uuid_str);
     mtev_http_response_header_set(restc->http_ctx, "Location", url);
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_standard(ctx, redirect ? 302 : 200, "NOT IT", "text/xml");
   }
   else {
+    noit_check_set_db_source_header(restc->http_ctx);
     mtev_http_response_ok(ctx, "text/xml");
   }
 
@@ -366,11 +370,13 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   goto cleanup;
 
  not_found:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_not_found(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
@@ -680,6 +686,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
@@ -964,16 +971,19 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
     }
   }
 
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_not_found(ctx, "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
+  noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
   goto cleanup;
