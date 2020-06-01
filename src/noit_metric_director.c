@@ -32,6 +32,7 @@
 #include <mtev_conf.h>
 #include <mtev_fq.h>
 #include <mtev_hash.h>
+#include <mtev_memory.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
 #include <ck_fifo.h>
@@ -78,12 +79,17 @@ static __thread struct {
   ck_fifo_spsc_t *fifo;
 } my_lane;
 
+typedef union {
+  struct { void *queue; uint32_t backlog; } thread;
+  uint8_t pad[CK_MD_CACHELINE];
+} thread_queue_t;
+
 static int nthreads;
-static volatile void **thread_queues;
-static uint32_t *thread_queues_backlog;
+static thread_queue_t *queues;
 static mtev_hash_table id_level;
 static mtev_hash_table dedupe_hashes;
 static caql_cnt_t *check_interests;
+static pthread_mutex_t check_interests_lock;
 static mtev_boolean dedupe = mtev_true;
 static uint32_t director_in_use = 0;
 static uint64_t drop_before_threshold_ms = 0;
@@ -116,17 +122,19 @@ noit_metric_director_message_deref(void *m) {
 
 static int
 get_my_lane() {
-  ck_pr_store_32(&director_in_use,1);
+  director_in_use = 1;
+  ck_pr_fence_store();
+
   if(my_lane.fifo == NULL) {
     int new_thread;
     my_lane.fifo = calloc(1, sizeof(ck_fifo_spsc_t));
     ck_fifo_spsc_init(my_lane.fifo, malloc(sizeof(ck_fifo_spsc_entry_t)));
     for(new_thread=0;new_thread<nthreads;new_thread++) {
-      if(ck_pr_cas_ptr(&thread_queues[new_thread], NULL, my_lane.fifo)) break;
+      if(ck_pr_cas_ptr(&queues[new_thread].thread.backlog, NULL, my_lane.fifo)) break;
     }
     mtevAssert(new_thread<nthreads);
     my_lane.id = new_thread;
-    my_lane.backlog = &thread_queues_backlog[new_thread];
+    my_lane.backlog = &queues[new_thread].thread.backlog;
     mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)(uintptr_t)pthread_self(), my_lane.id);
   }
   return my_lane.id;
@@ -139,15 +147,26 @@ noit_metric_director_my_lane() {
 
 caql_cnt_t
 noit_adjust_checks_interest(short cnt) {
-  int thread_id, icnt;
+  caql_cnt_t *src, *dst;
+  int thread_id, icnt, bytes;
 
   thread_id = get_my_lane();
 
-  icnt = check_interests[thread_id];
+  mtev_memory_begin();
+  pthread_mutex_lock(&check_interests_lock);
+  src = ck_pr_load_ptr(&check_interests);
+  bytes = sizeof(caql_cnt_t) * nthreads;
+  dst = mtev_memory_safe_malloc(bytes);
+  memcpy(dst, src, bytes);
+  icnt = dst[thread_id];
   icnt += cnt;
   if(icnt < 0) icnt = 0;
   mtevAssert(icnt <= 0xffff);
-  check_interests[thread_id] = icnt;
+  dst[thread_id] = icnt;
+  ck_pr_store_ptr(&check_interests, dst);
+  mtev_memory_safe_free(src);
+  pthread_mutex_unlock(&check_interests_lock);
+  mtev_memory_end();
   return icnt;
 }
 
@@ -200,19 +219,19 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
 
 static void
 distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *message) {
-  int i;
+  int i, msg_queued = 0, msg_dropped_backlogged = 0;
   mtev_boolean msg_distributed = mtev_false;
   for(i = 0; i < nthreads; i++) {
     if(interests[i] > 0) {
-      if(drop_backlog_over && ck_pr_load_32(&thread_queues_backlog[i]) > drop_backlog_over) {
-        stats_add64(stats_msg_dropped_backlogged, 1);
+      if(drop_backlog_over && ck_pr_load_32(&queues[i].thread.backlog) > drop_backlog_over) {
+        msg_dropped_backlogged++;
         continue;
       }
       msg_distributed = mtev_true;
-      stats_add64(stats_msg_queued, 1);
-      ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
+      msg_queued++;
+      ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) queues[i].thread.queue;
       ck_fifo_spsc_entry_t *fifo_entry;
-      ck_pr_inc_32(&thread_queues_backlog[i]);
+      ck_pr_inc_32(&queues[i].thread.backlog);
       ck_fifo_spsc_enqueue_lock(fifo);
       fifo_entry = ck_fifo_spsc_recycle(fifo);
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
@@ -221,10 +240,11 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       ck_fifo_spsc_enqueue_unlock(fifo);
     }
   }
+  stats_add64(stats_msg_dropped_backlogged, msg_dropped_backlogged);
+  stats_add64(stats_msg_queued, msg_queued);
   if (msg_distributed) {
     stats_add64(stats_msg_distributed, 1);
   }
-
 }
 
 static void
@@ -243,11 +263,11 @@ noit_metric_director_flush(eventer_t e) {
   ptr->e = e;
   ptr->refcnt = 1;
   for(int i=0;i<nthreads;i++) {
-    ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
+    ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) queues[i].thread.queue;
     if(fifo != NULL) {
       ck_pr_inc_32(&ptr->refcnt);
       ck_fifo_spsc_entry_t *fifo_entry;
-      ck_pr_inc_32(&thread_queues_backlog[i]);
+      ck_pr_inc_32(&queues[i].thread.backlog);
       ck_fifo_spsc_enqueue_lock(fifo);
       fifo_entry = ck_fifo_spsc_recycle(fifo);
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
@@ -305,7 +325,9 @@ distribute_metric(noit_metric_message_t *message) {
 
 static void
 distribute_check(noit_metric_message_t *message) {
-  distribute_message_with_interests(check_interests, message);
+  mtev_memory_begin();
+  distribute_message_with_interests(ck_pr_load_ptr(&check_interests), message);
+  mtev_memory_end();
 }
 
 static mtev_hash_table *
@@ -419,7 +441,7 @@ noit_metric_message_t *noit_metric_director_lane_next_backlog(uint32_t *backlog)
     ck_pr_dec_32(my_lane.backlog);
     stats_add64(stats_msg_delivered, 1);
   }
-  if(backlog) ck_pr_store_32(backlog, ck_pr_load_32(my_lane.backlog));
+  if(backlog) *backlog = ck_pr_load_32(my_lane.backlog);
   return msg;
 }
 
@@ -617,9 +639,9 @@ void noit_metric_director_init() {
 
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
-  thread_queues = calloc(sizeof(*thread_queues),nthreads);
-  thread_queues_backlog = calloc(sizeof(*thread_queues_backlog),nthreads);
+  queues = calloc(sizeof(*queues),nthreads);
   check_interests = calloc(sizeof(*check_interests),nthreads);
+  pthread_mutex_init(&check_interests_lock, NULL);
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
