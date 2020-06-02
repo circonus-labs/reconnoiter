@@ -64,6 +64,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   const char *k;
   int klen;
   void *data;
+  char uuid_str[UUID_STR_LEN+1];
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance);
 
@@ -73,8 +74,33 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
   }
 
   if (mtev_uuid_parse(argv[0], checkid) != 0) {
-    nc_printf(ncct, "%s is invalid uuid\n", argv[0]);
-    return toRet;
+    /* If it's not a valid uuid, it may be a check name - look for it
+     * in the db */
+    char *target = NULL, *name = NULL;
+    char *brk = NULL;
+    char *copy = strdup(argv[0]);
+    mtev_boolean found = mtev_false;
+    target = strtok_r(copy, "`", &brk);
+    if (target) {
+      name = strtok_r(NULL, "`", &brk);
+    }
+    if (target && name) {
+      noit_check_t *tmp_check = noit_poller_lookup_by_name(target, name);
+      if (tmp_check) {
+        mtev_uuid_copy(checkid, tmp_check->checkid);
+        mtev_uuid_unparse_lower(checkid, uuid_str);
+        found = mtev_true;
+      }
+    }
+    free(copy);
+    if (!found) {
+      nc_printf(ncct, "could not find check '%s'\n", argv[0]);
+      return toRet;
+    }
+  }
+  else {
+    memcpy(uuid_str, argv[0], UUID_STR_LEN);
+    uuid_str[UUID_STR_LEN] = 0;
   }
 
   mtev_hash_init(&configh);
@@ -112,7 +138,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
         break;
       }
     }
-    nc_printf(ncct, "==== %s ====\n", argv[0]);
+    nc_printf(ncct, "==== %s ====\n", uuid_str);
     while (rc == 0) {
       if (mtev_uuid_compare(checkid, mdb_key.mv_data) != 0) {
         /* This means we've hit the next uuid, break out  */
