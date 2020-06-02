@@ -640,7 +640,10 @@ void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
   queues = calloc(sizeof(*queues),nthreads);
-  check_interests = calloc(sizeof(*check_interests),nthreads);
+
+  mtev_memory_begin();
+  check_interests = mtev_memory_safe_calloc(sizeof(*check_interests),nthreads);
+  mtev_memory_end();
   pthread_mutex_init(&check_interests_lock, NULL);
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
