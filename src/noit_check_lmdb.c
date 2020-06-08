@@ -42,15 +42,24 @@ static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc,
 
 static int noit_check_lmdb_add_attribute(xmlNodePtr root, xmlNodePtr attr, noit_lmdb_check_data_t *key_data, MDB_val mdb_data, bool separate_stanza) {
   mtevAssert(root != NULL);
-  if ((!mdb_data.mv_data) || (mdb_data.mv_size == 0)) {
-    return 0;
-  }
+  char *val = NULL;
   if (!strcmp(key_data->key, "uuid")) {
     /* This should be set separately */
     return 0;
   }
-  char *val = (char *)calloc(1, mdb_data.mv_size + 1);
-  memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
+  if ((mdb_data.mv_data == NULL) && (mdb_data.mv_size > 0)) {
+    /* If data is null, but we have a size, something is wrong - just skip
+     * this key */
+    char uuid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(key_data->id, uuid_str);
+    mtevL(mtev_error, "noit_check_lmdb_add_attribute: got null data for key with a size - check %s, namespace %s, key %s - skipping\n",
+        uuid_str, (key_data->ns) ? key_data->ns : "<null>", key_data->key);
+    return 0;
+  }
+  if ((mdb_data.mv_data != NULL) && (mdb_data.mv_size > 0)) {
+    val = (char *)calloc(1, mdb_data.mv_size + 1);
+    memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
+  }
   if (separate_stanza) {
     mtevAssert(attr != NULL);
     xmlNodePtr child = NULL;
@@ -67,11 +76,19 @@ static int noit_check_lmdb_add_attribute(xmlNodePtr root, xmlNodePtr attr, noit_
 static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_lmdb_check_data_t *key_data, MDB_val mdb_data) {
   mtevAssert(root != NULL);
   mtevAssert(config != NULL);
-  if ((!mdb_data.mv_data) || (mdb_data. mv_size == 0)) {
-    return 0;
+  char *val = NULL;
+  if ((mdb_data.mv_data == NULL) && (mdb_data.mv_size > 0)) {
+    /* If data is null, but we have a size, something is wrong - just skip
+     * this key */
+    char uuid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(key_data->id, uuid_str);
+    mtevL(mtev_error, "noit_check_lmdb_add_config: got null data for key with a size - check %s, namespace %s, key %s - skipping\n",
+        uuid_str, (key_data->ns) ? key_data->ns : "<null>", key_data->key);
   }
-  char *val = (char *)calloc(1, mdb_data.mv_size + 1);
-  memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
+  if ((mdb_data.mv_data != NULL) && (mdb_data.mv_size > 0)) {
+    val = (char *)calloc(1, mdb_data.mv_size + 1);
+    memcpy(val, mdb_data.mv_data, mdb_data.mv_size);
+  }
   xmlNodePtr child = NULL;
   if (key_data->ns == NULL) {
     child = xmlNewNode(NULL, (xmlChar *)key_data->key);
@@ -1332,13 +1349,13 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   options = mtev_conf_get_hash(section, "config");
 
 #define WRITE_ATTR_TO_LMDB(type, ns, name, value, inherited, allocated) do { \
-  if ((inherited == mtev_false) && (strlen(value))) { \
+  if (inherited == mtev_false) { \
     key = noit_lmdb_make_check_key(checkid, type, ns, name, &key_size); \
     mtevAssert(key); \
     mdb_key.mv_data = key; \
     mdb_key.mv_size = key_size; \
     mdb_data.mv_data = value; \
-    mdb_data.mv_size = strlen(value); \
+    mdb_data.mv_size = ((value != NULL) ? strlen(value) : 0); \
     rc = mdb_cursor_put(cursor, &mdb_key, &mdb_data, 0); \
     if (rc == MDB_MAP_FULL) { \
       mdb_cursor_close(cursor); \
