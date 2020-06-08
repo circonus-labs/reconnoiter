@@ -3384,7 +3384,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     int copySize = 0;
     if (data->type == NOIT_LMDB_CHECK_ATTRIBUTE_TYPE) {
 #define COPYSTRING(val) do { \
-  copySize = MIN(mdb_data.mv_size, sizeof(val) - 1); \
+  copySize = (mdb_data.mv_data == NULL) ? 0 : MIN(mdb_data.mv_size, sizeof(val) - 1); \
   memcpy(val, mdb_data.mv_data, copySize); \
   val[copySize] = 0; \
 } while(0);
@@ -3472,9 +3472,16 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       }
       if (insertTable) {
         char *key = strdup(data->key);
-        char *value = (char *)malloc(mdb_data.mv_size + 1);
-        memcpy(value, mdb_data.mv_data, mdb_data.mv_size);
-        value[mdb_data.mv_size] = 0;
+        char *value = NULL;
+        if (mdb_data.mv_data == NULL) {
+          value = (char *)malloc(1);
+          value[0] = 0;
+        }
+        else {
+          value = (char *)malloc(mdb_data.mv_size + 1);
+          memcpy(value, mdb_data.mv_data, mdb_data.mv_size);
+          value[mdb_data.mv_size] = 0;
+        }
         mtev_hash_store(insertTable, key, strlen(key), value);
       }
     }
