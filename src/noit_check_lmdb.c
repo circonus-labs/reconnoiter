@@ -50,7 +50,10 @@ static int noit_check_lmdb_add_attribute(xmlNodePtr root, xmlNodePtr attr, noit_
   if ((mdb_data.mv_data == NULL) && (mdb_data.mv_size > 0)) {
     /* If data is null, but we have a size, something is wrong - just skip
      * this key */
-    mtevL(mtev_error, "noit_check_lmdb_add_attribute: got null data for key with a size, skipping\n");
+    char uuid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(key_data->id, uuid_str);
+    mtevL(mtev_error, "noit_check_lmdb_add_attribute: got null data for key with a size - check %s, namespace %s, key %s - skipping\n",
+        uuid_str, (key_data->ns) ? key_data->ns : "<null>", key_data->key);
     return 0;
   }
   if ((mdb_data.mv_data != NULL) && (mdb_data.mv_size > 0)) {
@@ -77,8 +80,10 @@ static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_l
   if ((mdb_data.mv_data == NULL) && (mdb_data.mv_size > 0)) {
     /* If data is null, but we have a size, something is wrong - just skip
      * this key */
-    mtevL(mtev_error, "noit_check_lmdb_add_config: got null data for key with a size, skipping\n");
-    return 0;
+    char uuid_str[UUID_STR_LEN + 1];
+    mtev_uuid_unparse_lower(key_data->id, uuid_str);
+    mtevL(mtev_error, "noit_check_lmdb_add_config: got null data for key with a size - check %s, namespace %s, key %s - skipping\n",
+        uuid_str, (key_data->ns) ? key_data->ns : "<null>", key_data->key);
   }
   if ((mdb_data.mv_data != NULL) && (mdb_data.mv_size > 0)) {
     val = (char *)calloc(1, mdb_data.mv_size + 1);
