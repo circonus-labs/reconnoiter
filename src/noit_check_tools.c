@@ -255,16 +255,13 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
     break;
     case json_type_object:
     {
-      struct jl_lh_table *lh;
-      struct jl_lh_entry *el;
       struct json_object *has_type = NULL, *has_value = NULL;
-      lh = json_object_get_object(o);
-      jl_lh_foreach(lh, el) {
-        if(!strcmp(el->k, "_type")) has_type = (struct json_object *)el->v;
-        else if(!strcmp(el->k, "_value")) has_value = (struct json_object *)el->v;
+      mtev_json_object_object_foreach(o,key,value) {
+        if(!strcmp(key, "_type")) has_type = (struct json_object *)value;
+        else if(!strcmp(key, "_value")) has_value = (struct json_object *)value;
         else {
-          struct json_object *item = (struct json_object *)el->v;
-          MKKEY("%s", (const char *)el->k);
+          struct json_object *item = (struct json_object *)value;
+          MKKEY("%s", key);
           count += populate_stats_from_resmon_formatted_json(check, item, keybuff);
         }
       }

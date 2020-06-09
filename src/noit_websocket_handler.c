@@ -43,7 +43,6 @@
 #include <mtev_rest.h>
 #include <mtev_json_tokener.h>
 #include <mtev_json_object.h>
-#include <mtev_arraylist.h>
 
 #include "noit_check.h"
 #include "noit_check_log_helpers.h"
@@ -307,9 +306,8 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
     handler_data->use_filter = mtev_true;
     handler_data->filter_count = mtev_json_object_array_length(metrics);
     handler_data->filters = calloc(sizeof(char *), handler_data->filter_count);
-    jl_array_list* a = mtev_json_object_get_array(metrics);
     for (int i = 0; i < handler_data->filter_count; i++) {
-      struct mtev_json_object *o = jl_array_list_get_idx(a, i);
+      struct mtev_json_object *o = mtev_json_object_array_get_idx(metrics, i);
       if (o != NULL) {
         handler_data->filters[i] = strdup(mtev_json_object_get_string(o));
       }
