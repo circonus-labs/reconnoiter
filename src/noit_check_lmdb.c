@@ -1156,7 +1156,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   mtev_boolean oncheck_locally_defined = mtev_true;
   mtev_boolean deleted_locally_defined = mtev_true;
   mtev_boolean transient_min_period_locally_defined = mtev_true;
-  mtev_boolean transient_period_granularity_locally_defined = mtev_true;\
+  mtev_boolean transient_period_granularity_locally_defined = mtev_true;
 
   int rc;
   MDB_txn *txn = NULL;
