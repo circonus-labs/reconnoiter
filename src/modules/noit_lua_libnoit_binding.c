@@ -44,10 +44,24 @@ void noit_lua_libnoit_init();
 static ck_spinlock_t noit_lua_libnoit_init_lock = CK_SPINLOCK_INITIALIZER;
 
 // We need to hold-on to a reference to the metric name as long as we make use of the tagset
+// we also need to hold onto any dynamically constructed tag strings we add.
+typedef struct noit_lua_tagset_allocation {
+  struct noit_lua_tagset_allocation *next;
+  char data[0];
+} noit_lua_tagset_allocation_t;
+
 typedef struct {
   noit_metric_tagset_t tagset;
   int lua_name_ref;
+  noit_lua_tagset_allocation_t *allocations;
 } noit_lua_tagset_t;
+
+static inline char *noit_lua_tagset_alloc(noit_lua_tagset_t *tagset, size_t len) {
+  noit_lua_tagset_allocation_t *na = malloc(offsetof(noit_lua_tagset_allocation_t, data) + len);
+  na->next = tagset->allocations;
+  tagset->allocations = na;
+  return na->data;
+}
 
 // account_set is a map: account_id => account_interests
 // account_interests is an array of integers, such that account_interests[lane] > 0
@@ -208,10 +222,20 @@ static int noit_metric_id_index_func(lua_State *L) {
           return 0;
         };
 
-        /* warp into lua_tagset */
+        /* wrap into lua_tagset */
         lua_pushvalue(L, 2);
         int ref = luaL_ref(L, LUA_REGISTRYINDEX);
         noit_lua_tagset_t check_lua_tagset = { .tagset = check_tagset, .lua_name_ref = ref };
+
+        for(int i=0; i<check_tagset.tag_count; i++) {
+          if(check_tagset.tags[i].tag == uuid_str) {  /* This is on stack, move it somewhere safe */
+            char *copy = noit_lua_tagset_alloc(&check_lua_tagset, check_tagset.tags[i].total_size+1);
+            memcpy(copy, check_tagset.tags[i].tag, check_tagset.tags[i].total_size);
+            copy[check_tagset.tags[i].total_size] = '\0';
+            check_tagset.tags[i].tag = copy;
+          }
+        }
+
         noit_lua_tagset_copy_setup(L, &check_lua_tagset);
       } else {
         break;
@@ -443,6 +467,11 @@ noit_lua_tagset_copy_free(lua_State *L) {
   noit_lua_tagset_t *set = *udata;
   luaL_unref(L, LUA_REGISTRYINDEX, set->lua_name_ref);
   free(set->tagset.tags);
+  noit_lua_tagset_allocation_t *tofree;
+  while(NULL != (tofree = set->allocations)) {
+    set->allocations = set->allocations->next;
+    free(tofree);
+  }
   free(set);
   return 0;
 }
