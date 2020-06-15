@@ -88,13 +88,19 @@ typedef union {
 } thread_queue_t;
 
 static int nthreads;
+
+static inline int safe_thread_id(int thread_id) {
+  if(thread_id < 0) thread_id ^= thread_id;
+  thread_id = thread_id % nthreads;
+  return thread_id;
+}
+
 static thread_queue_t *queues;
 static struct {
   ck_spinlock_t lock;
   ck_hs_t hs;
 } *search_asts;
 static mtev_hash_table id_level;
-static pthread_mutex_t id_level_lock;
 static mtev_hash_table dedupe_hashes;
 static interest_cnt_t *check_interests;
 static pthread_mutex_t check_interests_lock;
@@ -166,8 +172,7 @@ noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short cnt) 
   interest_cnt_t *src, *dst;
   int icnt, bytes;
 
-  if(thread_id < 0) thread_id ^= thread_id;
-  thread_id = thread_id % nthreads;
+  thread_id = safe_thread_id(thread_id);
 
   mtev_memory_begin();
   pthread_mutex_lock(&check_interests_lock);
@@ -189,44 +194,43 @@ noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short cnt) 
 
 /*
  * the ASTs... each lane can register a set of ASTs
- * We are doing the concurrently, so we make a copy of the ASTs.
+ * We are doing this concurrently, so we make a copy of the ASTs.
  *
  * [ thread_id, ck_hs [ ID: AST ] ]
  *
  */
 
 static uint32_t ast_counter = 1;
-struct search2 {
+typedef struct {
   uint32_t    ast_id; /* unique identifier for removal */
   int64_t account_id; /* >= 0 -> exact match, < 0 -> allow all */
   uuid_t  check_uuid; /* UUID_ZERO -> any, otherwise exact match */
   noit_metric_tag_search_ast_t *ast;
-};
+} search2_t;
 
 static void
 search2_cleanup(void *v) {
-  struct search2 *s = (struct search2 *)v;
+  search2_t *s = (search2_t *)v;
   noit_metric_tag_search_free(s->ast);
 }
 
 static unsigned long
 search2_hash(const void *object, unsigned long seed) {
-  struct search2 *s = (struct search2 *)object;
+  search2_t *s = (search2_t *)object;
   return s->ast_id * seed;
 }
 static bool
 search2_compare(const void *previous, const void *compare) {
-  return ((struct search2 *)previous)->ast_id == ((struct search2 *)compare)->ast_id;
+  return ((search2_t *)previous)->ast_id == ((search2_t *)compare)->ast_id;
 }
 
 uint32_t
 noit_metric_director_register_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid,
                                noit_metric_tag_search_ast_t *ast) {
   /* Here we want to add the AST to a specific thread's interest. */
-  if(thread_id < 0) thread_id ^= thread_id;
-  thread_id = thread_id % nthreads;
+  thread_id = safe_thread_id(thread_id);
   mtev_memory_begin();
-  struct search2 *as = mtev_memory_safe_malloc_cleanup(sizeof(*as), search2_cleanup);
+  search2_t *as = mtev_memory_safe_malloc_cleanup(sizeof(*as), search2_cleanup);
   memset(as, 0, sizeof(*as));
   as->ast_id = ck_pr_faa_32(&ast_counter, 1);
   as->account_id = account_id;
@@ -247,10 +251,9 @@ noit_metric_director_register_search(int64_t account_id, uuid_t check_uuid, noit
 
 mtev_boolean
 noit_metric_director_deregister_search_on_thread(int thread_id, uint32_t ast_id) {
-  if(thread_id < 0) thread_id ^= thread_id;
-  thread_id = thread_id % nthreads;
+  thread_id = safe_thread_id(thread_id);
   mtev_memory_begin();
-  struct search2 *found, dummy = { .ast_id = ast_id };
+  search2_t *found, dummy = { .ast_id = ast_id };
   unsigned long hash = CK_HS_HASH(&search_asts[thread_id].hs, search2_hash, &dummy);
   ck_spinlock_lock(&search_asts[thread_id].lock);
   found = ck_hs_remove(&search_asts[thread_id].hs, hash, &dummy);
@@ -280,8 +283,7 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
   mtev_hash_table *level2;
   const interest_cnt_t *interests; /* once created, never modified (until freed) */
 
-  if(thread_id < 0) thread_id ^= thread_id;
-  thread_id = thread_id % nthreads;
+  thread_id = safe_thread_id(thread_id);
 
   /* Get us our UUID->HASH(METRICS) mapping */
   if(!mtev_hash_retrieve(&id_level, (const char *)id, UUID_SIZE, &vhash)) {
@@ -445,7 +447,7 @@ distribute_metric(noit_metric_message_t *message) {
   /* Next we run search queries per lane to find matches */
   for(i=0; i<nthreads; i++) {
     if(interests[i] != 0) continue; /* already interest, skip any work */
-    struct search2 *search;
+    search2_t *search;
     ck_hs_iterator_t iter = CK_HS_ITERATOR_INITIALIZER;
     while(ck_hs_next_spmc(&search_asts[i].hs, &iter, (void **)&search)) {
       if((search->account_id < 0 || (uint64_t)search->account_id == message->id.account_id) &&
@@ -808,7 +810,6 @@ void noit_metric_director_init() {
   check_interests = mtev_memory_safe_calloc(sizeof(*check_interests),nthreads);
   mtev_memory_end();
   pthread_mutex_init(&check_interests_lock, NULL);
-  pthread_mutex_init(&id_level_lock, NULL);
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
