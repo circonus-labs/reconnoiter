@@ -118,6 +118,15 @@ static stats_handle_t *stats_msg_distributed;
 static stats_handle_t *stats_msg_queued;
 static stats_handle_t *stats_msg_delivered;
 
+static inline interest_cnt_t adjust_interest(interest_cnt_t in, short adj) {
+  /* If it is USHRT_MAX, then it gets stuck that way. */
+  if(in == USHRT_MAX) return USHRT_MAX;
+  in += adj;
+  /* bounds cap it back to an unsigned short */
+  if(in < 0) return 0;
+  if(in > USHRT_MAX) return USHRT_MAX;
+  return in;
+}
 void
 noit_metric_director_message_ref(void *m) {
   noit_metric_message_t *message = (noit_metric_message_t *)m;
@@ -170,7 +179,7 @@ noit_metric_director_adjust_checks_interest(short adj) {
 interest_cnt_t
 noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short adj) {
   interest_cnt_t *src, *dst;
-  int icnt, bytes;
+  int bytes;
 
   thread_id = safe_thread_id(thread_id);
 
@@ -180,16 +189,13 @@ noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short adj) 
   bytes = sizeof(interest_cnt_t) * nthreads;
   dst = mtev_memory_safe_malloc(bytes);
   memcpy(dst, src, bytes);
-  icnt = dst[thread_id];
-  icnt += adj;
-  if(icnt < 0) icnt = 0;
-  mtevAssert(icnt <= 0xffff);
-  dst[thread_id] = icnt;
+  dst[thread_id] = adjust_interest(dst[thread_id], adj);
   ck_pr_store_ptr(&check_interests, dst);
   mtev_memory_safe_free(src);
   pthread_mutex_unlock(&check_interests_lock);
+  interest_cnt_t rv = dst[thread_id];
   mtev_memory_end();
-  return icnt;
+  return rv;
 }
 
 /*
@@ -278,7 +284,6 @@ noit_metric_director_adjust_metric_interest(uuid_t id, const char *metric, short
 }
 interest_cnt_t
 noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, const char *metric, short adj) {
-  int icnt;
   void *vhash, **vinterests;
   mtev_hash_table *level2;
   const interest_cnt_t *interests; /* once created, never modified (until freed) */
@@ -335,22 +340,14 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
   if(!newinterests) newinterests = mtev_memory_safe_calloc(nthreads, sizeof(*newinterests));
   do {
     interests = ck_pr_load_ptr(vinterests);
-    /* This is fine because thread_id is only ours */
-    icnt = interests[thread_id];
-    /* If the interest is 0xffff, we consider it permanently subscribed,
-     * and a negative adj will not be reduced. */
-    if(icnt != 0xffff) icnt += adj;
-    /* bounds cap it back to an unsigned short */
-    if(icnt < 0) icnt = 0;
-    if(icnt > 0xffff) icnt = 0xffff;
     memcpy(newinterests, interests, nthreads * sizeof(*newinterests));
-    /* update out copy */
-    newinterests[thread_id] = icnt;
+    newinterests[thread_id] = adjust_interest(newinterests[thread_id], adj);
   } while(!ck_pr_cas_ptr(vinterests, (void *)interests, (void *)newinterests));
   /* We've replaced interests... safely free it */
   mtev_memory_safe_free((void *)interests);
+  interest_cnt_t rv = newinterests[thread_id];
   mtev_memory_end();
-  return icnt;
+  return rv;
 }
 
 static void
