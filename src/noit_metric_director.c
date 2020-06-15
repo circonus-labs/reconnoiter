@@ -326,6 +326,7 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
     if(!mtev_hash_store(level2, metric_copy, strlen(metric_copy), vinterests)) {
       free(metric_copy);
       free(vinterests);
+      /* we leave newinterests allocated as we'll use it in our update path */
     } else {
       /* we set the interests here... we're good. */
       mtev_memory_end();
