@@ -282,6 +282,7 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
   void *vhash, **vinterests;
   mtev_hash_table *level2;
   const interest_cnt_t *interests; /* once created, never modified (until freed) */
+  interest_cnt_t *newinterests = NULL;
 
   thread_id = safe_thread_id(thread_id);
 
@@ -313,12 +314,11 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
     }
     metric_copy = strdup(metric);
     vinterests = malloc(sizeof(*vinterests));
-    interest_cnt_t *newinterests = mtev_memory_safe_calloc(nthreads, sizeof(*newinterests));
+    newinterests = mtev_memory_safe_calloc(nthreads, sizeof(*newinterests));
     newinterests[thread_id] = adj;
     *vinterests = newinterests;
     if(!mtev_hash_store(level2, metric_copy, strlen(metric_copy), vinterests)) {
       free(metric_copy);
-      mtev_memory_safe_free(*vinterests);
       free(vinterests);
     } else {
       /* we set the interests here... we're good. */
@@ -332,16 +332,17 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
    * to change it, we copy, update and replace. coping with a race
    * by retrying.
    */
-  interest_cnt_t *newinterests = NULL;
+  if(!newinterests) newinterests = mtev_memory_safe_calloc(nthreads, sizeof(*newinterests));
   do {
-    if(newinterests) mtev_memory_safe_free(newinterests);
     interests = ck_pr_load_ptr(vinterests);
     /* This is fine because thread_id is only ours */
     icnt = interests[thread_id];
-    icnt += adj;
+    /* If the interest is 0xffff, we consider it permanently subscribed,
+     * and a negative adj will not be reduced. */
+    if(icnt != 0xffff) icnt += adj;
+    /* bounds cap it back to an unsigned short */
     if(icnt < 0) icnt = 0;
-    mtevAssert(icnt <= 0xffff);
-    interest_cnt_t *newinterests = mtev_memory_safe_calloc(nthreads, sizeof(*newinterests));
+    if(icnt > 0xffff) icnt = 0xffff;
     memcpy(newinterests, interests, nthreads * sizeof(*newinterests));
     /* update out copy */
     newinterests[thread_id] = icnt;
