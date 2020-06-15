@@ -119,13 +119,14 @@ static stats_handle_t *stats_msg_queued;
 static stats_handle_t *stats_msg_delivered;
 
 static inline interest_cnt_t adjust_interest(interest_cnt_t in, short adj) {
+  int tmp = (int)in;
   /* If it is USHRT_MAX, then it gets stuck that way. */
-  if(in == USHRT_MAX) return USHRT_MAX;
-  in += adj;
+  if(tmp == USHRT_MAX) return USHRT_MAX;
+  tmp += adj;
   /* bounds cap it back to an unsigned short */
-  if(in < 0) return 0;
-  if(in > USHRT_MAX) return USHRT_MAX;
-  return in;
+  if(tmp < 0) return 0;
+  if(tmp > USHRT_MAX) return USHRT_MAX;
+  return (interest_cnt_t)tmp;
 }
 void
 noit_metric_director_message_ref(void *m) {
