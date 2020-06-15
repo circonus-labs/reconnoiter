@@ -85,6 +85,23 @@ lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
 }
 
 static int
+lua_noit_metric_register_search(lua_State *L) {
+  static uuid_t uuid_zero = { 0 };
+  int account_id = luaL_checkinteger(L,1);
+  noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **)
+    luaL_checkudata(L, 2, "noit_metric_tag_search_ast_t");
+  lua_pushinteger(L, noit_metric_director_register_search(account_id, uuid_zero, *udata));
+  return 1;
+}
+
+static int
+lua_noit_metric_deregister_search(lua_State *L) {
+  uint32_t ref = luaL_checkinteger(L,1);
+  noit_metric_director_deregister_search(ref);
+  return 0;
+}
+
+static int
 lua_noit_metric_subscribe(lua_State *L) {
   return lua_noit_metric_adjustsubscribe(L, 1);
 }
@@ -607,6 +624,8 @@ noit_lua_libnoit_init() {
 
 #ifndef NO_LUAOPEN_LIBNOIT
 static const luaL_Reg libnoit_binding[] = {
+  { "metric_director_register_search", lua_noit_metric_register_search },
+  { "metric_director_deregister_search", lua_noit_metric_deregister_search },
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
   { "metric_director_unsubscribe_checks", lua_noit_checks_unsubscribe },
   { "metric_director_subscribe", lua_noit_metric_subscribe },

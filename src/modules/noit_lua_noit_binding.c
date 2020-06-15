@@ -158,6 +158,8 @@ nl_hosts_cache_lookup(lua_State *L) {
 
 static const luaL_Reg noit_binding[] = {
   // libnoit bindings
+  { "metric_director_register_search", lua_noit_metric_register_search },
+  { "metric_director_deregister_search", lua_noit_metric_deregister_search },
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
   { "metric_director_unsubscribe_checks", lua_noit_checks_unsubscribe },
   { "metric_director_subscribe", lua_noit_metric_subscribe },
