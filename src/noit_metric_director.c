@@ -99,7 +99,7 @@ static thread_queue_t *queues;
 static struct {
   ck_spinlock_t lock;
   ck_hs_t hs;
-} *search_asts;
+} CK_CC_CACHELINE *search_asts;
 static mtev_hash_table id_level;
 static mtev_hash_table dedupe_hashes;
 static interest_cnt_t *check_interests;
@@ -164,11 +164,11 @@ noit_adjust_checks_interest(short cnt) {
   return noit_metric_director_adjust_checks_interest(cnt);
 }
 interest_cnt_t
-noit_metric_director_adjust_checks_interest(short cnt) {
-  return noit_metric_director_adjust_checks_interest_on_thread(get_my_lane(), cnt);
+noit_metric_director_adjust_checks_interest(short adj) {
+  return noit_metric_director_adjust_checks_interest_on_thread(get_my_lane(), adj);
 }
 interest_cnt_t
-noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short cnt) {
+noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short adj) {
   interest_cnt_t *src, *dst;
   int icnt, bytes;
 
@@ -181,7 +181,7 @@ noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short cnt) 
   dst = mtev_memory_safe_malloc(bytes);
   memcpy(dst, src, bytes);
   icnt = dst[thread_id];
-  icnt += cnt;
+  icnt += adj;
   if(icnt < 0) icnt = 0;
   mtevAssert(icnt <= 0xffff);
   dst[thread_id] = icnt;
@@ -269,15 +269,15 @@ noit_metric_director_deregister_search(uint32_t ast_id) {
 }
 
 interest_cnt_t
-noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
-  return noit_metric_director_adjust_metric_interest(id, metric, cnt);
+noit_adjust_metric_interest(uuid_t id, const char *metric, short adj) {
+  return noit_metric_director_adjust_metric_interest(id, metric, adj);
 }
 interest_cnt_t
-noit_metric_director_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
-  return noit_metric_director_adjust_metric_interest_on_thread(get_my_lane(), id, metric, cnt);
+noit_metric_director_adjust_metric_interest(uuid_t id, const char *metric, short adj) {
+  return noit_metric_director_adjust_metric_interest_on_thread(get_my_lane(), id, metric, adj);
 }
 interest_cnt_t
-noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, const char *metric, short cnt) {
+noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, const char *metric, short adj) {
   int icnt;
   void *vhash, **vinterests;
   mtev_hash_table *level2;
@@ -306,7 +306,7 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
   if(!mtev_hash_retrieve(level2, metric, strlen(metric), (void **)&vinterests)) {
     int found;
     char *metric_copy;
-    if(cnt < 0) {
+    if(adj < 0) {
       /* this would result in no interests */
       mtev_memory_end();
       return 0;
@@ -314,7 +314,7 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
     metric_copy = strdup(metric);
     vinterests = malloc(sizeof(*vinterests));
     interest_cnt_t *newinterests = mtev_memory_safe_calloc(nthreads, sizeof(*newinterests));
-    newinterests[thread_id] = cnt;
+    newinterests[thread_id] = adj;
     *vinterests = newinterests;
     if(!mtev_hash_store(level2, metric_copy, strlen(metric_copy), vinterests)) {
       free(metric_copy);
@@ -323,7 +323,7 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
     } else {
       /* we set the interests here... we're good. */
       mtev_memory_end();
-      return cnt;
+      return adj;
     }
     found = mtev_hash_retrieve(level2, metric, strlen(metric), (void **)&vinterests);
     mtevAssert(found);
@@ -338,7 +338,7 @@ noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, 
     interests = ck_pr_load_ptr(vinterests);
     /* This is fine because thread_id is only ours */
     icnt = interests[thread_id];
-    icnt += cnt;
+    icnt += adj;
     if(icnt < 0) icnt = 0;
     mtevAssert(icnt <= 0xffff);
     interest_cnt_t *newinterests = mtev_memory_safe_calloc(nthreads, sizeof(*newinterests));
@@ -415,7 +415,6 @@ noit_metric_director_flush(eventer_t e) {
 
 static void
 distribute_metric(noit_metric_message_t *message) {
-  int i;
   static uuid_t uuid_zero = { 0 };
   void *vhash, **vinterests;
   interest_cnt_t has_interests = 0;
@@ -425,27 +424,27 @@ distribute_metric(noit_metric_message_t *message) {
 
   mtev_memory_begin();
   /* First we process interests for specific metrics: uuid-metric|ST[tags...] */
-  for(i=0; i<2; i++) {
+  for(int check_idx=0; check_idx<2; check_idx++) {
     /* First time through we use the message's ID, second time we use the NULL UUID
      * which is used to "match any" check.
      */
-    if(mtev_hash_retrieve(&id_level, i ? (const char *)&uuid_zero : (const char *)&message->id.id, UUID_SIZE,
+    if(mtev_hash_retrieve(&id_level, check_idx ? (const char *)&uuid_zero : (const char *)&message->id.id, UUID_SIZE,
         &vhash)) {
       if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,
                             message->id.name_len_with_tags, (void **)&vinterests)) {
-        memcpy(interests, *vinterests, sizeof(interests)); /*  we access this exactly once, no need to ck load or tmp variable */
-        for(i=0; i<nthreads; i++) has_interests |= interests[i];
+        memcpy(interests, *vinterests, sizeof(interests)); /* This was SMR allocated and is safe */
+        for(int i=0; i<nthreads; i++) has_interests |= interests[i];
       }
       if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,
                             message->id.name_len, (void **)&vinterests)) {
-        memcpy(interests, *vinterests, sizeof(interests)); /*  we access this exactly once, no need to ck load or tmp variable */
-        for(i=0; i<nthreads; i++) has_interests |= interests[i];
+        memcpy(interests, *vinterests, sizeof(interests)); /* This was SMR allocated and is safe */
+        for(int i=0; i<nthreads; i++) has_interests |= interests[i];
       }
     }
   }
 
   /* Next we run search queries per lane to find matches */
-  for(i=0; i<nthreads; i++) {
+  for(int i=0; i<nthreads; i++) {
     if(interests[i] != 0) continue; /* already interest, skip any work */
     search2_t *search;
     ck_hs_iterator_t iter = CK_HS_ITERATOR_INITIALIZER;
@@ -470,7 +469,7 @@ distribute_metric(noit_metric_message_t *message) {
     switch(metric_director_want_hook_invoke(message, wants, nthreads)) {
       case MTEV_HOOK_DONE:
       case MTEV_HOOK_CONTINUE:
-        for(i=0;i<nthreads;i++) {
+        for(int i=0;i<nthreads;i++) {
           if(wants[i] && interests[i] == 0) {
             has_interests = interests[i] = 1;
           }
