@@ -35,12 +35,14 @@
 #include <mtev_hooks.h>
 #include <mtev_uuid.h>
 #include <noit_message_decoder.h>
+#include <noit_metric_tag_search.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef unsigned short caql_cnt_t;
+typedef unsigned short interest_cnt_t;
+typedef interest_cnt_t caql_cnt_t; /*legacy*/
 
 /**
  * Funnel metrics to certain threads for processing.
@@ -64,12 +66,20 @@ void noit_metric_director_dedupe(mtev_boolean dedupe);
 
 /* Tells noit to funnel all observed lines matching this id-metric
  * back to this thread */
-caql_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
+interest_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) __attribute__((deprecated));
+interest_cnt_t noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, const char *metric, short cnt);
+interest_cnt_t noit_metric_director_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
 
+uint32_t noit_metric_director_register_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, noit_metric_tag_search_ast_t *ast);
+uint32_t noit_metric_director_register_search(int64_t account_id, uuid_t check_uuid, noit_metric_tag_search_ast_t *ast);
+mtev_boolean noit_metric_director_deregister_search_on_thread(int thread_id, uint32_t ast_id);
+mtev_boolean noit_metric_director_deregister_search(uint32_t ast_id);
 /* Tells noit that this thread is interested in recieving "check" information.
  * This includes C records and S records.
  */
-caql_cnt_t noit_adjust_checks_interest(short cnt);
+interest_cnt_t noit_adjust_checks_interest(short cnt) __attribute__((deprecated));
+interest_cnt_t noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short cnt);
+interest_cnt_t noit_metric_director_adjust_checks_interest(short cnt);
 
 /* This gets the next line you've subscribed to, if available. */
 noit_metric_message_t *noit_metric_director_lane_next();

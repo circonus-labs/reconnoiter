@@ -65,7 +65,7 @@ lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
   if(mtev_uuid_parse(uuid, id)) {
     return luaL_error(L, "(un)subscribe expects a uuid as the first parameter");
   }
-  caql_cnt_t cnt = noit_adjust_metric_interest(id, metric_name, bump);
+  caql_cnt_t cnt = noit_metric_director_adjust_metric_interest(id, metric_name, bump);
   lua_pushnumber(L, cnt);
   return 1;
 }
@@ -82,7 +82,7 @@ lua_noit_metric_unsubscribe(lua_State *L) {
 
 static int
 lua_noit_checks_adjustsubscribe(lua_State *L, short bump) {
-  caql_cnt_t cnt = noit_adjust_checks_interest(bump);
+  caql_cnt_t cnt = noit_metric_director_adjust_checks_interest(bump);
   lua_pushnumber(L, cnt);
   return 1;
 }

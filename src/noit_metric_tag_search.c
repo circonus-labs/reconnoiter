@@ -37,10 +37,12 @@
 #include "noit_metric_tag_search.h"
 
 #include <stdio.h>
+#include <ck_pr.h>
 
 void
 noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
   if(node == NULL) return;
+  if(!ck_pr_dec_32_is_zero(&node->refcnt)) return;
   switch(node->operation) {
     case OP_MATCH:
       free(node->contents.spec.cat.str);
@@ -69,6 +71,11 @@ noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
   }
   if(node->user_data_free) node->user_data_free(node->user_data);
   free(node);
+}
+noit_metric_tag_search_ast_t *
+noit_metric_tag_search_ref(noit_metric_tag_search_ast_t *node) {
+  ck_pr_inc_32(&node->refcnt);
+  return node;
 }
 
 static char *
@@ -226,6 +233,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
       if(!noit_metric_tag_match_compile(&node->contents.spec.name, endq, 2)) goto error;
     }
   }
+  node->refcnt = 1;
   return node;
  error:
   noit_metric_tag_search_free(node);
@@ -262,6 +270,7 @@ noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
 
   out->user_data = NULL;
   out->user_data_free = NULL;
+  out->refcnt = 1;
   return out;
 }
 noit_metric_tag_search_ast_t *
