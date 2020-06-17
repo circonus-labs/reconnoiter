@@ -68,6 +68,10 @@ MTEV_HOOK_IMPL(metric_director_want, (noit_metric_message_t *m, int *wants, int 
                void *, closure, (void *closure, noit_metric_message_t *m, int *wants, int wants_len),
                (closure, m, wants, wants_len));
 
+MTEV_HOOK_IMPL(metric_director_revise, (noit_metric_message_t *m, interest_cnt_t *interests, int interests_len),
+               void *, closure, (void *closure, noit_metric_message_t *m, interest_cnt_t *interests, int interests_len),
+               (closure, m, interests, interests_len));
+
 struct fq_conn_s;
 struct fq_msg;
 
@@ -475,6 +479,14 @@ distribute_metric(noit_metric_message_t *message) {
           }
         }
       default: break;
+    }
+  }
+
+  if(metric_director_revise_hook_exists()) {
+    /* This revises the list, so we reset has_interests and recalculate */
+    has_interests = 0;
+    if(metric_director_revise_hook_invoke(message, interests, nthreads) != MTEV_HOOK_ABORT) {
+      for(int i=0; i<nthreads; i++) has_interests |= interests[i];
     }
   }
   if(has_interests) distribute_message_with_interests(interests, message);
