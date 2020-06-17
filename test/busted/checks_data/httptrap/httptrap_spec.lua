@@ -32,6 +32,8 @@ describe("noit", function()
   </config>
 </check>]=]
 
+  local b64hist = "AAQKAAABFAAAAR4AAAEoAAB4"
+  local b64hist_double = "AAQKAAACFAAAAh4AAAIoAADw"
   local payload = [=[{
     "array": [ 1, 1.2, "string", { "_type": "s", "_value": "100" },
                { "_type": "L", "_value": 18446744073709551614 } ],
@@ -41,7 +43,10 @@ describe("noit", function()
       }
     },
     "explicit_histogram": { "_type": "n", "_value": [ 1,2,3,"H[4]=120" ] },
-    "implicit_histogram": { "_type": "h", "_value": [ "H[4]=120", 3, 2, 1 ] }
+    "implicit_histogram": { "_type": "h", "_value": [ "H[4]=120", 3, 2, 1 ] },
+    "cumulative_b64histogram_1": { "_type": "H", "_value": ["]=] .. b64hist .. [=[", "H[4]=120", 3, 2, 1 ] },
+    "cumulative_b64histogram_2": { "_type": "H", "_value": ["H[4]=120", 3, 2, 1, "]=] .. b64hist .. [=["] },
+    "implicit_b64histogram_1": { "_type": "h", "_value": ["H[4]=120", 3, 2, 1, "]=] .. b64hist .. [=[" ] }
   }]=]
   local expected_stats = {}
   expected_stats["array`0"] = { _type = "L", _value = "1" }
@@ -49,8 +54,11 @@ describe("noit", function()
   expected_stats["array`2"] = { _type = "s", _value = "string" }
   expected_stats["array`3"] = { _type = "s", _value = "100" }
   expected_stats["array`4"] = { _type = "n", _value = "1.844674407371e+19" }
-  expected_stats["explicit_histogram"] = { _type = "H", _value = "AAQKAAABFAAAAR4AAAEoAAB4" }
-  expected_stats["implicit_histogram"] = expected_stats["explicit_histogram"]
+  expected_stats["explicit_histogram"] = { _type = "h", _value = b64hist }
+  expected_stats["implicit_histogram"] = { _type = "h", _value = b64hist }
+  expected_stats["cumulative_b64histogram_1"] = { _type = "H", _value = b64hist }
+  expected_stats["cumulative_b64histogram_2"] = { _type = "H", _value = b64hist }
+  expected_stats["implicit_b64histogram_1"] = { _type = "h", _value = b64hist_double }
   expected_stats["lvl1`lvl2`boolean"] = { _type = "i", _value = "1" }
 
   it("should start", function()
@@ -59,7 +67,7 @@ describe("noit", function()
   end)
 
   describe("httptrap", function()
-    local key = noit:watchfor(mtev.pcre('H1\t'), true)
+    local key = noit:watchfor(mtev.pcre('H[12]\t'), true)
     it("put", function()
       local code, doc = api:raw("PUT", "/checks/set/" .. uuid, check_xml)
       assert.is.equal(200, code)
@@ -72,12 +80,12 @@ describe("noit", function()
       local code, doc, raw = api:json("POST", "/module/httptrap/" .. uuid .. "/foofoo", payload)
       assert.is.equal(200, code)
     end)
-    it("has matching H1 records", function()
+    it("has matching H1/2 records", function()
       local record = {}
       local rparts = {}
       local keys = {}
       -- split by \t, make sure we have the parts, and track #4 as the metric name
-      for i=1,2 do
+      for i=1,5 do
         record[i] = noit:waitfor(key, 2)
         assert.is_not_nil(record[i])
         rparts[i] = record[i]:split('\t')
@@ -85,7 +93,9 @@ describe("noit", function()
         assert.is_not_nil(rparts[i][5])
         keys[rparts[i][4]] = true
       end
-      assert.is.same({ explicit_histogram = true, implicit_histogram = true }, keys)
+      assert.is.same({ explicit_histogram = true, implicit_histogram = true,
+                       implicit_b64histogram_1 = true, cumulative_b64histogram_1 = true,
+                       cumulative_b64histogram_2 = true }, keys)
       -- the histograms should be the same.
       assert.is.equal(rparts[1][5], rparts[2][5])
     end)
