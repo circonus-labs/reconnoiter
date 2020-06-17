@@ -84,20 +84,24 @@ describe("noit", function()
       local record = {}
       local rparts = {}
       local keys = {}
+      local hist_cnt = {}
       -- split by \t, make sure we have the parts, and track #4 as the metric name
       for i=1,5 do
         record[i] = noit:waitfor(key, 2)
         assert.is_not_nil(record[i])
+        record[i] = record[i]:gsub('\n','')
         rparts[i] = record[i]:split('\t')
         assert.is_not_nil(rparts[i][4])
         assert.is_not_nil(rparts[i][5])
         keys[rparts[i][4]] = true
+        hist_cnt[rparts[i][5]] = (hist_cnt[rparts[i][5]] or 0) + 1
       end
       assert.is.same({ explicit_histogram = true, implicit_histogram = true,
                        implicit_b64histogram_1 = true, cumulative_b64histogram_1 = true,
                        cumulative_b64histogram_2 = true }, keys)
       -- the histograms should be the same.
-      assert.is.equal(rparts[1][5], rparts[2][5])
+      assert.is.equal(4, hist_cnt[b64hist])
+      assert.is.equal(1, hist_cnt[b64hist_double])
     end)
     it("is reporting xml/json", function()
       local metrics, xmetrics = {}, {}
