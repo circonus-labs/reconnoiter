@@ -50,7 +50,7 @@ describe("noit", function()
   expected_stats["array`2"] = { _type = "s", _value = "string" }
   expected_stats["array`3"] = { _type = "s", _value = "100" }
   expected_stats["array`4"] = { _type = "n", _value = "1.844674407371e+19" }
-  expected_stats["explicit_histogram"] = { _type = "H", _value = "AAQKAAABFAAAAR4AAAEoAAB4" }
+  expected_stats["explicit_histogram"] = { _type = "h", _value = "AAQKAAABFAAAAR4AAAEoAAB4" }
   expected_stats["implicit_histogram"] = expected_stats["explicit_histogram"]
   expected_stats["lvl1`lvl2`boolean"] = { _type = "i", _value = "1" }
 
