@@ -101,6 +101,9 @@ void noit_metric_director_drop_before(double t);
 MTEV_HOOK_PROTO(metric_director_want, (noit_metric_message_t *, int *, int),
                 void *, closure, (void *closure, noit_metric_message_t *m, int *wants, int want_len));
 
+MTEV_HOOK_PROTO(metric_director_revise, (noit_metric_message_t *, interest_cnt_t *, int),
+                void *, closure, (void *closure, noit_metric_message_t *m, interest_cnt_t *interests, int interests_len));
+
 #ifdef __cplusplus
 }
 #endif
