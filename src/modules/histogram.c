@@ -107,6 +107,7 @@ histogram_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
 typedef struct histotier {
   histogram_t **secs;
   histogram_t *last_aggr;
+  mtev_boolean last_aggr_cumulative;
   mtev_boolean cumulative;
   uint8_t cadence;
   uint8_t last_sec_off;
@@ -282,13 +283,14 @@ sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *
 
   /* drop the tgt, it's ours */
   if(ht->last_aggr) hist_free(ht->last_aggr);
+  ht->last_aggr_cumulative = ht->cumulative;
   ht->last_aggr = tgt;
 }
 
 static void
 update_histotier(histotier *ht, mtev_boolean cumulative, uint64_t s,
                  struct histogram_config *conf, noit_check_t *check,
-                 const char *name, double val, uint64_t cnt) {
+                 const char *name, double val, uint64_t cnt, const histogram_t *hist) {
   uint64_t this_period = s/ht->cadence;
   uint8_t sec_off = s%ht->cadence;
   noit_check_metric_count_add(cnt);
@@ -298,20 +300,6 @@ update_histotier(histotier *ht, mtev_boolean cumulative, uint64_t s,
     uint64_t last_sec_off = ht->last_sec_off;
     uint64_t last_period = ht->last_period;
 
-    /* If we are transient we're coming to this sloppy.
-     * Someone else owns this ht. So, if we're high-traffic
-     * then last_sec_off has already been bumped, so we need to
-     * rewind it.
-     */
-    /* I think this is not needed... 
-    if(check->flags & NP_TRANSIENT && sec_off == last_sec_off) {
-      last_sec_off--;
-      if(last_sec_off < 0) {
-        last_sec_off = ht->cadence-1;
-        last_period--;
-      }
-    }
-    */
     if(ht->secs[last_sec_off] && hist_num_buckets(ht->secs[last_sec_off])
         && conf->histogram)
       log_histo(check, last_period * (uint64_t)ht->cadence + last_sec_off, name,
@@ -321,13 +309,19 @@ update_histotier(histotier *ht, mtev_boolean cumulative, uint64_t s,
     sweep_roll_n_log(conf, check, ht, name);
     ht->cumulative = mtev_false;
   }
-  if(cnt > 0) {
+  if(cnt > 0 || hist) {
     if(ht->secs[sec_off] == NULL)
       ht->secs[sec_off] = hist_alloc();
-    if(ht->cumulative) {
-      hist_remove(ht->secs[sec_off], val, UINT64_MAX);
+    if(cnt) {
+      if(ht->cumulative) {
+        hist_remove(ht->secs[sec_off], val, UINT64_MAX);
+      }
+      hist_insert(ht->secs[sec_off], val, cnt);
     }
-    hist_insert(ht->secs[sec_off], val, cnt);
+    if(hist) {
+      if(ht->cumulative) hist_clear(ht->secs[sec_off]);
+      hist_accumulate(ht->secs[sec_off], &hist, 1);
+    }
   }
   ht->last_period = this_period;
   ht->last_sec_off = sec_off;
@@ -394,8 +388,9 @@ histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, me
                     vht);
   }
   else ht = vht;
+
   if(m->metric_value.vp != NULL) {
-#define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, *m->metric_value.a, count)
+#define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, *m->metric_value.a, count, NULL)
     switch(m->metric_type) {
       case METRIC_UINT64:
         UPDATE_HISTOTIER(L); break;
@@ -411,7 +406,13 @@ histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, me
         uint64_t cnt;
         double bucket;
         if(extract_Hformat_metric(m->metric_value.s, &cnt, &bucket) == 0 && cnt > 0) {
-          update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, bucket, cnt);
+          update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, bucket, cnt, NULL);
+        } else {
+          histogram_t *hist = hist_alloc();
+          if(hist_deserialize_b64(hist, m->metric_value.s, strlen(m->metric_value.s)) > 0) {
+            update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, 0, 0, hist);
+          }
+          hist_free(hist);
         }
       } break;
       default: /*noop*/
@@ -468,8 +469,16 @@ histogram_metric_hformat(void *closure,
   if(v != NULL) {
     double bucket;
     uint64_t cnt;
-    if(extract_Hformat_metric(v, &cnt, &bucket) == 0 && cnt > 0) {
-      update_histotier(ht, (type == METRIC_HISTOGRAM_CUMULATIVE), time(NULL), conf, check, metric_name, bucket, cnt);
+    if(extract_Hformat_metric(v, &cnt, &bucket) == 0) {
+      if(cnt > 0) {
+        update_histotier(ht, (type == METRIC_HISTOGRAM_CUMULATIVE), time(NULL), conf, check, metric_name, bucket, cnt, NULL);
+      }
+    } else {
+      histogram_t *hist = hist_alloc();
+      if(hist_deserialize_b64(hist, v, strlen(v)) > 0) {
+        update_histotier(ht, (type == METRIC_HISTOGRAM_CUMULATIVE), time(NULL), conf, check, metric_name, 0, 0, hist);
+      }
+      hist_free(hist);
     }
   }
 }
@@ -589,7 +598,7 @@ heartbeat_all_metrics(struct histogram_config *conf,
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     int has_data = 0;
     histotier *ht = data;
-    update_histotier(ht, mtev_false, s, conf, check, k, 0, 0);
+    update_histotier(ht, mtev_false, s, conf, check, k, 0, 0, NULL);
 
     /* if there's no data, drop the histogram */
     for(int i=0; i<ht->cadence; i++) if(ht->secs[i]) has_data++;
@@ -639,7 +648,7 @@ histogram_stats_populate_xml_impl(void *closure, xmlNodePtr doc, noit_check_t *c
     xmlNodePtr tmp;
     xmlAddChild(doc, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
     xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)iter.key.str);
-    xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)"H");
+    xmlSetProp(tmp, (xmlChar *)"type", ht->last_aggr_cumulative ? (xmlChar *)"H" : (xmlChar *)"h");
     if(ht->last_aggr && hist_bucket_count(ht->last_aggr) > 0) {
       ssize_t est = hist_serialize_estimate(ht->last_aggr);
       char *hist_encode = NULL;
@@ -686,7 +695,7 @@ histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, 
     histotier *ht = iter.value.ptr;
     struct mtev_json_object *v = MJ_OBJ();
     MJ_KV(doc, iter.key.str, v);
-    MJ_KV(v, "_type", json_object_new_string("H"));
+    MJ_KV(v, "_type", json_object_new_string(ht->last_aggr_cumulative ? "H" : "h"));
     if(ht->last_aggr && hist_bucket_count(ht->last_aggr) > 0) {
       ssize_t est = hist_serialize_estimate(ht->last_aggr);
       char *hist_encode = NULL;
