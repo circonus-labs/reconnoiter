@@ -86,18 +86,34 @@ lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
 
 static int
 lua_noit_metric_register_search(lua_State *L) {
-  static uuid_t uuid_zero = { 0 };
+  uuid_t uuid = { 0 };
   int account_id = luaL_checkinteger(L,1);
+  const char *uuid_str = NULL;
+  if(!lua_isnil(L,2)) {
+    uuid_str = luaL_checkstring(L,2);
+    if(mtev_uuid_parse(uuid_str, uuid)) {
+      return luaL_error(L, "invalid UUID");
+    }
+  }
   noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **)
-    luaL_checkudata(L, 2, "noit_metric_tag_search_ast_t");
-  lua_pushinteger(L, noit_metric_director_register_search(account_id, uuid_zero, *udata));
+    luaL_checkudata(L, 3, "noit_metric_tag_search_ast_t");
+  lua_pushinteger(L, noit_metric_director_register_search(account_id, uuid, *udata));
   return 1;
 }
 
 static int
 lua_noit_metric_deregister_search(lua_State *L) {
-  uint32_t ref = luaL_checkinteger(L,1);
-  noit_metric_director_deregister_search(ref);
+  uuid_t uuid = { 0 };
+  int account_id = luaL_checkinteger(L,1);
+  const char *uuid_str = NULL;
+  if(!lua_isnil(L,2)) {
+    uuid_str = luaL_checkstring(L,2);
+    if(mtev_uuid_parse(uuid_str, uuid)) {
+      return luaL_error(L, "invalid UUID");
+    }
+  }
+  uint32_t ref = luaL_checkinteger(L,3);
+  noit_metric_director_deregister_search(account_id, uuid, ref);
   return 0;
 }
 
