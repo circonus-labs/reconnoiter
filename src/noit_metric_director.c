@@ -42,6 +42,7 @@
 #include <mtev_stats.h>
 #include <mtev_time.h>
 #include <mtev_rand.h>
+#include <mtev_frrh.h>
 
 #include <openssl/md5.h>
 #include <ck_hs.h>
@@ -50,6 +51,84 @@
 #include <noit_metric_tag_search.h>
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
+
+/* This is a hot mess designed to optimize metric selection on a variety of vectors.
+ *
+ * The director will look at messages and determine which "lanes" to push them down.
+ * The default eventer loop threads are "lanes."
+ *
+ * All interests are account-qualified. Each of these lanes can express interest
+ * in different ways:
+ *
+ * 1) Lanes can ask for an "exact" metric by name...
+ *    This is not so exact as it can either match the exact metric without tags or
+ *    the exact metric with tags.  If a lane expresses interest in `foo|ST[]`, they
+ *    mean exactly `foo` with no tags.  If a lane expresses interest in `foo`, they
+ *    mean any `foo|ST[...]` metric regardless of the tags.
+ *    As metric names also include a UUID, the interest can be expressed with a
+ *    specific check's UUID or the interest can be registered with the NULL UUID
+ *    which means any check will match.
+ *
+ *    To summarize there are 4 possible "exact" match scenarios when receiving a metric
+ *    like: `0e1aef26-d508-479a-a43c-db8cb1c25492 foo|ST[a:b,c:d]`
+ *
+ *    Anyone interested in the following should recieve these messages:
+ *    1) `0e1aef26-d508-479a-a43c-db8cb1c25492 foo|ST[a:b,c:d]`
+ *    2) `0e1aef26-d508-479a-a43c-db8cb1c25492 foo`
+ *    3) `00000000-0000-0000-0000-000000000000 foo|ST[a:b,c:d]`
+ *    4) `00000000-0000-0000-0000-000000000000 foo`
+ *
+ *    IMPLEMENTATION:
+ *
+ *    This is a simple two-level hash table:
+ *       id_level[uuid]->[metricname] -> array of interest_cnt_t
+ *
+ *    As it is all O(1) lookups, it is not partitioned by account
+ *
+ * 2) Lanes can ask for a particular search expression (noit_metric_tag_search_ast_t)
+ *    either on a specific check or on any check.
+ *
+ *    As a note, when a metric arrives, evaluating the tag search against that metric
+ *    may not always return the same result because the tags in the inbound metric
+ *    can be modified externally via hook (adding check tags).
+ *
+ *    IMPLEMENTATION:
+ *
+ *    This is more complicated for a variety of reasons including maintaining a cache.
+ *
+ *    Each account has an `account_search_t` structure that has a generational counter
+ *    that is modified any time a search expression is added. The structure has a
+ *    hash table of registered searches for each lane that apply to "all checks"
+ *    (NULL UUID) and a hash table of check_search_t structures indexed by UUID that
+ *    contain a hash table per lane of all registered searches that apply to exactly
+ *    one check.
+ *
+ *    To evaluate a given inbound metric, we first check the miss cache and if the
+ *    item is present in the miss cache, then we skip all work.  Otherwise, 
+ *    the account_search_t is found for the appropriate account and the "all checks"
+ *    searches are applied.  Then the check specific set of searches are applied. As
+ *    soon as a lane has a single match all subsequent searches are skipped.
+ *
+ *    CACHE:
+ *
+ *    The most expensive metrics are those that match no searches as it is impossible
+ *    to short circuit the evaluations.  As such we maintain a cache of known misses.
+ *    Because the outcome of the full evaluation can change if (1) check tags are
+ *    changed or (2) a new search is registered, we encode the generational counters
+ *    for both the check and the account into the cache key:
+ *        [ acct, acct_gen, check_uuid, check_gen, metric name w/ tags ]
+ *
+ *    If we perform a full evaluation and find no interests, we store that key in
+ *    the miss cache.  If check tags change or a search is added, the key changes.
+ *    We use a fair random replacement cache tweaked to a 100% replacement
+ *    probability if the entry to be possibly replaced has any outdated
+ *    generational counters.  This has the effect of force-replacing outdated keys
+ *    and probabilistically replacing still-current keys.
+ *
+ *    And LRU is tough here b/c almost all metrics are seen in one very large
+ *    ordered cycle.
+ *
+ */
 
 /* pointers enqueue with this flag set, are flush pointers.
  * the flag should be removed and used and the pointer will
@@ -100,10 +179,6 @@ static inline int safe_thread_id(int thread_id) {
 }
 
 static thread_queue_t *queues;
-static struct {
-  ck_spinlock_t lock;
-  ck_hs_t hs;
-} CK_CC_CACHELINE *search_asts;
 static mtev_hash_table id_level;
 static mtev_hash_table dedupe_hashes;
 static interest_cnt_t *check_interests;
@@ -112,6 +187,176 @@ static mtev_boolean dedupe = mtev_true;
 static uint32_t director_in_use = 0;
 static uint64_t drop_before_threshold_ms = 0;
 static uint32_t drop_backlog_over = 0;
+
+/*
+ * the ASTs... each lane can register a set of ASTs
+ * We are doing this concurrently, so we make a copy of the ASTs.
+ *
+ * [ thread_id, ck_hs [ ID: AST ] ]
+ *
+ */
+
+static uint32_t ast_counter = 1;
+typedef struct {
+  uint32_t    ast_id; /* unique identifier for removal */
+  int64_t account_id; /* >= 0 -> exact match, < 0 -> allow all */
+  uuid_t  check_uuid; /* UUID_ZERO -> any, otherwise exact match */
+  noit_metric_tag_search_ast_t *ast;
+} tag_search_registration_t;
+
+static void
+tag_search_registration_cleanup(void *v) {
+  tag_search_registration_t *s = (tag_search_registration_t *)v;
+  noit_metric_tag_search_free(s->ast);
+}
+
+static unsigned long
+tag_search_registration_hash(const void *object, unsigned long seed) {
+  tag_search_registration_t *s = (tag_search_registration_t *)object;
+  return s->ast_id * seed;
+}
+static bool
+tag_search_registration_compare(const void *previous, const void *compare) {
+  return ((tag_search_registration_t *)previous)->ast_id == ((tag_search_registration_t *)compare)->ast_id;
+}
+
+struct thread_asts {
+  ck_spinlock_t lock;
+  ck_hs_t hs;
+} CK_CC_CACHELINE;
+
+/* This gen gets update by dynamic hook when a check changes */
+typedef struct {
+  uuid_t check_uuid;
+  struct thread_asts *search_asts;
+} check_search_t;
+
+typedef struct {
+  uuid_t check_uuid;
+  uint64_t gen;
+} check_generation_t;
+static ck_hs_t check_generation;
+static pthread_mutex_t check_generation_writes = PTHREAD_MUTEX_INITIALIZER;
+
+/* This gets updated internally to this director when a search is added or removed */
+typedef struct {
+  uint64_t account_id;
+  uint64_t gen;
+  pthread_mutex_t check_searches_writes;
+  ck_hs_t check_searches;
+  struct thread_asts *search_asts;
+} account_search_t;
+static pthread_mutex_t account_searches_writes = PTHREAD_MUTEX_INITIALIZER;
+static ck_hs_t account_searches;
+
+static unsigned long
+check_hash(const void *object, unsigned long seed) {
+  check_generation_t *s = (check_generation_t *)object;
+  uint64_t *asu64 = (uint64_t *)s->check_uuid;
+  return (asu64[0] ^ asu64[1]) * seed;
+}
+static bool
+check_compare(const void *previous, const void *compare) {
+  return mtev_uuid_compare(((check_generation_t *)previous)->check_uuid, ((check_generation_t *)compare)->check_uuid) == 0;
+}
+
+static struct thread_asts *thread_asts_alloc(int cnt) {
+  struct thread_asts *asts = calloc(sizeof(*asts),nthreads);
+  for(int i=0; i<nthreads; i++) {
+    ck_spinlock_init(&asts[i].lock);
+    ck_hs_init(&asts[i].hs, CK_HS_MODE_OBJECT | CK_HS_MODE_SPMC,
+               tag_search_registration_hash, tag_search_registration_compare,
+               &mtev_memory_safe_ck_malloc, cnt, mtev_rand());
+  }
+  return asts;
+}
+
+void thread_asts_free(struct thread_asts *asts) {
+  for(int i=0; i<nthreads; i++) {
+    ck_hs_destroy(&asts[i].hs);
+  }
+  free(asts);
+}
+
+static check_search_t *
+check_get_search(account_search_t *as, uuid_t check_uuid, bool create) {
+  check_search_t cs;
+  mtev_uuid_copy(cs.check_uuid, check_uuid);
+  unsigned long hash = CK_HS_HASH(&as->check_searches, check_hash, &cs);
+  check_search_t *found = (check_search_t *)ck_hs_get(&as->check_searches, hash, &cs);
+  if(found) return found;
+  if(!create) return NULL;
+  check_search_t *newcs = calloc(1, sizeof(*newcs));
+  mtev_uuid_copy(newcs->check_uuid, check_uuid);
+
+  newcs->search_asts = thread_asts_alloc(8);
+  pthread_mutex_lock(&as->check_searches_writes);
+  if(ck_hs_put(&as->check_searches, hash, newcs)) {
+    pthread_mutex_unlock(&as->check_searches_writes);
+    return newcs;
+  }
+  pthread_mutex_unlock(&as->check_searches_writes);
+  thread_asts_free(newcs->search_asts);
+  free(newcs);
+  return check_get_search(as, check_uuid, false);
+}
+
+
+static unsigned long
+account_hash(const void *object, unsigned long seed) {
+  account_search_t *s = (account_search_t *)object;
+  return (s->account_id) * seed;
+}
+static bool
+account_compare(const void *previous, const void *compare) {
+  return ((account_search_t *)previous)->account_id == ((account_search_t *)compare)->account_id;
+}
+
+static account_search_t *
+account_get_search(uint64_t account_id, bool create) {
+  account_search_t as = { .account_id = account_id };
+  unsigned long hash = CK_HS_HASH(&account_searches, account_hash, &as);
+  account_search_t *found = (account_search_t *)ck_hs_get(&account_searches, hash, &as);
+  if(found) return found;
+  if(!create) return NULL;
+  account_search_t *newas = calloc(1, sizeof(*newas));
+  newas->account_id = account_id;
+
+  newas->search_asts = thread_asts_alloc(128);
+
+  ck_hs_init(&newas->check_searches, CK_HS_MODE_OBJECT | CK_HS_MODE_SPMC,
+             check_hash, check_compare,
+             &mtev_memory_safe_ck_malloc, 128, mtev_rand());
+  pthread_mutex_init(&newas->check_searches_writes, NULL);
+
+  pthread_mutex_lock(&account_searches_writes);
+  if(ck_hs_put(&account_searches, hash, newas)) {
+    pthread_mutex_unlock(&account_searches_writes);
+    return newas;
+  }
+  pthread_mutex_unlock(&account_searches_writes);
+  pthread_mutex_destroy(&newas->check_searches_writes);
+  thread_asts_free(newas->search_asts);
+  free(newas);
+  return account_get_search(account_id, false);
+}
+
+
+void metric_director_set_check_generation_dyn(uuid_t check_uuid, uint64_t gen) {
+  unsigned long hash = CK_HS_HASH(&check_generation, check_hash, check_uuid);
+  check_generation_t *newcg, *found = ck_hs_get(&check_generation, hash, check_uuid);
+  if(found) {
+    found->gen = gen;
+    return;
+  }
+  newcg = calloc(1, sizeof(*newcg));
+  mtev_uuid_copy(newcg->check_uuid, check_uuid);
+  newcg->gen = gen;
+  pthread_mutex_lock(&check_generation_writes);
+  if(ck_hs_put(&check_generation, hash, newcg)) newcg = NULL;
+  pthread_mutex_unlock(&check_generation_writes);
+  if(newcg) free(newcg);
+}
 
 static stats_ns_t *stats_ns;
 static stats_handle_t *stats_msg_delay;
@@ -203,55 +448,33 @@ noit_metric_director_adjust_checks_interest_on_thread(int thread_id, short adj) 
   return rv;
 }
 
-/*
- * the ASTs... each lane can register a set of ASTs
- * We are doing this concurrently, so we make a copy of the ASTs.
- *
- * [ thread_id, ck_hs [ ID: AST ] ]
- *
- */
-
-static uint32_t ast_counter = 1;
-typedef struct {
-  uint32_t    ast_id; /* unique identifier for removal */
-  int64_t account_id; /* >= 0 -> exact match, < 0 -> allow all */
-  uuid_t  check_uuid; /* UUID_ZERO -> any, otherwise exact match */
-  noit_metric_tag_search_ast_t *ast;
-} search2_t;
-
-static void
-search2_cleanup(void *v) {
-  search2_t *s = (search2_t *)v;
-  noit_metric_tag_search_free(s->ast);
-}
-
-static unsigned long
-search2_hash(const void *object, unsigned long seed) {
-  search2_t *s = (search2_t *)object;
-  return s->ast_id * seed;
-}
-static bool
-search2_compare(const void *previous, const void *compare) {
-  return ((search2_t *)previous)->ast_id == ((search2_t *)compare)->ast_id;
-}
-
 uint32_t
 noit_metric_director_register_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid,
                                noit_metric_tag_search_ast_t *ast) {
   /* Here we want to add the AST to a specific thread's interest. */
   thread_id = safe_thread_id(thread_id);
   mtev_memory_begin();
-  search2_t *as = mtev_memory_safe_malloc_cleanup(sizeof(*as), search2_cleanup);
+  tag_search_registration_t *as = mtev_memory_safe_malloc_cleanup(sizeof(*as), tag_search_registration_cleanup);
   memset(as, 0, sizeof(*as));
   as->ast_id = ck_pr_faa_32(&ast_counter, 1);
   as->account_id = account_id;
+  account_search_t *searches = account_get_search(account_id, true);
   mtev_uuid_copy(as->check_uuid, check_uuid);
   as->ast = noit_metric_tag_search_ref(ast);
-  unsigned long hash = CK_HS_HASH(&search_asts[thread_id].hs, search2_hash, as);
-  ck_spinlock_lock(&search_asts[thread_id].lock);
-  ck_hs_put(&search_asts[thread_id].hs, hash, as);
-  ck_spinlock_unlock(&search_asts[thread_id].lock);
+  if(mtev_uuid_is_null(check_uuid)) {
+    unsigned long hash = CK_HS_HASH(&searches->search_asts[thread_id].hs, tag_search_registration_hash, as);
+    ck_spinlock_lock(&searches->search_asts[thread_id].lock);
+    ck_hs_put(&searches->search_asts[thread_id].hs, hash, as);
+    ck_spinlock_unlock(&searches->search_asts[thread_id].lock);
+  } else {
+    check_search_t *cs = check_get_search(searches, check_uuid, true);
+    unsigned long hash = CK_HS_HASH(&cs->search_asts[thread_id].hs, tag_search_registration_hash, as);
+    ck_spinlock_lock(&cs->search_asts[thread_id].lock);
+    ck_hs_put(&cs->search_asts[thread_id].hs, hash, as);
+    ck_spinlock_unlock(&cs->search_asts[thread_id].lock);
+  }
   mtev_memory_end();
+  ck_pr_inc_64(&searches->gen);
   return as->ast_id;
 }
 
@@ -261,22 +484,35 @@ noit_metric_director_register_search(int64_t account_id, uuid_t check_uuid, noit
 }
 
 mtev_boolean
-noit_metric_director_deregister_search_on_thread(int thread_id, uint32_t ast_id) {
+noit_metric_director_deregister_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, uint32_t ast_id) {
+  (void)check_uuid;
   thread_id = safe_thread_id(thread_id);
   mtev_memory_begin();
-  search2_t *found, dummy = { .ast_id = ast_id };
-  unsigned long hash = CK_HS_HASH(&search_asts[thread_id].hs, search2_hash, &dummy);
-  ck_spinlock_lock(&search_asts[thread_id].lock);
-  found = ck_hs_remove(&search_asts[thread_id].hs, hash, &dummy);
-  ck_spinlock_unlock(&search_asts[thread_id].lock);
+  account_search_t *searches = account_get_search(account_id, false);
+  if(!searches) return mtev_false;
+  tag_search_registration_t *found = NULL, dummy = { .ast_id = ast_id };
+  if(mtev_uuid_is_null(check_uuid)) {
+    unsigned long hash = CK_HS_HASH(&searches->search_asts[thread_id].hs, tag_search_registration_hash, &dummy);
+    ck_spinlock_lock(&searches->search_asts[thread_id].lock);
+    found = ck_hs_remove(&searches->search_asts[thread_id].hs, hash, &dummy);
+    ck_spinlock_unlock(&searches->search_asts[thread_id].lock);
+  } else {
+    check_search_t *cs = check_get_search(searches, check_uuid, false);
+    if(cs)  {
+      unsigned long hash = CK_HS_HASH(&cs->search_asts[thread_id].hs, tag_search_registration_hash, &dummy);
+      ck_spinlock_lock(&cs->search_asts[thread_id].lock);
+      found = ck_hs_remove(&cs->search_asts[thread_id].hs, hash, &dummy);
+      ck_spinlock_unlock(&cs->search_asts[thread_id].lock);
+    }
+  }
   if(found) mtev_memory_safe_free(found);
   mtev_memory_end();
   return found != NULL;
 }
 
 mtev_boolean
-noit_metric_director_deregister_search(uint32_t ast_id) {
-  return noit_metric_director_deregister_search_on_thread(get_my_lane(), ast_id);
+noit_metric_director_deregister_search(int64_t account_id, uuid_t check_uuid, uint32_t ast_id) {
+  return noit_metric_director_deregister_search_on_thread(get_my_lane(), account_id, check_uuid, ast_id);
 }
 
 interest_cnt_t
@@ -417,6 +653,54 @@ noit_metric_director_flush(eventer_t e) {
   dmflush_observe(ptr);
 }
 
+static mtev_frrh_t *search_miss_cache;
+typedef struct {
+  uint64_t account_id;
+  uint64_t account_gen;
+  uuid_t   check_uuid;
+  uint64_t check_gen;
+  char     metric_name[0];
+} search_miss_key;
+static inline size_t make_search_miss_key(account_search_t *as, noit_metric_id_t *id, char *buf, size_t buflen) {
+  if(id->name_len_with_tags + sizeof(search_miss_key) > buflen) return 0;
+  search_miss_key *keyoverlay = (search_miss_key *)buf;
+  keyoverlay->account_id = id->account_id;
+  keyoverlay->account_gen = as->gen;
+  mtev_uuid_copy(keyoverlay->check_uuid, id->id);
+  unsigned long hash = CK_HS_HASH(&check_generation, check_hash, id->id);
+  check_generation_t *cgen = ck_hs_get(&check_generation, hash, id->id);
+  keyoverlay->check_gen = cgen ? cgen->gen : 0;
+  memcpy(keyoverlay->metric_name, id->name, id->name_len_with_tags);
+  return sizeof(search_miss_key) + id->name_len_with_tags;
+}
+static mtev_boolean generation_aware_displace(uint32_t prob, const char *key, uint32_t keylen, const void *data) {
+  /* We look at the old key to see if the generational counters have changed... if they have we force a replace */
+  if(keylen < sizeof(search_miss_key)) return mtev_true;
+  search_miss_key *overlaykey = (search_miss_key *)key;
+  account_search_t *as = account_get_search(overlaykey->account_id, false);
+  if(!as || overlaykey->account_gen != as->gen) return mtev_true;
+  unsigned long hash = CK_HS_HASH(&check_generation, check_hash, overlaykey->check_uuid);
+  check_generation_t *cgen = ck_hs_get(&check_generation, hash, overlaykey->check_uuid);
+  uint64_t expected_gen = cgen ? cgen->gen : 0;
+  if(overlaykey->check_gen != expected_gen) return mtev_true;
+  return prob <= (uint32_t)mtev_rand();
+}
+static mtev_boolean check_search_miss_cache(account_search_t *as, noit_metric_id_t *id) {
+  if(search_miss_cache == NULL) return mtev_false;
+  char key[MAX_METRIC_TAGGED_NAME + sizeof(search_miss_key)];
+  size_t keylen = make_search_miss_key(as, id, key, sizeof(key));
+  if(keylen == 0) return mtev_false;
+  if(mtev_frrh_get(search_miss_cache, key, keylen) != NULL) return mtev_true;
+  return mtev_false;
+}
+static void set_search_miss_cache(account_search_t *as, noit_metric_id_t *id) {
+  if(search_miss_cache == NULL) return;
+  char key[MAX_METRIC_TAGGED_NAME + sizeof(search_miss_key)];
+  size_t keylen = make_search_miss_key(as, id, key, sizeof(key));
+  if(keylen == 0) return;
+  mtev_frrh_set(search_miss_cache, key, keylen, "");
+}
+
 static void
 distribute_metric(noit_metric_message_t *message) {
   static uuid_t uuid_zero = { 0 };
@@ -424,7 +708,6 @@ distribute_metric(noit_metric_message_t *message) {
   interest_cnt_t has_interests = 0;
   interest_cnt_t interests[nthreads];
   memset(interests, 0, sizeof(interests));
-
 
   mtev_memory_begin();
   /* First we process interests for specific metrics: uuid-metric|ST[tags...] */
@@ -448,16 +731,36 @@ distribute_metric(noit_metric_message_t *message) {
   }
 
   /* Next we run search queries per lane to find matches */
-  for(int i=0; i<nthreads; i++) {
-    if(interests[i] != 0) continue; /* already interest, skip any work */
-    search2_t *search;
-    ck_hs_iterator_t iter = CK_HS_ITERATOR_INITIALIZER;
-    while(ck_hs_next_spmc(&search_asts[i].hs, &iter, (void **)&search)) {
-      if((search->account_id < 0 || (uint64_t)search->account_id == message->id.account_id) &&
-         noit_metric_tag_search_evaluate_against_metric_id(search->ast, &message->id)) {
-        has_interests = interests[i] = 1;
-        break; /* no need to process additional searches in this lane */
+  account_search_t *as = account_get_search(message->id.account_id, false);
+  if(as) {
+    check_search_t *cs = check_get_search(as, message->id.id, false);
+    if(!check_search_miss_cache(as, &message->id)) {
+      interest_cnt_t search_interest = 0;
+      for(int i=0; i<nthreads; i++) {
+        tag_search_registration_t *search;
+        ck_hs_iterator_t iter;
+        if(interests[i] != 0) continue;
+
+        /* First do the specific check */
+        if(cs) {
+          ck_hs_iterator_init(&iter);
+          while(ck_hs_next_spmc(&cs->search_asts[i].hs, &iter, (void **)&search)) {
+            if(noit_metric_tag_search_evaluate_against_metric_id(search->ast, &message->id)) {
+              has_interests = interests[i] = search_interest = 1;
+              break; /* no need to process additional searches in this lane */
+            }
+          }
+          if(interests[i] != 0) continue;
+        }
+        ck_hs_iterator_init(&iter);
+        while(ck_hs_next_spmc(&as->search_asts[i].hs, &iter, (void **)&search)) {
+          if(noit_metric_tag_search_evaluate_against_metric_id(search->ast, &message->id)) {
+            has_interests = interests[i] = search_interest = 1;
+            break; /* no need to process additional searches in this lane */
+          }
+        }
       }
+      if(search_interest == 0) set_search_miss_cache(as, &message->id);
     }
   }
   mtev_memory_end();
@@ -809,17 +1112,33 @@ void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
   queues = calloc(sizeof(*queues),nthreads);
-  search_asts = calloc(sizeof(*search_asts),nthreads);
-  for(int i=0; i<nthreads; i++) {
-    ck_spinlock_init(&search_asts[i].lock);
-    ck_hs_init(&search_asts[i].hs, CK_HS_MODE_OBJECT | CK_HS_MODE_SPMC,
-               search2_hash, search2_compare,
-               &mtev_memory_safe_ck_malloc, 128, mtev_rand());
+
+  uint32_t miss_cache_size = 10000000; /* 10mm */
+  mtev_conf_get_uint32(MTEV_CONF_ROOT, "/*/metric_director/@miss_cache_size", &miss_cache_size);
+  double miss_cache_replacement_probability = 0.1;
+  mtev_conf_get_double(MTEV_CONF_ROOT, "/*/metric_director/@replacement_rate", &miss_cache_replacement_probability);
+  if(miss_cache_replacement_probability < 0) miss_cache_replacement_probability = 0;
+  if(miss_cache_replacement_probability > 0.999) miss_cache_replacement_probability = 0.999;
+  if(miss_cache_size) {
+    search_miss_cache =
+      mtev_frrh_alloc(miss_cache_size, 0,
+                      UINT32_MAX * (1.0 - miss_cache_replacement_probability),
+                      NULL, NULL, NULL);
+    mtev_frrh_set_prob_function(search_miss_cache, generation_aware_displace);
   }
 
   mtev_memory_begin();
+
   check_interests = mtev_memory_safe_calloc(sizeof(*check_interests),nthreads);
+  ck_hs_init(&account_searches, CK_HS_MODE_OBJECT | CK_HS_MODE_SPMC,
+             account_hash, account_compare,
+             &mtev_memory_safe_ck_malloc, 1024, mtev_rand());
+  ck_hs_init(&check_generation, CK_HS_MODE_OBJECT | CK_HS_MODE_SPMC,
+             check_hash, check_compare,
+             &mtev_memory_safe_ck_malloc, 1024*128, mtev_rand());
+
   mtev_memory_end();
+
   pthread_mutex_init(&check_interests_lock, NULL);
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
