@@ -233,7 +233,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
       if(!noit_metric_tag_match_compile(&node->contents.spec.name, endq, 2)) goto error;
     }
   }
-  node->refcnt = 1;
+  if(node) node->refcnt = 1;
   return node;
  error:
   noit_metric_tag_search_free(node);
