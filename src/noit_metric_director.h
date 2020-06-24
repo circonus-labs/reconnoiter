@@ -70,10 +70,10 @@ interest_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short 
 interest_cnt_t noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, const char *metric, short cnt);
 interest_cnt_t noit_metric_director_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
 
-uint32_t noit_metric_director_register_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, noit_metric_tag_search_ast_t *ast);
-uint32_t noit_metric_director_register_search(int64_t account_id, uuid_t check_uuid, noit_metric_tag_search_ast_t *ast);
-mtev_boolean noit_metric_director_deregister_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, uint32_t ast_id);
-mtev_boolean noit_metric_director_deregister_search(int64_t account_id, uuid_t check_uuid, uint32_t ast_id);
+uint32_t noit_metric_director_register_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, const char *metric_name, noit_metric_tag_search_ast_t *ast);
+uint32_t noit_metric_director_register_search(int64_t account_id, uuid_t check_uuid, const char *metric_name, noit_metric_tag_search_ast_t *ast);
+mtev_boolean noit_metric_director_deregister_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, const char *metric_name, uint32_t ast_id);
+mtev_boolean noit_metric_director_deregister_search(int64_t account_id, uuid_t check_uuid, const char *metric_name, uint32_t ast_id);
 /* Tells noit that this thread is interested in recieving "check" information.
  * This includes C records and S records.
  */
