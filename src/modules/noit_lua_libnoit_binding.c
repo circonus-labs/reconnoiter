@@ -97,7 +97,7 @@ lua_noit_metric_register_search(lua_State *L) {
   }
   noit_metric_tag_search_ast_t **udata = (noit_metric_tag_search_ast_t **)
     luaL_checkudata(L, 3, "noit_metric_tag_search_ast_t");
-  lua_pushinteger(L, noit_metric_director_register_search(account_id, uuid, *udata));
+  lua_pushinteger(L, noit_metric_director_register_search(account_id, uuid, NULL, *udata));
   return 1;
 }
 
@@ -113,7 +113,7 @@ lua_noit_metric_deregister_search(lua_State *L) {
     }
   }
   uint32_t ref = luaL_checkinteger(L,3);
-  noit_metric_director_deregister_search(account_id, uuid, ref);
+  noit_metric_director_deregister_search(account_id, uuid, NULL, ref);
   return 0;
 }
 
