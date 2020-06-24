@@ -98,9 +98,9 @@
  *
  *    Each account has an `account_search_t` structure that has a generational counter
  *    that is modified any time a search expression is added. The structure has a
- *    hash table of check_search_t structures indexed by UUID that (NULL UUID meaning
- *    and check matchs) contain a hash of name_search_t by name (where NULL/"" means
- *    it applies to any name) which each contain a table per lane of all registered
+ *    hash table of check_search_t structures indexed by UUID (where the NULL UUID means
+ *    any check matches) that contain a hash of name_search_t by name (where NULL/"" 
+ *    means it applies to any name), each of which contains a table per lane of all registered
  *    searches that apply.
  *
  *    To evaluate a given inbound metric, we first check the miss cache and if the
