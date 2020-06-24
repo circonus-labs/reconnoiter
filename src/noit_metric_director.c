@@ -33,6 +33,7 @@
 #include <mtev_fq.h>
 #include <mtev_hash.h>
 #include <mtev_memory.h>
+#include <mtev_perftimer.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
 #include <ck_fifo.h>
@@ -412,7 +413,9 @@ void metric_director_set_check_generation_dyn(uuid_t check_uuid, uint64_t gen) {
 }
 
 static stats_ns_t *stats_ns;
+static stats_ns_t *lanes_stats_ns;
 static stats_handle_t *stats_msg_delay;
+static stats_handle_t *stats_msg_selection_latency;
 static stats_handle_t *stats_msg_seen;
 static stats_handle_t *stats_msg_dropped_threshold;
 static stats_handle_t *stats_msg_dropped_backlogged;
@@ -461,6 +464,12 @@ get_my_lane() {
     mtevAssert(new_thread<nthreads);
     my_lane.id = new_thread;
     my_lane.backlog = &queues[new_thread].thread.backlog;
+    char laneid_str[32];
+    snprintf(laneid_str, sizeof(laneid_str), "%d", new_thread);
+    stats_ns_t *ns = mtev_stats_ns(lanes_stats_ns, laneid_str);
+    stats_handle_t *h = stats_rob_u32(ns, "backlog", my_lane.backlog);
+    stats_handle_units(h, STATS_UNITS_MESSAGES);
+    stats_handle_add_tag(h, "lane", laneid_str);
     mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)(uintptr_t)pthread_self(), my_lane.id);
   }
   return my_lane.id;
@@ -751,12 +760,14 @@ static void set_search_miss_cache(account_search_t *as, noit_metric_id_t *id) {
 
 static void
 distribute_metric(noit_metric_message_t *message) {
+  mtev_perftimer_t start;
   static uuid_t uuid_zero = { 0 };
   void *vhash, **vinterests;
   interest_cnt_t has_interests = 0;
   interest_cnt_t interests[nthreads];
   memset(interests, 0, sizeof(interests));
 
+  mtev_perftimer_start(&start);
   mtev_memory_begin();
   /* First we process interests for specific metrics: uuid-metric|ST[tags...] */
   for(int check_idx=0; check_idx<2; check_idx++) {
@@ -843,6 +854,7 @@ distribute_metric(noit_metric_message_t *message) {
       for(int i=0; i<nthreads; i++) has_interests |= interests[i];
     }
   }
+  stats_set_hist_intscale(stats_msg_selection_latency, mtev_perftimer_elapsed(&start), -9, 1);
   if(has_interests) distribute_message_with_interests(interests, message);
 }
 
@@ -1138,12 +1150,14 @@ noit_metric_director_dedupe(mtev_boolean d)
 void noit_metric_director_init() {
   mtev_stats_init();
   stats_ns = mtev_stats_ns(mtev_stats_ns(NULL, "noit"), "metric_director");
+  lanes_stats_ns = mtev_stats_ns(stats_ns, "lanes");
   stats_ns_add_tag(stats_ns, "subsystem", "metric_director");
-  stats_ns_add_tag(stats_ns, "units", "messages");
   /* total count of messages read from fq */
   stats_msg_seen = stats_register_fanout(stats_ns, "seen", STATS_TYPE_COUNTER, 16);
+  stats_handle_units(stats_msg_seen, STATS_UNITS_MESSAGES);
   /* count of messages dropped due to drop_threshold */
   stats_ns_t *stats_ns_dropped = mtev_stats_ns(stats_ns, "dropped");
+  stats_ns_add_tag(stats_ns_dropped, "units", STATS_UNITS_MESSAGES);
   stats_msg_dropped_threshold = stats_register_fanout(stats_ns_dropped, "too_late", STATS_TYPE_COUNTER, 16);
   stats_handle_tagged_name(stats_msg_dropped_threshold, "dropped");
   stats_handle_add_tag(stats_msg_dropped_threshold, "reason", "too_late");
@@ -1153,12 +1167,18 @@ void noit_metric_director_init() {
   stats_handle_add_tag(stats_msg_dropped_backlogged, "reason", "too_full");
   /* count of messages distributed to at least one lane */
   stats_msg_distributed = stats_register_fanout(stats_ns, "distributed", STATS_TYPE_COUNTER, 16);
+  stats_handle_units(stats_msg_distributed, STATS_UNITS_MESSAGES);
   /* count of messages queued for delivery */
   stats_msg_queued = stats_register_fanout(stats_ns, "queued", STATS_TYPE_COUNTER, 16);
+  stats_handle_units(stats_msg_queued, STATS_UNITS_MESSAGES);
   /* count of messages delivered */
   stats_msg_delivered = stats_register_fanout(stats_ns, "delivered", STATS_TYPE_COUNTER, 16);
+  stats_handle_units(stats_msg_delivered, STATS_UNITS_MESSAGES);
   /* histogram of delay timings */
   stats_msg_delay = stats_register_fanout(stats_ns, "delay", STATS_TYPE_HISTOGRAM, 16);
+  stats_handle_units(stats_msg_delay, STATS_UNITS_SECONDS);
+  stats_msg_selection_latency = stats_register_fanout(stats_ns, "selection_latency", STATS_TYPE_HISTOGRAM, 16);
+  stats_handle_units(stats_msg_selection_latency, STATS_UNITS_SECONDS);
 
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
