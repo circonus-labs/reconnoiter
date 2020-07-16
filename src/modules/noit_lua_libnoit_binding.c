@@ -202,6 +202,31 @@ lua_noit_metric_subscribe_account(lua_State *L) {
   return 0;
 }
 
+static int
+nl_push_tagset(lua_State *L, noit_metric_tagset_t const *tagset) {
+  char tag_buf[NOIT_TAG_MAX_PAIR_LEN];
+  lua_newtable(L);
+  if (tagset != NULL) {
+    for (int i = 0; i < tagset->tag_count; i++) {
+      noit_metric_tag_t tag = tagset->tags[i];
+      int decoded_total_size = noit_metric_tagset_decode_tag(tag_buf, NOIT_TAG_MAX_PAIR_LEN, tag.tag, tag.total_size);
+      if(decoded_total_size <= 0) {
+        return luaL_error(L, "Error decoding tag");
+      }
+      // tagset decoded replaces the : with the ASCII unit separator 0x1f
+      char *sep = (char *) memchr(tag_buf, 0x1f, NOIT_TAG_MAX_PAIR_LEN);
+      int decoded_category_size = sep - tag_buf;
+      if(decoded_category_size <= 0) {
+        return luaL_error(L, "Error decoding tag");
+      }
+      lua_pushlstring(L, tag_buf, decoded_category_size);
+      lua_pushlstring(L, tag_buf + decoded_category_size + 1, decoded_total_size - decoded_category_size - 1);
+      lua_settable(L, -3);
+    }
+  }
+  return 0;
+}
+
 static int noit_metric_id_index_func(lua_State *L) {
   int n;
   const char *k;
@@ -229,7 +254,10 @@ static int noit_metric_id_index_func(lua_State *L) {
       }
       return 1;
     case 'c':
-      if(!strcmp(k, "ctags")) {
+      if(!strcmp(k, "canonical_name")) {
+        lua_pushlstring(L, metric_id->name, metric_id->name_len_with_tags);
+      }
+      else if(!strcmp(k, "ctags") || !strcmp(k, "check_tags")) {
         /* Before passing along the check tags, we need to
            1. Augment the tag-set by the check uuid we get from the message
            2. Invoke the fixup hook, that will add replicated check tags.
@@ -255,21 +283,25 @@ static int noit_metric_id_index_func(lua_State *L) {
           return 0;
         };
 
-        /* wrap into lua_tagset */
-        lua_pushvalue(L, 2);
-        int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-        noit_lua_tagset_t check_lua_tagset = { .tagset = check_tagset, .lua_name_ref = ref };
-
-        for(int i=0; i<check_tagset.tag_count; i++) {
-          if(check_tagset.tags[i].tag == uuid_str) {  /* This is on stack, move it somewhere safe */
-            char *copy = noit_lua_tagset_alloc(&check_lua_tagset, check_tagset.tags[i].total_size+1);
-            memcpy(copy, check_tagset.tags[i].tag, check_tagset.tags[i].total_size);
-            copy[check_tagset.tags[i].total_size] = '\0';
-            check_tagset.tags[i].tag = copy;
-          }
+        if(!strcmp(k, "check_tags")) {
+          nl_push_tagset(L, &check_tagset);
         }
+        else if(!strcmp(k, "ctags")) {
+        /* wrap into lua_tagset */
+          lua_pushvalue(L, 2);
+          int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+          noit_lua_tagset_t check_lua_tagset = { .tagset = check_tagset, .lua_name_ref = ref };
 
-        noit_lua_tagset_copy_setup(L, &check_lua_tagset);
+          for(int i=0; i<check_tagset.tag_count; i++) {
+            if(check_tagset.tags[i].tag == uuid_str) {  /* This is on stack, move it somewhere safe */
+              char *copy = noit_lua_tagset_alloc(&check_lua_tagset, check_tagset.tags[i].total_size+1);
+              memcpy(copy, check_tagset.tags[i].tag, check_tagset.tags[i].total_size);
+              copy[check_tagset.tags[i].total_size] = '\0';
+              check_tagset.tags[i].tag = copy;
+            }
+          }
+          noit_lua_tagset_copy_setup(L, &check_lua_tagset);
+        }
       } else {
         break;
       }
@@ -304,6 +336,8 @@ static int noit_metric_id_index_func(lua_State *L) {
         int ref = luaL_ref(L, LUA_REGISTRYINDEX);
         noit_lua_tagset_t set = { .tagset = metric_id->measurement, .lua_name_ref = ref };
         noit_lua_tagset_copy_setup(L, &set);
+      } else if (!strcmp(k, "measurement_tags")) {
+        nl_push_tagset(L, &metric_id->measurement);
       } else {
         break;
       }
@@ -314,8 +348,15 @@ static int noit_metric_id_index_func(lua_State *L) {
         int ref = luaL_ref(L, LUA_REGISTRYINDEX);
         noit_lua_tagset_t set = { .tagset = metric_id->stream, .lua_name_ref = ref };
         noit_lua_tagset_copy_setup(L, &set);
+      } else if (!strcmp(k, "stream_tags")) {
+        nl_push_tagset(L, &metric_id->stream);
       } else {
         break;
+      }
+      return 1;
+    case 't':
+      if(!strcmp(k, "tagless_name")) {
+        lua_pushlstring(L, metric_id->name, metric_id->name_len);
       }
       return 1;
     default:
@@ -336,6 +377,45 @@ noit_lua_setup_metric_id(lua_State *L,
     lua_setfield(L, -2, "__index");
   }
   lua_setmetatable(L, -2);
+}
+
+struct id_in_one {
+  noit_metric_id_t *addr;
+  noit_metric_id_t impl;
+  noit_metric_tag_t stream_tags[MAX_TAGS];
+  noit_metric_tag_t measurement_tags[MAX_TAGS];
+  char canonical_name[0];
+};
+
+static int
+noit_lua_new_metric_id(lua_State *L) {
+  struct id_in_one *addr;
+  int account_id = luaL_checkinteger(L,1);
+  const char *uuid_str = luaL_checkstring(L,2);
+  size_t canonical_name_len;
+  const char *canonical_name = luaL_checklstring(L,3,&canonical_name_len);
+  addr = (struct id_in_one *)lua_newuserdata(L, sizeof(*addr) + canonical_name_len + 1);
+  memset(addr, 0, sizeof(*addr));
+  memcpy(addr->canonical_name, canonical_name, canonical_name_len + 1);
+  addr->addr = &addr->impl;
+  addr->impl.account_id = account_id;
+  if(mtev_uuid_parse(uuid_str, addr->impl.id) != 0) luaL_error(L, "invalid uuid");
+  addr->impl.name = addr->canonical_name;
+  addr->impl.name_len_with_tags = canonical_name_len;
+  addr->impl.stream.tags = addr->stream_tags;
+  addr->impl.stream.tag_count = MAX_TAGS;
+  addr->impl.measurement.tags = addr->measurement_tags;
+  addr->impl.measurement.tag_count = MAX_TAGS;
+  addr->impl.name_len = noit_metric_parse_tags(addr->impl.name, addr->impl.name_len_with_tags,
+                                               &addr->impl.stream, &addr->impl.measurement);
+  if(addr->impl.name_len < 0) return 0;
+
+  if(luaL_newmetatable(L, "metric_id_t") == 1) {
+    lua_pushcclosure(L, noit_metric_id_index_func, 0);
+    lua_setfield(L, -2, "__index");
+  }
+  lua_setmetatable(L, -2);
+  return 1;
 }
 
 static int
@@ -651,6 +731,7 @@ static const luaL_Reg libnoit_binding[] = {
   { "metric_director_subscribe_account", lua_noit_metric_subscribe_account},
   { "metric_director_drop_backlogged", lua_noit_metric_drop_backlogged},
   { "metric_director_drop_before", lua_noit_metric_drop_before},
+  { "metric_id_new", noit_lua_new_metric_id},
   { "tag_parse", lua_noit_tag_parse},
   { "tag_tostring", lua_noit_tag_tostring},
   { "tag_search_parse", lua_noit_tag_search_parse},

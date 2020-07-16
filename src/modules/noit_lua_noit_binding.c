@@ -169,6 +169,7 @@ static const luaL_Reg noit_binding[] = {
   { "metric_director_subscribe_account", lua_noit_metric_subscribe_account},
   { "metric_director_drop_before", lua_noit_metric_drop_before},
   { "metric_director_drop_backlogged", lua_noit_metric_drop_backlogged},
+  { "metric_id_new", noit_lua_new_metric_id},
   { "tag_parse", lua_noit_tag_parse},
   { "tag_tostring", lua_noit_tag_tostring},
   { "tag_search_parse", lua_noit_tag_search_parse},
