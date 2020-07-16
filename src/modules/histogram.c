@@ -140,7 +140,6 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
     histogram_t *h = hist_alloc();
     ssize_t rv = hist_deserialize_b64(h, hist_encode, hist_encode_len);
     hist_free(h);
-    mtevL(noit_debug, "Bad histogram, refusing to log.\n");
     if(rv <= 0) return;
   }
 
