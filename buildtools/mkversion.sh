@@ -9,12 +9,12 @@ if [ $? -eq 0 ]; then
   SYM=`git symbolic-ref -q HEAD | awk -F'/' '{ print $NF }'`
   if [ -z "$SYM" ]; then
     SYM="detached"
-  fi
-  if [ -z "`echo $SYM | grep '^tags/'`" ]; then
+  elif [ -z "`echo $SYM | grep '^tags/'`" ]; then
     SYM="branches/$SYM"
   fi
   echo "    * symbolic -> $SYM"
   BRANCH=$SYM
+  VSTR=`printf "$BRANCH" | sed -e 's#^tags/##;' | sed -e 's#^branches/##;'`
   VERSION="$HASH.$TSTAMP"
   if [ -n "`echo $STATUS | grep 'Changed but not updated'`" ]; then
     VERSION="$HASH.modified.$TSTAMP"
@@ -41,16 +41,23 @@ cat > $1 <<EOF
 #define NOIT_VERSION "$VERSION"
 #endif
 
+#if defined(NOIT_VERSION_IMPL)
+const char *noit_branch = "$BRANCH";
+const char *noit_git_hash = "$HASH";
+const char *noit_version = "$VSTR";
+#elif defined(NOIT_VERSION_DECL)
+extern const char *noit_branch;
+extern const char *noit_git_hash;
+extern const char *noit_version;
+#endif
+
 #include <stdio.h>
 #include <string.h>
+#include <mtev_str.h>
 
 static inline int noit_build_version(char *buff, int len) {
-  const char *start = NOIT_BRANCH;
-  if(!strncmp(start, "branches/", 9)) 
-    return snprintf(buff, len, "%s.%s", start+9, NOIT_VERSION);
-  if(!strncmp(start, "tags/", 5)) 
-    return snprintf(buff, len, "%s.%s", start+5, NOIT_VERSION);
-  return snprintf(buff, len, "%s.%s", NOIT_BRANCH, NOIT_VERSION);
+  mtev_strlcpy(buff, "$VSTR.$VERSION", len);
+  return strlen(buff);
 }
 
 #endif
