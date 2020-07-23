@@ -65,6 +65,7 @@
 #include "noit_check.h"
 
 eventer_jobq_t *iep_jobq;
+static int max_event_delay_ms = 300000; /* 5m */
 static mtev_log_stream_t noit_iep = NULL;
 static mtev_log_stream_t noit_iep_debug = NULL;
 static ck_spinlock_t iep_conn_cnt = CK_SPINLOCK_INITIALIZER;
@@ -108,9 +109,13 @@ start_iep_daemon_ecb(eventer_t e, int mask, void *closure, struct timeval *now) 
 static double
 stratcon_iep_age_from_line(char *data, struct timeval now) {
   double n, t;
-  if(data && (*data == 'S' || *data == 'M')) {
-    if(data[1] != '\t') return 0;
+  if(data && (*data == 'S' || *data == 'M') && data[1] == '\t') {
     t = strtod(data + 2, NULL);
+    n = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
+    return n - t;
+  }
+  if(data && (*data == 'B' || *data == 'H') && data[1] != '\0' && data[2] == '\t') {
+    t = strtod(data + 3, NULL);
     n = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
     return n - t;
   }
@@ -425,7 +430,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
   /* If we're greater than 30 seconds old,
      just quit. */
   sub_timeval(*now, job->start, &diff);
-  if (diff.tv_sec >= 30) {
+  if (diff.tv_sec * 1000 >= max_event_delay_ms) {
     mtevL(noit_debug, "Skipping event from %s - waiting in eventer for more than 30 seconds\n",
                         job->remote ? job->remote : "(null)");
     return 0;
@@ -437,7 +442,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
 
   if(!job->line || job->line[0] == '\0') return 0;
 
-  if((age = stratcon_iep_age_from_line(job->line, *now)) > 60) {
+  if((age = stratcon_iep_age_from_line(job->line, *now))/1000.0 > max_event_delay_ms) {
     mtevL(noit_debug, "Skipping old event from %s, %f seconds old.\n",
           job->remote ? job->remote : "(null)", age);
     return 0;
@@ -592,6 +597,8 @@ start_iep_daemon() {
   eventer_t newe;
   struct iep_daemon_info *info;
   char *cmd = NULL;
+
+  (void)mtev_conf_get_int32(MTEV_CONF_ROOT, "/stratcon/iep/@max_event_delay", &max_event_delay_ms);
 
   if(!mtev_conf_get_string(MTEV_CONF_ROOT, "/stratcon/iep/start/@command",
                            &cmd)) {
