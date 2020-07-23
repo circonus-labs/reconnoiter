@@ -318,7 +318,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
 static int
 noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
                                        noit_check_t *check,
-                                       const struct timeval *whence,
+                                       const struct timeval *in_whence,
                                        metric_t *m) {
   int size, rv = -1;
   unsigned int out_size;
@@ -329,9 +329,12 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
   char *buf, *out_buf;
   mtev_boolean use_compression = mtev_true;
   const char *v_comp;
+  struct timeval whence = *in_whence;
 
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
   if(m->logged) return 0;
+
+  if(m->whence.tv_sec) whence = m->whence;
 
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), ls, check);
   v_comp = mtev_log_stream_get_property(ls, "compression");
@@ -369,10 +372,10 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
   // Compress + B64
   comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
   if(noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size) == 0) {
-    rv = mtev_log(ls, whence, __FILE__, __LINE__,
+    rv = mtev_log(ls, in_whence, __FILE__, __LINE__,
                  "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
                   use_compression ? '1' : '2',
-                  SECPART(whence), MSECPART(whence),
+                  SECPART(&whence), MSECPART(&whence),
                   uuid_str, check->target, check->module, check->name, size,
                   (unsigned int)out_size, out_buf);
     free(out_buf);
@@ -575,6 +578,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, st
   else {
     whence = noit_check_stats_whence(c, NULL);
   }
+  struct timeval latest_metric_whence = { 0, 0 };
 
   const char *v, *v_mpb;
   v_mpb = mtev_log_stream_get_property(ls, "metrics_per_bundle");
@@ -617,6 +621,12 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, st
     if(!noit_apply_filterset(check->filterset, check, m)) continue;
     if(m->logged) continue;
 
+    if(m->whence.tv_sec == 0) {
+      latest_metric_whence = *whence;
+    } else if(compare_timeval(latest_metric_whence, m->whence) < 0) {
+      latest_metric_whence = m->whence;
+    }
+
     if(!B) B = noit_fb_start_metricbatch(whence_ms, uuid_str, check_name, account_id);
     current_in_batch++;
     noit_fb_add_metric_to_metricbatch(B, m, 0);
@@ -628,14 +638,22 @@ do_batch:
         rv_err = -1;
       } else {
         int rv;
+        struct timeval *time_to_use = whence;
+        /* If whence is unset OR if latest_metric is set and less than whence,
+         * then use the latest whence of metrics seen */
+        if(whence->tv_sec == 0 ||
+           (latest_metric_whence.tv_sec && compare_timeval(latest_metric_whence, *whence) < 0)) {
+          time_to_use = &latest_metric_whence;
+        }
         mtevL(mtev_debug, "BF compression batchsize %d: %f%%\n", current_in_batch, 100 * ((double)fb_size - (double)outsize)/(double)fb_size);
         rv = mtev_log(ls, whence, __FILE__, __LINE__,
-                      "BF\t%d\t%.*s\n", (int)fb_size,
-                      (unsigned int)outsize, outbuf);
+                      "BF\t%lu.%03lu\t%d\t%.*s\n", SECPART(time_to_use), MSECPART(time_to_use),
+                      (int)fb_size, (unsigned int)outsize, outbuf);
         if(rv < 0) rv_err =-1;
         else rv_sum += rv;
         free(outbuf);
       }
+      memset(&latest_metric_whence, 0, sizeof(latest_metric_whence));
       free(buffer);
       outbuf = NULL;
       buffer = NULL;
@@ -676,6 +694,8 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
   if(v_mpb) metrics_per_bundle = atoi(v_mpb);
   if(metrics_per_bundle <= 0) metrics_per_bundle = METRICS_PER_BUNDLE;
 
+  struct timeval latest_metric_whence = { 0, 0 };
+
   // Get a bundle
   c = noit_check_get_stats_current(check);
   if(w) whence = w;
@@ -693,6 +713,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
 
   int n_bundles = ((MAX(n_metrics,1) - 1) / metrics_per_bundle) + 1;
   Bundle *bundles = malloc(n_bundles * sizeof(*bundles));
+  struct timeval *bundle_times = calloc(n_bundles, sizeof(*bundle_times));
 
   for(i=0; i<n_bundles; i++) {
     Bundle *bundle = &bundles[i];
@@ -739,6 +760,10 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
       metric_t *m = (metric_t *)vm;
       if(!noit_apply_filterset(check->filterset, check, m)) continue;
       if(m->logged) continue;
+      if(m->whence.tv_sec == 0)
+        bundle_times[b_i] = *whence;
+      else if(compare_timeval(m->whence, bundle_times[b_i]) > 0)
+        bundle_times[b_i] = m->whence;
       bundle->metrics[b_i] = malloc(sizeof(Metric));
       metric__init(bundle->metrics[b_i]);
       _noit_check_log_bundle_metric(ls, bundle->metrics[b_i], m);
@@ -774,10 +799,14 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
        * mtevL(mtev_debug, "B%c compression: %f%%\n", use_compression ? '1' : '2',
        *     100 * ((double)size - (double)out_size)/(double)size);
        */
+      struct timeval *time_to_use = whence;
+      if(bundle_times[i].tv_sec && compare_timeval(bundle_times[i], *whence) < 0) {
+        time_to_use = &bundle_times[i];
+      }
       rv = mtev_log(ls, whence, __FILE__, __LINE__,
                     "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
                     use_compression ? '1' : '2',
-                    SECPART(whence), MSECPART(whence),
+                    SECPART(time_to_use), MSECPART(time_to_use),
                     uuid_str, check->target, check->module, check->name, size,
                     (unsigned int)out_size, out_buf);
       if(rv < 0) rv_err = rv;
@@ -794,6 +823,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
     free(bundle->metadata[0]);
     free(bundle->metadata);
   }
+  free(bundle_times);
   free(bundles);
   return rv_err ? rv_err : rv_sum;
 }

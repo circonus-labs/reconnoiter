@@ -372,7 +372,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   unsigned int ulen;
   int i, size, has_status = 0;
   const char *cp1, *cp2, *rest, *error_str = NULL;
-  char *target, *module, *name, *ulen_str, *nipstr = NULL;
+  char *target, *module, *name, *whence_str, *ulen_str, *nipstr = NULL;
   unsigned char *raw_data = NULL;
   const char *value_str;
   size_t value_size;
@@ -395,6 +395,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   tgt[cp2 - cp1] = '\0'; \
   cp1 = cp2 + 1; \
 } while(0)
+  SET_FIELD_FROM_BUNDLE(whence_str);
   SET_FIELD_FROM_BUNDLE(ulen_str);
   rest = cp1;
   
