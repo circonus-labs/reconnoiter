@@ -754,16 +754,17 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
       /* make sure we don't go past our allocation for some reason*/
       if((i / metrics_per_bundle) >= n_bundles) break;
 
-      Bundle *bundle = &bundles[i / metrics_per_bundle];
+      int b_idx = i / metrics_per_bundle;
+      Bundle *bundle = &bundles[b_idx];
       int b_i = i % metrics_per_bundle;
       /* If we apply the filter set and it returns false, we don't log */
       metric_t *m = (metric_t *)vm;
       if(!noit_apply_filterset(check->filterset, check, m)) continue;
       if(m->logged) continue;
       if(m->whence.tv_sec == 0)
-        bundle_times[b_i] = *whence;
-      else if(compare_timeval(m->whence, bundle_times[b_i]) > 0)
-        bundle_times[b_i] = m->whence;
+        bundle_times[b_idx] = *whence;
+      else if(compare_timeval(m->whence, bundle_times[b_idx]) > 0)
+        bundle_times[b_idx] = m->whence;
       bundle->metrics[b_i] = malloc(sizeof(Metric));
       metric__init(bundle->metrics[b_i]);
       _noit_check_log_bundle_metric(ls, bundle->metrics[b_i], m);
