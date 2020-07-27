@@ -92,9 +92,9 @@ static mtev_boolean *bundle_use_flatbuffer = NULL;
 static mtev_boolean bundle_use_flatbuffer_impl = mtev_false;
 
 static int
-  noit_check_log_bundle_serialize(mtev_log_stream_t, noit_check_t *, struct timeval *now, mtev_hash_table *);
+  noit_check_log_bundle_serialize(mtev_log_stream_t, noit_check_t *, const struct timeval *now, mtev_hash_table *);
 static int
-  noit_check_log_bundle_fb_serialize(mtev_log_stream_t, noit_check_t *, struct timeval *now, mtev_hash_table *);
+  noit_check_log_bundle_fb_serialize(mtev_log_stream_t, noit_check_t *, const struct timeval *now, mtev_hash_table *);
 static int
   _noit_check_log_bundle_metric(mtev_log_stream_t, Metric *, metric_t *);
 
@@ -118,59 +118,52 @@ static int
   mtev_uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str)); \
 } while(0)
 
+struct feed_process {
+  int (*log_check)(mtev_log_stream_t ls, noit_check_t *check);
+  int (*log_metrics)(mtev_log_stream_t ls, noit_check_t *check, const struct timeval *w, mtev_hash_table *in_metrics);
+  int (*log_metric)(mtev_log_stream_t ls, noit_check_t *check, const char *uuid_str, const struct timeval *w, metric_t *m);
+  const struct timeval *metric_whence;
+  const char *uuid_str;
+  mtev_hash_table *metrics;
+  metric_t *metric;
+  int to_remove_cnt;
+  char **to_remove;
+};
+static void feed_process_clean(struct feed_process *fp, noit_check_t *check) {
+  for(int i=0; i<fp->to_remove_cnt; i++) {
+    noit_check_transient_remove_feed(check, fp->to_remove[i]);
+    free(fp->to_remove[i]);
+  }
+  free(fp->to_remove);
+}
+
+void feed_process_f(void *vfp, noit_check_t *check, const char *feedname) {
+  struct feed_process *fp = (struct feed_process *)vfp;
+  mtev_log_stream_t ls;
+  ls = mtev_log_stream_find(feedname);
+  if(!ls ||
+     (fp->log_check && !fp->log_check(ls, check)) ||
+     (fp->log_metrics && !fp->log_metrics(ls, check, fp->metric_whence, fp->metrics)) ||
+     (fp->log_metric && !fp->log_metric(ls, check, fp->uuid_str, fp->metric_whence, fp->metric))) {
+    fp->to_remove = realloc(fp->to_remove, sizeof(*fp->to_remove) * (fp->to_remove_cnt + 1));
+    fp->to_remove[fp->to_remove_cnt++] = strdup(feedname);
+  }
+}
 static void
 handle_extra_feeds(noit_check_t *check,
                    int (*log_f)(mtev_log_stream_t ls, noit_check_t *check)) {
-  mtev_log_stream_t ls;
-  mtev_skiplist_node *curr, *next;
-  const char *feed_name;
-
-  if(!check->feeds) return;
-  curr = next = mtev_skiplist_getlist(check->feeds);
-  while(curr) {
-    /* We advance next here (before we try to use curr).
-     * We may need to remove the node we're looking at and that would
-     * disturb the iterator, so advance in advance. */
-    mtev_skiplist_next(check->feeds, &next);
-    feed_name = (char *)mtev_skiplist_data(curr);
-    ls = mtev_log_stream_find(feed_name);
-    if(!ls || log_f(ls, check)) {
-      noit_check_transient_remove_feed(check, feed_name);
-      /* mtev_skiplisti_remove(check->feeds, curr, free); */
-    }
-    curr = next;
-  }
-  /* We're done... we may have destroyed the last feed.
-   * that combined with transience means we should kill the check */
-  /* noit_check_transient_remove_feed(check, NULL); */
+  struct feed_process fp = { .log_check = log_f };
+  noit_check_transient_foreach_feed(check, feed_process_f, &fp);
+  feed_process_clean(&fp, check);
 }
 
 static void
 handle_extra_feeds_metrics(noit_check_t *check,
-                           int (*log_f)(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics),
+                           int (*log_f)(mtev_log_stream_t ls, noit_check_t *check, const struct timeval *w, mtev_hash_table *in_metrics),
                            struct timeval *w, mtev_hash_table *in_metrics) {
-  mtev_log_stream_t ls;
-  mtev_skiplist_node *curr, *next;
-  const char *feed_name;
-
-  if(!check->feeds) return;
-  curr = next = mtev_skiplist_getlist(check->feeds);
-  while(curr) {
-    /* We advance next here (before we try to use curr).
-     * We may need to remove the node we're looking at and that would
-     * disturb the iterator, so advance in advance. */
-    mtev_skiplist_next(check->feeds, &next);
-    feed_name = (char *)mtev_skiplist_data(curr);
-    ls = mtev_log_stream_find(feed_name);
-    if(!ls || log_f(ls, check, w, in_metrics)) {
-      noit_check_transient_remove_feed(check, feed_name);
-      /* mtev_skiplisti_remove(check->feeds, curr, free); */
-    }
-    curr = next;
-  }
-  /* We're done... we may have destroyed the last feed.
-   * that combined with transience means we should kill the check */
-  /* noit_check_transient_remove_feed(check, NULL); */
+  struct feed_process fp = { .log_metrics = log_f, .metric_whence = w, .metrics = in_metrics };
+  noit_check_transient_foreach_feed(check, feed_process_f, &fp);
+  feed_process_clean(&fp, check);
 }
 
 static int
@@ -399,7 +392,7 @@ _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
     noit_check_log_bundle_metric_serialize(ls, check, whence, m);
 }
 static int
-_noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
+_noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check, const struct timeval *w, mtev_hash_table *in_metrics) {
   return ((ls == bundle_log) && *bundle_use_flatbuffer) ?
     noit_check_log_bundle_fb_serialize(ls, check, w, in_metrics) :
     noit_check_log_bundle_serialize(ls, check, w, in_metrics);
@@ -556,7 +549,7 @@ _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m)
 }
 
 static int
-noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
+noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, const struct timeval *w, mtev_hash_table *in_metrics) {
   int rv_sum = 0, rv_err = 0;
   static char *ip_str = "ip";
   char check_name[256 * 3] = {0};
@@ -569,7 +562,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, st
   unsigned int out_size;
   stats_t *c;
   void *vm;
-  struct timeval *whence;
+  const struct timeval *whence;
   char *buf, *out_buf;
   mtev_hash_table *metrics;
 
@@ -638,7 +631,7 @@ do_batch:
         rv_err = -1;
       } else {
         int rv;
-        struct timeval *time_to_use = whence;
+        const struct timeval *time_to_use = whence;
         /* If whence is unset OR if latest_metric is set and less than whence,
          * then use the latest whence of metrics seen */
         if(whence->tv_sec == 0 ||
@@ -669,7 +662,7 @@ do_batch:
 }
 
 static int
-noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
+noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const struct timeval *w, mtev_hash_table *in_metrics) {
   int rv = 0;
   static char *ip_str = "ip";
   char uuid_str[256*3+37];
@@ -680,7 +673,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
   unsigned int out_size;
   stats_t *c;
   void *vm;
-  struct timeval *whence;
+  const struct timeval *whence;
   char *buf, *out_buf;
   mtev_hash_table *metrics;
   noit_compression_type_t comp;
@@ -800,7 +793,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, struc
        * mtevL(mtev_debug, "B%c compression: %f%%\n", use_compression ? '1' : '2',
        *     100 * ((double)size - (double)out_size)/(double)size);
        */
-      struct timeval *time_to_use = whence;
+      const struct timeval *time_to_use = whence;
       if(bundle_times[i].tv_sec && compare_timeval(bundle_times[i], *whence) < 0) {
         time_to_use = &bundle_times[i];
       }
@@ -863,18 +856,12 @@ noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
   /* handle feeds -- hust like handle_extra_feeds, but this
    * is with different arguments.
    */
-  if(check->feeds) {
-    mtev_skiplist_node *curr, *next;
-    curr = next = mtev_skiplist_getlist(check->feeds);
-    while(curr) {
-      const char *feed_name = (char *)mtev_skiplist_data(curr);
-      mtev_log_stream_t ls = mtev_log_stream_find(feed_name);
-      mtev_skiplist_next(check->feeds, &next);
-      if(!ls || _noit_check_log_metric(ls, check, uuid_str, whence, m))
-        noit_check_transient_remove_feed(check, feed_name);
-      curr = next;
-    }
-  }
+
+  struct feed_process fp = { .log_metric = _noit_check_log_metric, .uuid_str = uuid_str,
+                             .metric_whence = whence, .metric = m };
+  noit_check_transient_foreach_feed(check, feed_process_f, &fp);
+  feed_process_clean(&fp, check);
+
   if(!(check->flags & NP_TRANSIENT)) {
 #if defined(NOIT_CHECK_LOG_M)
     SETUP_LOG(metrics, return);

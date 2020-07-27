@@ -1132,6 +1132,7 @@ noit_check_clone(uuid_t in) {
   new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
   mtevAssert(new_check != NULL);
   memcpy(new_check, checker, sizeof(*new_check));
+  pthread_rwlock_init(&new_check->feeds_lock, NULL);
   new_check->target = strdup(new_check->target);
   new_check->module = strdup(new_check->module);
   new_check->name = strdup(new_check->name);
@@ -1280,8 +1281,21 @@ noit_check_get_watch(uuid_t in, int period) {
 }
 
 void
+noit_check_transient_foreach_feed(noit_check_t *check, void (*cb)(void *, noit_check_t *, const char *),
+                                  void *closure) {
+  mtev_skiplist_node *curr;
+  pthread_rwlock_rdlock(&check->feeds_lock);
+  if(check->feeds) {
+    for(curr = mtev_skiplist_getlist(check->feeds); curr; mtev_skiplist_next(check->feeds, &curr)) {
+      cb(closure, check, (char *)mtev_skiplist_data(curr));
+    }
+  }
+  pthread_rwlock_unlock(&check->feeds_lock);
+}
+void
 noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
   char *feedcopy;
+  pthread_rwlock_wrlock(&check->feeds_lock);
   if(!check->feeds) {
     check->feeds = mtev_skiplist_alloc();
     mtev_skiplist_set_compare(check->feeds,
@@ -1293,10 +1307,15 @@ noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
   if(mtev_skiplist_insert(check->feeds, feedcopy) == NULL) free(feedcopy);
   mtevL(check_debug, "check %s`%s @ %dms has %d feed(s): %s.\n",
         check->target, check->name, check->period, mtev_skiplist_size(check->feeds), feed);
+  pthread_rwlock_unlock(&check->feeds_lock);
 }
 void
 noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
-  if(!check->feeds) return;
+  pthread_rwlock_wrlock(&check->feeds_lock);
+  if(!check->feeds) {
+    pthread_rwlock_unlock(&check->feeds_lock);
+    return;
+  }
   if(feed) {
     mtevL(check_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
           check->target, check->name, check->period, mtev_skiplist_size(check->feeds), feed);
@@ -1319,6 +1338,7 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
       noit_poller_free_check(check);
     }
   }
+  pthread_rwlock_unlock(&check->feeds_lock);
 }
 
 mtev_boolean
@@ -1618,6 +1638,8 @@ noit_poller_schedule(const char *target,
   new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
   mtevAssert(new_check != NULL);
 
+  pthread_rwlock_init(&new_check->feeds_lock, NULL);
+
   /* The module and the UUID can never be changed */
   new_check->module = strdup(module);
   if(mtev_uuid_is_null(in))
@@ -1728,6 +1750,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
 
   free(checker->statistics);
 
+  pthread_rwlock_destroy(&checker->feeds_lock);
   mtev_memory_safe_free(checker);
 }
 void
