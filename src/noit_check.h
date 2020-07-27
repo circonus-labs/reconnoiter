@@ -145,6 +145,7 @@ typedef struct noit_check {
   uint32_t generation;                   /* This can roll, we don't care */
   void *closure;
 
+  pthread_rwlock_t feeds_lock;
   mtev_skiplist *feeds;
   char target_ip[INET6_ADDRSTRLEN];
   void **module_metadata;
@@ -383,6 +384,10 @@ API_EXPORT(noit_check_t *)
   noit_check_watch(uuid_t in, int period);
 API_EXPORT(noit_check_t *)
   noit_check_get_watch(uuid_t in, int period);
+API_EXPORT(void)
+  noit_check_transient_foreach_feed(noit_check_t *check,
+                                    void (*cb)(void *, noit_check_t *, const char *),
+                                    void *closure);
 API_EXPORT(void)
   noit_check_transient_add_feed(noit_check_t *check, const char *feed);
 API_EXPORT(void)
