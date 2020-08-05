@@ -2275,6 +2275,7 @@ noit_metric_sizes(metric_type_t type, const void *value) {
     }
     case METRIC_HISTOGRAM:
     case METRIC_HISTOGRAM_CUMULATIVE:
+    case METRIC_HISTOGRAM_ENTRY:
     case METRIC_ABSENT:
     case METRIC_GUESS:
       break;
@@ -2597,6 +2598,7 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
       break;
     case METRIC_HISTOGRAM:
     case METRIC_HISTOGRAM_CUMULATIVE:
+    case METRIC_HISTOGRAM_ENTRY:
     case METRIC_ABSENT:
       mtevAssert(0 && "bad metric type passed to noit_stats_set_metric_coerce");
   }

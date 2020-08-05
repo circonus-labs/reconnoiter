@@ -61,7 +61,8 @@ typedef enum {
   METRIC_DOUBLE = 'n',
   METRIC_STRING = 's',
   METRIC_HISTOGRAM = 'h',
-  METRIC_HISTOGRAM_CUMULATIVE = 'H'
+  METRIC_HISTOGRAM_CUMULATIVE = 'H',
+  METRIC_HISTOGRAM_ENTRY = 'e',
 } metric_type_t;
 
 typedef enum {
