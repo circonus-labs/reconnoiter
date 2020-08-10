@@ -182,6 +182,7 @@ static inline int safe_thread_id(int thread_id) {
   return thread_id;
 }
 
+static uint32_t miss_cache_size = 10000000; /* 10mm */
 static thread_queue_t *queues;
 static mtev_hash_table id_level;
 static mtev_hash_table dedupe_hashes;
@@ -413,6 +414,11 @@ void metric_director_set_check_generation_dyn(uuid_t check_uuid, uint64_t gen) {
 }
 
 static stats_ns_t *stats_ns;
+static stats_handle_t *stats_cache_size;
+static stats_handle_t *stats_cache_lookups;
+static stats_handle_t *stats_cache_hits;
+static stats_handle_t *stats_cache_purge_rand;
+static stats_handle_t *stats_cache_purge_version;
 static stats_ns_t *lanes_stats_ns;
 static stats_handle_t *stats_msg_delay;
 static stats_handle_t *stats_msg_selection_latency;
@@ -739,15 +745,26 @@ static mtev_boolean generation_aware_displace(uint32_t prob, const char *key, ui
   unsigned long hash = CK_HS_HASH(&check_generation, check_hash, overlaykey->check_uuid);
   check_generation_t *cgen = ck_hs_get(&check_generation, hash, overlaykey->check_uuid);
   uint64_t expected_gen = cgen ? cgen->gen : 0;
-  if(overlaykey->check_gen != expected_gen) return mtev_true;
-  return prob <= (uint32_t)mtev_rand();
+  if(overlaykey->check_gen != expected_gen) {
+    stats_add64(stats_cache_purge_version, 1);
+    return mtev_true;
+  }
+  if(prob <= (uint32_t)mtev_rand()) {
+    stats_add64(stats_cache_purge_rand, 1);
+    return mtev_true;
+  }
+  return mtev_false;
 }
 static mtev_boolean check_search_miss_cache(account_search_t *as, noit_metric_id_t *id) {
   if(search_miss_cache == NULL) return mtev_false;
   char key[MAX_METRIC_TAGGED_NAME + sizeof(search_miss_key)];
   size_t keylen = make_search_miss_key(as, id, key, sizeof(key));
   if(keylen == 0) return mtev_false;
-  if(mtev_frrh_get(search_miss_cache, key, keylen) != NULL) return mtev_true;
+  stats_add64(stats_cache_lookups, 1);
+  if(mtev_frrh_get(search_miss_cache, key, keylen) != NULL) {
+    stats_add64(stats_cache_hits, 1);
+    return mtev_true;
+  }
   return mtev_false;
 }
 static void set_search_miss_cache(account_search_t *as, noit_metric_id_t *id) {
@@ -1152,6 +1169,20 @@ void noit_metric_director_init() {
   stats_ns = mtev_stats_ns(mtev_stats_ns(NULL, "noit"), "metric_director");
   lanes_stats_ns = mtev_stats_ns(stats_ns, "lanes");
   stats_ns_add_tag(stats_ns, "subsystem", "metric_director");
+
+  stats_ns_t *cache_ns = mtev_stats_ns(stats_ns, "cache");
+  stats_cache_size = stats_rob_u32(cache_ns, "size", &miss_cache_size);
+  stats_handle_tagged_name(stats_cache_size, "cache_size");
+  stats_cache_lookups = stats_register_fanout(cache_ns, "lookups", STATS_TYPE_COUNTER, 16);
+  stats_handle_tagged_name(stats_cache_lookups, "cache_lookups");
+  stats_cache_hits = stats_register_fanout(cache_ns, "hits", STATS_TYPE_COUNTER, 16);
+  stats_handle_tagged_name(stats_cache_hits, "cache_hits");
+  stats_cache_purge_rand = stats_register_fanout(cache_ns, "cache_purges_rand", STATS_TYPE_COUNTER, 16);
+  stats_handle_tagged_name(stats_cache_purge_rand, "cache_purges");
+  stats_handle_add_tag(stats_cache_purge_rand, "reason", "displacement");
+  stats_cache_purge_version = stats_register_fanout(cache_ns, "cache_purges_version", STATS_TYPE_COUNTER, 16);
+  stats_handle_tagged_name(stats_cache_purge_version, "cache_purges");
+  stats_handle_add_tag(stats_cache_purge_version, "reason", "stale");
   /* total count of messages read from fq */
   stats_msg_seen = stats_register_fanout(stats_ns, "seen", STATS_TYPE_COUNTER, 16);
   stats_handle_units(stats_msg_seen, STATS_UNITS_MESSAGES);
@@ -1184,7 +1215,6 @@ void noit_metric_director_init() {
   mtevAssert(nthreads > 0);
   queues = calloc(sizeof(*queues),nthreads);
 
-  uint32_t miss_cache_size = 10000000; /* 10mm */
   mtev_conf_get_uint32(MTEV_CONF_ROOT, "/*/metric_director/@miss_cache_size", &miss_cache_size);
   double miss_cache_replacement_probability = 0.1;
   mtev_conf_get_double(MTEV_CONF_ROOT, "/*/metric_director/@replacement_rate", &miss_cache_replacement_probability);
