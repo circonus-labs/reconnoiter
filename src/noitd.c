@@ -251,6 +251,7 @@ static int child_main() {
 
   /* Initialized shared tools */
   noit_check_tools_shared_init();
+  noit_metric_director_init();
 
   /* Initialize all of our listeners */
   mtev_dso_init();
@@ -283,7 +284,6 @@ static int child_main() {
   }
 
   mtev_listener_init(APPNAME);
-  noit_metric_director_init();
 
   /* Drop privileges */
   mtev_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
