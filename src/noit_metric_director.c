@@ -30,6 +30,7 @@
 
 #include <mtev_defines.h>
 #include <mtev_conf.h>
+#include <mtev_dso.h>
 #include <mtev_fq.h>
 #include <mtev_hash.h>
 #include <mtev_memory.h>
@@ -1213,6 +1214,7 @@ void noit_metric_director_init() {
 
   nthreads = eventer_loop_concurrency();
   mtevAssert(nthreads > 0);
+
   queues = calloc(sizeof(*queues),nthreads);
 
   mtev_conf_get_uint32(MTEV_CONF_ROOT, "/*/metric_director/@miss_cache_size", &miss_cache_size);
@@ -1241,14 +1243,20 @@ void noit_metric_director_init() {
   mtev_memory_end();
 
   pthread_mutex_init(&check_interests_lock, NULL);
+  eventer_add_in_s_us(noit_metric_director_prune_dedup, NULL, 2, 0);
+}
+
+static mtev_hook_return_t
+noit_director_hooks_register(void *closure) {
+  (void)closure;
+  
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
 
   /* metrics can be injected into the metric director via the "metrics" log channel */
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
-
-  eventer_add_in_s_us(noit_metric_director_prune_dedup, NULL, 2, 0);
+  return MTEV_HOOK_CONTINUE;
 }
 
 void noit_metric_director_init_globals(void) {
@@ -1256,6 +1264,7 @@ void noit_metric_director_init_globals(void) {
   mtev_hash_init_locks(&dedupe_hashes, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   eventer_name_callback("noit_metric_director_prune_dedup",
                         noit_metric_director_prune_dedup);
+  dso_post_init_hook_register("noit_director_hooks_register", noit_director_hooks_register, NULL);
 }
 
 void
