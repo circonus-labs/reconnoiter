@@ -740,7 +740,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
 
   if(!strcmp(rxc->check->module, "httptrap")) ccl = rxc->check->closure;
   rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : global_self, rxc->check);
-  if(rxc->immediate) {
+  if(rxc->immediate && !rxc->immediate_metrics) {
     rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
     mtev_hash_init(rxc->immediate_metrics);
   }
