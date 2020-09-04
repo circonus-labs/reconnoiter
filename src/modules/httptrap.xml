@@ -22,6 +22,10 @@
                required="optional"
                default="`"
                allowed="^.$">Specify the delimiter used when flattening metric nmes from the JSON hierarchy.</parameter>
+    <parameter name="cors_origin"
+               required="optional"
+               default=""
+               allowed="^.$">Specify a PCRE to allow for Origin passing.</parameter>
   </checkconfig>
   <examples>
     <example>
