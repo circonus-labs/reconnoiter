@@ -53,6 +53,7 @@ describe("noit", function()
       expected_comms['0x50555420'] = { name = 'mtev_wire_rest_api', version = '1.0' }
       expected_comms['0x47455420'] = { name = 'mtev_wire_rest_api', version = '1.0' }
       expected_comms['0x48454144'] = { name = 'mtev_wire_rest_api', version = '1.0' }
+      expected_comms['0x4f505449'] = { name = 'mtev_wire_rest_api', version = '1.0' }
       expected_comms['0xda7afeed'] = { name = 'log_transit', version = '1.0' }
       expected_comms['0x44454c45'] = { name = 'mtev_wire_rest_api', version = '1.0' }
       expected_comms['0x7e66feed'] = { name = 'log_transit', version = '1.0' }
