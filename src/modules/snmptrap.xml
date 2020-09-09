@@ -9,7 +9,7 @@
                allowed=".+">The SNMP community string providing trap access.</parameter>
     <parameter name="snmptrapd_port"
                required="optional"
-               defailt="162"
+               default="162"
                allowed="\d+">The port on which traps are accepted.</parameter>
   </moduleconfig>
   <checkconfig>
