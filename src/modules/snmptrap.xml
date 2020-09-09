@@ -16,6 +16,10 @@
     <parameter name="community"
                required="optional"
                allowed=".+">The SNMP community string providing trap access (overrides modules config).</parameter>
+    <parameter name="snmptrapd_port"
+               required="optional"
+               default="162"
+               allowed="\d+">The port on which traps are accepted.</parameter>
   </checkconfig>
   <examples>
     <example>
