@@ -856,6 +856,96 @@ http_write_encoded(void *vctx, const char* str, size_t len) {
   mtev_http_response_append(ctx, str, len);
 }
 
+static bool
+origin_allowed(mtev_http_session_ctx *ctx, noit_check_t *check, const char **origin) {
+  mtev_http_request *req;
+  mtev_hash_table *hdrs;
+  req = mtev_http_session_request(ctx);
+  hdrs = mtev_http_request_headers_table(req);
+  *origin = mtev_hash_dict_get(hdrs, "origin");
+  bool pass_origin = false;
+  if(*origin) {
+    const char *origin_match = mtev_hash_dict_get(check->config, "cors_origin");
+    pass_origin = origin_match == NULL;
+    if(origin_match) {
+      const char *err;
+      int erroff;
+      int localovector[30];
+      pcre *re = pcre_compile(origin_match, 0, &err, &erroff, NULL);
+      if(re) {
+        pass_origin = pcre_exec(re, NULL, *origin, strlen(*origin), 0, 0,
+                                localovector, sizeof(localovector)/sizeof(*localovector)) > 0;
+        pcre_free(re);
+      }
+    }
+  }
+  return pass_origin;
+}
+
+static int
+rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
+                              int npats, char **pats) {
+  int error_code = 500;
+  const char *error = "internal error", *secret = NULL;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  noit_check_t *check;
+  uuid_t check_id;
+
+  if(npats != 2) {
+    error = "bad uri";
+    error_code = 404;
+    goto error;
+  }
+  if(mtev_uuid_parse(pats[0], check_id)) {
+    error = "uuid parse error";
+    error_code = 404;
+    goto error;
+  }
+
+  mtev_boolean allowed = mtev_false;
+  check = noit_poller_lookup(check_id);
+  if(!check) {
+    error = "no such check";
+    error_code = 404;
+    goto error;
+  }
+  if(!httptrap_surrogate && strcmp(check->module, "httptrap")) {
+    error = "no such httptrap check";
+    error_code = 404;
+    goto error;
+  }
+
+  /* check "secret" then "httptrap_secret" as a fallback */
+  (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
+  if(!secret) (void)mtev_hash_retr_str(check->config, "httptrap_secret", strlen("httptrap_secret"), &secret);
+  if(secret && !strcmp(pats[1], secret)) allowed = mtev_true;
+  if(!allowed && cross_module_reverse_allowed(check, pats[1])) allowed = mtev_true;
+
+  if(!allowed) {
+    error = "secret mismatch";
+    error_code = 403;
+    goto error;
+  }
+
+  const char *origin;
+  mtev_http_response_standard(ctx, 204, "No Content", "application/json");
+  if(origin_allowed(ctx, check, &origin)) {
+    mtev_http_response_header_set(ctx, "Access-Control-Allow-Origin", origin);
+    mtev_http_response_header_set(ctx, "Access-Control-Allow-Methods", "POST, PUT, OPTIONS");
+    mtev_http_response_header_set(ctx, "Access-Control-Allow-Headers", "Content-Type");
+  }
+  mtev_http_response_end(ctx);
+  return 0;
+
+ error:
+  mtev_http_response_standard(ctx, error_code, "ERROR", "application/json");
+  mtev_http_response_append(ctx, "{ \"error\": \"", 12);
+  yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
+  mtev_http_response_append(ctx, "\" }", 3);
+  mtev_http_response_end(ctx);
+  return 0;
+}
+
 static int
 rest_httptrap_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
@@ -869,7 +959,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   char debugdata_out[DEBUGDATA_OUT_SIZE];
   int debugflag=0;
   const char *debugchkflag;
-  noit_check_t *check;
+  noit_check_t *check = NULL;
   uuid_t check_id;
   mtev_http_request *req;
   mtev_hash_table *hdrs;
@@ -988,6 +1078,10 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtevL(nldeb, "Processed %d records for %s (%" PRIu64 ")\n", cnt, pats[0], current_counter);
 
   mtev_http_response_status_set(ctx, 200, "OK");
+  const char *origin;
+  if(rxc->check && origin_allowed(ctx, rxc->check, &origin)) {
+    mtev_http_response_header_set(ctx, "Access-Control-Allow-Origin", origin);
+  }
   mtev_http_response_header_set(ctx, "Content-Type", "application/json");
   mtev_http_response_option_set(ctx, MTEV_HTTP_CLOSE);
 
@@ -1121,6 +1215,9 @@ static int noit_httptrap_init(noit_module_t *self) {
   noit_module_set_userdata(self, conf);
 
   /* register rest handler */
+  mtev_http_rest_register("OPTIONS", "/module/httptrap/",
+                          "^(" UUID_REGEX ")/([^/]*).*$",
+                          rest_httptrap_options_handler);
   mtev_http_rest_register("PUT", "/module/httptrap/",
                           "^(" UUID_REGEX ")/([^/]*).*$",
                           rest_httptrap_handler);
