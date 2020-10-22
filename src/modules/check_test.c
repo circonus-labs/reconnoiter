@@ -216,8 +216,6 @@ rest_test_check_result(struct check_test_closure *cl) {
   cl->restc->fastpath = NULL;
 
   if(ctx) {
-    eventer_t conne;
-
     if(cl->output == WANTS_JSON) {
       struct json_object *doc;
       const char *jsonstr;
@@ -243,12 +241,7 @@ rest_test_check_result(struct check_test_closure *cl) {
     }
     mtev_http_response_end(ctx);
   
-    conne = mtev_http_connection_event(mtev_http_session_connection(ctx));
-    if(conne) {
-      // The event already exists, why re-add it?  Did we want to update it?
-      //eventer_add(conne);
-      eventer_trigger(conne, EVENTER_READ | EVENTER_WRITE);
-    }
+    mtev_http_session_resume_after_float(ctx);
   }
 
   // this should free the check automatically with noit_poller_free_check
