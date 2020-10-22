@@ -441,6 +441,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
       eventer_t newe = eventer_alloc_fd(listener_listen_handler, ccl, ccl->ipv4_listen_fd,
                                         EVENTER_READ | EVENTER_EXCEPTION);
       eventer_add(newe);
+      mtevL(nldeb, "graphite %s IPv4 listening on fd %d at port %d\n", self->hdr.name, ccl->ipv4_listen_fd, ccl->port);
     }
     if(port > 0) ccl->ipv6_listen_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
     if(ccl->ipv6_listen_fd < 0) {
@@ -497,6 +498,7 @@ static int noit_graphite_initiate_check(noit_module_t *self,
       eventer_t newe = eventer_alloc_fd(listener_listen_handler, ccl, ccl->ipv6_listen_fd,
                                         EVENTER_READ | EVENTER_EXCEPTION);
       eventer_add(newe);
+      mtevL(nldeb, "graphite %s IPv6 listening on fd %d at port %d\n", self->hdr.name, ccl->ipv6_listen_fd, ccl->port);
     }
   }
   INITIATE_CHECK(listener_submit, self, check, cause);

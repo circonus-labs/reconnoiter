@@ -608,6 +608,7 @@ static int external_init(noit_module_t *self) {
 
 static void external_cleanup(noit_module_t *self, noit_check_t *check) {
   struct check_info *ci = (struct check_info *)check->closure;
+  check->closure = NULL;
   if(ci) {
     if(ci->timeout_event) {
       eventer_remove(ci->timeout_event);

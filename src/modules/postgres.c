@@ -99,6 +99,7 @@ static void postgres_cleanse(noit_module_t *self, noit_check_t *check) {
 }
 static void postgres_cleanup(noit_module_t *self, noit_check_t *check) {
   postgres_check_info_t *ci = check->closure;
+  check->closure = NULL;
   postgres_cleanse(self, check);
   free(ci);
 }
