@@ -261,6 +261,7 @@ noit_opentsdb_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
+  if (check->flags & NP_TRANSIENT) return 0;
   if (check->closure == NULL)
   {
 
