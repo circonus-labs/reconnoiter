@@ -1679,7 +1679,12 @@ static void recycle_check(noit_check_t *checker, mtev_boolean has_lock) {
 }
 void
 noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
-  noit_module_t *mod;
+  noit_module_t *mod = noit_module_lookup(checker->module);
+  if(mod && mod->cleanup) mod->cleanup(mod, checker);
+  else if(checker->closure) {
+    free(checker->closure);
+    checker->closure = NULL;
+  }
 
   if (checker->flags & NP_PASSIVE_COLLECTION) {
     struct timeval current_time;
@@ -1703,9 +1708,6 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
 
   mtevAssert(noit_poller_lookup_by_name__nolock(checker->target, checker->name) != checker);
 
-  mod = noit_module_lookup(checker->module);
-  if(mod && mod->cleanup) mod->cleanup(mod, checker);
-  else if(checker->closure) free(checker->closure);
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
      free(eventer_get_closure(checker->fire_event));

@@ -82,10 +82,11 @@ static mtev_log_stream_t nldeb = NULL;
 
 static void test_abort_cleanup(noit_module_t *self, noit_check_t *check) {
   test_abort_check_info_t *ci = check->closure;
+  check->closure = NULL;
   if(ci) {
     memset(ci, 0, sizeof(*ci));
+    free(ci);
   }
-  free(ci);
 }
 
 static int test_abort_drive_session(eventer_t e, int mask, void *closure,

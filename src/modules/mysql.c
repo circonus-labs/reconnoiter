@@ -88,6 +88,7 @@ static void mysql_cleanse(noit_module_t *self, noit_check_t *check) {
 static void mysql_cleanup(noit_module_t *self, noit_check_t *check) {
   mysql_check_info_t *ci = check->closure;
   mysql_cleanse(self, check);
+  check->closure = NULL;
   free(ci);
 }
 static void mysql_ingest_stats(mysql_check_info_t *ci) {

@@ -145,53 +145,50 @@ listener_closure_deref(listener_closure_t *lc)
 int
 listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
 {
-  listener_closure_t *ccl;
   struct timeval duration;
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
-  if(!check->closure) {
-    ccl = check->closure = (void *)calloc(1, sizeof(listener_closure_t));
-    ccl->self = self;
-  } else {
-    // Don't count the first run
-    struct timeval now;
-    char human_buffer[256];
-    int stats_count = 0;
-    stats_t *s = noit_check_get_stats_inprogress(check);
+  if(!check->closure) return 0;
 
-    mtev_gettimeofday(&now, NULL);
-    sub_timeval(now, check->last_fire_time, &duration);
-    noit_stats_set_whence(check, &now);
-    noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
+  // Don't count the first run
+  struct timeval now;
+  char human_buffer[256];
+  int stats_count = 0;
+  stats_t *s = noit_check_get_stats_inprogress(check);
 
-    /* We just want to set the number of metrics here to the number
-     * of metrics in the stats_t struct */
-    mtev_memory_begin();
-    if (s) {
-      mtev_hash_table *metrics = noit_check_stats_metrics(s);
-      if (metrics) {
-        stats_count = mtev_hash_size(metrics);
-      }
+  mtev_gettimeofday(&now, NULL);
+  sub_timeval(now, check->last_fire_time, &duration);
+  noit_stats_set_whence(check, &now);
+  noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
+
+  /* We just want to set the number of metrics here to the number
+   * of metrics in the stats_t struct */
+  mtev_memory_begin();
+  if (s) {
+    mtev_hash_table *metrics = noit_check_stats_metrics(s);
+    if (metrics) {
+      stats_count = mtev_hash_size(metrics);
     }
-    mtev_memory_end();
-
-    snprintf(human_buffer, sizeof(human_buffer),
-             "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
-             check->generation, stats_count);
-    mtevL(nldeb, "%s(%s) [%s]\n", check->module, check->target, human_buffer);
-
-    // Not sure what to do here
-    noit_stats_set_available(check, (stats_count > 0) ?
-        NP_AVAILABLE : NP_UNAVAILABLE);
-    noit_stats_set_state(check, (stats_count > 0) ?
-        NP_GOOD : NP_BAD);
-    noit_stats_set_status(check, human_buffer);
-    if(check->last_fire_time.tv_sec)
-      noit_check_passive_set_stats(check);
-
-    memcpy(&check->last_fire_time, &now, sizeof(now));
   }
+  mtev_memory_end();
+
+  snprintf(human_buffer, sizeof(human_buffer),
+           "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
+           check->generation, stats_count);
+  mtevL(nldeb, "%s(%s) [%s]\n", check->module, check->target, human_buffer);
+
+  // Not sure what to do here
+  noit_stats_set_available(check, (stats_count > 0) ?
+      NP_AVAILABLE : NP_UNAVAILABLE);
+  noit_stats_set_state(check, (stats_count > 0) ?
+      NP_GOOD : NP_BAD);
+  noit_stats_set_status(check, human_buffer);
+  if(check->last_fire_time.tv_sec)
+    noit_check_passive_set_stats(check);
+
+  memcpy(&check->last_fire_time, &now, sizeof(now));
+ 
   return 0;
 }
 
@@ -557,23 +554,42 @@ void
 noit_listener_cleanup(noit_module_t *self, noit_check_t *check)
 {
   listener_closure_t *lc = (listener_closure_t *)check->closure;
+  if(lc == NULL) return;
+  check->closure = NULL;
 
   /* This is administrative shutdown of services. */
   lc->shutdown = mtev_true;
   int mask = 0;
+  /* shutdown IPv4 */
   eventer_t listen_eventer = eventer_find_fd(lc->ipv4_listen_fd);
   if (listen_eventer) {
     eventer_remove_fde(listen_eventer);
     eventer_close(listen_eventer, &mask);
+    mtevL(nldeb, "listener %s cleanup IPv4 on fd %d\n", self->hdr.name, lc->ipv4_listen_fd);
   }
+  else {
+    close(lc->ipv4_listen_fd);
+  }
+  lc->ipv4_listen_fd = -1;
+
+  /* shutdown IPv6 */
   listen_eventer = eventer_find_fd(lc->ipv6_listen_fd);
   if (listen_eventer) {
     eventer_remove_fde(listen_eventer);
     eventer_close(listen_eventer, &mask);
+    mtevL(nldeb, "listener %s cleanup IPv6 on fd %d\n", self->hdr.name, lc->ipv6_listen_fd);
   }
+  else {
+    close(lc->ipv6_listen_fd);
+  }
+  lc->ipv6_listen_fd = -1;
 
   /* This is potential memory cleanup */
   listener_closure_deref(lc);
+
+  char uuid_str[UUID_STR_LEN+1];
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
+  mtevL(nldeb, "listener %s cleaned up %s\n", self->hdr.name, uuid_str);
 }
 
 void

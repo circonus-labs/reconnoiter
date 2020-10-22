@@ -92,6 +92,7 @@ static void selfcheck_cleanse(noit_module_t *self, noit_check_t *check) {
 }
 static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
   selfcheck_info_t *ci = check->closure;
+  check->closure = NULL;
   selfcheck_cleanse(self, check);
   free(ci);
 }

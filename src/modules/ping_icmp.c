@@ -568,6 +568,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
 }
 static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
   struct check_info *ci = (struct check_info *)check->closure;
+  check->closure = NULL;
   if(ci) {
     if(ci->timeout_event) {
       eventer_t e = eventer_remove(ci->timeout_event);
@@ -579,7 +580,6 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
     if(ci->turnaround) free(ci->turnaround);
     free(ci);
   }
-  check->closure = NULL;
 }
 static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
                           noit_check_t *cause) {
