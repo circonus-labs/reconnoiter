@@ -332,13 +332,13 @@ socket_close:
       mtevAssert(total_size >= used_size);
       if(self->payload_handler(check, (char *)mtev_dyn_buffer_data(&inst->buffer), used_size) < 0)
         goto socket_close;
-      if (total_size > used_size) {
-        void *end_ptr = mtev_dyn_buffer_data(&inst->buffer) + used_size;
-        memmove(mtev_dyn_buffer_data(&inst->buffer), end_ptr, total_size - used_size);
-        mtev_dyn_buffer_reset(&inst->buffer);
-        mtev_dyn_buffer_advance(&inst->buffer, total_size - used_size);
-        *mtev_dyn_buffer_write_pointer(&inst->buffer) = '\0';
-      }
+
+      void *end_ptr = mtev_dyn_buffer_data(&inst->buffer) + used_size;
+      memmove(mtev_dyn_buffer_data(&inst->buffer), end_ptr, total_size - used_size);
+      mtev_dyn_buffer_reset(&inst->buffer);
+      mtev_dyn_buffer_advance(&inst->buffer, total_size - used_size);
+      *mtev_dyn_buffer_write_pointer(&inst->buffer) = '\0';
+
       if (records_this_loop >= rows_per_cycle) {
         pthread_mutex_lock(&self->flushlock);
         listener_flush_immediate(self);
