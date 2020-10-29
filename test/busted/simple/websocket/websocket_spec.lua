@@ -5,7 +5,7 @@ describe("noit", function()
     noit = Reconnoiter.TestNoit:new("noit",
       { noit_ssl_on = "on",
         rest_acls = { { type = "deny", rules = { { type = "allow", url = "^/livestream/" },
-                                                 { type = "allow", url = "^/checks/set/" } } } }
+                                                 { type = "allow", url = "^/checks/(?:show|set)/" } } } }
       })
   end)
   teardown(function() if noit ~= nil then noit:stop() end end)
@@ -81,6 +81,15 @@ describe("noit", function()
       assert.is_not_nil(expect.check_cnt)
       assert.is_not_nil(expect.checks_run)
       if wsc ~= nil then wsc:close() end
+    end)
+  end)
+
+  describe("selfcheck still there", function()
+    it("waits", function() mtev.sleep(5) end)
+    it("is reporting", function()
+      local code, doc = api:json("GET", "/checks/show/" .. uuid .. ".json")
+      assert.is.equal(200, code)
+      assert.is.equal(true, doc.status.good)
     end)
   end)
 end)

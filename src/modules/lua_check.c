@@ -936,7 +936,7 @@ noit_lua_module_init(noit_module_t *mod) {
 static void
 noit_lua_module_cleanup(noit_module_t *mod, noit_check_t *check) {
   mtev_lua_resume_info_t *ri = check->closure;
-  if(ri == NULL) return;
+  if(!ri) return;
   check->closure = NULL;
   LMC_DECL(L, mod, object);
   SETUP_CALL(L, object, "cleanup", goto clean);
@@ -1076,25 +1076,31 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   self = ci->self;
   check = ci->check;
 
-  if(ri->coro_state) {
-    /* Our coro is still "in-flight". To fix this we will unreference
-     * it, garbage collect it and then ensure that it failes a resume
-     */
-    lua_module_closure_t *lmc = ri->lmc;
-    mtev_lua_resume_clean_events(ri);
-    mtev_lua_cancel_coro(ri);
-    mtev_lua_gc(lmc);
-  }
+  bool needs_release = false;
   if(check) {
     noit_stats_set_status(check, "timeout");
     noit_stats_set_available(check, NP_UNAVAILABLE);
     noit_stats_set_state(check, NP_BAD);
     noit_lua_log_results(self, check);
     noit_check_end(check);
-    check->closure = NULL;
+    if(check->closure) {
+      needs_release = true;
+      check->closure = NULL;
+    }
   }
-  free(ri->context_data);
-  free(ri);
+  if(needs_release) {
+    if(ri->coro_state) {
+      /* Our coro is still "in-flight". To fix this we will unreference
+       * it, garbage collect it and then ensure that it failes a resume
+       */
+      lua_module_closure_t *lmc = ri->lmc;
+      mtev_lua_resume_clean_events(ri);
+      mtev_lua_cancel_coro(ri);
+      mtev_lua_gc(lmc);
+    }
+    free(ri->context_data);
+    free(ri);
+  }
 
   if(int_cl->free) int_cl->free(int_cl);
   return 0;
