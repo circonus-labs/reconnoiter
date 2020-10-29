@@ -142,9 +142,9 @@ void feed_process_f(void *vfp, noit_check_t *check, const char *feedname) {
   mtev_log_stream_t ls;
   ls = mtev_log_stream_find(feedname);
   if(!ls ||
-     (fp->log_check && !fp->log_check(ls, check)) ||
-     (fp->log_metrics && !fp->log_metrics(ls, check, fp->metric_whence, fp->metrics)) ||
-     (fp->log_metric && !fp->log_metric(ls, check, fp->uuid_str, fp->metric_whence, fp->metric))) {
+     (fp->log_check && fp->log_check(ls, check) < 0) ||
+     (fp->log_metrics && fp->log_metrics(ls, check, fp->metric_whence, fp->metrics) < 0) ||
+     (fp->log_metric && fp->log_metric(ls, check, fp->uuid_str, fp->metric_whence, fp->metric) < 0)) {
     fp->to_remove = realloc(fp->to_remove, sizeof(*fp->to_remove) * (fp->to_remove_cnt + 1));
     fp->to_remove[fp->to_remove_cnt++] = strdup(feedname);
   }
