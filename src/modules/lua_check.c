@@ -936,6 +936,8 @@ noit_lua_module_init(noit_module_t *mod) {
 static void
 noit_lua_module_cleanup(noit_module_t *mod, noit_check_t *check) {
   mtev_lua_resume_info_t *ri = check->closure;
+  if(ri == NULL) return;
+  check->closure = NULL;
   LMC_DECL(L, mod, object);
   SETUP_CALL(L, object, "cleanup", goto clean);
 
@@ -949,7 +951,6 @@ noit_lua_module_cleanup(noit_module_t *mod, noit_check_t *check) {
     mtev_lua_cancel_coro(ri);
     free(ri->context_data);
     free(ri);
-    check->closure = NULL;
   }
   lua_pop(L,lua_gettop(L));
 }
