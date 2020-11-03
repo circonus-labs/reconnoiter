@@ -345,14 +345,16 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
 {
   char scratch[NOIT_TAG_MAX_PAIR_LEN+1];
   if(max_len > sizeof(scratch)) return -1;
-  int i = 0, sepcnt = 0;
+  int i = 0, sepcnt = -1;
+  if(decoded_len < 1) return -2;
   for(i=0; i<decoded_len; i++)
     if(decoded_tag[i] == 0x1f) {
       sepcnt = i;
       break;
     }
-  if(sepcnt == 0) {
-    return -1;
+  if(sepcnt == 0) return -3;
+  if(sepcnt == -1) {
+    sepcnt = decoded_len;
   }
 
   /* non-search encoding always uses "... ALWAYS */
@@ -366,14 +368,17 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
   if(first_part_needs_b64) first_part_len = mtev_b64_encode_len(first_part_len) + 3;
  
   int second_part_needs_b64 = 0; 
-  if(for_search && (right == NOIT_METRIC_ENCODE_EXACT || decoded_tag[sepcnt+1] == '/')) second_part_needs_b64++;
-  for(i=sepcnt+1;i<decoded_len;i++)
-    second_part_needs_b64 += !noit_metric_tagset_is_taggable_value_char(decoded_tag[i]);
-  int second_part_len = decoded_len - sepcnt - 1;
-  if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
+  int second_part_len = 0;
+  if(sepcnt < decoded_len) {
+    if(for_search && (right == NOIT_METRIC_ENCODE_EXACT || decoded_tag[sepcnt+1] == '/')) second_part_needs_b64++;
+    for(i=sepcnt+1;i<decoded_len;i++)
+      second_part_needs_b64 += !noit_metric_tagset_is_taggable_value_char(decoded_tag[i]);
+    second_part_len = decoded_len - sepcnt - 1;
+    if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
+  }
 
   if(first_part_len + second_part_len + 1 > max_len) {
-    return -1;
+    return -4;
   }
   char *cp = scratch;
   if(first_part_needs_b64) {
@@ -382,7 +387,7 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt,
                               cp, sizeof(scratch) - (cp - scratch));
     if(len <= 0) {
-      return -1;
+      return -5;
     }
     cp += len;
     *cp++ = left;
@@ -397,11 +402,11 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     int len = mtev_b64_encode((unsigned char *)decoded_tag + sepcnt + 1,
                               decoded_len - sepcnt - 1, cp, sizeof(scratch) - (cp - scratch));
     if(len <= 0) {
-      return -1;
+      return -6;
     }
     cp += len;
     *cp++ = right;
-  } else {
+  } else if(decoded_len > sepcnt) {
     memcpy(cp, decoded_tag + sepcnt + 1, decoded_len - sepcnt - 1);
     cp += decoded_len - sepcnt - 1;
   }
@@ -425,12 +430,14 @@ ssize_t
 noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *encoded_tag, size_t encoded_size)
 {
   const char *colon = (const char *)memchr(encoded_tag, ':', encoded_size);
-  if (!colon) return 0;
+  if (!colon) {
+    colon = encoded_tag + encoded_size;
+  }
 
   const char *encoded = encoded_tag;
   const char *encoded_end = encoded + encoded_size;
   size_t key_len = (colon - encoded);
-  size_t value_len = (encoded_end - colon - 1);
+  size_t value_len = encoded_end > colon ? (encoded_end - colon - 1) : 0;
 
   char *decoded = decoded_tag;
   if (key_len >= 2 && memcmp(encoded, "b\"", 2) == 0) {

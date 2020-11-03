@@ -15,6 +15,18 @@ const char *tcpairs[][2] = {
   { "woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]",
     "woop|ST[a:b,c:d,e:f]|MT{foo:bar}" },
 
+  { "woop|ST[a:b,e,c:d]|MT{foo:bar}",
+    "woop|ST[a:b,c:d,e:]|MT{foo:bar}" },
+
+  { "woop|ST[a:b,e:,c:d]|MT{foo:bar}",
+    "woop|ST[a:b,c:d,e:]|MT{foo:bar}" },
+
+  { "woop|ST[a:b,c:d]|MT{foo:bar}|ST[e]",
+    "woop|ST[a:b,c:d,e:]|MT{foo:bar}" },
+
+  { "woop|ST[a:b,c:d]|MT{foo:bar}|ST[e:]",
+    "woop|ST[a:b,c:d,e:]|MT{foo:bar}" },
+
   { "simple string with spaces",
     "simple string with spaces" },
 
@@ -417,7 +429,7 @@ void test_canon(const char *in, const char *expect) {
   int len;
   char buff[MAX_METRIC_TAGGED_NAME];
   len = noit_metric_canonicalize(in, strlen(in), buff, sizeof(buff), mtev_true);
-  if(len < 0) test_assert_namef(expect == NULL, "canon(%s) -> NULL", in);
+  if(len < 0) test_assert_namef(expect == NULL, "canon(%s) -> NULL (%d)", in, len);
   else test_assert_namef(expect && !strcmp(expect, buff), "canon(%s) -> %s", expect, buff);
 }
 

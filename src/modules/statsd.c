@@ -163,11 +163,15 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
   cp = ecp = payload;
   endptr = payload + len;
   while(ecp != NULL && ecp < endptr) {
+    char *line_end = endptr;
     int i, idx = 0, last_space = 0;
     char key[MAX_METRIC_TAGGED_NAME], *value;
     const char *type = NULL;
     ecp = memchr(ecp, '\n', len - (ecp - payload));
-    if(ecp) *ecp++ = '\0';
+    if(ecp) {
+      *ecp++ = '\0';
+      line_end = ecp;
+    }
     mtev_boolean tags = mtev_false;
     while(idx < sizeof(key) - 6 /* |ST[]\0 */ && *cp != '\0' && *cp != ':') {
       if(isspace(*cp)) {
@@ -203,10 +207,11 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
     /* We've finished graphite-style tags, now we skip to the end to eat up
      * DD-style trailing tags.
      */
-    const char *ddtags = memchr(cp, '#', endptr - cp);
+    char *ddtags = memchr(cp, '#', line_end - cp);
     if(ddtags) {
+      *ddtags = '\0';
       ddtags++;
-      ssize_t len = endptr - ddtags;
+      ssize_t len = line_end - ddtags - 1;
       if(len > 0) {
         mtevL(nldeb, "found DD tags: %.*s\n", (int)len, ddtags);
         if(tags && len < sizeof(key) - idx - 3) {
@@ -223,10 +228,11 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
           memcpy(key+idx, ddtags, len);
           idx += len;
         } else {
-          mtevL(nlerr, "found DD tags (too long): %.*s\n", (int)(endptr - ddtags), ddtags);
+          mtevL(nlerr, "found DD tags (too long): %.*s\n", (int)len, ddtags);
         }
       }
     }
+
     if(tags) key[idx++] = ']';
     key[idx] = '\0';
 
@@ -264,8 +270,10 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
         case 'g':
         case 'c':
         case 'm':
-          for(i=0;i<nchecks;i++)
+          for(i=0;i<nchecks;i++) {
+            mtevL(nlerr, "update_check -> %s\n", key);
             update_check(checks[i], key, *type, diff, sampleRate);
+          }
           break;
         default:
           break;

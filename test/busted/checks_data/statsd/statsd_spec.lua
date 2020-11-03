@@ -41,12 +41,16 @@ explicit_histogram:1|ms
 explicit_histogram:2|ms
 explicit_histogram:3|ms
 explicit_histogram:4|ms|@0.0083333
+dd_baretag1:60|g#foo
+dd_baretag2:60|g#foo:
 ]=]
   local witnessed_stats = {}
   local expected_stats = {}
   expected_stats["test|ST[env:prod,node:foo,statsd_type:gauge]"] = { _type = "n", _value = "1.844674407371e+19" }
   expected_stats["explicit_histogram|ST[statsd_type:timing]"] = { _type = "h", _value = "AAQKAAABFAAAAR4AAAEoAAB4" }
   expected_stats["times|ST[statsd_type:count]"] = { _type = "h", _value = "AAEAAABu" }
+  expected_stats["dd_baretag1|ST[foo:,statsd_type:gauge]"] = { _type = "n", _value = '6.000000000000e+01' }
+  expected_stats["dd_baretag2|ST[foo:,statsd_type:gauge]"] = { _type = "n", _value = '6.000000000000e+01' }
 
   it("should start", function()
     assert.is_true(noit:start():is_booted())

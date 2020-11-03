@@ -30,6 +30,7 @@
 
 #include "noit_message_decoder.h"
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -413,8 +414,16 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
     }
     else if(test_char == ',') {
       /* tag-separation char, terminates this loop. */
+      if(!colon_pos) colon_pos = cur_size;
+      if(cur_size == colon_pos) break; // tag not tag:value
       if(!(cur_size>colon_pos) ||
          !noit_metric_tagset_is_taggable_value(&tagnm[colon_pos+1], cur_size-colon_pos-1)) return 0;
+      break;
+    }
+    else if(cur_size == tagnmlen - 1 && !colon_pos) {
+      cur_size++;
+      colon_pos = cur_size;
+      if(!noit_metric_tagset_is_taggable_key(tagnm, cur_size)) return 0;
       break;
     }
     cur_size++;
@@ -427,7 +436,7 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
     return tagnm + cur_size;
   }
   output->total_size = cur_size;
-  output->category_size = colon_pos + 1;
+  output->category_size = colon_pos >= cur_size ? cur_size : colon_pos + 1;
   output->tag = tagnm;
   return tagnm + cur_size;
 }
