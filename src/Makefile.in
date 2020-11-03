@@ -424,7 +424,7 @@ install-noitd:	install-libs install-noitd-nolibs
 install-jezebel:	java-bits
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
 
-install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits noit.env install-jezebel
+install-noitd-nolibs:	install-dirs reversion noitd noit.conf noit.env
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/noit-web
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 noit_b2sm $(DESTDIR)$(bindir)/noit_b2sm
@@ -453,7 +453,7 @@ install-noit-tools: noit_b2sm
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 noit_b2sm $(DESTDIR)$(bindir)/noit_b2sm
 
-install:	install-dirs install-docs install-headers install-noitd install-stratcond install-noitd-headers install-stratcond-headers
+install:	install-dirs install-docs install-headers install-noitd install-jezebel install-stratcond install-noitd-headers install-stratcond-headers
 
 clean:
 	rm -f *.hlo *.lo *.o $(TARGETS)
