@@ -271,7 +271,6 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
         case 'c':
         case 'm':
           for(i=0;i<nchecks;i++) {
-            mtevL(nlerr, "update_check -> %s\n", key);
             update_check(checks[i], key, *type, diff, sampleRate);
           }
           break;
