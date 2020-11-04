@@ -459,6 +459,7 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
   // we can't have our field separator inside the first field
   // and it could have been stashed in there.
   if(memchr(decoded_tag, 0x1f, decoded - decoded_tag) != NULL) return 0;
+  if(decoded - decoded_tag >= max_len) return 0;
   *decoded = 0x1f; //replace colon with ascii unit sep
   decoded++;
   if (value_len >= 2 && memcmp(encoded, "b\"", 2) == 0) {
@@ -683,9 +684,19 @@ tags_sort_dedup(noit_metric_tag_t *tags, int n_tags) {
   return n_tags;
 }
 static void
-decode_tags(noit_metric_tag_t *tags, int ntags) {
+decode_tags(noit_metric_tag_t *tags, int ntags, mtev_dyn_buffer_t *scratch) {
   for(int i=0; i<ntags; i++) {
-    tags[i].total_size = noit_metric_tagset_decode_tag((char *)tags[i].tag, tags[i].total_size, tags[i].tag, tags[i].total_size);
+    char *output_tag = (char *)tags[i].tag;
+    size_t output_size = tags[i].total_size;
+    if(tags[i].category_size == tags[i].total_size) {
+      /* We need an extra character for decoding */
+      output_tag = (char *)mtev_dyn_buffer_write_pointer(scratch);
+      mtev_dyn_buffer_add(scratch, tags[i].tag, tags[i].total_size);
+      mtev_dyn_buffer_add(scratch, "", 1);
+      output_size = tags[i].total_size + 1;
+    }
+    tags[i].total_size = noit_metric_tagset_decode_tag(output_tag, output_size, tags[i].tag, tags[i].total_size);
+    tags[i].tag = output_tag;
   }
 }
 mtev_boolean
@@ -750,8 +761,10 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   if(mtev_memmem(output, input_len, "|ST[", 4) || mtev_memmem(output, input_len, "|MT{", 4))
     return -4;
 
-  decode_tags(stags, n_stags);
-  decode_tags(mtags, n_mtags);
+  mtev_dyn_buffer_t tag_scratch;
+  mtev_dyn_buffer_init(&tag_scratch);
+  decode_tags(stags, n_stags, &tag_scratch);
+  decode_tags(mtags, n_mtags, &tag_scratch);
   n_stags = tags_sort_dedup(stags, n_stags);
   n_mtags = tags_sort_dedup(mtags, n_mtags);
 
@@ -767,6 +780,7 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
     memcpy(out, "|ST[", 4); out += 4;
     len = noit_metric_tags_canonical(stags, n_stags, out, (output_len - (out-buff)), mtev_true);
     if(len < 0) {
+      mtev_dyn_buffer_destroy(&tag_scratch);
       return -6;
     }
     out += len;
@@ -775,10 +789,14 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   if(n_mtags) {
     memcpy(out, "|MT{", 4); out += 4;
     len = noit_metric_tags_canonical(mtags, n_mtags, out, (output_len - (out-buff)), mtev_true);
-    if(len < 0) return -7;
+    if(len < 0) {
+      mtev_dyn_buffer_destroy(&tag_scratch);
+      return -7;
+    }
     out += len;
     *out++ = '}';
   }
+  mtev_dyn_buffer_destroy(&tag_scratch);
   memcpy(output, buff, (out-buff));
   if(null_term) output[out-buff] = '\0';
   if((out-buff) > MAX_METRIC_TAGGED_NAME) return -8;
