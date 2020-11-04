@@ -12,6 +12,9 @@ const char *tcpairs[][2] = {
   { "/transmissions`latency|ST[b\"bjo6Og==\":b\"YT1i\",customer:noone,node:j.mta2vrest.cc.aws-usw2a.prd.acme,cluster:mta2]",
     "/transmissions`latency|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.cc.aws-usw2a.prd.acme]" },
 
+  { "metric_name|ST[abcd]",
+    "metric_name|ST[abcd:]" },
+
   { "woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]",
     "woop|ST[a:b,c:d,e:f]|MT{foo:bar}" },
 
