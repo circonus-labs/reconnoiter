@@ -474,8 +474,9 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
   else {
     ssize_t remaining = encoded_size - (encoded - encoded_tag);
     if(remaining > 0) {
-      if(encoded != decoded)
+      if(encoded != decoded) {
         memmove(decoded, encoded, encoded_size - (encoded - MIN(encoded_tag, encoded_end)));
+      }
       decoded += encoded_size - (encoded - encoded_tag);
     }
   }
