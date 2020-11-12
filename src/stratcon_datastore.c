@@ -140,8 +140,12 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
 
   if((mask & EVENTER_ASYNCH) == EVENTER_ASYNCH) {
     if(syncset->completion) {
-      eventer_add(syncset->completion);
-      eventer_trigger(syncset->completion, EVENTER_READ | EVENTER_WRITE);
+      if(eventer_get_fd(syncset->completion) >= 0 &&
+         eventer_get_mask(syncset->completion) != 0) {
+        eventer_add(syncset->completion);
+        eventer_trigger(syncset->completion, EVENTER_READ | EVENTER_WRITE);
+      }
+      eventer_deref(syncset->completion);
     }
     free(syncset);
     return 0;
@@ -348,6 +352,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       syncset = calloc(1, sizeof(*syncset));
       syncset->ws = stratcon_datastore_journal_remove(remote, remote_cn);
       syncset->completion = completion;
+      eventer_ref(completion);
       e = eventer_alloc_asynch(stratcon_datastore_journal_sync, syncset);
       eventer_add_asynch(push_jobq, e);
       break;
