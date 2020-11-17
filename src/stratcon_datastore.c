@@ -352,7 +352,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       syncset = calloc(1, sizeof(*syncset));
       syncset->ws = stratcon_datastore_journal_remove(remote, remote_cn);
       syncset->completion = completion;
-      eventer_ref(completion);
+      if(completion) eventer_ref(completion);
       e = eventer_alloc_asynch(stratcon_datastore_journal_sync, syncset);
       eventer_add_asynch(push_jobq, e);
       break;
