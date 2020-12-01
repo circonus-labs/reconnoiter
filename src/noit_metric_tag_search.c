@@ -43,6 +43,12 @@ void
 noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
   if(node == NULL) return;
   if(!ck_pr_dec_32_is_zero(&node->refcnt)) return;
+  noit_metric_tag_search_reset(node);
+  free(node);
+}
+
+void
+noit_metric_tag_search_reset(noit_metric_tag_search_ast_t *node) {
   switch(node->operation) {
     case OP_MATCH:
       free(node->contents.spec.cat.str);
@@ -70,8 +76,8 @@ noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
       free(node->contents.args.node);
   }
   if(node->user_data_free) node->user_data_free(node->user_data);
-  free(node);
 }
+
 noit_metric_tag_search_ast_t *
 noit_metric_tag_search_ref(noit_metric_tag_search_ast_t *node) {
   ck_pr_inc_32(&node->refcnt);
