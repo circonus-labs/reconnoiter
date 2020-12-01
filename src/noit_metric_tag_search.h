@@ -109,6 +109,9 @@ API_EXPORT(noit_metric_tag_search_ast_t *)
 API_EXPORT(void)
   noit_metric_tag_search_free(noit_metric_tag_search_ast_t *);
 
+API_EXPORT(void)
+noit_metric_tag_search_reset(noit_metric_tag_search_ast_t *);
+
 API_EXPORT(noit_metric_tag_search_ast_t *)
   noit_metric_tag_search_parse(const char *query, int *erroff);
 
