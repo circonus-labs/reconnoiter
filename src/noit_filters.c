@@ -351,7 +351,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       rule->rname##_auto_hash_max = auto_max; \
       rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
       while(tablesize < hte_cnt) tablesize <<= 1; \
-      mtev_hash_init_size(rule->rname##_ht, tablesize); \
+      mtev_hash_init_locks(rule->rname##_ht, tablesize, MTEV_HASH_LOCK_MODE_MUTEX); \
       for(hti=0; hti<hte_cnt; hti++) { \
         if(!mtev_conf_get_string(htentries[hti], "self::node()", &htstr)) \
           mtevL(nf_error, "Error fetching text content from filter match.\n"); \
