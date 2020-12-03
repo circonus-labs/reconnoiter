@@ -112,6 +112,7 @@ typedef struct histotier {
   uint8_t cadence;
   uint8_t last_sec_off;
   uint64_t last_period;
+  pthread_mutex_t lock;
 } histotier;
 
 static void
@@ -326,6 +327,16 @@ update_histotier(histotier *ht, mtev_boolean cumulative, uint64_t s,
   ht->last_sec_off = sec_off;
 }
 
+static histotier *alloc_histotier(int period_s) {
+  histotier *ht;
+  ht = calloc(1, sizeof(*ht));
+  ht->cadence = period_s;
+  if(ht->cadence < 1) ht->cadence = 1;
+  if(ht->cadence > 60) ht->cadence = 60;
+  ht->secs = calloc(ht->cadence, sizeof(*ht->secs));
+  pthread_mutex_init(&ht->lock, NULL);
+  return ht;
+}
 static void free_histotier(void *vht) {
   int i;
   histotier *ht = vht;
@@ -334,6 +345,7 @@ static void free_histotier(void *vht) {
     if(ht->secs[i]) hist_free(ht->secs[i]);
   free(ht->secs);
   if(ht->last_aggr) hist_free(ht->last_aggr);
+  pthread_mutex_destroy(&ht->lock);
   free(ht);
 }
 static void free_hash_o_histotier(void *vh) {
@@ -371,23 +383,21 @@ histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, me
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) {
     metrics = calloc(1, sizeof(*metrics));
-    mtev_hash_init(metrics);
+    mtev_hash_init_mtev_memory(metrics, 1024, MTEV_HASH_LOCK_MODE_MUTEX);
     noit_check_set_module_metadata(check, histogram_module_id,
                                    metrics, free_hash_o_histotier);
   }
-  if(!mtev_hash_retrieve(metrics, m->metric_name, strlen(m->metric_name),
-                         &vht)) {
-    ht = calloc(1, sizeof(*ht));
+  while(!mtev_hash_retrieve(metrics, m->metric_name, strlen(m->metric_name), &vht)) {
+    ht = alloc_histotier(check->period/1000);
     vht = ht;
-    ht->cadence = check->period/1000;
-    if(ht->cadence < 1) ht->cadence = 1;
-    if(ht->cadence > 60) ht->cadence = 60;
-    ht->secs = calloc(ht->cadence, sizeof(*ht->secs));
-    mtev_hash_store(metrics, strdup(m->metric_name), strlen(m->metric_name),
-                    vht);
+    char *metric_name_copy = strdup(m->metric_name);
+    if(mtev_hash_store(metrics, metric_name_copy, strlen(metric_name_copy), vht)) break;
+    free(metric_name_copy);
+    free_histotier(ht);
   }
-  else ht = vht;
+  ht = vht;
 
+  pthread_mutex_lock(&ht->lock);
   if(m->metric_value.vp != NULL) {
 #define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, *m->metric_value.a, count, NULL)
     switch(m->metric_type) {
@@ -418,6 +428,7 @@ histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, me
         break;
     }
   }
+  pthread_mutex_unlock(&ht->lock);
   return MTEV_HOOK_DONE;
 }
 static mtev_hook_return_t
@@ -453,18 +464,17 @@ histogram_metric_hformat(void *closure,
     noit_check_set_module_metadata(check, histogram_module_id,
                                    metrics, free_hash_o_histotier);
   }
-  if(!mtev_hash_retrieve(metrics, metric_name, strlen(metric_name),
-                         &vht)) {
-    ht = calloc(1, sizeof(*ht));
+  while(!mtev_hash_retrieve(metrics, metric_name, strlen(metric_name), &vht)) {
+    ht = alloc_histotier(check->period/1000);
     vht = ht;
-    ht->cadence = check->period/1000;
-    if(ht->cadence < 1) ht->cadence = 1;
-    if(ht->cadence > 60) ht->cadence = 60;
-    ht->secs = calloc(ht->cadence, sizeof(*ht->secs));
-    mtev_hash_store(metrics, strdup(metric_name), strlen(metric_name),
-                    vht);
+    char *metric_name_copy = strdup(metric_name);
+    if(mtev_hash_store(metrics, metric_name_copy, strlen(metric_name_copy), vht)) break;
+    free(metric_name_copy);
+    free_histotier(ht);
   }
-  else ht = vht;
+  ht = vht;
+
+  pthread_mutex_lock(&ht->lock);
   if(v != NULL) {
     double bucket;
     uint64_t cnt;
@@ -480,6 +490,7 @@ histogram_metric_hformat(void *closure,
       hist_free(hist);
     }
   }
+  pthread_mutex_unlock(&ht->lock);
 }
 static mtev_hook_return_t
 histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
@@ -590,18 +601,21 @@ static void
 heartbeat_all_metrics(struct histogram_config *conf,
                       noit_check_t *check, mtev_hash_table *metrics) {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-  const char *k;
-  int klen;
-  void *data;
   uint64_t s = time(NULL);
-  while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
+  while(mtev_hash_adv_spmc(metrics, &iter)) {
+    const char *k = iter.key.str;
+    int klen = iter.klen;
     int has_data = 0;
-    histotier *ht = data;
+    histotier *ht = iter.value.ptr;
+
+    pthread_mutex_lock(&ht->lock);
     update_histotier(ht, mtev_false, s, conf, check, k, 0, 0, NULL);
 
     /* if there's no data, drop the histogram */
     for(int i=0; i<ht->cadence; i++) if(ht->secs[i]) has_data++;
     if(hist_bucket_count(ht->last_aggr)) has_data++;
+    pthread_mutex_unlock(&ht->lock);
+
     if(!has_data) {
       mtev_hash_delete(metrics, k, klen, free, free_histotier);
     }
