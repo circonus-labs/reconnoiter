@@ -98,6 +98,7 @@ typedef struct _filterrule {
   uint32_t matches;
   struct timeval last_flush;
   struct timeval flush_interval;
+  pthread_mutex_t flush_lock;
 } filterrule_t;
 
 typedef struct {

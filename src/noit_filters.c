@@ -94,6 +94,7 @@ filterrule_free(void *vp) {
   noit_metric_tag_search_free(r->mtsearch);
   free(r->ruleid);
   free(r->skipto);
+  pthread_mutex_destroy(&r->flush_lock);
   free(r);
 }
 noit_lmdb_instance_t *noit_filters_get_lmdb_instance() {
@@ -322,6 +323,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     }
     mtevL(nf_debug, "Prepending %s into %s\n", buffer, set->name);
     rule = calloc(1, sizeof(*rule));
+    pthread_mutex_init(&rule->flush_lock, NULL);
     if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
       rule->type = NOIT_FILTER_SKIPTO;
       rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
@@ -726,6 +728,7 @@ noit_apply_filterset(const char *filterset,
       /* flush if required */
       if(r->flush_interval.tv_sec || r->flush_interval.tv_usec) {
         struct timeval reset;
+        pthread_mutex_lock(&r->flush_lock);
         add_timeval(r->last_flush, r->flush_interval, &reset);
         if(compare_timeval(now, reset) >= 0) {
           mtev_boolean did_work = mtev_false;
@@ -750,6 +753,7 @@ noit_apply_filterset(const char *filterset,
             mtevL(nf_debug, "flushed auto_add rule %s%s%s\n", fs->name, r->ruleid ? ":" : "", r->ruleid ? r->ruleid : "");
           }
         }
+        pthread_mutex_unlock(&r->flush_lock);
       }
 
       if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
