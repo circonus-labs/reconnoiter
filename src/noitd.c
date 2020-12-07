@@ -179,7 +179,7 @@ static void request_conf_reload(int sig) {
 static int notice_hup(eventer_t e, int mask, void *unused, struct timeval *now) {
   if(__reload_needed) {
     mtevL(noit_error, "SIGHUP received, performing reload\n");
-    if(mtev_conf_load(config_file) == -1) {
+    if(mtev_conf_load(NULL) == -1) {
       mtevL(noit_error, "Cannot load config: '%s'\n", config_file);
       exit(-1);
     }
@@ -210,7 +210,7 @@ static int child_main() {
 
   /* Load our config...
    * to ensure it is current w.r.t. to this child starting */
-  if(mtev_conf_load(config_file) == -1) {
+  if(mtev_conf_load(NULL) == -1) {
     mtevL(noit_error, "Cannot load config: '%s'\n", config_file);
     exit(2);
   }
@@ -229,7 +229,7 @@ static int child_main() {
     exit(0);
   }
 
-  mtev_log_reopen_all();
+  mtev_conf_log_init(APPNAME, droptouser, droptogroup);
   mtevL(noit_notice, "process starting: %d\n", (int)getpid());
   mtev_log_go_asynch();
 
