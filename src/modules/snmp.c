@@ -1097,12 +1097,25 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   info->oids = calloc(info->noids, sizeof(*info->oids));
   memset(&iter, 0, sizeof(iter));
   i = 0;
+  char oidbuff[2048], typestr[256], tagstr[MAX_METRIC_TAGGED_NAME];
+  char final_name[MAX_METRIC_TAGGED_NAME] = {0};
   while(mtev_hash_next_str(check->config, &iter, &name, &klen, &value)) {
+    char *tagged_name = final_name;
     if(!strncasecmp(name, "oid_", 4)) {
-      const char *type_override;
-      char oidbuff[2048], typestr[256];
+      const char *type_override = NULL, *tag_string = NULL;
       name += 4;
-      info->oids[i].confname = strdup(name);
+
+      snprintf(tagstr, sizeof(tagstr), "tags_%s", name);
+      if(mtev_hash_retr_str(check->config, tagstr, strlen(tagstr),
+                            &tag_string)) {
+        strncpy(tagged_name, name, sizeof(final_name) - 1);
+        strlcat(tagged_name, "|ST[", sizeof(final_name));
+        strlcat(tagged_name, tag_string, sizeof(final_name));
+        strlcat(tagged_name, "]", sizeof(final_name));
+        info->oids[i].confname = strdup(final_name);
+      } else {
+        info->oids[i].confname = strdup(name);
+      }
       noit_check_interpolate(oidbuff, sizeof(oidbuff), value,
                              &check_attrs_hash, check->config);
       info->oids[i].oidname = strdup(oidbuff);

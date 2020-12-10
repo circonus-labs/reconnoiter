@@ -62,6 +62,9 @@
     <parameter name="type_.+"
                required="optional"
                allowed=".+">Defines a coercion for a metric type.  The name of the metric must identically match one of the oid_(.+) patterns. The value can be either one of the single letter codes in the metric_type_t enum or the following string variants: guess, int32, uint32, int64, uint64, double, string.</parameter>
+    <parameter name="tags_.+"
+               required="optional"
+               allowed=".+">An optional, comma separated list of tag key:value pairs to associate with the oid.   See example</parameter>
     <parameter name="separate_queries"
                required="optional"
                default="false"
@@ -82,12 +85,19 @@
             <config>
               <community>SeKr3t</community>
               <oid_description>IF-MIB::ifName.%[name]</oid_description>
+              <tags_description>dc:nyc1</tags_description>
               <oid_alias>IF-MIB::ifAlias.%[name]</oid_alias>
+              <tags_alias>dc:nyc1</tags_alias>
               <oid_speed>IF-MIB::ifSpeed.%[name]</oid_speed>
+              <tags_speed>dc:nyc1</tags_speed>
               <oid_adminstatus>IF-MIB::ifAdminStatus.%[name]</oid_adminstatus>
+              <tags_adminstatus>dc:nyc1</tags_adminstatus>
               <oid_operstatus>IF-MIB::ifOperStatus.%[name]</oid_operstatus>
+              <tags_operstatus>dc:nyc1</tags_operstatus>
               <oid_inoctets>IF-MIB::ifHCInOctets.%[name]</oid_inoctets>
+              <tags_inoctets>units:bytes,dc:nyc1</tags_inoctets>
               <oid_outoctets>IF-MIB::ifHCOutOctets.%[name]</oid_outoctets>
+              <tags_outoctets>units:bytes,dc:nyc1</tags_outoctets>
               <oid_inerrors>IF-MIB::ifInErrors.%[name]</oid_inerrors>
               <oid_outerrors>IF-MIB::ifOutErrors.%[name]</oid_outerrors>
               <oid_indiscards>IF-MIB::ifInDiscards.%[name]</oid_indiscards>
