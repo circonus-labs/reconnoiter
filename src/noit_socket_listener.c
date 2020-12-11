@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#define FLUSH_SIZE 100
+#define DEFAULT_ROWS_PER_CYCLE 100
 
 #include <mtev_defines.h>
 
@@ -215,7 +215,7 @@ retry:
     rxc->immediate_metrics = tbl;
   }
   if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm) ||
-     mtev_hash_size(rxc->immediate_metrics) > FLUSH_SIZE) {
+     mtev_hash_size(rxc->immediate_metrics) > rxc->rows_per_cycle) {
     /* collision, just log it out */
     listener_flush_immediate(rxc);
   }
@@ -273,6 +273,7 @@ listener_handler(eventer_t e, int mask, void *closure, struct timeval *now)
   listener_closure_t *self = (listener_closure_t *)inst->parent;
   int rows_per_cycle = 0, records_this_loop = 0;
   noit_check_t *check = self->check;
+  if(self->rows_per_cycle < 1) self->rows_per_cycle = DEFAULT_ROWS_PER_CYCLE;
   rows_per_cycle = self->rows_per_cycle;
   if(!inst->subsequent_invocation) {
     if(N_L_S_ON(self->nldeb)) {
