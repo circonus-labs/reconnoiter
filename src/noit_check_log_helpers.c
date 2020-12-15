@@ -440,7 +440,10 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     ns(MetricValue_table_t) m = ns(MetricValue_vec_at(metrics, i));
     flatbuffers_string_t metric_name = ns(MetricValue_name(m));
     char ts[22];
-    size_t uuid_len = flatbuffers_string_len(check_name) + flatbuffers_string_len(check_uuid) + 2;
+    size_t check_name_len = flatbuffers_string_len(check_name);
+    bool check_name_trailing_backtick = (check_name_len > 0 && check_name[check_name_len-1] == '`');
+    size_t uuid_len = check_name_len + flatbuffers_string_len(check_uuid) + 1;
+    if(!check_name_trailing_backtick) uuid_len++;
     uint64_t ltimestamp = ns(MetricValue_timestamp(m));
 
     if(ltimestamp == 0) ltimestamp = timestamp;
@@ -448,7 +451,10 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
 
     mtev_dyn_buffer_ensure(&uuid_str, uuid_len);
     mtev_dyn_buffer_reset(&uuid_str);
-    mtev_dyn_buffer_add_printf(&uuid_str, "%s`%s", check_name, check_uuid);
+    /* A previous error has check_name include a trailing `, detect that and avoid it */
+    mtev_dyn_buffer_add(&uuid_str, (uint8_t *)check_name, check_name_len);
+    if(!check_name_trailing_backtick) mtev_dyn_buffer_add(&uuid_str, (uint8_t *)"`", 1);
+    mtev_dyn_buffer_add(&uuid_str, (uint8_t *)check_uuid, flatbuffers_string_len(check_uuid));
     char type = 'x';
 
     value_str = scratch;
