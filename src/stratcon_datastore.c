@@ -303,6 +303,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
       mtevL(noit_error, "Error: Line has bad type for %s in stratcon_datastore_journal (%s)\n", remote_cn, line);
       break;
   }
+  if(!ij) ij = interim_journal_get(remote,remote_cn,0,NULL);
   if(!ij) {
     mtevL(ingest_err, "%d\t%s\n", storagenode_id, line);
   }

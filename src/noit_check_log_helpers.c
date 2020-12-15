@@ -370,7 +370,7 @@ static int
 noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
 {
   unsigned int ulen;
-  int i, size, has_status = 0;
+  int i, size;
   const char *cp1, *cp2, *rest, *error_str = NULL;
   char *target, *module, *name, *whence_str, *ulen_str, *nipstr = NULL;
   unsigned char *raw_data = NULL;
@@ -516,13 +516,13 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     size = 2 /* M\t */ + strlen(ts) + 1 /* \t */ +
       mtev_dyn_buffer_used(&uuid_str) + 1 /* \t */ + flatbuffers_string_len(metric_name) +
            3 /* \t<type>\t */ + value_size + 1 /* \0 */;
-    (*out)[i+has_status] = malloc(size);
+    (*out)[i] = malloc(size);
     snprintf((*out)[i], size, "M\t%s\t%.*s\t%s\t%c\t%s",
              ts, (int)mtev_dyn_buffer_used(&uuid_str), mtev_dyn_buffer_data(&uuid_str),
              metric_name, type, value_str);
   }
 
-  return metrics_len + has_status;
+  return metrics_len;
 
  bad_line:
   if(*out) {
