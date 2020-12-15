@@ -278,7 +278,6 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
     strlcat(check_name, check->module, len);
     strlcat(check_name, "`", len);
     strlcat(check_name, check->name, len);
-    strlcat(check_name, "`", len);
   }
 
   uuid_str[0] = '\0';
@@ -588,7 +587,6 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
     strlcat(check_name, check->module, len);
     strlcat(check_name, "`", len);
     strlcat(check_name, check->name, len);
-    strlcat(check_name, "`", len);
   }
 
   uuid_str[0] = '\0';
