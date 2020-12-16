@@ -36,9 +36,11 @@ table AbsentStringValue {
 table AbsentHistogramValue {
 }
 
-table HistogramBucket {
+struct HistogramBucket {
        val: byte;
        exp: byte;
+       pad1: byte;
+       pad2: byte;
        count: ulong;
 }
 

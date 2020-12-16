@@ -426,7 +426,16 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
 
   uint64_t timestamp = ns(MetricBatch_timestamp(message));
   flatbuffers_string_t check_name = ns(MetricBatch_check_name(message));
-  flatbuffers_string_t check_uuid = ns(MetricBatch_check_uuid(message));
+  flatbuffers_uint8_vec_t check_uuid_vec = ns(MetricBatch_check_uuid(message));
+  uuid_t check_uuid_raw;
+  if(flatbuffers_uint8_vec_len(check_uuid_vec) != UUID_SIZE) {
+    mtev_uuid_clear(check_uuid_raw);
+  } else {
+    mtev_uuid_copy(check_uuid_raw, check_uuid_vec);
+  }
+  char check_uuid[UUID_STR_LEN+1];
+  mtev_uuid_unparse_lower(check_uuid_raw, check_uuid);
+
   int account_id = ns(MetricBatch_account_id(message));
   ns(MetricValue_vec_t) metrics = ns(MetricBatch_metrics(message));
   metrics_len = ns(MetricValue_vec_len(metrics));
@@ -447,8 +456,8 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     flatbuffers_string_t metric_name = ns(MetricValue_name(m));
     char ts[22];
     size_t check_name_len = flatbuffers_string_len(check_name);
-    bool check_name_trailing_backtick = (check_name_len > 0 && check_name[check_name_len-1] == '`');
-    size_t uuid_len = check_name_len + flatbuffers_string_len(check_uuid) + 1;
+    bool check_name_trailing_backtick = (check_name_len == 0 || check_name[check_name_len-1] == '`');
+    size_t uuid_len = check_name_len + UUID_STR_LEN + 1;
     if(!check_name_trailing_backtick) uuid_len++;
     ns(MetricSample_vec_t) samples = ns(MetricValue_samples(m));
     size_t samples_len = ns(MetricSample_vec_len(samples));
@@ -458,7 +467,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     /* A previous error has check_name include a trailing `, detect that and avoid it */
     mtev_dyn_buffer_add(&uuid_str, (uint8_t *)check_name, check_name_len);
     if(!check_name_trailing_backtick) mtev_dyn_buffer_add(&uuid_str, (uint8_t *)"`", 1);
-    mtev_dyn_buffer_add(&uuid_str, (uint8_t *)check_uuid, flatbuffers_string_len(check_uuid));
+    mtev_dyn_buffer_add(&uuid_str, (uint8_t *)check_uuid, UUID_STR_LEN);
 
     for (int j=0; j < samples_len; j++) {
       ns(MetricSample_table_t) sample = ns(MetricSample_vec_at(samples, j));

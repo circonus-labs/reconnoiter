@@ -124,7 +124,7 @@ noit_fb_finalize_metriclist(void *builder, size_t *out_size)
 }
 
 void *
-noit_fb_start_metricbatch(uint64_t whence_ms, const char *check_uuid,
+noit_fb_start_metricbatch(uint64_t whence_ms, uuid_t check_uuid,
                           const char *check_name, int account_id)
 {
   flatcc_builder_t *builder = malloc(sizeof(flatcc_builder_t));
@@ -133,7 +133,7 @@ noit_fb_start_metricbatch(uint64_t whence_ms, const char *check_uuid,
   ns(MetricBatch_start_as_root(builder));
   ns(MetricBatch_timestamp_add)(builder, whence_ms);
   ns(MetricBatch_check_name_create_str(builder, check_name));
-  ns(MetricBatch_check_uuid_create_str(builder, check_uuid));
+  ns(MetricBatch_check_uuid_create(builder, (uint8_t *)check_uuid, UUID_SIZE));
   ns(MetricBatch_account_id_add(builder, account_id));
   ns(MetricBatch_metrics_start(builder));
   return builder;
@@ -152,13 +152,13 @@ noit_fb_finalize_metricbatch(void *builder, size_t *out_size)
 
 
 void
-noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
+noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, uuid_t check_uuid,
                                  const char *check_name, int account_id, metric_t *m, const uint16_t generation)
 {
   ns(MetricList_metrics_push_start(builder));
   ns(Metric_timestamp_add)(builder, whence_ms);
   ns(Metric_check_name_create_str(builder, check_name));
-  ns(Metric_check_uuid_create_str(builder, check_uuid));
+  ns(Metric_check_uuid_create(builder, (uint8_t *)check_uuid, UUID_SIZE));
   ns(Metric_account_id_add)(builder, account_id);
   ns(Metric_value_start(builder));
   flatbuffer_encode_metric(builder, m, generation);
@@ -167,14 +167,14 @@ noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *
 }
 
 void
-noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const char *check_uuid,
+noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, uuid_t check_uuid,
                                     const char *check_name, int account_id, const char *name, histogram_t *h,
                                     const uint16_t generation)
 {
   ns(MetricList_metrics_push_start(builder));
   ns(Metric_timestamp_add)(builder, whence_ms);
   ns(Metric_check_name_create_str(builder, check_name));
-  ns(Metric_check_uuid_create_str(builder, check_uuid));
+  ns(Metric_check_uuid_create(builder, (uint8_t *)check_uuid, UUID_SIZE));
   ns(Metric_account_id_add)(builder, account_id);
   ns(Metric_value_start(builder));
   ns(MetricValue_name_create_str(builder, name));
@@ -188,11 +188,7 @@ noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const ch
     hist_bucket_t bucket;
     uint64_t count;
     hist_bucket_idx_bucket(h, i, &bucket, &count);
-    ns(Histogram_buckets_push_start(builder));
-    ns(HistogramBucket_val_add(builder, bucket.val));
-    ns(HistogramBucket_exp_add(builder, bucket.exp));
-    ns(HistogramBucket_count_add(builder, count));
-    ns(Histogram_buckets_push_end(builder));
+    ns(Histogram_buckets_push_create(builder, bucket.val, bucket.exp, 0, 0, count));
   }
   ns(Histogram_buckets_end(builder));
   ns(MetricSample_value_Histogram_end(builder));
@@ -224,11 +220,7 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
     hist_bucket_t bucket;
     uint64_t count;
     hist_bucket_idx_bucket(h, i, &bucket, &count);
-    ns(Histogram_buckets_push_start(builder));
-    ns(HistogramBucket_val_add(builder, bucket.val));
-    ns(HistogramBucket_exp_add(builder, bucket.exp));
-    ns(HistogramBucket_count_add(builder, count));
-    ns(Histogram_buckets_push_end(builder));
+    ns(Histogram_buckets_push_create(builder, bucket.val, bucket.exp, 0, 0, count));
   }
   ns(Histogram_buckets_end(builder));
   ns(MetricSample_value_Histogram_end(builder));
@@ -238,7 +230,7 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
 }
 
 void *
-noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
+noit_fb_serialize_metric(uint64_t whence_ms, uuid_t check_uuid,
                          const char *check_name, int account_id, metric_t *m, const uint16_t generation,
                          size_t *out_size)
 {
@@ -249,7 +241,7 @@ noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
   ns(Metric_start_as_root(B));
   ns(Metric_timestamp_add)(B, whence_ms);
   ns(Metric_check_name_create_str(B, check_name));
-  ns(Metric_check_uuid_create_str(B, check_uuid));
+  ns(Metric_check_uuid_create(B, (uint8_t *)check_uuid, UUID_SIZE));
   ns(Metric_account_id_add)(B, account_id);
   ns(Metric_value_start(B));
   flatbuffer_encode_metric(B, m, generation);
@@ -262,7 +254,7 @@ noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
 }
 
 void *
-noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
+noit_fb_serialize_histogram(uint64_t whence_ms, uuid_t check_uuid,
                             const char *check_name, int account_id, const char *name,
                             histogram_t *h, const uint16_t generation, size_t *out_size)
 {
@@ -272,7 +264,7 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
   ns(Metric_start_as_root(B));
   ns(Metric_timestamp_add)(B, whence_ms);
   ns(Metric_check_name_create_str(B, check_name));
-  ns(Metric_check_uuid_create_str(B, check_uuid));
+  ns(Metric_check_uuid_create(B, (uint8_t *)check_uuid, UUID_SIZE));
   ns(Metric_account_id_add)(B, account_id);
   ns(Metric_value_start(B));
   ns(MetricValue_name_create_str(B, name));
@@ -285,11 +277,7 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
     hist_bucket_t bucket;
     uint64_t count;
     hist_bucket_idx_bucket(h, i, &bucket, &count);
-    ns(Histogram_buckets_push_start(B));
-    ns(HistogramBucket_val_add(B, bucket.val));
-    ns(HistogramBucket_exp_add(B, bucket.exp));
-    ns(HistogramBucket_count_add(B, count));
-    ns(Histogram_buckets_push_end(B));
+    ns(Histogram_buckets_push_create(B, bucket.val, bucket.exp, 0, 0, count));
   }
   ns(Histogram_buckets_end(B));
   ns(MetricSample_value_Histogram_end(B));
@@ -305,7 +293,7 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
 
 
 void *
-noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid, 
+noit_fb_serialize_metricbatch(uint64_t whence_ms, uuid_t check_uuid, 
                               const char *check_name, int account_id, metric_t **m,
                               const uint16_t *generation,
                               size_t m_count,
@@ -318,7 +306,7 @@ noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
   ns(MetricBatch_start_as_root(B));
   ns(MetricBatch_timestamp_add)(B, whence_ms);
   ns(MetricBatch_check_name_create_str(B, check_name));
-  ns(MetricBatch_check_uuid_create_str(B, check_uuid));
+  ns(MetricBatch_check_uuid_create(B, (uint8_t *)check_uuid, UUID_SIZE));
   ns(MetricBatch_account_id_add(B, account_id));
   ns(MetricBatch_metrics_start(B));
   for(size_t i=0; i<m_count; i++) {
