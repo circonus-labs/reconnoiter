@@ -398,7 +398,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   SET_FIELD_FROM_BUNDLE(whence_str);
   SET_FIELD_FROM_BUNDLE(ulen_str);
   rest = cp1;
-  
+
   ulen = strtoul(ulen_str, NULL, 10);
   raw_data = malloc(ulen);
   if(!raw_data) {
@@ -430,8 +430,14 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   int account_id = ns(MetricBatch_account_id(message));
   ns(MetricValue_vec_t) metrics = ns(MetricBatch_metrics(message));
   metrics_len = ns(MetricValue_vec_len(metrics));
-  
-  *out = calloc(sizeof(**out), metrics_len);
+  int total_lines = 0;
+  for (int i = 0; i < metrics_len; i++) {
+    ns(MetricValue_table_t) m = ns(MetricValue_vec_at(metrics, i));
+    ns(MetricSample_vec_t) samples = ns(MetricValue_samples(m));
+    total_lines += ns(MetricSample_vec_len(samples));
+  }
+
+  *out = calloc(sizeof(**out), total_lines);
   if(!*out) { error_str = "memory exhaustion"; goto bad_line; }
  
   mtev_dyn_buffer_t uuid_str;
@@ -444,10 +450,8 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     bool check_name_trailing_backtick = (check_name_len > 0 && check_name[check_name_len-1] == '`');
     size_t uuid_len = check_name_len + flatbuffers_string_len(check_uuid) + 1;
     if(!check_name_trailing_backtick) uuid_len++;
-    uint64_t ltimestamp = ns(MetricValue_timestamp(m));
-
-    if(ltimestamp == 0) ltimestamp = timestamp;
-    snprintf(ts, sizeof(ts), "%"PRIu64".%03u", ltimestamp / 1000 , (unsigned int)(ltimestamp % 1000));
+    ns(MetricSample_vec_t) samples = ns(MetricValue_samples(m));
+    size_t samples_len = ns(MetricSample_vec_len(samples));
 
     mtev_dyn_buffer_ensure(&uuid_str, uuid_len);
     mtev_dyn_buffer_reset(&uuid_str);
@@ -455,80 +459,89 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     mtev_dyn_buffer_add(&uuid_str, (uint8_t *)check_name, check_name_len);
     if(!check_name_trailing_backtick) mtev_dyn_buffer_add(&uuid_str, (uint8_t *)"`", 1);
     mtev_dyn_buffer_add(&uuid_str, (uint8_t *)check_uuid, flatbuffers_string_len(check_uuid));
-    char type = 'x';
 
-    value_str = scratch;
-    scratch[0] = '\0';
-    switch(ns(MetricValue_value_type(m))) {
-    case ns(MetricValueUnion_IntValue):
-      {
-        type = 'i';
-        ns(IntValue_table_t) v = ns(MetricValue_value(m));
-        snprintf(scratch, sizeof(scratch), "%d", ns(IntValue_value(v)));
-        break;
-      }
-    case ns(MetricValueUnion_UintValue):
-      {
-        type = 'I';
-        ns(UintValue_table_t) v = ns(MetricValue_value(m));
-        snprintf(scratch, sizeof(scratch), "%u", ns(UintValue_value(v)));
-        break;
-      }
-    case ns(MetricValueUnion_LongValue):
-      {
-        type = 'l';
-        ns(LongValue_table_t) v = ns(MetricValue_value(m));
-        snprintf(scratch, sizeof(scratch), "%lld", (long long)ns(LongValue_value(v)));
-        break;
-      }
-    case ns(MetricValueUnion_UlongValue):
-      {
-        type = 'L';
-        ns(UlongValue_table_t) v = ns(MetricValue_value(m));
-        snprintf(scratch, sizeof(scratch), "%llu", (unsigned long long)ns(UlongValue_value(v)));
-        break;
-      }
-    case ns(MetricValueUnion_DoubleValue):
-      {
-        type = 'n';
-        ns(DoubleValue_table_t) v = ns(MetricValue_value(m));
-        snprintf(scratch, sizeof(scratch), "%0.6f", ns(DoubleValue_value(v)));
-        break;
-      }
-    case ns(MetricValueUnion_AbsentNumericValue):
-      {
-        type = 'n';
-        snprintf(scratch, sizeof(scratch), "[[null]]");
-        break;
-      }
-    case ns(MetricValueUnion_StringValue):
-      {
-        type = 's';
-        ns(StringValue_table_t) v = ns(MetricValue_value(m));
-        value_str = ns(StringValue_value(v));
-        break;
-      }
-    case ns(MetricValueUnion_AbsentStringValue):
-      {
-        type = 's';
-        snprintf(scratch, sizeof(scratch), "[[null]]");
-        break;
-      }
-    };
-    if(type == 'x') continue;
+    for (int j=0; j < samples_len; j++) {
+      ns(MetricSample_table_t) sample = ns(MetricSample_vec_at(samples, j));
+      uint64_t ltimestamp = ns(MetricSample_timestamp(sample));
 
-    value_size = strlen(value_str);
+      if(ltimestamp == 0) ltimestamp = timestamp;
+      snprintf(ts, sizeof(ts), "%"PRIu64".%03u", ltimestamp / 1000 , (unsigned int)(ltimestamp % 1000));
 
-    size = 2 /* M\t */ + strlen(ts) + 1 /* \t */ +
-      mtev_dyn_buffer_used(&uuid_str) + 1 /* \t */ + flatbuffers_string_len(metric_name) +
-           3 /* \t<type>\t */ + value_size + 1 /* \0 */;
-    (*out)[i] = malloc(size);
-    snprintf((*out)[i], size, "M\t%s\t%.*s\t%s\t%c\t%s",
-             ts, (int)mtev_dyn_buffer_used(&uuid_str), mtev_dyn_buffer_data(&uuid_str),
-             metric_name, type, value_str);
+      char type = 'x';
+
+      value_str = scratch;
+      scratch[0] = '\0';
+      switch(ns(MetricSample_value_type(sample))) {
+        case ns(MetricValueUnion_IntValue):
+        {
+          type = 'i';
+          ns(IntValue_table_t) v = ns(MetricSample_value(sample));
+          snprintf(scratch, sizeof(scratch), "%d", ns(IntValue_value(v)));
+          break;
+        }
+      case ns(MetricValueUnion_UintValue):
+        {
+          type = 'I';
+          ns(UintValue_table_t) v = ns(MetricSample_value(sample));
+          snprintf(scratch, sizeof(scratch), "%u", ns(UintValue_value(v)));
+          break;
+        }
+      case ns(MetricValueUnion_LongValue):
+        {
+          type = 'l';
+          ns(LongValue_table_t) v = ns(MetricSample_value(sample));
+          snprintf(scratch, sizeof(scratch), "%lld", (long long)ns(LongValue_value(v)));
+          break;
+        }
+      case ns(MetricValueUnion_UlongValue):
+        {
+          type = 'L';
+          ns(UlongValue_table_t) v = ns(MetricSample_value(sample));
+          snprintf(scratch, sizeof(scratch), "%llu", (unsigned long long)ns(UlongValue_value(v)));
+          break;
+        }
+      case ns(MetricValueUnion_DoubleValue):
+        {
+          type = 'n';
+          ns(DoubleValue_table_t) v = ns(MetricSample_value(sample));
+          snprintf(scratch, sizeof(scratch), "%0.6f", ns(DoubleValue_value(v)));
+          break;
+        }
+      case ns(MetricValueUnion_AbsentNumericValue):
+        {
+          type = 'n';
+          snprintf(scratch, sizeof(scratch), "[[null]]");
+          break;
+        }
+      case ns(MetricValueUnion_StringValue):
+        {
+          type = 's';
+          ns(StringValue_table_t) v = ns(MetricSample_value(sample));
+          value_str = ns(StringValue_value(v));
+          break;
+        }
+      case ns(MetricValueUnion_AbsentStringValue):
+        {
+          type = 's';
+          snprintf(scratch, sizeof(scratch), "[[null]]");
+          break;
+        }
+      };
+      if(type == 'x') continue;
+
+      value_size = strlen(value_str);
+
+      size = 2 /* M\t */ + strlen(ts) + 1 /* \t */ +
+        mtev_dyn_buffer_used(&uuid_str) + 1 /* \t */ + flatbuffers_string_len(metric_name) +
+             3 /* \t<type>\t */ + value_size + 1 /* \0 */;
+      (*out)[i] = malloc(size);
+      snprintf((*out)[i], size, "M\t%s\t%.*s\t%s\t%c\t%s",
+               ts, (int)mtev_dyn_buffer_used(&uuid_str), mtev_dyn_buffer_data(&uuid_str),
+               metric_name, type, value_str);
+    }
   }
 
-  return metrics_len;
+  return total_lines;
 
  bad_line:
   if(*out) {

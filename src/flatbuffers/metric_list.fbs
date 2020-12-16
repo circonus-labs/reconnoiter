@@ -8,4 +8,4 @@ table MetricList {
 }
 
 root_type MetricList;
-file_identifier "CIML";
+file_identifier "CMLS";

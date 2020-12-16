@@ -13,4 +13,4 @@ table MetricBatch {
 }
 
 root_type MetricBatch;
-file_identifier "CIMB";
+file_identifier "CMBS";

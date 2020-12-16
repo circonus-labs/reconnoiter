@@ -42,19 +42,21 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
   int len = sizeof(uuid_str);
 
   ns(MetricValue_name_create_str(B, m->metric_name));
-  ns(MetricValue_generation_add(B, generation));
+  ns(MetricValue_samples_start(B));
+  ns(MetricValue_samples_push_start(B));
+  ns(MetricSample_generation_add(B, generation));
   if(m->whence.tv_sec || m->whence.tv_usec) {
     uint64_t whence_ms = m->whence.tv_sec * 1000ULL + m->whence.tv_usec / 1000;
-    ns(MetricValue_timestamp_add(B, whence_ms));
+    ns(MetricSample_timestamp_add(B, whence_ms));
   }
 
 #define ENCODE_TYPE(FBNAME, FBTYPE, MFIELD)                             \
   if (m->metric_value.MFIELD != NULL) {                                 \
     ns(FBTYPE ## _ref_t) x = ns(FBTYPE ## _create(B, *m->metric_value.MFIELD)); \
-    ns(MetricValue_value_ ## FBTYPE ##_add(B, x));                      \
+    ns(MetricSample_value_ ## FBTYPE ##_add(B, x));                      \
   } else {                                                              \
     ns(AbsentNumericValue_ref_t) x = ns(AbsentNumericValue_create(B));  \
-    ns(MetricValue_value_AbsentNumericValue_add(B, x));                 \
+    ns(MetricSample_value_AbsentNumericValue_add(B, x));                 \
   }
 
   /* any of these types can be null */
@@ -78,10 +80,10 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
     if (m->metric_value.s != NULL) {
       nsc(string_ref_t) x = nsc(string_create(B, m->metric_value.s, strlen(m->metric_value.s)));
       ns(StringValue_ref_t) sv = ns(StringValue_create(B, x));
-      ns(MetricValue_value_StringValue_add(B, sv));
+      ns(MetricSample_value_StringValue_add(B, sv));
     } else {
       ns(AbsentStringValue_ref_t) x = ns(AbsentStringValue_create(B));
-      ns(MetricValue_value_AbsentStringValue_add(B, x));
+      ns(MetricSample_value_AbsentStringValue_add(B, x));
     }
     break;
   case METRIC_HISTOGRAM:
@@ -94,6 +96,8 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
   };
 
 #undef ENCODE_TYPE
+  ns(MetricValue_samples_push_end(B));
+  ns(MetricValue_samples_end(B));
 
 }
 
@@ -174,8 +178,11 @@ noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const ch
   ns(Metric_account_id_add)(builder, account_id);
   ns(Metric_value_start(builder));
   ns(MetricValue_name_create_str(builder, name));
-  ns(MetricValue_generation_add(builder, generation));
-  ns(MetricValue_value_Histogram_start(builder));
+  ns(MetricValue_samples_start(builder));
+  ns(MetricValue_samples_push_start(builder));
+  ns(MetricSample_timestamp_add(builder, whence_ms));
+  ns(MetricSample_generation_add(builder, generation));
+  ns(MetricSample_value_Histogram_start(builder));
   ns(Histogram_buckets_start(builder));
   for (int i = 0; i < hist_bucket_count(h); i++) {
     hist_bucket_t bucket;
@@ -188,7 +195,9 @@ noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, const ch
     ns(Histogram_buckets_push_end(builder));
   }
   ns(Histogram_buckets_end(builder));
-  ns(MetricValue_value_Histogram_end(builder));
+  ns(MetricSample_value_Histogram_end(builder));
+  ns(MetricValue_samples_push_end(builder));
+  ns(MetricValue_samples_end(builder));
   ns(Metric_value_end(builder));
   ns(MetricList_metrics_push_end(builder));
 }
@@ -206,8 +215,10 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
 {
   ns(MetricBatch_metrics_push_start(builder));
   ns(MetricValue_name_create_str(builder, name));
-  ns(MetricValue_generation_add(builder, generation));
-  ns(MetricValue_value_Histogram_start(builder));
+  ns(MetricValue_samples_start(builder));
+  ns(MetricValue_samples_push_start(builder));
+  ns(MetricSample_generation_add(builder, generation));
+  ns(MetricSample_value_Histogram_start(builder));
   ns(Histogram_buckets_start(builder));
   for (int i = 0; i < hist_bucket_count(h); i++) {
     hist_bucket_t bucket;
@@ -220,7 +231,9 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
     ns(Histogram_buckets_push_end(builder));
   }
   ns(Histogram_buckets_end(builder));
-  ns(MetricValue_value_Histogram_end(builder));
+  ns(MetricSample_value_Histogram_end(builder));
+  ns(MetricValue_samples_push_end(builder));
+  ns(MetricValue_samples_end(builder));
   ns(MetricBatch_metrics_push_end(builder));
 }
 
@@ -263,8 +276,10 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
   ns(Metric_account_id_add)(B, account_id);
   ns(Metric_value_start(B));
   ns(MetricValue_name_create_str(B, name));
-  ns(MetricValue_generation_add(B, generation));
-  ns(MetricValue_value_Histogram_start(B));
+  ns(MetricValue_samples_start(B));
+  ns(MetricValue_samples_push_start(B));
+  ns(MetricSample_generation_add(B, generation));
+  ns(MetricSample_value_Histogram_start(B));
   ns(Histogram_buckets_start(B));
   for (int i = 0; i < hist_bucket_count(h); i++) {
     hist_bucket_t bucket;
@@ -277,7 +292,9 @@ noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
     ns(Histogram_buckets_push_end(B));
   }
   ns(Histogram_buckets_end(B));
-  ns(MetricValue_value_Histogram_end(B));
+  ns(MetricSample_value_Histogram_end(B));
+  ns(MetricValue_samples_push_end(B));
+  ns(MetricValue_samples_end(B));
   ns(Metric_value_end(B));
   ns(Metric_end_as_root(B));
 
