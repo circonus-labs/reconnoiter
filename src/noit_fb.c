@@ -188,7 +188,7 @@ noit_fb_add_histogram_to_metriclist(void *builder,  uint64_t whence_ms, uuid_t c
     hist_bucket_t bucket;
     uint64_t count;
     hist_bucket_idx_bucket(h, i, &bucket, &count);
-    ns(Histogram_buckets_push_create(builder, bucket.val, bucket.exp, 0, 0, count));
+    ns(Histogram_buckets_push_create(builder, count, bucket.val, bucket.exp));
   }
   ns(Histogram_buckets_end(builder));
   ns(MetricSample_value_Histogram_end(builder));
@@ -220,7 +220,7 @@ noit_fb_add_histogram_to_metricbatch(void *builder, const char *name, histogram_
     hist_bucket_t bucket;
     uint64_t count;
     hist_bucket_idx_bucket(h, i, &bucket, &count);
-    ns(Histogram_buckets_push_create(builder, bucket.val, bucket.exp, 0, 0, count));
+    ns(Histogram_buckets_push_create(builder, count, bucket.val, bucket.exp));
   }
   ns(Histogram_buckets_end(builder));
   ns(MetricSample_value_Histogram_end(builder));
@@ -277,7 +277,7 @@ noit_fb_serialize_histogram(uint64_t whence_ms, uuid_t check_uuid,
     hist_bucket_t bucket;
     uint64_t count;
     hist_bucket_idx_bucket(h, i, &bucket, &count);
-    ns(Histogram_buckets_push_create(B, bucket.val, bucket.exp, 0, 0, count));
+    ns(Histogram_buckets_push_create(B, count, bucket.val, bucket.exp));
   }
   ns(Histogram_buckets_end(B));
   ns(MetricSample_value_Histogram_end(B));
