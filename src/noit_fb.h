@@ -47,31 +47,31 @@ extern "C" {
 #include <flatbuffers/metric_list_builder.h>
 
 /*!
-  \fn noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
+  \fn noit_fb_serialize_metricbatch(uint64_t whence_ms, uuid_t check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
   \brief Create a MetricBatch flatbuffer representing a set of records
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
-noit_fb_serialize_metricbatch(uint64_t whence_ms, const char *check_uuid,
+noit_fb_serialize_metricbatch(uint64_t whence_ms, uuid_t check_uuid,
                               const char *check_name, int account_id, metric_t **m,
                               const uint16_t *generation, size_t batch_size, size_t* out_size);
 
 /*!
-  \fn noit_fb_serialize_metric(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m, const uint16_t generation, size_t *out_size)
+  \fn noit_fb_serialize_metric(void *builder, uint64_t whence_ms, uuid_t check_uuid, const char *check_name, int account_id, metric_t *m, const uint16_t generation, size_t *out_size)
   \brief Make a Metric flatbuffer from a numeric or string 
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
-noit_fb_serialize_metric(uint64_t whence_ms, const char *check_uuid,
+noit_fb_serialize_metric(uint64_t whence_ms, uuid_t check_uuid,
                          const char *check_name, int account_id, metric_t *m, const uint16_t generation, size_t *out_size);
 
 /*!
-  \fn noit_fb_serialize_histogram(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation, size_t *out_size)
+  \fn noit_fb_serialize_histogram(void *builder, uint64_t whence_ms, uuid_t check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation, size_t *out_size)
   \brief Make a Metric flatbuffer from a histogram
   \return The flatbuffer bytes, size is returned in 'out_size'
 */
 API_EXPORT(void *)
-noit_fb_serialize_histogram(uint64_t whence_ms, const char *check_uuid,
+noit_fb_serialize_histogram(uint64_t whence_ms, uuid_t check_uuid,
                             const char *check_name, int account_id, const char *name, histogram_t *m, const uint16_t generation, size_t *out_size);
 
 
@@ -84,14 +84,14 @@ API_EXPORT(void *)
 noit_fb_start_metriclist(void);
 
 /*!
-  \fn noit_fb_start_metricbatch(uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id)
+  \fn noit_fb_start_metricbatch(uint64_t whence_ms, uuid_t check_uuid, const char *check_name, int account_id)
   \brief Create a MetricBatch flatbuffer builder which we can append metrics to
   \return The flatbuffer builder handle
 
   MetricBatch shares common fields.
 */
 API_EXPORT(void *)
-noit_fb_start_metricbatch(uint64_t whence_ms, const char *check_uuid,
+noit_fb_start_metricbatch(uint64_t whence_ms, uuid_t check_uuid,
                           const char *check_name, int account_id);
 
 
@@ -117,19 +117,19 @@ noit_fb_finalize_metricbatch(void *builder, size_t *out_size);
 
 
 /*!
-  \fn noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, metric_t *m, const uint16_t generation)
+  \fn noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, uuid_t check_uuid, const char *check_name, int account_id, metric_t *m, const uint16_t generation)
   \brief Add a record to the MetricList flatbuffer
 */
 API_EXPORT(void)
-noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
+noit_fb_add_metric_to_metriclist(void *builder, uint64_t whence_ms, uuid_t check_uuid,
                                  const char *check_name, int account_id, metric_t *m, const uint16_t generation);
 
 /*!
-  \fn noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation)
+  \fn noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, uuid_t check_uuid, const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation)
   \brief Add a record to the MetricList flatbuffer
 */
 API_EXPORT(void)
-noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, const char *check_uuid,
+noit_fb_add_histogram_to_metriclist(void *builder, uint64_t whence_ms, uuid_t check_uuid,
                                     const char *check_name, int account_id, const char *name, histogram_t *h, const uint16_t generation);
 
 /*!

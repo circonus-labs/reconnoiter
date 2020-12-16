@@ -6,7 +6,7 @@ namespace circonus;
 table Metric {
       timestamp: ulong (id: 0);
       check_name: string (id: 1);
-      check_uuid: string (id: 2);
+      check_uuid: [ubyte] (id: 2);
       account_id: int (id: 3);
       value:MetricValue (id: 4);
 }

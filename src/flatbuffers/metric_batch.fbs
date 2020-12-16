@@ -7,10 +7,10 @@ namespace circonus;
 table MetricBatch {
       timestamp: ulong (id: 0); 
       check_name: string (id: 1);
-      check_uuid: string (id: 2);
+      check_uuid: [ubyte] (id: 2);
       account_id: int (id: 3);
       metrics: [MetricValue] (id: 4);
 }
 
 root_type MetricBatch;
-file_identifier "CIMB";
+file_identifier "CMBS";
