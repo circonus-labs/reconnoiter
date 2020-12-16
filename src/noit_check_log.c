@@ -259,6 +259,7 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
 {
   int rv = -1;
   char check_name[256 * 3] = {0};
+  char uuid_str[UUID_STR_LEN + 1];
   int len = sizeof(check_name);
 
   static char *ip_str = "ip";
@@ -279,13 +280,16 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
     strlcat(check_name, check->name, len);
   }
 
+  uuid_str[0] = '\0';
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
+
   size_t size = 0;
   /* TODO: this is a circonus specific line based on how we name checks
    *
    * Could be a hook?
    */
   int account_id = account_id_from_name(check_name);
-  void *buffer = noit_fb_serialize_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), check->checkid, check_name, account_id,
+  void *buffer = noit_fb_serialize_metricbatch((SECPART(whence) * 1000) + MSECPART(whence), uuid_str, check_name, account_id,
                                                &m, NULL, 1, &size);
 
   if(buffer == NULL) return -1;
@@ -548,6 +552,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
   int rv_sum = 0, rv_err = 0;
   static char *ip_str = "ip";
   char check_name[256 * 3] = {0};
+  char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
   int len = sizeof(check_name);
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
@@ -584,6 +589,9 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
     strlcat(check_name, check->name, len);
   }
 
+  uuid_str[0] = '\0';
+  mtev_uuid_unparse_lower(check->checkid, uuid_str);
+
   metrics = in_metrics ? in_metrics : noit_check_stats_metrics(c);
 
   int account_id = account_id_from_name(check_name);
@@ -610,7 +618,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
       latest_metric_whence = m->whence;
     }
 
-    if(!B) B = noit_fb_start_metricbatch(whence_ms, check->checkid, check_name, account_id);
+    if(!B) B = noit_fb_start_metricbatch(whence_ms, uuid_str, check_name, account_id);
     current_in_batch++;
     noit_fb_add_metric_to_metricbatch(B, m, 0);
 
