@@ -1,11 +1,11 @@
 include "metric.fbs";
 
 // Metric message
-namespace circonus;
+namespace noit;
 
 table MetricList {
       metrics:[Metric] (id: 0);
 }
 
 root_type MetricList;
-file_identifier "CIML";
+file_identifier "CMLS";

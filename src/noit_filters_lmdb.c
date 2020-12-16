@@ -169,11 +169,11 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
                                           noit_filter_lmdb_filterset_rule_t *rule) {
 #define FILTERSET_RULE_INFO_ADD_HASH(rtype) do { \
   if ((rule->rtype##_hash_rules) || ((rule->rtype##_auto_add_present) && (rule->rtype##_auto_add > 0))) { \
-    ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_start(B)); \
+    noit_ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_start(B)); \
     if ((rule->rtype##_auto_add_present) && (rule->rtype##_auto_add > 0)) { \
-      ns(FiltersetRuleHashValue_auto_add_max_add(B, rule->rtype##_auto_add)); \
+      noit_ns(FiltersetRuleHashValue_auto_add_max_add(B, rule->rtype##_auto_add)); \
     } \
-    ns(FiltersetRuleHashValue_values_start(B)); \
+    noit_ns(FiltersetRuleHashValue_values_start(B)); \
     if (rule->rtype##_hash_rules) { \
       mtev_hash_iter iter = MTEV_HASH_ITER_ZERO; \
       const char *k; \
@@ -183,68 +183,68 @@ noit_filters_lmdb_add_filterset_rule_info(flatcc_builder_t *B,
         &data)) { \
         char *tmp = (char *)calloc(1, klen+1); \
         memcpy(tmp, k, klen); \
-        ns(FiltersetRuleHashValue_values_push_create_str(B, tmp)); \
+        noit_ns(FiltersetRuleHashValue_values_push_create_str(B, tmp)); \
         free(tmp); \
       } \
     } \
-    ns(FiltersetRuleHashValue_values_end(B)); \
-    ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_end(B)); \
+    noit_ns(FiltersetRuleHashValue_values_end(B)); \
+    noit_ns(FiltersetRuleInfo_data_FiltersetRuleHashValue_end(B)); \
   } \
 } while (0);
 
 #define FILTERSET_RULE_INFO_ADD_ATTRIBUTE(rtype) do { \
   if ((!rule->rtype##_hash_rules) && ((!rule->rtype##_auto_add_present) || (rule->rtype##_auto_add == 0))) { \
     if (rule->rtype##_attribute) { \
-      ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_start(B)); \
-      ns(FiltersetRuleAttributeValue_regex_create_str(B, rule->rtype##_attribute)); \
-      ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_end(B)); \
+      noit_ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_start(B)); \
+      noit_ns(FiltersetRuleAttributeValue_regex_create_str(B, rule->rtype##_attribute)); \
+      noit_ns(FiltersetRuleInfo_data_FiltersetRuleAttributeValue_end(B)); \
     } \
   } \
 } while (0);
 
 #define FILTERSET_RULE_ADD_TAG(rtype) do { \
   if (rule->rtype##_tag_str) { \
-    ns(FiltersetRule_tags_push_start(B)); \
-    ns(FiltersetRuleTagInfo_type_create_str(B, #rtype)); \
-    ns(FiltersetRuleTagInfo_value_create_str(B, rule->rtype##_tag_str)); \
-    ns(FiltersetRule_tags_push_end(B)); \
+    noit_ns(FiltersetRule_tags_push_start(B)); \
+    noit_ns(FiltersetRuleTagInfo_type_create_str(B, #rtype)); \
+    noit_ns(FiltersetRuleTagInfo_value_create_str(B, rule->rtype##_tag_str)); \
+    noit_ns(FiltersetRule_tags_push_end(B)); \
   } \
 } while (0);
 
-  ns(FiltersetRule_info_start(B));
+  noit_ns(FiltersetRule_info_start(B));
   if (rule->target_hash_rules || rule->target_attribute || (rule->target_auto_add_present && rule->target_auto_add)) {
-    ns(FiltersetRule_info_push_start(B));
-    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_TARGET_STRING));
+    noit_ns(FiltersetRule_info_push_start(B));
+    noit_ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_TARGET_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(target);
     FILTERSET_RULE_INFO_ADD_ATTRIBUTE(target);
-    ns(FiltersetRule_info_push_end(B));
+    noit_ns(FiltersetRule_info_push_end(B));
   }
   if (rule->module_hash_rules || rule->module_attribute || (rule->module_auto_add_present && rule->module_auto_add)) {
-    ns(FiltersetRule_info_push_start(B));
-    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_MODULE_STRING));
+    noit_ns(FiltersetRule_info_push_start(B));
+    noit_ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_MODULE_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(module);
     FILTERSET_RULE_INFO_ADD_ATTRIBUTE(module);
-    ns(FiltersetRule_info_push_end(B));
+    noit_ns(FiltersetRule_info_push_end(B));
   }
   if (rule->name_hash_rules || rule->name_attribute || (rule->name_auto_add_present && rule->name_auto_add)) {
-    ns(FiltersetRule_info_push_start(B));
-    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_NAME_STRING));
+    noit_ns(FiltersetRule_info_push_start(B));
+    noit_ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_NAME_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(name);
     FILTERSET_RULE_INFO_ADD_ATTRIBUTE(name);
-    ns(FiltersetRule_info_push_end(B));
+    noit_ns(FiltersetRule_info_push_end(B));
   }
   if (rule->metric_hash_rules || rule->metric_attribute || (rule->metric_auto_add_present && rule->metric_auto_add)) {
-    ns(FiltersetRule_info_push_start(B));
-    ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_METRIC_STRING));
+    noit_ns(FiltersetRule_info_push_start(B));
+    noit_ns(FiltersetRuleInfo_type_create_str(B, FILTERSET_METRIC_STRING));
     FILTERSET_RULE_INFO_ADD_HASH(metric);
     FILTERSET_RULE_INFO_ADD_ATTRIBUTE(metric);
-    ns(FiltersetRule_info_push_end(B));
+    noit_ns(FiltersetRule_info_push_end(B));
   }
-  ns(FiltersetRule_info_end(B));
-  ns(FiltersetRule_tags_start(B));
+  noit_ns(FiltersetRule_info_end(B));
+  noit_ns(FiltersetRule_tags_start(B));
   FILTERSET_RULE_ADD_TAG(stream_tags);
   FILTERSET_RULE_ADD_TAG(measurement_tags);
-  ns(FiltersetRule_tags_end(B));
+  noit_ns(FiltersetRule_tags_end(B));
 }
 
 static int
@@ -270,56 +270,56 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
     return -1;
   }
   flatcc_builder_init(B);
-  ns(Filterset_start_as_root(B));
-  ns(Filterset_name_create_str(B, filterset_name));
+  noit_ns(Filterset_start_as_root(B));
+  noit_ns(Filterset_name_create_str(B, filterset_name));
   if (sequence) {
-    ns(Filterset_seq_add)(B, *sequence);
+    noit_ns(Filterset_seq_add)(B, *sequence);
   }
   if (cull) {
-    ns(Filterset_cull_add)(B, *cull);
+    noit_ns(Filterset_cull_add)(B, *cull);
   }
   else {
-    ns(Filterset_cull_add)(B, true);
+    noit_ns(Filterset_cull_add)(B, true);
   }
-  ns(Filterset_filterset_flush_period_start(B));
+  noit_ns(Filterset_filterset_flush_period_start(B));
   if (filter_flush_global) {
-    ns(FiltersetRuleFlushPeriod_present_add(B, true));
-    ns(FiltersetRuleFlushPeriod_value_add(B, *filter_flush_global));
+    noit_ns(FiltersetRuleFlushPeriod_present_add(B, true));
+    noit_ns(FiltersetRuleFlushPeriod_value_add(B, *filter_flush_global));
   }
   else {
-    ns(FiltersetRuleFlushPeriod_present_add(B, false));
+    noit_ns(FiltersetRuleFlushPeriod_present_add(B, false));
   }
-  ns(Filterset_filterset_flush_period_end(B));
-  ns(Filterset_rules_start(B));
+  noit_ns(Filterset_filterset_flush_period_end(B));
+  noit_ns(Filterset_rules_start(B));
   for (i = 0; i < rule_cnt; i++) {
     noit_filter_lmdb_filterset_rule_t *rule = rules[i];
     if (!rule) {
       continue;
     }
-    ns(Filterset_rules_push_start(B));
+    noit_ns(Filterset_rules_push_start(B));
     if (rule->ruleid) {
-      ns(FiltersetRule_id_create_str(B, rule->ruleid));
+      noit_ns(FiltersetRule_id_create_str(B, rule->ruleid));
     }
-    ns(FiltersetRule_filterset_flush_period_start(B));
+    noit_ns(FiltersetRule_filterset_flush_period_start(B));
     if (rule->filter_flush_period_present) {
-      ns(FiltersetRuleFlushPeriod_present_add(B, true));
-      ns(FiltersetRuleFlushPeriod_value_add(B, rule->filter_flush_period));
+      noit_ns(FiltersetRuleFlushPeriod_present_add(B, true));
+      noit_ns(FiltersetRuleFlushPeriod_value_add(B, rule->filter_flush_period));
     }
     else {
-      ns(FiltersetRuleFlushPeriod_present_add(B, false));
+      noit_ns(FiltersetRuleFlushPeriod_present_add(B, false));
     }
-    ns(FiltersetRule_filterset_flush_period_end(B));
+    noit_ns(FiltersetRule_filterset_flush_period_end(B));
     switch(rule->type) {
       case NOIT_FILTER_ACCEPT:
-        ns(FiltersetRule_rule_type_create_str(B, FILTERSET_ACCEPT_STRING));
+        noit_ns(FiltersetRule_rule_type_create_str(B, FILTERSET_ACCEPT_STRING));
         break;
       case NOIT_FILTER_DENY:
-        ns(FiltersetRule_rule_type_create_str(B, FILTERSET_DENY_STRING));
+        noit_ns(FiltersetRule_rule_type_create_str(B, FILTERSET_DENY_STRING));
         break;
       case NOIT_FILTER_SKIPTO:
-        ns(FiltersetRule_rule_type_create_str(B, FILTERSET_SKIPTO_STRING_NO_COLON));
+        noit_ns(FiltersetRule_rule_type_create_str(B, FILTERSET_SKIPTO_STRING_NO_COLON));
         if (rule->skipto) {
-          ns(FiltersetRule_skipto_value_create_str(B, rule->skipto));
+          noit_ns(FiltersetRule_skipto_value_create_str(B, rule->skipto));
         }
         break;
       default:
@@ -329,14 +329,14 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
 
     noit_filters_lmdb_add_filterset_rule_info(B, rule);
 
-    ns(Filterset_rules_push_end(B));
+    noit_ns(Filterset_rules_push_end(B));
   }
-  ns(Filterset_rules_end(B));
-  ns(Filterset_end_as_root(B));
+  noit_ns(Filterset_rules_end(B));
+  noit_ns(Filterset_end_as_root(B));
   void *buffer = flatcc_builder_finalize_buffer(B, &buffer_size);
   flatcc_builder_clear(B);
 
-  if ((ret = ns(Filterset_verify_as_root(buffer, buffer_size)))) {
+  if ((ret = noit_ns(Filterset_verify_as_root(buffer, buffer_size)))) {
     if(asprintf(error, "could not verify Filterset flatbuffer (name %s, len %zd)", filterset_name, buffer_size) < 0)
       *error = strdup("could not verify flatbuffer");
     return ret;
@@ -537,13 +537,13 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   int32_t auto_max = 0; \
   int hte_cnt = 0, hti, tablesize = 2; \
   flatbuffers_string_vec_t values_vec = NULL; \
-  ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table)); \
-  auto_max = ns(FiltersetRuleHashValue_auto_add_max(v)); \
+  noit_ns(FiltersetRuleHashValue_table_t) v = noit_ns(FiltersetRuleInfo_data(rule_info_table)); \
+  auto_max = noit_ns(FiltersetRuleHashValue_auto_add_max(v)); \
   if (auto_max < 0) { \
     auto_max = 0; \
   } \
-  if (ns(FiltersetRuleHashValue_values_is_present(v))) { \
-    values_vec = ns(FiltersetRuleHashValue_values(v)); \
+  if (noit_ns(FiltersetRuleHashValue_values_is_present(v))) { \
+    values_vec = noit_ns(FiltersetRuleHashValue_values(v)); \
     hte_cnt = flatbuffers_string_vec_len(values_vec); \
   } \
   if (auto_max || hte_cnt) { \
@@ -571,8 +571,8 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   char *longre = NULL; \
   const char *error; \
   int erroffset; \
-  ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(rule_info_table)); \
-  flatbuffers_string_t r = ns(FiltersetRuleAttributeValue_regex(v)); \
+  noit_ns(FiltersetRuleAttributeValue_table_t) v = noit_ns(FiltersetRuleInfo_data(rule_info_table)); \
+  flatbuffers_string_t r = noit_ns(FiltersetRuleAttributeValue_regex(v)); \
   longre = strdup(r); \
   rule->rtype = pcre_compile(longre, 0, &error, &erroffset, NULL); \
   if(!rule->rtype) { \
@@ -590,7 +590,7 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
 
 #define LMDB_TAGS_COMPILE(rtype, search) do { \
   if (rule->metric_ht == NULL) { \
-    flatbuffers_string_t tag_value = ns(FiltersetRuleTagInfo_value(rule_tag_info_table)); \
+    flatbuffers_string_t tag_value = noit_ns(FiltersetRuleTagInfo_value(rule_tag_info_table)); \
     char *expr = strdup(tag_value); \
     int erroffset; \
     rule->rtype = strdup(expr); \
@@ -611,49 +611,49 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
   /* We need to align the flatbuffer */
   mtev_dyn_buffer_t aligned;
   void *aligned_fb_data = get_aligned_fb(&aligned, fb_data, fb_size);
-  int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, fb_size));
+  int fb_ret = noit_ns(Filterset_verify_as_root(aligned_fb_data, fb_size));
   if(fb_ret != 0) {
     mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
     mtev_dyn_buffer_destroy(&aligned);
     return mtev_false;
   }
-  ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
+  noit_ns(Filterset_table_t) filterset = noit_ns(Filterset_as_root(aligned_fb_data));
 
   set = (filterset_t *)calloc(1, sizeof(filterset_t));
   noit_filter_update_last_touched(set);
   set->ref_cnt = 1;
-  set->name = strdup(ns(Filterset_name(filterset)));
+  set->name = strdup(noit_ns(Filterset_name(filterset)));
 
-  seq = ns(Filterset_seq(filterset));
+  seq = noit_ns(Filterset_seq(filterset));
   mtevAssert (seq >= 0);
   set->seq = seq;
 
   int local_default_filter_flush_period_ms = global_default_filter_flush_period_ms;
-  if (ns(Filterset_filterset_flush_period_is_present(filterset))) {
-    ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(Filterset_filterset_flush_period(filterset));
-    if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
-      local_default_filter_flush_period_ms = ns(FiltersetRuleFlushPeriod_value(fpt));
+  if (noit_ns(Filterset_filterset_flush_period_is_present(filterset))) {
+    noit_ns(FiltersetRuleFlushPeriod_table_t) fpt = noit_ns(Filterset_filterset_flush_period(filterset));
+    if (noit_ns(FiltersetRuleFlushPeriod_present(fpt))) {
+      local_default_filter_flush_period_ms = noit_ns(FiltersetRuleFlushPeriod_value(fpt));
     }
   }
   if (local_default_filter_flush_period_ms < 0) {
     local_default_filter_flush_period_ms = 0;
   }
 
-  ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
-  num_rules = ns(FiltersetRule_vec_len(rule_vec));
+  noit_ns(FiltersetRule_vec_t) rule_vec = noit_ns(Filterset_rules(filterset));
+  num_rules = noit_ns(FiltersetRule_vec_len(rule_vec));
   for (i=num_rules-1; i >= 0; i--) {
     filterrule_t *rule = NULL;
     rule = (filterrule_t *)calloc(1, sizeof(filterrule_t));
-    ns(FiltersetRule_table_t) fs_rule = ns(FiltersetRule_vec_at(rule_vec, i));
-    flatbuffers_string_t ruleid = ns(FiltersetRule_id(fs_rule));
+    noit_ns(FiltersetRule_table_t) fs_rule = noit_ns(FiltersetRule_vec_at(rule_vec, i));
+    flatbuffers_string_t ruleid = noit_ns(FiltersetRule_id(fs_rule));
     if (ruleid != NULL) {
-      rule->ruleid = strdup(ns(FiltersetRule_id(fs_rule)));
+      rule->ruleid = strdup(noit_ns(FiltersetRule_id(fs_rule)));
     }
     int32_t ffp = local_default_filter_flush_period_ms;
-    if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
-      ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(FiltersetRule_filterset_flush_period(fs_rule));
-      if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
-        ffp = ns(FiltersetRuleFlushPeriod_value(fpt));
+    if (noit_ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
+      noit_ns(FiltersetRuleFlushPeriod_table_t) fpt = noit_ns(FiltersetRule_filterset_flush_period(fs_rule));
+      if (noit_ns(FiltersetRuleFlushPeriod_present(fpt))) {
+        ffp = noit_ns(FiltersetRuleFlushPeriod_value(fpt));
       }
     }
     if(ffp < 0) {
@@ -662,7 +662,7 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
     rule->flush_interval.tv_sec = ffp/1000;
     rule->flush_interval.tv_usec = ffp%1000;
 
-    flatbuffers_string_t rule_type = ns(FiltersetRule_rule_type(fs_rule));
+    flatbuffers_string_t rule_type = noit_ns(FiltersetRule_rule_type(fs_rule));
 
     if (!strcmp(rule_type, FILTERSET_ACCEPT_STRING)) {
       rule->type = NOIT_FILTER_ACCEPT;
@@ -673,7 +673,7 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
     else if (!strcmp(rule_type, FILTERSET_SKIPTO_STRING_NO_COLON)) {
       flatbuffers_string_t skipto = NULL;
       rule->type = NOIT_FILTER_SKIPTO;
-      skipto = ns(FiltersetRule_skipto_value(fs_rule));
+      skipto = noit_ns(FiltersetRule_skipto_value(fs_rule));
       if (skipto != NULL) {
         rule->skipto = strdup(skipto);
       }
@@ -686,12 +686,12 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
       rule->type = NOIT_FILTER_DENY;
     }
 
-    ns(FiltersetRuleInfo_vec_t)rule_info_vec = ns(FiltersetRule_info(fs_rule));
-    size_t num_run_info = ns(FiltersetRuleInfo_vec_len(rule_info_vec));
-    circonus_FiltersetRuleHashValue_table_t v;
+    noit_ns(FiltersetRuleInfo_vec_t)rule_info_vec = noit_ns(FiltersetRule_info(fs_rule));
+    size_t num_run_info = noit_ns(FiltersetRuleInfo_vec_len(rule_info_vec));
+    noit_ns(FiltersetRuleHashValue_table_t) v;
     for (j = 0; j < num_run_info; j++) {
-      ns(FiltersetRuleInfo_table_t)rule_info_table = ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
-      flatbuffers_string_t info_type = ns(FiltersetRuleInfo_type(rule_info_table));
+      noit_ns(FiltersetRuleInfo_table_t)rule_info_table = noit_ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
+      flatbuffers_string_t info_type = noit_ns(FiltersetRuleInfo_type(rule_info_table));
       noit_filter_lmdb_rule_type_e local_type = FILTERSET_RULE_UNKNOWN_TYPE;
 
       if (!strcmp(info_type, FILTERSET_TARGET_STRING)) {
@@ -711,8 +711,8 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
         free(rule);
         continue;
       }
-      switch(ns(FiltersetRuleInfo_data_type(rule_info_table))) {
-        case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
+      switch(noit_ns(FiltersetRuleInfo_data_type(rule_info_table))) {
+        case noit_ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
         {
           switch(local_type) {
             case FILTERSET_RULE_TARGET_TYPE:
@@ -733,7 +733,7 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
           }
           break;
         }
-        case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
+        case noit_ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
         {
           switch(local_type) {
             case FILTERSET_RULE_TARGET_TYPE:
@@ -759,13 +759,13 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
           break;
       }
     }
-    if (ns(FiltersetRule_tags_is_present(fs_rule))) {
+    if (noit_ns(FiltersetRule_tags_is_present(fs_rule))) {
       int ii = 0;
-      ns(FiltersetRuleTagInfo_vec_t)rule_tag_info_vec = ns(FiltersetRule_tags(fs_rule));
-      size_t num_tags_info = ns(FiltersetRuleTagInfo_vec_len(rule_tag_info_vec));
+      noit_ns(FiltersetRuleTagInfo_vec_t)rule_tag_info_vec = noit_ns(FiltersetRule_tags(fs_rule));
+      size_t num_tags_info = noit_ns(FiltersetRuleTagInfo_vec_len(rule_tag_info_vec));
       for (ii = 0; ii < num_tags_info; ii++) {
-        ns(FiltersetRuleTagInfo_table_t)rule_tag_info_table = ns(FiltersetRuleTagInfo_vec_at(rule_tag_info_vec, ii));
-        flatbuffers_string_t tag_type = ns(FiltersetRuleTagInfo_type(rule_tag_info_table));
+        noit_ns(FiltersetRuleTagInfo_table_t)rule_tag_info_table = noit_ns(FiltersetRuleTagInfo_vec_at(rule_tag_info_vec, ii));
+        flatbuffers_string_t tag_type = noit_ns(FiltersetRuleTagInfo_type(rule_tag_info_table));
         if (!strcmp(tag_type, FILTERSET_TAG_STREAM_TAGS_STRING)) {
           LMDB_TAGS_COMPILE(stream_tags, stsearch);
         }
@@ -884,7 +884,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
 
   mtev_dyn_buffer_t aligned;
   void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
-  int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
+  int fb_ret = noit_ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
   if(fb_ret != 0) {
     mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
     mtev_dyn_buffer_destroy(&aligned);
@@ -894,54 +894,54 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
     free(key);
     return -1;
   }
-  ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
-  flatbuffers_string_t name = ns(Filterset_name(filterset));
+  noit_ns(Filterset_table_t) filterset = noit_ns(Filterset_as_root(aligned_fb_data));
+  flatbuffers_string_t name = noit_ns(Filterset_name(filterset));
   if (name != NULL) {
     xmlSetProp(root, (xmlChar *)"name", (xmlChar *)name);
   }
 
-  int64_t seq = ns(Filterset_seq(filterset));
+  int64_t seq = noit_ns(Filterset_seq(filterset));
   if (seq > 0) {
     snprintf(buffer, sizeof(buffer), "%" PRId64 "", seq);
     xmlSetProp(root, (xmlChar *)"seq", (xmlChar *)buffer);
   }
 
-  mtev_boolean cull = ns(Filterset_cull(filterset));
+  mtev_boolean cull = noit_ns(Filterset_cull(filterset));
   snprintf(buffer, sizeof(buffer), "%s", (cull == mtev_true) ? "true" : "false");
   xmlSetProp(root, (xmlChar *)"cull", (xmlChar *)buffer);
 
-  if (ns(Filterset_filterset_flush_period_is_present(filterset))) {
-    ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(Filterset_filterset_flush_period(filterset));
-    if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
-      int32_t ffp = ns(FiltersetRuleFlushPeriod_value(fpt));
+  if (noit_ns(Filterset_filterset_flush_period_is_present(filterset))) {
+    noit_ns(FiltersetRuleFlushPeriod_table_t) fpt = noit_ns(Filterset_filterset_flush_period(filterset));
+    if (noit_ns(FiltersetRuleFlushPeriod_present(fpt))) {
+      int32_t ffp = noit_ns(FiltersetRuleFlushPeriod_value(fpt));
       snprintf(buffer, sizeof(buffer), "%" PRId32 "", ffp);
       xmlSetProp(root, (xmlChar *)"filter_flush_period", (xmlChar *)buffer);
     }
   }
 
-  if (ns(Filterset_rules_is_present(filterset))) {
-    ns(FiltersetRule_vec_t) rule_vec = ns(Filterset_rules(filterset));
-    size_t num_rules = ns(FiltersetRule_vec_len(rule_vec));
+  if (noit_ns(Filterset_rules_is_present(filterset))) {
+    noit_ns(FiltersetRule_vec_t) rule_vec = noit_ns(Filterset_rules(filterset));
+    size_t num_rules = noit_ns(FiltersetRule_vec_len(rule_vec));
     size_t i = 0;
     for (i=0; i < num_rules; i++) {
       xmlNodePtr rule = xmlNewNode(NULL, (xmlChar *)"rule");
-      ns(FiltersetRule_table_t) fs_rule = ns(FiltersetRule_vec_at(rule_vec, i));
-      flatbuffers_string_t id = ns(FiltersetRule_id(fs_rule));
+      noit_ns(FiltersetRule_table_t) fs_rule = noit_ns(FiltersetRule_vec_at(rule_vec, i));
+      flatbuffers_string_t id = noit_ns(FiltersetRule_id(fs_rule));
       if (id != NULL) {
         xmlSetProp(rule, (xmlChar *)"id", (xmlChar *)id);
       }
-      if (ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
-        ns(FiltersetRuleFlushPeriod_table_t) fpt = ns(FiltersetRule_filterset_flush_period(fs_rule));
-        if (ns(FiltersetRuleFlushPeriod_present(fpt))) {
-          int64_t ffs = ns(FiltersetRuleFlushPeriod_value(fpt));
+      if (noit_ns(FiltersetRule_filterset_flush_period_is_present(fs_rule))) {
+        noit_ns(FiltersetRuleFlushPeriod_table_t) fpt = noit_ns(FiltersetRule_filterset_flush_period(fs_rule));
+        if (noit_ns(FiltersetRuleFlushPeriod_present(fpt))) {
+          int64_t ffs = noit_ns(FiltersetRuleFlushPeriod_value(fpt));
           snprintf(buffer, sizeof(buffer), "%" PRId64 "", ffs);
           xmlSetProp(rule, (xmlChar *)"filter_flush_period", (xmlChar *)buffer);
         }
       }
-      flatbuffers_string_t type = ns(FiltersetRule_rule_type(fs_rule));
+      flatbuffers_string_t type = noit_ns(FiltersetRule_rule_type(fs_rule));
       if (type != NULL) {
         if (!strcmp(type, FILTERSET_SKIPTO_STRING_NO_COLON)) {
-          flatbuffers_string_t skipto = ns(FiltersetRule_skipto_value(fs_rule));
+          flatbuffers_string_t skipto = noit_ns(FiltersetRule_skipto_value(fs_rule));
           if (skipto) {
             snprintf(buffer, sizeof(buffer), "%s:%s", type, skipto);
             xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)buffer);
@@ -954,34 +954,34 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
           xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
         }
       }
-      if(ns(FiltersetRule_info_is_present(fs_rule))) {
-        ns(FiltersetRuleInfo_vec_t) rule_info_vec = ns(FiltersetRule_info(fs_rule));
-        size_t num_rule_info = ns(FiltersetRuleInfo_vec_len(rule_info_vec));
+      if(noit_ns(FiltersetRule_info_is_present(fs_rule))) {
+        noit_ns(FiltersetRuleInfo_vec_t) rule_info_vec = noit_ns(FiltersetRule_info(fs_rule));
+        size_t num_rule_info = noit_ns(FiltersetRuleInfo_vec_len(rule_info_vec));
         size_t j = 0;
         for (j=0; j < num_rule_info; j++) {
-          ns(FiltersetRuleInfo_table_t) fs_rule_info = ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
-          flatbuffers_string_t type = ns(FiltersetRuleInfo_type(fs_rule_info));
+          noit_ns(FiltersetRuleInfo_table_t) fs_rule_info = noit_ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
+          flatbuffers_string_t type = noit_ns(FiltersetRuleInfo_type(fs_rule_info));
           if (type == NULL) {
             mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_type missing\n");
             continue;
           }
-          if (!ns(FiltersetRuleInfo_data_is_present(fs_rule_info))) {
+          if (!noit_ns(FiltersetRuleInfo_data_is_present(fs_rule_info))) {
             mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_data missing\n");
             continue;
           }
-          switch(ns(FiltersetRuleInfo_data_type(fs_rule_info))) {
-            case ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
+          switch(noit_ns(FiltersetRuleInfo_data_type(fs_rule_info))) {
+            case noit_ns(FiltersetRuleValueUnion_FiltersetRuleHashValue):
             {
-              ns(FiltersetRuleHashValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
-              int64_t auto_add = ns(FiltersetRuleHashValue_auto_add_max(v));
+              noit_ns(FiltersetRuleHashValue_table_t) v = noit_ns(FiltersetRuleInfo_data(fs_rule_info));
+              int64_t auto_add = noit_ns(FiltersetRuleHashValue_auto_add_max(v));
               if (auto_add > 0) {
                 char key_buffer[65535];
                 snprintf(key_buffer, sizeof(key_buffer), "%s_auto_add", type);
                 snprintf(buffer, sizeof(buffer), "%" PRId64 "", auto_add);
                 xmlSetProp(rule, (xmlChar *)key_buffer, (xmlChar *)buffer);
               }
-              if (ns(FiltersetRuleHashValue_values_is_present(v))) {
-                flatbuffers_string_vec_t values_vec = ns(FiltersetRuleHashValue_values(v));
+              if (noit_ns(FiltersetRuleHashValue_values_is_present(v))) {
+                flatbuffers_string_vec_t values_vec = noit_ns(FiltersetRuleHashValue_values(v));
                 size_t hte_cnt = flatbuffers_string_vec_len(values_vec);
                 size_t ii = 0;
                 for (ii = 0; ii < hte_cnt; ii++) {
@@ -993,10 +993,10 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
               }
               break;
             }
-            case ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
+            case noit_ns(FiltersetRuleValueUnion_FiltersetRuleAttributeValue):
             {
-              ns(FiltersetRuleAttributeValue_table_t) v = ns(FiltersetRuleInfo_data(fs_rule_info));
-              flatbuffers_string_t regex = ns(FiltersetRuleAttributeValue_regex(v));
+              noit_ns(FiltersetRuleAttributeValue_table_t) v = noit_ns(FiltersetRuleInfo_data(fs_rule_info));
+              flatbuffers_string_t regex = noit_ns(FiltersetRuleAttributeValue_regex(v));
               xmlSetProp(rule, (xmlChar *)type, (xmlChar *)regex);
               break;
             }
@@ -1009,16 +1009,16 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
           }
         }
       }
-      if(ns(FiltersetRule_tags_is_present(fs_rule))) {
-        ns(FiltersetRuleTagInfo_vec_t) rule_tag_info_vec = ns(FiltersetRule_tags(fs_rule));
-        size_t num_rule_tag_info = ns(FiltersetRuleTagInfo_vec_len(rule_tag_info_vec));
+      if(noit_ns(FiltersetRule_tags_is_present(fs_rule))) {
+        noit_ns(FiltersetRuleTagInfo_vec_t) rule_tag_info_vec = noit_ns(FiltersetRule_tags(fs_rule));
+        size_t num_rule_tag_info = noit_ns(FiltersetRuleTagInfo_vec_len(rule_tag_info_vec));
         size_t j = 0;
         for (j=0; j < num_rule_tag_info; j++) {
-          ns(FiltersetRuleTagInfo_table_t) fs_rule_tag_info = ns(FiltersetRuleTagInfo_vec_at(rule_tag_info_vec, j));
-          if (ns(FiltersetRuleTagInfo_type_is_present(fs_rule_tag_info)) &&
-              ns(FiltersetRuleTagInfo_value_is_present(fs_rule_tag_info))) {
-            flatbuffers_string_t type = ns(FiltersetRuleTagInfo_type(fs_rule_tag_info));
-            flatbuffers_string_t value = ns(FiltersetRuleTagInfo_value(fs_rule_tag_info));
+          noit_ns(FiltersetRuleTagInfo_table_t) fs_rule_tag_info = noit_ns(FiltersetRuleTagInfo_vec_at(rule_tag_info_vec, j));
+          if (noit_ns(FiltersetRuleTagInfo_type_is_present(fs_rule_tag_info)) &&
+              noit_ns(FiltersetRuleTagInfo_value_is_present(fs_rule_tag_info))) {
+            flatbuffers_string_t type = noit_ns(FiltersetRuleTagInfo_type(fs_rule_tag_info));
+            flatbuffers_string_t value = noit_ns(FiltersetRuleTagInfo_value(fs_rule_tag_info));
             xmlSetProp(rule, (xmlChar *)type, (xmlChar *)value);
           }
         }
@@ -1100,13 +1100,13 @@ noit_filters_lmdb_get_seq(char *name) {
   if (rc == 0) {
     mtev_dyn_buffer_t aligned;
     void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
-    int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
+    int fb_ret = noit_ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
     if(fb_ret != 0) {
       mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
     }
     else {
-      ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
-      toRet = ns(Filterset_seq(filterset));
+      noit_ns(Filterset_table_t) filterset = noit_ns(Filterset_as_root(aligned_fb_data));
+      toRet = noit_ns(Filterset_seq(filterset));
       if (toRet < 0) {
         toRet = 0;
       }
@@ -1416,22 +1416,22 @@ noit_filters_lmdb_cull_unused() {
   while (rc == 0) {
     mtev_dyn_buffer_t aligned;
     void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
-    int fb_ret = ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
+    int fb_ret = noit_ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
     if(fb_ret != 0) {
       mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
       mtev_dyn_buffer_destroy(&aligned);
       rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
       continue;
     }
-    ns(Filterset_table_t) filterset = ns(Filterset_as_root(aligned_fb_data));
+    noit_ns(Filterset_table_t) filterset = noit_ns(Filterset_as_root(aligned_fb_data));
 
-    mtev_boolean cull = ns(Filterset_cull(filterset));
+    mtev_boolean cull = noit_ns(Filterset_cull(filterset));
     if (cull == mtev_false) {
       mtev_dyn_buffer_destroy(&aligned);
       rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
       continue;
     }
-    flatbuffers_string_t name = ns(Filterset_name(filterset));
+    flatbuffers_string_t name = noit_ns(Filterset_name(filterset));
     mtev_hash_store(&active, strdup(name), strlen(name), NULL);
     mtev_dyn_buffer_destroy(&aligned);
     rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_NEXT);
