@@ -75,7 +75,12 @@
 #define NS_NODE_CONTENT(parent, ns, k, v, followup) do { \
   xmlNodePtr tmp; \
   if(v) { \
-    tmp = xmlNewNode(ns, (xmlChar *)(k)); \
+    if(xmlValidateNameValue((xmlChar *)(k))) { \
+      tmp = xmlNewNode(ns, (xmlChar *)(k)); \
+    } else { \
+      tmp = xmlNewNode(ns, (xmlChar *)"value"); \
+      xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)(k)); \
+    } \
     xmlNodeAddContent(tmp, (xmlChar *)(v)); \
     followup \
     xmlAddChild(parent, tmp); \

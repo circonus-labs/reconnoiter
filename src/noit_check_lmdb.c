@@ -91,8 +91,14 @@ static int noit_check_lmdb_add_config(xmlNodePtr root, xmlNodePtr config, noit_l
   }
   xmlNodePtr child = NULL;
   if (key_data->ns == NULL) {
-    child = xmlNewNode(NULL, (xmlChar *)key_data->key);
-    xmlNodeAddContent(child, (xmlChar *)val);
+    if(xmlValidateNameValue((xmlChar *)key_data->key)) {
+      child = xmlNewNode(NULL, (xmlChar *)key_data->key);
+      xmlNodeAddContent(child, (xmlChar *)val);
+    } else {
+      child = xmlNewNode(NULL, (xmlChar *)"value");
+      xmlSetProp(child, (xmlChar *)"name", (xmlChar *)key_data->key);
+      xmlNodeAddContent(child, (xmlChar *)val);
+    }
   }
   else {
     xmlNsPtr ns_found = xmlSearchNs(root->doc, root, (xmlChar *)key_data->ns);
