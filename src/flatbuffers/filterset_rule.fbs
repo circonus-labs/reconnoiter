@@ -1,4 +1,4 @@
-namespace circonus;
+namespace noit;
 
 table FiltersetRuleHashValue {
   auto_add_max: long (id: 0);
