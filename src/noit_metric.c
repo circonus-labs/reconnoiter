@@ -656,7 +656,7 @@ eat_up_tags(const char *input, size_t *input_len, noit_metric_tag_t *tags, int m
   const char *next_start = memchr(input, prefix[0], *input_len);
   const char *block_start = NULL;
   while(next_start) {
-    if(end - next_start > plen+slen &&
+    if(end - next_start >= plen+slen &&
        memcmp(next_start, prefix, plen) == 0) {
       block_start = next_start;
     }
