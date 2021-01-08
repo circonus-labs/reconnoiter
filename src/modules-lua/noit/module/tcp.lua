@@ -149,23 +149,26 @@ function initiate(module, check)
   if rv ~= 0 then
     check.status(err or "connect error")
     check.metric_uint32("available", 0)
+    if use_ssl == true then
+      check.metric_uint32("ssl_available", 0)
+    end
     return
-  else
-    check.metric_uint32("available", 100)
   end
-
-  local ca_chain = noit.default_ca_chain()
-
-  if config.ca_chain ~= nil and config.ca_chain ~= '' then
-    ca_chain = config.ca_chain
-  end
+  check.metric_uint32("available", 100)
 
   if use_ssl == true then
+
+    local ca_chain = noit.default_ca_chain()
+
+    if config.ca_chain ~= nil and config.ca_chain ~= '' then
+      ca_chain = config.ca_chain
+    end
+
     rv, err = e:ssl_upgrade_socket(config.certificate_file,
                                         config.key_file,
                                         ca_chain,
                                         config.ciphers)
-  end 
+  end
 
   local connecttime = mtev.timeval.now()
   elapsed(check, "tt_connect", starttime, connecttime)
@@ -175,7 +178,7 @@ function initiate(module, check)
     return
   end
 
-  if use_ssl == true and rv == 0 then
+  if use_ssl == true
     check.metric_uint32("ssl_available", 100)
   end
 
