@@ -148,7 +148,10 @@ function initiate(module, check)
 
   if rv ~= 0 then
     check.status(err or "connect error")
+    check.metric_uint32("available", 0)
     return
+  else
+    check.metric_uint32("available", 100)
   end
 
   local ca_chain = noit.default_ca_chain()
@@ -168,7 +171,12 @@ function initiate(module, check)
   elapsed(check, "tt_connect", starttime, connecttime)
   if rv ~= 0 then
     check.status(err or "connection failed")
+    check.metric_uint32("ssl_available", 0)
     return
+  end
+
+  if use_ssl == true and rv == 0 then
+    check.metric_uint32("ssl_available", 100)
   end
 
   status = "connected"
