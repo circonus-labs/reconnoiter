@@ -178,7 +178,7 @@ function initiate(module, check)
     return
   end
 
-  if use_ssl == true
+  if use_ssl == true then
     check.metric_uint32("ssl_available", 100)
   end
 
