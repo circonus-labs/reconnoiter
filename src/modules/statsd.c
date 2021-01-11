@@ -40,6 +40,7 @@
 #include <arpa/inet.h>
 
 #include <mtev_hash.h>
+#include <mtev_rand.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
@@ -458,6 +459,8 @@ static int noit_statsd_init(noit_module_t *self) {
     eventer_t newe;
     newe = eventer_alloc_fd(statsd_handler, self, conf->ipv4_fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
+    eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
+    if(dp) eventer_set_owner(newe, eventer_choose_owner_pool(dp, mtev_rand()));
     eventer_add(newe);
   }
 
@@ -507,6 +510,8 @@ static int noit_statsd_init(noit_module_t *self) {
     eventer_t newe;
     newe = eventer_alloc_fd(statsd_handler, self, conf->ipv6_fd,
                             EVENTER_READ | EVENTER_EXCEPTION);
+    eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
+    if(dp) eventer_set_owner(newe, eventer_choose_owner_pool(dp, mtev_rand()));
     eventer_add(newe);
   }
 
