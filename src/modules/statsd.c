@@ -50,8 +50,10 @@
 
 #define MAX_CHECKS 3
 
+static size_t Cstat, Mstat, Gstat, Pstat;
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlperf = NULL;
 static const char *COUNTER_STRING = "c";
 
 typedef struct statsd_mod_config {
@@ -150,10 +152,13 @@ update_check(noit_check_t *check, const char *key, char type,
     uint64_t count = diff / sample;
     double bin = 0;
     noit_stats_set_metric_histogram(check, buff, mtev_false, METRIC_DOUBLE, &bin, count);
+    Cstat++;
   } else if(type == 'm') {
     noit_stats_set_metric_histogram(check, buff, mtev_false, METRIC_DOUBLE, &diff, (uint64_t)(1.0/sample));
+    Mstat++;
   } else {
     noit_stats_set_metric(check, buff, METRIC_DOUBLE, &diff);
+    Gstat++;
   }
 }
 
@@ -338,6 +343,7 @@ statsd_handler(eventer_t e, int mask, void *closure,
     if(parent) checks[nchecks++] = parent;
     if(nchecks)
       statsd_handle_payload(checks, nchecks, conf->payload, len);
+    Pstat++;
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -373,11 +379,22 @@ static int noit_statsd_config(noit_module_t *self, mtev_hash_table *options) {
 }
 
 static int noit_statsd_onload(mtev_image_t *self) {
-  if(!nlerr) nlerr = mtev_log_stream_find("error/statsd");
-  if(!nldeb) nldeb = mtev_log_stream_find("debug/statsd");
-  if(!nlerr) nlerr = noit_error;
-  if(!nldeb) nldeb = noit_debug;
+  nlerr = mtev_log_stream_find("error/statsd");
+  nldeb = mtev_log_stream_find("debug/statsd");
+  nlperf = mtev_log_stream_find("debug/statsd/performance");
   return 0;
+}
+
+static void report(void) {
+  size_t last = 0, Plast = 0;
+  while(1) {
+    eventer_aco_sleep(&(struct timeval){ 1UL, 0UL });
+    size_t current = Cstat + Mstat + Gstat;
+    mtevL(nlperf, "STATSD: C=%zu, M=%zu, G=%zu, (%zu/s) packets: %zu (%zu/s)\n",
+          Cstat, Mstat, Gstat, current - last, Pstat, Pstat - Plast);
+    last = current;
+    Plast = Pstat;
+  }
 }
 
 static int noit_statsd_init(noit_module_t *self) {
@@ -388,6 +405,7 @@ static int noit_statsd_init(noit_module_t *self) {
   int sockaddr_len;
   const char *config_val;
   statsd_mod_config_t *conf;
+  eventer_aco_start(report, NULL);
   conf = noit_module_get_userdata(self);
 
   eventer_name_callback("statsd/statsd_handler", statsd_handler);
