@@ -10,7 +10,7 @@
                allowed="^\d+$">The port on which to listen for statsd packets.</parameter>
     <parameter name="packets_per_cycle"
                required="optional"
-               default="100"
+               default="1000"
                allowed="^\d+$">The number of packets to recv() during each eventer cycle.</parameter>
     <parameter name="rcvbuf" required="optional" allowed="\d+" default="4194304">The socket receive buffer size</parameter>
     <parameter name="check"
