@@ -477,7 +477,6 @@ void
 stratcon_iep_line_processor(stratcon_datastore_op_t op,
                             struct sockaddr *remote, const char *remote_cn,
                             void *operand, eventer_t completion) {
-  int len;
   char remote_str[256];
   struct iep_job_closure *jc;
   eventer_t newe;
@@ -498,14 +497,12 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
     if(remote) {
       switch(remote->sa_family) {
         case AF_INET:
-          len = sizeof(struct sockaddr_in);
           inet_ntop(remote->sa_family, &((struct sockaddr_in *)remote)->sin_addr,
-                    remote_str, len);
+                    remote_str, sizeof(remote_str));
           break;
         case AF_INET6:
-         len = sizeof(struct sockaddr_in6);
           inet_ntop(remote->sa_family, &((struct sockaddr_in6 *)remote)->sin6_addr,
-                    remote_str, len);
+                    remote_str, sizeof(remote_str));
          break;
         case AF_UNIX:
           snprintf(remote_str, sizeof(remote_str), "%s", ((struct sockaddr_un *)remote)->sun_path);
