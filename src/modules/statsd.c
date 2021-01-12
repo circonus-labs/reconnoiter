@@ -507,7 +507,7 @@ static int noit_statsd_init(noit_module_t *self) {
         mtevL(nlerr, "statsd listener(IPv6) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
       }
 #endif
-      if(setsockopt(conf->ipv4_fd, SOL_SOCKET, SO_RCVBUF, &desired_rcvbuf, sizeof(desired_rcvbuf)) < 0) {
+      if(setsockopt(conf->ipv6_fd, SOL_SOCKET, SO_RCVBUF, &desired_rcvbuf, sizeof(desired_rcvbuf)) < 0) {
         mtevL(nlerr, "statsd listener(IPv6) failed(%s) to set recieve buffer\n", strerror(errno));
       }
       if(bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
