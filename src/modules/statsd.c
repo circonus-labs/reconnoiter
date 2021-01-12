@@ -32,12 +32,17 @@
 
 #include <mtev_defines.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <math.h>
 #include <ctype.h>
 #include <arpa/inet.h>
+
+#if defined __linux__
+#include <sys/socket.h>
+#endif
 
 #include <mtev_hash.h>
 #include <mtev_rand.h>
@@ -49,12 +54,18 @@
 #include "noit_socket_listener.h"
 
 #define MAX_CHECKS 3
+#define RECV_BUFFER_CAPACITY (128*1024)
 
 static size_t Cstat, Mstat, Gstat, Pstat;
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 static mtev_log_stream_t nlperf = NULL;
 static const char *COUNTER_STRING = "c";
+
+typedef union {
+  struct sockaddr_in in;
+  struct sockaddr_in6 in6;
+} addr_t;
 
 typedef struct statsd_mod_config {
   mtev_hash_table *options;
@@ -63,10 +74,12 @@ typedef struct statsd_mod_config {
   uuid_t primary;
   int primary_active;
   noit_check_t *check;
-  char *payload;
-  int payload_len;
   int ipv4_fd;
   int ipv6_fd;
+  size_t payload_len;
+  struct iovec *payload;
+  addr_t *addr;
+  bool use_recvmmsg;
 } statsd_mod_config_t;
 
 typedef struct {
@@ -290,60 +303,103 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
   }
 }
 
+static void
+statsd_handle_single_message(noit_module_t *const self,
+                             noit_check_t *parent,
+                             struct iovec *payload,
+                             addr_t *addr) {
+  noit_check_t *checks[MAX_CHECKS];
+  char ip[INET6_ADDRSTRLEN];
+  int nchecks = 0;
+
+  switch(addr->in.sin_family) {
+  case AF_INET:
+    inet_ntop(AF_INET, &addr->in.sin_addr, ip, INET6_ADDRSTRLEN);
+    break;
+  case AF_INET6:
+    inet_ntop(AF_INET6, &addr->in6.sin6_addr, ip, INET6_ADDRSTRLEN);
+    break;
+  default:
+    ip[0] = '\0';
+  }
+
+  if(*ip)
+    nchecks = noit_poller_lookup_by_ip_module(ip, self->hdr.name,
+                                              checks, MAX_CHECKS-1);
+  nchecks += noit_poller_lookup_by_ip_module("0.0.0.0", self->hdr.name,
+                                              checks+nchecks, MAX_CHECKS-1-nchecks);
+  mtevL(nldeb, "statsd(%zu bytes) from '%s' -> %d checks%s\n", payload->iov_len,
+        ip, (int)nchecks, parent ? " + a parent" : "");
+  if(parent) checks[nchecks++] = parent;
+  if(nchecks)
+    statsd_handle_payload(checks, nchecks, payload->iov_base, payload->iov_len);
+}
+
 static int
 statsd_handler(eventer_t e, int mask, void *closure,
                struct timeval *now) {
   noit_module_t *self = (noit_module_t *)closure;
-  int packets_per_cycle;
-  statsd_mod_config_t *conf;
+  statsd_mod_config_t *const conf = noit_module_get_userdata(self);
   noit_check_t *parent = NULL;
 
-  conf = noit_module_get_userdata(self);
   if(conf->primary_active) parent = noit_poller_lookup(conf->primary);
 
-  packets_per_cycle = MAX(conf->packets_per_cycle, 1);
-  for( ; packets_per_cycle > 0; packets_per_cycle--) {
-    noit_check_t *checks[MAX_CHECKS];
-    int nchecks = 0;
-    char ip[INET6_ADDRSTRLEN];
-    union {
-      struct sockaddr_in in;
-      struct sockaddr_in6 in6;
-    } addr;
-    socklen_t addrlen = sizeof(addr);
-    ssize_t len;
-    len = recvfrom(eventer_get_fd(e), conf->payload, conf->payload_len-1, 0,
-                   (struct sockaddr *)&addr, &addrlen);
-    if(len < 0) {
-      if(errno != EAGAIN)
-        mtevL(nlerr, "statsd: recvfrom() -> %s\n", strerror(errno));
-      break;
-    }
-    switch(addr.in.sin_family) {
-      case AF_INET:
-        addrlen = sizeof(struct sockaddr_in);
-        inet_ntop(AF_INET, &((struct sockaddr_in *)&addr)->sin_addr, ip, addrlen);
+  for(int packets_per_cycle = MAX(conf->packets_per_cycle, 1); packets_per_cycle > 0; packets_per_cycle--) {
+    const int fd = eventer_get_fd(e);
+
+    if (conf->use_recvmmsg) {
+#if defined __linux__
+      struct mmsghdr msgs[conf->payload_len];
+      int nmmsgs;
+
+      memset(msgs, 0, sizeof(msgs));
+
+      for (size_t i = 0; i < conf->payload_len; i++) {
+        conf->payload[i].iov_len = RECV_BUFFER_CAPACITY - 1;
+        msgs[i].msg_hdr.msg_iov = &conf->payload[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
+        msgs[i].msg_hdr.msg_name = &conf->addr[i];
+        msgs[i].msg_hdr.msg_namelen = sizeof(addr_t);
+      }
+
+      nmmsgs = recvmmsg(fd, msgs, conf->payload_len, 0, NULL);
+
+      if (nmmsgs == -1) {
+        if (errno != EAGAIN) {
+          mtevL(nlerr, "statsd: recvmmsg() -> %s\n", strerror(errno));
+        }
+
         break;
-      case AF_INET6:
-        addrlen = sizeof(struct sockaddr_in6);
-        inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&addr)->sin6_addr, ip, addrlen);
-        break;
-      default:
-        ip[0] = '\0';
+      }
+
+      for (size_t i = 0; i < nmmsgs; i++) {
+        ((char*)conf->payload[0].iov_base)[msgs[i].msg_len] = 0;
+        conf->payload[0].iov_len = msgs[i].msg_len;
+        statsd_handle_single_message(self, parent, &conf->payload[i], &conf->addr[i]);
+        Pstat++;
+      }
+#else
+      conf->use_recvmmsg = false;
+#endif
     }
-    conf->payload[len] = '\0';
-    nchecks = 0;
-    if(*ip)
-      nchecks = noit_poller_lookup_by_ip_module(ip, self->hdr.name,
-                                                checks, MAX_CHECKS-1);
-    nchecks += noit_poller_lookup_by_ip_module("0.0.0.0", self->hdr.name,
-                                               checks+nchecks, MAX_CHECKS-1-nchecks);
-    mtevL(nldeb, "statsd(%d bytes) from '%s' -> %d checks%s\n", (int)len,
-          ip, (int)nchecks, parent ? " + a parent" : "");
-    if(parent) checks[nchecks++] = parent;
-    if(nchecks)
-      statsd_handle_payload(checks, nchecks, conf->payload, len);
-    Pstat++;
+
+    if (!conf->use_recvmmsg) {
+      socklen_t addrlen = sizeof(addr_t);
+      ssize_t len;
+      len = recvfrom(fd, conf->payload[0].iov_base, conf->payload[0].iov_len-1, 0,
+                      (struct sockaddr *)&conf->addr[0], &addrlen);
+
+      if(len < 0) {
+        if(errno != EAGAIN)
+          mtevL(nlerr, "statsd: recvfrom() -> %s\n", strerror(errno));
+        break;
+      }
+
+      ((char*)conf->payload[0].iov_base)[len] = 0;
+      conf->payload[0].iov_len = len;
+      statsd_handle_single_message(self, parent, &conf->payload[0], &conf->addr[0]);
+      Pstat++;
+    }
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -400,7 +456,8 @@ static void report(void) {
 static int noit_statsd_init(noit_module_t *self) {
   unsigned short port = 8125;
   int packets_per_cycle = 1000;
-  int payload_len = 256*1024;
+  size_t recv_buffer_len = 20;
+  bool use_recvmmsg = true;
   struct sockaddr_in skaddr;
   int sockaddr_len;
   const char *config_val;
@@ -437,11 +494,35 @@ static int noit_statsd_init(noit_module_t *self) {
   }
   conf->packets_per_cycle = packets_per_cycle;
 
-  conf->payload_len = payload_len;
-  conf->payload = malloc(conf->payload_len);
-  if(!conf->payload) {
-    mtevL(noit_error, "statsd malloc() failed\n");
-    return -1;
+  if(mtev_hash_retr_str(conf->options, "use_recvmmsg",
+                        strlen("use_recvmmsg"),
+                        (const char **)&config_val)) {
+    use_recvmmsg = atoi(config_val);
+  }
+  conf->use_recvmmsg = use_recvmmsg;
+  if(mtev_hash_retr_str(conf->options, "recv_buffer_len",
+                        strlen("recv_buffer_len"),
+                        (const char **)&config_val)) {
+    recv_buffer_len = atoll(config_val);
+  }
+
+  conf->payload_len = use_recvmmsg ? recv_buffer_len : 1;
+  conf->payload = calloc(conf->payload_len, sizeof(struct iovec));
+  conf->addr = calloc(conf->payload_len, sizeof(addr_t));
+
+  for (size_t i = 0; i < conf->payload_len; i++) {
+    conf->payload[i].iov_len = RECV_BUFFER_CAPACITY;
+    conf->payload[i].iov_base = malloc(RECV_BUFFER_CAPACITY);
+    if(!conf->payload[i].iov_base) {
+      for (size_t j = 0; j < i; j++) {
+        free(conf->payload[j].iov_base);
+      }
+
+      free(conf->payload);
+      free(conf->addr);
+      mtevL(noit_error, "statsd malloc() failed\n");
+      return -1;
+    }
   }
 
   conf->ipv4_fd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
