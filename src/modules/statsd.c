@@ -373,8 +373,8 @@ statsd_handler(eventer_t e, int mask, void *closure,
       }
 
       for (size_t i = 0; i < nmmsgs; i++) {
-        ((char*)conf->payload[0].iov_base)[msgs[i].msg_len] = 0;
-        conf->payload[0].iov_len = msgs[i].msg_len;
+        ((char*)conf->payload[i].iov_base)[msgs[i].msg_len] = 0;
+        conf->payload[i].iov_len = msgs[i].msg_len;
         statsd_handle_single_message(self, parent, &conf->payload[i], &conf->addr[i]);
         Pstat++;
       }
