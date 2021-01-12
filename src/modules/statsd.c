@@ -65,12 +65,25 @@ typedef struct statsd_mod_config {
   int payload_len;
   int ipv4_fd;
   int ipv6_fd;
+  eventer_jobq_t *jobq;
 } statsd_mod_config_t;
 
 typedef struct {
   noit_module_t *self;
   int stats_count;
 } statsd_closure_t;
+
+typedef union {
+  struct sockaddr_in in;
+  struct sockaddr_in6 in6;
+} addr_t;
+
+typedef struct {
+  char *payload;
+  addr_t addr;
+  socklen_t addrlen;
+  noit_module_t *self;
+} statsd_asynch_closure_t;
 
 static int
 statsd_submit(noit_module_t *self, noit_check_t *check,
@@ -285,6 +298,55 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
   }
 }
 
+static inline void
+statsd_handle_one_entry(addr_t *addr, socklen_t addrlen,
+                        noit_check_t *parent, char *payload,
+                        noit_module_t *self) {
+  char ip[INET6_ADDRSTRLEN];
+  noit_check_t *checks[MAX_CHECKS];
+  int nchecks = 0;
+  switch(addr->in.sin_family) {
+    case AF_INET:
+      addrlen = sizeof(struct sockaddr_in);
+      inet_ntop(AF_INET, &((struct sockaddr_in *)addr)->sin_addr, ip, addrlen);
+      break;
+    case AF_INET6:
+      addrlen = sizeof(struct sockaddr_in6);
+      inet_ntop(AF_INET6, &((struct sockaddr_in6 *)addr)->sin6_addr, ip, addrlen);
+      break;
+    default:
+      ip[0] = '\0';
+  }
+  if(*ip) {
+    nchecks = noit_poller_lookup_by_ip_module(ip, self->hdr.name, checks, MAX_CHECKS-1);
+  }
+  nchecks += noit_poller_lookup_by_ip_module("0.0.0.0", self->hdr.name,
+    checks+nchecks, MAX_CHECKS-1-nchecks);
+  if(parent) {
+    checks[nchecks++] = parent;
+  }
+  if(nchecks) {
+    statsd_handle_payload(checks, nchecks, payload, strlen(payload));
+  }
+}
+
+static int
+statsd_jobq_processing(eventer_t e, int mask, void *closure, struct timeval *now) {
+  statsd_asynch_closure_t *sac = (statsd_asynch_closure_t *)closure;
+  if (mask == EVENTER_ASYNCH_WORK) {
+    statsd_mod_config_t *conf = noit_module_get_userdata(sac->self);
+    noit_check_t *parent = NULL;
+    if(conf->primary_active) parent = noit_poller_lookup(conf->primary);
+    statsd_handle_one_entry(&sac->addr, sac->addrlen, parent, sac->payload, sac->self);
+  }
+  if (mask == EVENTER_ASYNCH_COMPLETE) {
+    if (sac) {
+      free(sac->payload);
+    }
+  }
+  return 0;
+}
+
 static int
 statsd_handler(eventer_t e, int mask, void *closure,
                struct timeval *now) {
@@ -298,13 +360,7 @@ statsd_handler(eventer_t e, int mask, void *closure,
 
   packets_per_cycle = MAX(conf->packets_per_cycle, 1);
   for( ; packets_per_cycle > 0; packets_per_cycle--) {
-    noit_check_t *checks[MAX_CHECKS];
-    int nchecks = 0;
-    char ip[INET6_ADDRSTRLEN];
-    union {
-      struct sockaddr_in in;
-      struct sockaddr_in6 in6;
-    } addr;
+    addr_t addr;
     socklen_t addrlen = sizeof(addr);
     ssize_t len;
     len = recvfrom(eventer_get_fd(e), conf->payload, conf->payload_len-1, 0,
@@ -314,30 +370,17 @@ statsd_handler(eventer_t e, int mask, void *closure,
         mtevL(nlerr, "statsd: recvfrom() -> %s\n", strerror(errno));
       break;
     }
-    switch(addr.in.sin_family) {
-      case AF_INET:
-        addrlen = sizeof(struct sockaddr_in);
-        inet_ntop(AF_INET, &((struct sockaddr_in *)&addr)->sin_addr, ip, addrlen);
-        break;
-      case AF_INET6:
-        addrlen = sizeof(struct sockaddr_in6);
-        inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&addr)->sin6_addr, ip, addrlen);
-        break;
-      default:
-        ip[0] = '\0';
-    }
     conf->payload[len] = '\0';
-    nchecks = 0;
-    if(*ip)
-      nchecks = noit_poller_lookup_by_ip_module(ip, self->hdr.name,
-                                                checks, MAX_CHECKS-1);
-    nchecks += noit_poller_lookup_by_ip_module("0.0.0.0", self->hdr.name,
-                                               checks+nchecks, MAX_CHECKS-1-nchecks);
-    mtevL(nldeb, "statsd(%d bytes) from '%s' -> %d checks%s\n", (int)len,
-          ip, (int)nchecks, parent ? " + a parent" : "");
-    if(parent) checks[nchecks++] = parent;
-    if(nchecks)
-      statsd_handle_payload(checks, nchecks, conf->payload, len);
+    if (conf->jobq) {
+      statsd_asynch_closure_t *sac = (statsd_asynch_closure_t *)malloc(sizeof(statsd_asynch_closure_t));
+      sac->payload = strdup(conf->payload);
+      memcpy(&sac->addr, &addr, sizeof(addr));
+      sac->addrlen = addrlen;
+      sac->self = self;
+      eventer_add_asynch(conf->jobq, eventer_alloc_asynch(statsd_jobq_processing, sac));
+      continue;
+    }
+    statsd_handle_one_entry(&addr, addrlen, parent, conf->payload, self);
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -383,6 +426,7 @@ static int noit_statsd_onload(mtev_image_t *self) {
 static int noit_statsd_init(noit_module_t *self) {
   unsigned short port = 8125;
   int packets_per_cycle = 100;
+  int process_jobq_concurrency = 0;
   int payload_len = 256*1024;
   struct sockaddr_in skaddr;
   int sockaddr_len;
@@ -418,6 +462,21 @@ static int noit_statsd_init(noit_module_t *self) {
     packets_per_cycle = atoi(config_val);
   }
   conf->packets_per_cycle = packets_per_cycle;
+
+  if(mtev_hash_retr_str(conf->options, "process_jobq_concurrency",
+                        strlen("process_jobq_concurrency"),
+                        (const char **)&config_val)) {
+    process_jobq_concurrency = atoi(config_val);
+  }
+  if (process_jobq_concurrency > 0) {
+    if (process_jobq_concurrency > 1000) {
+      mtevL(mtev_notice, "process_jobq_concurrency for statsd module set to high.... defaulting to 50\n");
+      process_jobq_concurrency = 50;
+    }
+    conf->jobq = eventer_jobq_create("statsd_processing");
+    eventer_jobq_set_concurrency(conf->jobq, process_jobq_concurrency);
+  }
+
 
   conf->payload_len = payload_len;
   conf->payload = malloc(conf->payload_len);
