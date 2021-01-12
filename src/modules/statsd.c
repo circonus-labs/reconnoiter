@@ -405,6 +405,13 @@ static int noit_statsd_init(noit_module_t *self) {
   }
   conf->port = port;
 
+  socklen_t desired_rcvbuf = 1024*1024*4;
+  if(mtev_hash_retr_str(conf->options, "rcvbuf",
+                        strlen("rcvbuf"),
+                        (const char **)&config_val)) {
+    desired_rcvbuf = atoi(config_val);
+  }
+
   if(mtev_hash_retr_str(conf->options, "packets_per_cycle",
                         strlen("packets_per_cycle"),
                         (const char **)&config_val)) {
@@ -444,6 +451,9 @@ static int noit_statsd_init(noit_module_t *self) {
     mtevL(nlerr, "statsd listener(IPv4) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
   }
 #endif
+  if(setsockopt(conf->ipv4_fd, SOL_SOCKET, SO_RCVBUF, &desired_rcvbuf, sizeof(desired_rcvbuf)) < 0) {
+    mtevL(nlerr, "statsd listener(IPv4) failed(%s) to set recieve buffer\n", strerror(errno));
+  }
   memset(&skaddr, 0, sizeof(skaddr));
   skaddr.sin_family = AF_INET;
   skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -497,6 +507,9 @@ static int noit_statsd_init(noit_module_t *self) {
         mtevL(nlerr, "statsd listener(IPv6) failed(%s) to set REUSEPORT (doing our best)\n", strerror(errno));
       }
 #endif
+      if(setsockopt(conf->ipv6_fd, SOL_SOCKET, SO_RCVBUF, &desired_rcvbuf, sizeof(desired_rcvbuf)) < 0) {
+        mtevL(nlerr, "statsd listener(IPv6) failed(%s) to set recieve buffer\n", strerror(errno));
+      }
       if(bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
         mtevL(noit_error, "bind(IPv6) failed[%d]: %s\n",
               conf->port, strerror(errno));
