@@ -399,7 +399,7 @@ static void report(void) {
 
 static int noit_statsd_init(noit_module_t *self) {
   unsigned short port = 8125;
-  int packets_per_cycle = 100;
+  int packets_per_cycle = 1000;
   int payload_len = 256*1024;
   struct sockaddr_in skaddr;
   int sockaddr_len;
