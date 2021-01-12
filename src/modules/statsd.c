@@ -376,6 +376,7 @@ statsd_handler(eventer_t e, int mask, void *closure,
         ((char*)conf->payload[0].iov_base)[msgs[i].msg_len] = 0;
         conf->payload[0].iov_len = msgs[i].msg_len;
         statsd_handle_single_message(self, parent, &conf->payload[i], &conf->addr[i]);
+        Pstat++;
       }
 #else
       conf->use_recvmmsg = false;
@@ -397,6 +398,7 @@ statsd_handler(eventer_t e, int mask, void *closure,
       ((char*)conf->payload[0].iov_base)[len] = 0;
       conf->payload[0].iov_len = len;
       statsd_handle_single_message(self, parent, &conf->payload[0], &conf->addr[0]);
+      Pstat++;
     }
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
