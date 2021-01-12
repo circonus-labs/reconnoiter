@@ -66,6 +66,7 @@ typedef struct statsd_mod_config {
   int ipv4_fd;
   int ipv6_fd;
   eventer_jobq_t *jobq;
+  pthread_mutex_t update_check_lock;
 } statsd_mod_config_t;
 
 typedef struct {
@@ -172,7 +173,8 @@ update_check(noit_check_t *check, const char *key, char type,
 
 static void
 statsd_handle_payload(noit_check_t **checks, int nchecks,
-                      char *payload, int len) {
+                      char *payload, int len,
+                      statsd_mod_config_t *conf) {
   char *cp, *ecp, *endptr;
   cp = ecp = payload;
   endptr = payload + len;
@@ -285,7 +287,13 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
         case 'c':
         case 'm':
           for(i=0;i<nchecks;i++) {
+            if (conf && conf->jobq) {
+              pthread_mutex_lock(&conf->update_check_lock);
+            }
             update_check(checks[i], key, *type, diff, sampleRate);
+            if (conf && conf->jobq) {
+              pthread_mutex_unlock(&conf->update_check_lock);
+            }
           }
           break;
         default:
@@ -326,7 +334,8 @@ statsd_handle_one_entry(addr_t *addr, socklen_t addrlen,
     checks[nchecks++] = parent;
   }
   if(nchecks) {
-    statsd_handle_payload(checks, nchecks, payload, strlen(payload));
+    statsd_mod_config_t *conf = noit_module_get_userdata(self);
+    statsd_handle_payload(checks, nchecks, payload, strlen(payload), conf);
   }
 }
 
@@ -476,6 +485,7 @@ static int noit_statsd_init(noit_module_t *self) {
     conf->jobq = eventer_jobq_create("statsd_processing");
     eventer_jobq_set_concurrency(conf->jobq, process_jobq_concurrency);
   }
+  pthread_mutex_init(&conf->update_check_lock, NULL);
 
 
   conf->payload_len = payload_len;
@@ -608,7 +618,7 @@ noit_module_t statsd = {
 };
 
 static int statsd_tcp_handle_payload(noit_check_t *check, char *payload, size_t len) {
-  statsd_handle_payload(&check, 1, payload, len);
+  statsd_handle_payload(&check, 1, payload, len, NULL);
   return 0;
 }
 static int statsd_tcp_handler(eventer_t e, int m, void *c, struct timeval *t) {
