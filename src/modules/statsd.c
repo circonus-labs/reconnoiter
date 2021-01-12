@@ -505,8 +505,8 @@ static int noit_statsd_init(noit_module_t *self) {
   }
 
   conf->payload_len = use_recvmmsg ? recv_buffer_len : 1;
-  conf->payload = calloc(recv_buffer_len, sizeof(struct iovec));
-  conf->addr = calloc(recv_buffer_len, sizeof(addr_t));
+  conf->payload = calloc(conf->payload_len, sizeof(struct iovec));
+  conf->addr = calloc(conf->payload_len, sizeof(addr_t));
 
   for (size_t i = 0; i < conf->payload_len; i++) {
     conf->payload[i].iov_len = RECV_BUFFER_CAPACITY;
