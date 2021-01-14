@@ -1309,6 +1309,7 @@ probe_engine_step1_cb(int operation,
 
  probe_failed:
   if(magic->pdu) snmp_free_pdu(magic->pdu);
+  magic->pdu = NULL;
   sp->flags &= ~SNMP_FLAGS_DONT_PROBE;
   ret = magic->cb(NETSNMP_CALLBACK_OP_SEND_FAILED,
                   sp, reqid, pdu, info);
