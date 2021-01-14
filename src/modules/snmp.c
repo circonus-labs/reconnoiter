@@ -1300,6 +1300,7 @@ probe_engine_step1_cb(int operation,
       magic->pdu = NULL;
       goto probe_failed;
     }
+    magic->pdu = NULL; /* This has been sent and is no longer ours */
     for(i=0; i<info->noids; i++) info->oids[i].reqid = reqid;
     mtevL(nldeb, "Probe followup sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
     add_check(info);
