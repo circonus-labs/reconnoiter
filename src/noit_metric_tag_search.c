@@ -53,7 +53,7 @@ struct graphite_impl {
   int count;
   int allocd;
   bool has_wildcards;
-  int fixed_prefix_len;
+  size_t fixed_prefix_len;
   struct {
     char *str;
     size_t str_len;
@@ -206,10 +206,10 @@ find_char(const char *s, size_t len, int c) {
   return loc - s;
 }
 static bool
-graphite_has_wildcards(const char *s, int *fixed_prefix_len) {
+graphite_has_wildcards(const char *s, size_t *fixed_prefix_len) {
   size_t len = strlen(s);
   int fixed = 1;
-  int fplen = 0;
+  size_t fplen = 0;
   for(size_t i=0; i<len; i++) {
     if(s[i] == '*' || s[i] == '[' || s[i] == '?') {
       if(fixed_prefix_len) *fixed_prefix_len = fplen;
