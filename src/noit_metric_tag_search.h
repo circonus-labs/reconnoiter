@@ -75,30 +75,16 @@ typedef enum {
   OP_MATCH
 } noit_metric_tag_search_op_t;
 
-typedef struct noit_var_match_t {
-  char *str;
-  pcre *re;
-  pcre_extra *re_e;
-} noit_var_match_t;
+typedef struct noit_metric_tag_search_ast_t noit_metric_tag_search_ast_t;
+typedef struct noit_var_match_t noit_var_match_t;
 
-typedef struct noit_metric_tag_match_t {
-  noit_var_match_t cat;
-  noit_var_match_t name;
-} noit_metric_tag_match_t;
-
-typedef struct noit_metric_tag_search_ast_t {
-  noit_metric_tag_search_op_t operation;
-  union {
-    struct {
-      int cnt;
-      struct noit_metric_tag_search_ast_t **node;
-    } args;
-    noit_metric_tag_match_t spec;
-  } contents;
-  void *user_data;
-  void (*user_data_free)(void *);
-  uint32_t refcnt;
-} noit_metric_tag_search_ast_t;
+typedef struct noit_var_match_impl_t {
+  char *impl_name;
+  void *(*compile)(const char *in, int *errpos);
+  mtev_boolean (*match)(void *impl_data, const char *pattern, const char *in, size_t in_len);
+  void (*free)(void *impl_data);
+  int (*append_fixed_prefix)(void *impl_data, const char *pattern, char *prefix, size_t len, mtev_boolean *all);
+} noit_var_match_impl_t;
 
 API_EXPORT(noit_metric_tag_search_ast_t *)
   noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *);
@@ -106,14 +92,66 @@ API_EXPORT(noit_metric_tag_search_ast_t *)
 API_EXPORT(noit_metric_tag_search_ast_t *)
   noit_metric_tag_search_ref(noit_metric_tag_search_ast_t *);
 
+API_EXPORT(noit_metric_tag_search_ast_t *)
+  noit_metric_tag_search_alloc(noit_metric_tag_search_op_t op);
+
+API_EXPORT(noit_metric_tag_search_ast_t *)
+  noit_metric_tag_search_alloc_match(const char *cat_impl, const char *cat_pat,
+                                     const char *name_impl, const char *name_pat);
+
 API_EXPORT(void)
   noit_metric_tag_search_free(noit_metric_tag_search_ast_t *);
 
 API_EXPORT(void)
-noit_metric_tag_search_reset(noit_metric_tag_search_ast_t *);
+  noit_metric_tag_search_resize_args(noit_metric_tag_search_ast_t *node, int cnt);
+
+API_EXPORT(void *)
+  noit_metric_tag_search_get_udata(const noit_metric_tag_search_ast_t *node);
+
+API_EXPORT(void)
+  noit_metric_tag_search_set_udata(noit_metric_tag_search_ast_t *node, void *, void (*)(void *));
+
+API_EXPORT(noit_metric_tag_search_ast_t *)
+  noit_metric_tag_search_get_arg(const noit_metric_tag_search_ast_t *node, int idx);
+
+API_EXPORT(void)
+  noit_metric_tag_search_set_arg(noit_metric_tag_search_ast_t *node, int idx, noit_metric_tag_search_ast_t *r);
+
+API_EXPORT(void)
+  noit_metric_tag_search_add_arg(noit_metric_tag_search_ast_t *node, noit_metric_tag_search_ast_t *r);
+
+API_EXPORT(int)
+  noit_metric_tag_search_get_nargs(const noit_metric_tag_search_ast_t *node);
+
+API_EXPORT(void)
+  noit_metric_tag_search_reset(noit_metric_tag_search_ast_t *);
 
 API_EXPORT(noit_metric_tag_search_ast_t *)
   noit_metric_tag_search_parse(const char *query, int *erroff);
+
+API_EXPORT(void)
+  noit_metric_tag_search_set_op(noit_metric_tag_search_ast_t *node, noit_metric_tag_search_op_t);
+
+API_EXPORT(noit_metric_tag_search_op_t)
+  noit_metric_tag_search_get_op(const noit_metric_tag_search_ast_t *node);
+
+API_EXPORT(const noit_var_match_t *)
+  noit_metric_tag_search_get_cat(const noit_metric_tag_search_ast_t *node);
+
+API_EXPORT(const noit_var_match_t *)
+  noit_metric_tag_search_get_name(const noit_metric_tag_search_ast_t *node);
+
+API_EXPORT(mtev_boolean)
+  noit_var_match(const noit_var_match_t *node, const char *subj, size_t subj_len);
+
+API_EXPORT(int)
+  noit_var_strlcat_fixed_prefix(const noit_var_match_t *node, char *out, size_t len, mtev_boolean *all);
+
+API_EXPORT(const char *)
+  noit_var_val(const noit_var_match_t *node);
+
+API_EXPORT(const char *)
+  noit_var_impl_name(const noit_var_match_t *node);
 
 API_EXPORT(mtev_boolean)
   noit_metric_tag_search_evaluate_against_tags(noit_metric_tag_search_ast_t *search,
@@ -129,6 +167,9 @@ API_EXPORT(mtev_boolean)
 
 API_EXPORT(char *)
   noit_metric_tag_search_unparse(noit_metric_tag_search_ast_t *);
+
+API_EXPORT(void)
+  noit_var_matcher_register(const noit_var_match_impl_t *matcher);
 
 #ifdef __cplusplus
 }
