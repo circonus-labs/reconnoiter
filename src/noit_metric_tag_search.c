@@ -34,54 +34,330 @@
 #include <mtev_log.h>
 #include <mtev_dyn_buffer.h>
 #include <mtev_memory.h>
+#include <mtev_maybe_alloc.h>
 #include "noit_metric_tag_search.h"
 
 #include <stdio.h>
 #include <ck_pr.h>
+#include <ctype.h>
 
-void
-noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
-  if(node == NULL) return;
-  if(!ck_pr_dec_32_is_zero(&node->refcnt)) return;
-  noit_metric_tag_search_reset(node);
-  free(node);
-}
+typedef struct noit_var_match_t {
+  char *str;
+  void *impl_data;
+  const noit_var_match_impl_t *impl;
+} noit_var_match_t;
 
-void
-noit_metric_tag_search_reset(noit_metric_tag_search_ast_t *node) {
-  switch(node->operation) {
-    case OP_MATCH:
-      free(node->contents.spec.cat.str);
-      free(node->contents.spec.name.str);
-      if(node->contents.spec.cat.re) pcre_free(node->contents.spec.cat.re);
-      if(node->contents.spec.cat.re_e) 
-#ifdef PCRE_STUDY_JIT_COMPILE
-        pcre_free_study(node->contents.spec.cat.re_e);
-#else
-        pcre_free(node->contents.spec.cat.re_e);
-#endif
-      if(node->contents.spec.name.re) pcre_free(node->contents.spec.name.re);
-      if(node->contents.spec.name.re_e)
-#ifdef PCRE_STUDY_JIT_COMPILE
-        pcre_free_study(node->contents.spec.name.re_e);
-#else
-        pcre_free(node->contents.spec.name.re_e);
-#endif
-      break;
-    /* All ARGS */
-    default:
-      for(int i=0;i<node->contents.args.cnt; i++) {
-        noit_metric_tag_search_free(node->contents.args.node[i]);
-      }
-      free(node->contents.args.node);
+static mtev_boolean noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m);
+
+struct graphite_impl {
+  int count;
+  int allocd;
+  bool has_wildcards;
+  int fixed_prefix_len;
+  struct {
+    char *str;
+    size_t str_len;
+    char *re_str;
+    pcre *re;
+    pcre_extra *re_e;
+  } *results;
+};
+
+static mtev_boolean
+var_graphite_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
+  (void)pattern;
+  int ovector[30], rv;
+  struct graphite_impl *g = (struct graphite_impl *)impl_data;
+  /* If we have a fixed prefix, if it is longer than the subject or mismatched, bail early */
+  if(g->fixed_prefix_len &&
+     (g->fixed_prefix_len > in_len || 0 != memcmp(in, pattern, g->fixed_prefix_len))) {
+    return mtev_false;
   }
-  if(node->user_data_free) node->user_data_free(node->user_data);
+  /* If the fixed_prefix len is the subject len, we know we have an exact match */
+  if(g->fixed_prefix_len == in_len) return mtev_true;
+  for(int i=0; i<g->count; i++) {
+    if(g->results[i].re) {
+      rv = pcre_exec(g->results[i].re, g->results[i].re_e, in, in_len, 0, 0, ovector, 30);
+      if(rv >= 0) return mtev_true;
+    } else {
+      if(in_len == g->results[i].str_len && 0 == memcmp(in, g->results[i].str, in_len)) return mtev_true;
+    }
+  }
+  return mtev_false;
 }
 
-noit_metric_tag_search_ast_t *
-noit_metric_tag_search_ref(noit_metric_tag_search_ast_t *node) {
-  ck_pr_inc_32(&node->refcnt);
-  return node;
+void var_graphite_free(void *vi) {
+  struct graphite_impl *g = vi;
+  if(g == NULL) return;
+  for(int i=0; i<g->count; i++) {
+    free(g->results[i].str);
+    if(g->results[i].re) pcre_free(g->results[i].re);
+    if(g->results[i].re_e) {
+#ifdef PCRE_STUDY_JIT_COMPILE
+      pcre_free_study(g->results[i].re_e);
+#else
+      pcre_free(g->results[i].re_e);
+#endif
+    }
+  }
+  free(g->results);
+}
+
+static char *
+build_regex_from_graphite(const char *expansion) {
+  mtev_dyn_buffer_t out;
+  mtev_dyn_buffer_init(&out);
+#undef AC
+#define AC(a) mtev_dyn_buffer_add(&out, (uint8_t *)(a), sizeof(a)-1)
+#undef AC1
+#define AC1(a) mtev_dyn_buffer_add(&out, (uint8_t *)&(a), 1)
+  /* brace expansion has already been done, all we need to do here
+   * is translate '*' to '[^.]*', '?' to '[^.]', and '.' to '\.',
+   */
+  AC("^");
+  for (size_t i = 0; i < strlen(expansion); i++) {
+    /* Here we account for needing what expand to, plus "$\0" */
+    if (expansion[i] == '*') {
+      if (expansion[i+1] == '*') {
+        i++;
+        AC(".*");
+      } else {
+        AC("[^.]*");
+      }
+    } else if (expansion[i] == '?') {
+      AC("[^.]{1}");
+    } else if (expansion[i] == '.') {
+      AC("\\.");
+    } else {
+      AC1(expansion[i]);
+    }
+  }
+  AC1("$");
+  char *rv = mtev_strndup((char *)mtev_dyn_buffer_data(&out), mtev_dyn_buffer_used(&out));
+  mtev_dyn_buffer_destroy(&out);
+  return rv;
+}
+
+static inline bool
+valid_non_re_char(char c) {
+  switch(c) {
+    case '{':
+    case '}':
+    case '(':
+    case ')':
+    case '[':
+    case ']':
+    case '.':
+    case '*':
+    case '?':
+    case '+':
+    case '^':
+    case '$':
+    case '\\':
+      return false;
+    default:
+      break;
+  }
+  return true;
+}
+
+/* This extracts the maximal "fixed" memcmp()able prefix and tacks it onto prefix */
+static inline int
+append_prefix(char *prefix, size_t len, const char *re_str, pcre *re, mtev_boolean *all) {
+  int starting_len = strlen(prefix);
+  *all = false;
+  if(!re_str) return starting_len;
+  if(re == NULL) {
+    size_t str_len = strlen(re_str);
+    strlcat(prefix, re_str, len);
+    size_t final_len = strlen(prefix);
+    if(starting_len + str_len == final_len) *all = true;
+    return final_len;
+  }
+  /* The re case... perhaps it is a front-achored prefix */
+  const char *cp = re_str;
+  char *outcp = prefix + starting_len;
+  size_t remaining_len = len - starting_len;
+  /* We can only prefix match is we're front anchored */
+  if(*cp++ == '^') {
+    while(*cp && remaining_len > 1) {
+      if(cp[0] == '$' && cp[1] == '\0') {
+        *all = true;
+        break;
+      }
+      if(cp[0] == '\\' && cp[1] != '\0' && !isalnum(cp[1])) {
+        cp++;
+      }
+      else if(!valid_non_re_char(*cp)) break;
+      /* ? and * mean 0 or more, so the current character can't be included */
+      if(cp[1] == '?' || cp[1] == '*') break;
+      *outcp++ = *cp++;
+      remaining_len--;
+    }
+  }
+  *outcp = '\0';
+  return strlen(prefix);
+}
+
+static inline int
+find_char(const char *s, size_t len, int c) {
+  const char *loc = (const char *)memchr(s, c, len);
+  if(loc == NULL) return -1;
+  return loc - s;
+}
+static bool
+graphite_has_wildcards(const char *s, int *fixed_prefix_len) {
+  size_t len = strlen(s);
+  int fixed = 1;
+  int fplen = 0;
+  for(size_t i=0; i<len; i++) {
+    if(s[i] == '*' || s[i] == '[' || s[i] == '?') {
+      if(fixed_prefix_len) *fixed_prefix_len = fplen;
+      return true;
+    }
+    if(s[i] == '\\' || s[i] == '{') fixed = 0;
+    fplen += fixed;
+  }
+  if(fixed_prefix_len) *fixed_prefix_len = fplen;
+  return false;
+}
+static void
+graphite_add_expansion(const char *s, struct graphite_impl *g) {
+  if(g->count + 1 > g->allocd) {
+    g->allocd += 20;
+    g->results = realloc(g->results, g->allocd * sizeof(*g->results));
+  }
+  g->results[g->count].str = strdup(s);
+  g->results[g->count].str_len = strlen(s);
+  if(g->has_wildcards) {
+    if(graphite_has_wildcards(s, NULL)) {
+      const char *error;
+      int eoff;
+      char *tmpstr = build_regex_from_graphite(g->results[g->count].str);
+      g->results[g->count].re_str = tmpstr;
+      g->results[g->count].re = pcre_compile(tmpstr, 0, &error, &eoff, NULL);
+      if(g->results[g->count].re) {
+#ifdef PCRE_STUDY_JIT_COMPILE
+        g->results[g->count].re_e = pcre_study(g->results[g->count].re, PCRE_STUDY_JIT_COMPILE, &error);
+#else
+        g->results[g->count].re_e = pcre_study(g->results[g->count].re, 0, &error);
+#endif
+      }
+    }
+  }
+  g->count++;
+}
+static void
+graphite_expand_braces(const char *pre, const char *s, const char *suf, struct graphite_impl *g) {
+  MTEV_MAYBE_DECL_VARS(char, copy, 256);
+  int start_brace = -1, end_brace = 0;
+  size_t len_s = strlen(s);
+  size_t len_pre = strlen(pre);
+  size_t len_suf = strlen(suf);
+  MTEV_MAYBE_REALLOC(copy, len_s + 1);
+
+  while ((start_brace = find_char(s + start_brace + 1, len_s - start_brace - 1, '{')) != -1) {
+    end_brace = start_brace + 1;
+    strncpy(copy, s, MTEV_MAYBE_SIZE(copy));
+    for (int depth = 1; end_brace < (int)len_s && depth > 0; end_brace++) {
+      char c = s[end_brace];
+      depth = (c == '{') ? depth + 1 : depth;
+      depth = (c == '}') ? depth - 1 : depth;
+      if (c == '}' && depth == 0) {
+        goto done;
+      }
+    }
+  }
+ done:
+  if (start_brace == -1) {
+    if (len_suf > 0) {
+      MTEV_MAYBE_DECL_VARS(char, prefix, 256);
+      MTEV_MAYBE_REALLOC(prefix, len_s + len_pre + 2);
+      snprintf(prefix, MTEV_MAYBE_SIZE(prefix), "%s%s", pre, s);
+      graphite_expand_braces(prefix, suf, "", g);
+      MTEV_MAYBE_FREE(prefix);
+    }
+    else {
+      MTEV_MAYBE_DECL_VARS(char, expstr, 256);
+      MTEV_MAYBE_REALLOC(expstr, len_s + len_pre + len_suf + 2);
+      snprintf(expstr, MTEV_MAYBE_SIZE(expstr), "%s%s%s", pre, s, suf);
+      graphite_add_expansion(expstr, g);
+      MTEV_MAYBE_FREE(expstr);
+    }
+  } else {
+    MTEV_MAYBE_DECL_VARS(char, sub, 256);
+    MTEV_MAYBE_REALLOC(sub, len_s + 1);
+    char *lasts;
+    char *token;
+    memcpy(sub, copy + start_brace + 1, end_brace);
+    sub[end_brace - start_brace - 1] = '\0';
+    if ((token = strtok_r(sub, ",", &lasts)) != NULL) {
+      MTEV_MAYBE_DECL_VARS(char, x, 256);
+      MTEV_MAYBE_REALLOC(x, len_pre + start_brace + 2);
+      snprintf(x, MTEV_MAYBE_SIZE(x), "%s", pre);
+      memcpy(x + len_pre, s, start_brace);
+      x[len_pre + start_brace] = '\0';
+      size_t len_begin = strlen(s + end_brace + 1);
+      MTEV_MAYBE_DECL_VARS(char, y, 256);
+      MTEV_MAYBE_REALLOC(y, len_begin + len_suf + 2);
+      memcpy(y, s + end_brace + 1, len_begin);
+      snprintf(y + len_begin, len_suf, "%s", suf);
+      y[len_begin + len_suf] = '\0';
+      graphite_expand_braces(x, token, y, g);
+      while((token = strtok_r(NULL, ",", &lasts))) {
+        graphite_expand_braces(x, token, y, g);
+      }
+      MTEV_MAYBE_FREE(x);
+      MTEV_MAYBE_FREE(y);
+    }
+    MTEV_MAYBE_FREE(sub);
+  }
+  MTEV_MAYBE_FREE(copy);
+}
+static void
+graphite_expand(const char *s, struct graphite_impl *g) {
+  g->has_wildcards = graphite_has_wildcards(s, &g->fixed_prefix_len);
+  graphite_expand_braces("", s, "", g);
+}
+
+static void *var_graphite_compile(const char *in, int *erroffset) {
+  if(erroffset) *erroffset = 0;
+  struct graphite_impl *impl_data = calloc(1, sizeof(*impl_data));
+  graphite_expand(in, impl_data);
+  return impl_data;
+}
+
+static int var_graphite_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
+  struct graphite_impl *g = calloc(1, sizeof(*impl_data));
+  if(g->count == 1) return append_prefix(out, out_len, g->results[0].re_str, g->results[0].re, all);
+  int pattern_len = strlen(pattern);
+  int out_has = strlen(out);
+  int fpl = g->fixed_prefix_len;
+  if(fpl > out_len - out_has - 1) fpl = out_len - out_has - 1;
+  memcpy(out + out_has, pattern, fpl);
+  out[out_has + fpl] = '\0';
+  *all = pattern_len == fpl;
+  return strlen(out);
+}
+
+struct re_matcher {
+  char *re_str;
+  pcre *re;
+  pcre_extra *re_e;
+};
+
+static void *var_re_compile(const char *in, int *erroffset) {
+  int eoff;
+  const char *error;
+  pcre *re = pcre_compile(in, 0, &error, &eoff, NULL);
+  if(!re) {
+    if(erroffset) *erroffset = eoff;
+    return NULL;
+  }
+  struct re_matcher *impl_data = calloc(1, sizeof(*impl_data));
+  impl_data->re_str = strdup(in);
+  impl_data->re = re;
+  return impl_data;
 }
 
 static char *
@@ -109,19 +385,323 @@ build_regex_from_expansion(const char *expansion) {
   return regex;
 }
 
+static void *var_default_compile(const char *in, int *erroffset) {
+  int eoff;
+  const char *error;
+  char *tmpstr;
+  tmpstr = build_regex_from_expansion(in);
+  pcre *re = pcre_compile(tmpstr, 0, &error, &eoff, NULL);
+  if(!re) {
+    // translation means no offset.
+    if(erroffset) *erroffset = 0;
+    free(tmpstr);
+    return NULL;
+  }
+  struct re_matcher *impl_data = calloc(1, sizeof(*impl_data));
+  impl_data->re = re;
+  impl_data->re_str = tmpstr;
+  return impl_data;
+}
+
+static mtev_boolean var_re_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
+  (void)pattern;
+  struct re_matcher *m = (struct re_matcher *)impl_data;
+  int ovector[30], rv;
+  rv = pcre_exec(m->re, m->re_e, in, in_len, 0, 0, ovector, 30);
+  if(rv >= 0) return mtev_true;
+  return mtev_false;
+}
+
+static void var_re_free(void *impl_data) {
+  struct re_matcher *m = (struct re_matcher *)impl_data;
+  if(m == NULL) return;
+  if(m->re) pcre_free(m->re);
+  if(m->re_e) {
+#ifdef PCRE_STUDY_JIT_COMPILE
+    pcre_free_study(m->re_e);
+#else
+    pcre_free(m->re_e);
+#endif
+  }
+  free(m);
+}
+
+static int var_re_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
+  struct re_matcher *m = (struct re_matcher *)impl_data;
+  return append_prefix(out, out_len, m->re_str, m->re, all);
+}
+
+static mtev_boolean var_exact_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
+  (void)impl_data;
+  if(!pattern) return mtev_false;
+  size_t len = strlen(pattern);
+  if(len != in_len) return mtev_false;
+  return (0 == memcmp(in, pattern, in_len));
+}
+
+static int var_exact_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
+  return append_prefix(out, out_len, pattern, NULL, all);
+}
+
+static const noit_var_match_impl_t var_re_matcher = {
+  .impl_name = "re",
+  .compile = var_re_compile,
+  .match = var_re_match,
+  .free = var_re_free,
+  .append_fixed_prefix = var_re_afp
+};
+static const noit_var_match_impl_t var_re_expansion_matcher = {
+  .impl_name = "default",
+  .compile = var_default_compile,
+  .match = var_re_match,
+  .free = var_re_free,
+  .append_fixed_prefix = var_re_afp
+};
+static const noit_var_match_impl_t var_graphite_matcher = {
+  .impl_name = "graphite",
+  .compile = var_graphite_compile,
+  .match = var_graphite_match,
+  .free = var_graphite_free,
+  .append_fixed_prefix = var_graphite_afp
+};
+static const noit_var_match_impl_t var_exact_matcher = {
+  .impl_name = "exact",
+  .compile = NULL,
+  .match = var_exact_match,
+  .free = NULL,
+  .append_fixed_prefix = var_exact_afp
+};
+
+static mtev_hash_table *matcher_impls;
+static pthread_mutex_t  matcher_impls_write_lock = PTHREAD_MUTEX_INITIALIZER;
+
+void noit_var_matcher_register(const noit_var_match_impl_t *matcher) {
+  pthread_mutex_lock(&matcher_impls_write_lock);
+  if(!matcher_impls) {
+    matcher_impls = calloc(1, sizeof(*matcher_impls));
+    mtev_hash_init(matcher_impls);
+  }
+  mtev_hash_replace(matcher_impls, matcher->impl_name, strlen(matcher->impl_name), matcher, NULL, NULL);
+  pthread_mutex_unlock(&matcher_impls_write_lock);
+}
+
+static const noit_var_match_impl_t *
+noit_var_matcher_impl(const char *name, size_t name_len) {
+  void *vimpl;
+  if(matcher_impls && mtev_hash_retrieve(matcher_impls, name, name_len, &vimpl)) {
+    return vimpl;
+  }
+  if(name_len == 7 && memcmp(name, "default", 7) == 0) return &var_re_expansion_matcher;
+  if(name_len == 5 && memcmp(name, "exact", 5) == 0) return &var_exact_matcher;
+  if(name_len == 2 && memcmp(name, "re", 2) == 0) return &var_re_matcher;
+  if(name_len == 8 && memcmp(name, "graphite", 8) == 0) return &var_graphite_matcher;
+  return &var_exact_matcher;
+}
+
+typedef struct noit_metric_tag_match_t {
+  noit_var_match_t cat;
+  noit_var_match_t name;
+} noit_metric_tag_match_t;
+
+typedef struct noit_metric_tag_search_ast_t {
+  noit_metric_tag_search_op_t operation;
+  union {
+    struct {
+      int cnt;
+      struct noit_metric_tag_search_ast_t **node;
+    } args;
+    noit_metric_tag_match_t spec;
+  } contents;
+  void *user_data;
+  void (*user_data_free)(void *);
+  uint32_t refcnt;
+} noit_metric_tag_search_ast_t;
+
+void
+noit_metric_tag_search_resize_args(noit_metric_tag_search_ast_t *node, int cnt) {
+  assert(node->operation == OP_NOT_ARGS ||
+         node->operation == OP_OR_ARGS ||
+         node->operation == OP_AND_ARGS);
+  if(node->contents.args.cnt == cnt) return;
+  assert(node->contents.args.cnt <= cnt);
+  noit_metric_tag_search_ast_t **new_nodes = calloc(cnt, sizeof(*new_nodes));
+  for(size_t i=0; i<node->contents.args.cnt; i++) {
+    new_nodes[i] = node->contents.args.node[i];
+  }
+  free(node->contents.args.node);
+  node->contents.args.node = new_nodes;
+  node->contents.args.cnt = cnt;
+}
+
+noit_metric_tag_search_op_t
+noit_metric_tag_search_get_op(const noit_metric_tag_search_ast_t *node) {
+  return node->operation;
+}
+
+void
+noit_metric_tag_search_set_op(noit_metric_tag_search_ast_t *node, noit_metric_tag_search_op_t op) {
+  node->operation = op;
+}
+
+const noit_var_match_t *
+noit_metric_tag_search_get_cat(const noit_metric_tag_search_ast_t *node) {
+  return node->operation == OP_MATCH ? &node->contents.spec.cat : NULL;
+}
+
+const noit_var_match_t *
+noit_metric_tag_search_get_name(const noit_metric_tag_search_ast_t *node) {
+  return node->operation == OP_MATCH ? &node->contents.spec.name : NULL;
+}
+
+const char *
+noit_var_val(const noit_var_match_t *node) {
+  return node ? node->str : NULL;
+}
+
+mtev_boolean
+noit_var_match(const noit_var_match_t *node, const char *subj, size_t subj_len) {
+  if(node == NULL) return mtev_false;
+  return node->impl->match(node->impl_data, node->str, subj, subj_len);
+}
+
+int
+noit_var_strlcat_fixed_prefix(const noit_var_match_t *node, char *out, size_t len, mtev_boolean *all) {
+  if(node == NULL) return strlen(out);
+  return node->impl->append_fixed_prefix(node->impl_data, node->str, out, len, all);
+}
+
+const char *
+noit_var_impl_name(const noit_var_match_t *node) {
+  return node ? node->impl->impl_name : NULL;
+}
+
+int
+noit_metric_tag_search_get_nargs(const noit_metric_tag_search_ast_t *node) {
+  return node->operation == OP_MATCH ? 0 : node->contents.args.cnt;
+}
+
+void *
+noit_metric_tag_search_get_udata(const noit_metric_tag_search_ast_t *node) {
+  return node->user_data;
+}
+
+void
+noit_metric_tag_search_set_udata(noit_metric_tag_search_ast_t *node, void *udata, void (*ufree)(void *)) {
+  node->user_data = udata;
+  node->user_data_free = ufree;
+}
+
+noit_metric_tag_search_ast_t *
+noit_metric_tag_search_get_arg(const noit_metric_tag_search_ast_t *node, int idx) {
+  if(node->operation == OP_MATCH) return NULL;
+  if(idx < 0 || idx >= node->contents.args.cnt) return NULL;
+  return node->contents.args.node[idx];
+}
+
+void
+noit_metric_tag_search_set_arg(noit_metric_tag_search_ast_t *node, int idx, noit_metric_tag_search_ast_t *r) {
+  assert(node->operation != OP_MATCH);
+  assert(node->operation != OP_NOT_ARGS || idx == 0);
+  if(idx == node->contents.args.cnt) noit_metric_tag_search_resize_args(node, idx+1);
+  assert(node->contents.args.cnt > idx);
+  node->contents.args.node[idx] = r;
+}
+void
+noit_metric_tag_search_add_arg(noit_metric_tag_search_ast_t *node, noit_metric_tag_search_ast_t *r) {
+  noit_metric_tag_search_set_arg(node, node->contents.args.cnt, r);
+}
+
+noit_metric_tag_search_ast_t *
+noit_metric_tag_search_alloc(noit_metric_tag_search_op_t op) {
+  noit_metric_tag_search_ast_t *node = calloc(1, sizeof(*node));
+  node->operation = op;
+  node->refcnt = 1;
+  return node;
+}
+
+noit_metric_tag_search_ast_t *
+noit_metric_tag_search_alloc_match(const char *cat_impl, const char *cat_pat,
+                                   const char *name_impl, const char *name_pat) {
+  noit_metric_tag_search_ast_t *node = noit_metric_tag_search_alloc(OP_MATCH);
+  node->contents.spec.cat.impl = noit_var_matcher_impl(cat_impl, strlen(cat_impl));
+  node->contents.spec.cat.str = cat_pat ? strdup(cat_pat) : NULL;
+  if(node->contents.spec.cat.impl->compile)
+    node->contents.spec.cat.impl_data = node->contents.spec.cat.impl->compile(cat_pat, NULL);
+  node->contents.spec.name.impl = noit_var_matcher_impl(name_impl, strlen(name_impl));
+  node->contents.spec.name.str = name_pat ? strdup(name_pat) : NULL;
+  if(node->contents.spec.name.impl->compile)
+    node->contents.spec.name.impl_data = node->contents.spec.name.impl->compile(name_pat, NULL);
+  return node;
+}
+
+void
+noit_metric_tag_search_free(noit_metric_tag_search_ast_t *node) {
+  if(node == NULL) return;
+  if(!ck_pr_dec_32_is_zero(&node->refcnt)) return;
+  noit_metric_tag_search_reset(node);
+  free(node);
+}
+
+void
+noit_metric_tag_search_reset(noit_metric_tag_search_ast_t *node) {
+  switch(node->operation) {
+    case OP_MATCH:
+      free(node->contents.spec.cat.str);
+      free(node->contents.spec.name.str);
+      if(node->contents.spec.cat.impl && node->contents.spec.cat.impl->free)
+        node->contents.spec.cat.impl->free(node->contents.spec.cat.impl_data);
+      if(node->contents.spec.name.impl && node->contents.spec.name.impl->free)
+        node->contents.spec.name.impl->free(node->contents.spec.name.impl_data);
+      break;
+    /* All ARGS */
+    default:
+      for(int i=0;i<node->contents.args.cnt; i++) {
+        noit_metric_tag_search_free(node->contents.args.node[i]);
+      }
+      free(node->contents.args.node);
+  }
+  if(node->user_data_free) node->user_data_free(node->user_data);
+  memset(node, 0, sizeof(*node));
+}
+
+noit_metric_tag_search_ast_t *
+noit_metric_tag_search_ref(noit_metric_tag_search_ast_t *node) {
+  ck_pr_inc_32(&node->refcnt);
+  return node;
+}
+
 static mtev_boolean
 noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int part) {
   char decoded_tag[512];
   const char *query = *endq;
-  const char *error;
-  int erroffset;
   int is_encoded_match = memcmp(query, "b!", 2) == 0;
   int is_encoded = is_encoded_match || memcmp(query, "b\"", 2) == 0 || memcmp(query, "b/", 2) == 0;
-  if (is_encoded) {
+  int is_alt = memcmp(query, "b[", 2) == 0 || *query == '[';
+
+  if(is_encoded_match) m->impl = &var_exact_matcher;
+  if(is_alt) {
+   if(*query == 'b') is_encoded = 1;
+    while(**endq && **endq != ']') {
+     (*endq)++;
+    }
+    if(**endq != ']') {
+      *endq = query+1;
+      return mtev_false;
+    }
+    m->impl = noit_var_matcher_impl(query+1+is_encoded, *endq - query - 1 - is_encoded);
+    if(!m->impl) {
+      *endq = query + 2;
+      return mtev_false;
+    }
+    (*endq)++; // skip the ']'
+    query = *endq;
+  }
+  else if (is_encoded) {
     (*endq)++; // skip the 'b'
     query = *endq;
   }
-  if(*query == '/') {
+  if(*query == '/' && !m->impl) {
+    m->impl = &var_re_matcher;
     *endq = query+1;
     while(**endq && **endq != ',' && **endq != ')' && (part == 2 || **endq != ':')) (*endq)++;
     if(**endq != ',' && **endq != ')' && (part == 2 || **endq != ':')) return mtev_false;
@@ -140,12 +720,16 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     } else {
       m->str = mtev_strndup(query + 1, *endq - query - 1);
     }
-    m->re = pcre_compile(m->str,
-                         0, &error, &erroffset, NULL);
-    if(!m->re) {
-      if (!is_encoded) *endq = query+1+erroffset;
-      else *endq = query+1; // we can't easily know where in the encoded query the problem lies, so best to point to beginning of query
-      return mtev_false;
+    if(m->impl) {
+      int erroffset = 0;
+      if(m->impl->compile) {
+        m->impl_data = m->impl->compile(m->str, &erroffset);
+        if(!m->impl_data) {
+          if (!is_encoded) *endq = query+1+erroffset;
+          else *endq = query+1; // we can't easily know where in the encoded query the problem lies, so best to point to beginning of query
+          return mtev_false;
+        }
+      }
     }
     (*endq)++;
   }
@@ -183,18 +767,26 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     } else {
       m->str = mtev_strndup(query, *endq - query);
     }
-    if((strchr(m->str, '*') || strchr(m->str, '?')) && !is_encoded_match) {
-      char *previous = m->str;
-      m->str = build_regex_from_expansion(m->str);
-      free(previous);
-      m->re = pcre_compile(m->str,
-                           0, &error, &erroffset, NULL);
-      if(!m->re) {
-        *endq = query; /* We don't know where in the original string */
-        return mtev_false;
+    if(m->impl == NULL) {
+      if(strchr(m->str, '*') || strchr(m->str, '?')) {
+        m->impl = &var_re_expansion_matcher;
+      } else {
+        m->impl = &var_exact_matcher;
+      }
+    }
+    if(m->impl) {
+      int erroffset;
+      if(m->impl->compile) {
+        m->impl_data = m->impl->compile(m->str, &erroffset);
+        if(!m->impl_data) {
+          if (!is_encoded) *endq = query+1+erroffset;
+          else *endq = query+1; // we can't easily know where in the encoded query the problem lies, so best to point to beginning of query
+          return mtev_false;
+        }
       }
     }
   }
+  assert(m->impl);
   return mtev_true;
 }
 
@@ -252,20 +844,14 @@ noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
   noit_metric_tag_search_ast_t *out = malloc(sizeof(*out));
   memcpy(out, in, sizeof(*out));
   if(out->operation == OP_MATCH) {
-    int erroffset;
-    const char *error;
     if(out->contents.spec.cat.str)
       out->contents.spec.cat.str = strdup(out->contents.spec.cat.str);
-    if(out->contents.spec.cat.re)
-      out->contents.spec.cat.re = pcre_compile(out->contents.spec.cat.str,
-                                               0, &error, &erroffset, NULL);
-    out->contents.spec.cat.re_e = NULL;
+    if(out->contents.spec.cat.impl->compile)
+      out->contents.spec.cat.impl_data = out->contents.spec.cat.impl->compile(out->contents.spec.cat.str, NULL);
     if(out->contents.spec.name.str)
       out->contents.spec.name.str = strdup(out->contents.spec.name.str);
-    if(out->contents.spec.name.re)
-      out->contents.spec.name.re = pcre_compile(out->contents.spec.name.str,
-                                               0, &error, &erroffset, NULL);
-    out->contents.spec.name.re_e = NULL;
+    if(out->contents.spec.name.impl->compile)
+      out->contents.spec.name.impl_data = out->contents.spec.name.impl->compile(out->contents.spec.name.str, NULL);
   }
   else {
     noit_metric_tag_search_ast_t **nodes = calloc(out->contents.args.cnt, sizeof(*nodes));
@@ -311,9 +897,8 @@ noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m) {
     ssubj_len = len;
     ssubj = decoded_tag;
   }
-  if(m->re) {
-    int ovector[30], rv;
-    if((rv = pcre_exec(m->re, NULL, ssubj, ssubj_len, 0, 0, ovector, 30)) >= 0) return mtev_true;
+  if(m->impl) {
+    if(m->impl->match(m->impl_data, m->str, ssubj, ssubj_len)) return mtev_true;
     return mtev_false;
   }
   if(m->str == NULL) return mtev_true;
