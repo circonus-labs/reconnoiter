@@ -31,6 +31,11 @@
       "id": "internals",
       "url": "/internals.html",
       "callback": "mtev.driveInternalsTab"
+    },
+    {
+      "name": "Console",
+      "id": "console",
+      "url": "/console.html"
     }
   ]
 }
