@@ -346,15 +346,21 @@ noit_console_show_timing_slots(mtev_console_closure_t ncct,
                                void *closure) {
   int i, j;
   const int upl = (60000 / SCHEDULE_GRANULARITY) / 60;
+  char line[upl + 12];
   for(i=0;i<60;i++) {
-    nc_printf(ncct, "[%02d] %04d: ", i, check_slots_seconds_count[i]);
+    int offset = snprintf(line, sizeof(line), "[%02d] %04d: ", i, check_slots_seconds_count[i]);
+    if(offset < 0) {
+      nc_printf(ncct, "snprintf error\n");
+      return 0;
+    }
     for(j=i*upl;j<(i+1)*upl;j++) {
       char cp = '!';
       if(check_slots_count[j] < 10) cp = '0' + check_slots_count[j];
       else if(check_slots_count[j] < 36) cp = 'a' + (check_slots_count[j] - 10);
-      nc_printf(ncct, "%c", cp);
+      if(offset < sizeof(line)-2) line[offset++] = cp;
     }
-    nc_printf(ncct, "\n");
+    line[offset] = '\0';
+    nc_printf(ncct, "%s\n", line);
   }
   return 0;
 }
