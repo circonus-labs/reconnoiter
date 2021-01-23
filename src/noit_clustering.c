@@ -66,6 +66,14 @@
 #include <sys/mman.h>
 #include <errno.h>
 
+MTEV_HOOK_IMPL(noit_should_run_check,
+               (noit_check_t *check, mtev_cluster_t *cluster,
+                mtev_boolean *iown, mtev_cluster_node_t **node),
+               void *, closure,
+               (void *closure, noit_check_t *check, mtev_cluster_t *cluster,
+                mtev_boolean *iown, mtev_cluster_node_t **node),
+               (closure,check,cluster,iown,node))
+
 #define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
 #define REPL_FAIL_WAIT_US 500000
 
@@ -872,12 +880,16 @@ alive_nodes(mtev_cluster_node_t *node, mtev_boolean me, void *closure) {
 }
 mtev_boolean
 noit_should_run_check(noit_check_t *check, mtev_cluster_node_t **node) {
+  mtev_boolean i_own = mtev_true;
   /* No clustering means I own everything */
-  if(!my_cluster) return mtev_true;
+  if(!my_cluster) return i_own;
 
-  if(!strcmp(check->module, "selfcheck")) return mtev_true;
+  if(!strcmp(check->module, "selfcheck")) return i_own;
 
-  mtev_boolean i_own;
+  if(noit_should_run_check_hook_invoke(check, my_cluster, &i_own, node) == MTEV_HOOK_DONE) {
+    return i_own;
+  }
+
   mtev_cluster_node_t *nodeset[MAX_CLUSTER_NODES];
   int w = MAX_CLUSTER_NODES;
 

@@ -33,6 +33,7 @@
 
 #include <noit_check.h>
 #include <mtev_cluster.h>
+#include <mtev_hooks.h>
 #include <netinet/in.h>
 
 #define NOIT_MTEV_CLUSTER_NAME "noit"
@@ -62,5 +63,12 @@ mtev_boolean
 
 int
   noit_cluster_self_index(void);
+
+MTEV_HOOK_PROTO(noit_should_run_check,
+                (noit_check_t *check, mtev_cluster_t *cluster,
+                 mtev_boolean *iown, mtev_cluster_node_t **node),
+                void *, closure,
+                (void *closure, noit_check_t *check, mtev_cluster_t *cluster,
+                 mtev_boolean *iown, mtev_cluster_node_t **node))
 
 #endif
