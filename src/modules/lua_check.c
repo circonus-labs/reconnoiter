@@ -810,6 +810,10 @@ noit_lua_setup_module(lua_State *L,
   }
   lua_setmetatable(L, -2);
 }
+static void
+ctype_noit_check_helper(lua_State *L, va_list ap) {
+  noit_lua_setup_check(L, va_arg(ap, noit_check_t *));
+}
 void
 noit_lua_setup_check(lua_State *L,
                      noit_check_t *check) {
@@ -1325,6 +1329,7 @@ noit_lua_loader_onload(mtev_image_t *self) {
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("lua/check_timeout", noit_lua_check_timeout);
   mtev_lua_context_describe(LUA_CHECK_INFO_MAGIC, describe_lua_check_context);
+  mtev_lua_register_dynamic_ctype("noit_check_t *", ctype_noit_check_helper);
   register_console_lua_commands();
   return 0;
 }
