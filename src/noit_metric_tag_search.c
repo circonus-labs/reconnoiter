@@ -622,19 +622,21 @@ noit_var_val(const noit_var_match_t *node) {
 
 mtev_boolean
 noit_var_match(const noit_var_match_t *node, const char *subj, size_t subj_len) {
-  if(node == NULL) return mtev_false;
+  if((node == NULL) || (node->impl == NULL)) return mtev_false;
   return node->impl->match(node->impl_data, node->str, subj, subj_len);
 }
 
 int
 noit_var_strlcat_fixed_prefix(const noit_var_match_t *node, char *out, size_t len, mtev_boolean *all) {
-  if(node == NULL) return strlen(out);
+  if((node == NULL) || (node->impl == NULL)) return strlen(out);
   return node->impl->append_fixed_prefix(node->impl_data, node->str, out, len, all);
 }
 
 const char *
 noit_var_impl_name(const noit_var_match_t *node) {
-  return node ? node->impl->impl_name : NULL;
+  if (node && node->impl)
+    return node->impl->impl_name;
+  return NULL;
 }
 
 int
