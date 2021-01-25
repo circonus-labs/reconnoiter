@@ -908,12 +908,20 @@ noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
   if(out->operation == OP_MATCH) {
     if(out->contents.spec.cat.str)
       out->contents.spec.cat.str = strdup(out->contents.spec.cat.str);
-    if(out->contents.spec.cat.impl->compile)
-      out->contents.spec.cat.impl_data = out->contents.spec.cat.impl->compile(out->contents.spec.cat.str, NULL);
+    if(out->contents.spec.cat.impl) {
+      if (out->contents.spec.cat.impl->compile)
+        out->contents.spec.cat.impl_data = out->contents.spec.cat.impl->compile(out->contents.spec.cat.str, NULL);
+    }
+    else
+      out->contents.spec.cat.impl_data = NULL;
     if(out->contents.spec.name.str)
       out->contents.spec.name.str = strdup(out->contents.spec.name.str);
-    if(out->contents.spec.name.impl->compile)
-      out->contents.spec.name.impl_data = out->contents.spec.name.impl->compile(out->contents.spec.name.str, NULL);
+    if(out->contents.spec.name.impl) {
+      if (out->contents.spec.name.impl->compile)
+        out->contents.spec.name.impl_data = out->contents.spec.name.impl->compile(out->contents.spec.name.str, NULL);
+    }
+    else
+      out->contents.spec.name.impl_data = NULL;
   }
   else {
     noit_metric_tag_search_ast_t **nodes = calloc(out->contents.args.cnt, sizeof(*nodes));
