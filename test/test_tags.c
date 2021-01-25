@@ -448,6 +448,8 @@ void test_tag_match()
           match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
         }
         test_assert_namef(match == testmatches[i].queries[j].match, "'%s' %s", testmatches[i].queries[j].query, match ? "matches" : "doesn't match");
+        /* clone if only to test cloning */
+        noit_metric_tag_search_free(noit_metric_tag_search_clone(ast));
         noit_metric_tag_search_free(ast);
       } else {
         test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, testmatches[i].queries[j].query);
