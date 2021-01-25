@@ -75,7 +75,7 @@ noit_tag_search_get_tls_pcre_jit_stack(void *arg)
 
 void
 __attribute__((constructor))
-void_tag_search_init(void) {
+noit_tag_search_init(void) {
   pthread_mutex_lock(&noit_tags_search_tls_jit_init_lock);
   if(!noit_tags_search_tls_jit_init) {
     pthread_key_create(&noit_tag_search_tls_jit_stack_key, noit_tag_search_free_tls_pcre_jit_stack);
