@@ -4,8 +4,12 @@
 #include "noit_message_decoder.h"
 #include <mtev_hash.h>
 #include <mtev_b64.h>
+#include <mtev_perftimer.h>
 #include <assert.h>
 #include <sys/time.h>
+
+bool benchmark = false;
+const int BENCH_ITERS = 1000000;
 
 const char *tcpairs[][2] = {
 
@@ -102,11 +106,12 @@ const char *testtags[][2] = {
   { "category:value", "category\037value" }
 };
 
-const struct {
+struct {
   const char *tagstring;
   struct {
     const char *query;
     mtev_boolean match;
+    uint64_t bench_ns;
   } queries[12];
 } testmatches[] = {
   { "__name:f1.f2.f3.f4.f5.f6",
@@ -118,6 +123,7 @@ const struct {
       { "and(__name:[graphite]f2.**.f6)", mtev_false },
       { "and(__name:[graphite]f1.**)", mtev_true },
       { "and(__name:[graphite]f1.f2.*.f4.f5.f6)", mtev_true },
+      { "and(__name:[graphite]f1.f2.f3.f4.f5.f6)", mtev_true },
       { NULL, 0 }
     }
   },
@@ -415,7 +421,7 @@ void test_ast_decode()
 void test_tag_match()
 {
   int erroroffset;
-  noit_metric_tagset_t tagset;
+  noit_metric_tagset_t tagset = {};
   noit_metric_tagset_builder_t builder;
   noit_metric_tag_search_ast_t *ast;
   mtev_boolean match;
@@ -431,13 +437,23 @@ void test_tag_match()
     for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
       ast = noit_metric_tag_search_parse(testmatches[i].queries[j].query, &erroroffset);
       if(ast) {
-        match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+        if(benchmark) {
+          mtev_perftimer_t btimer;
+          mtev_perftimer_start(&btimer);
+          for(int b=0; b<BENCH_ITERS; b++) {
+            match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+          }
+          testmatches[i].queries[j].bench_ns = mtev_perftimer_elapsed(&btimer);
+        } else {
+          match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+        }
         test_assert_namef(match == testmatches[i].queries[j].match, "'%s' %s", testmatches[i].queries[j].query, match ? "matches" : "doesn't match");
         noit_metric_tag_search_free(ast);
       } else {
         test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, testmatches[i].queries[j].query);
       }
     }
+    free(tagset.tags);
     free(canonical);
   }
 }
@@ -601,8 +617,18 @@ void loop(char *str) {
   free(hbuff);
   printf("canonicalize('%s') -> %f ns/op\n", str, (elapsed * 1000000000.0) / (double)nloop);
 }
-int main(int argc, const char **argv)
+
+int main(int argc, char * const *argv)
 {
+  int opt;
+  while(-1 != (opt = getopt(argc, argv, "b"))) {
+    switch(opt) {
+    case 'b': benchmark = true; break;
+    default:
+      fprintf(stderr, "unknown option: %c\n", opt);
+      exit(-2);
+    }
+  }
   test_tag_decode();
   test_ast_decode();
   test_tag_match();
@@ -613,5 +639,13 @@ int main(int argc, const char **argv)
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");
   loop("testing_this_long_untagged_metric");
   printf("\n%d tests failed.\n", failures);
+  if(benchmark) {
+    for(int i=0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
+      for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
+        printf("%s on %s -> %f ns/op\n", testmatches[i].queries[j].query, testmatches[i].tagstring,
+               (double)testmatches[i].queries[j].bench_ns / (double)BENCH_ITERS);
+      }
+    }
+  }
   return !(failures == 0);
 }

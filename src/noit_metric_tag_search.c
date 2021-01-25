@@ -49,6 +49,41 @@ typedef struct noit_var_match_t {
 
 static mtev_boolean noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m);
 
+static pthread_mutex_t noit_tags_search_tls_jit_init_lock = PTHREAD_MUTEX_INITIALIZER;
+static __thread pcre_jit_stack *noit_tag_search_tls_jit_stack;
+static bool noit_tags_search_tls_jit_init = false;
+static pthread_key_t noit_tag_search_tls_jit_stack_key;
+
+static void
+noit_tag_search_free_tls_pcre_jit_stack(void *stack)
+{
+  pcre_jit_stack_free((pcre_jit_stack *)stack);
+}
+static pcre_jit_stack *
+noit_tag_search_get_tls_pcre_jit_stack(void *arg)
+{
+  (void)arg;
+  if (noit_tags_search_tls_jit_init && noit_tag_search_tls_jit_stack == NULL) {
+    noit_tag_search_tls_jit_stack = (pcre_jit_stack *)pthread_getspecific(noit_tag_search_tls_jit_stack_key);
+    if (noit_tag_search_tls_jit_stack == NULL) {
+      noit_tag_search_tls_jit_stack = (pcre_jit_stack *)pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
+      pthread_setspecific(noit_tag_search_tls_jit_stack_key, noit_tag_search_tls_jit_stack);
+    }
+  }
+  return noit_tag_search_tls_jit_stack;
+}
+
+void
+__attribute__((constructor))
+noit_tag_search_init(void) {
+  pthread_mutex_lock(&noit_tags_search_tls_jit_init_lock);
+  if(!noit_tags_search_tls_jit_init) {
+    pthread_key_create(&noit_tag_search_tls_jit_stack_key, noit_tag_search_free_tls_pcre_jit_stack);
+    noit_tags_search_tls_jit_init = true;
+  }
+  pthread_mutex_unlock(&noit_tags_search_tls_jit_init_lock);
+}
+
 struct graphite_impl {
   int count;
   int allocd;
@@ -91,6 +126,7 @@ void var_graphite_free(void *vi) {
   if(g == NULL) return;
   for(int i=0; i<g->count; i++) {
     free(g->results[i].str);
+    free(g->results[i].re_str);
     if(g->results[i].re) pcre_free(g->results[i].re);
     if(g->results[i].re_e) {
 #ifdef PCRE_STUDY_JIT_COMPILE
@@ -101,6 +137,7 @@ void var_graphite_free(void *vi) {
     }
   }
   free(g->results);
+  free(g);
 }
 
 static char *
@@ -226,6 +263,7 @@ graphite_add_expansion(const char *s, struct graphite_impl *g) {
   if(g->count + 1 > g->allocd) {
     g->allocd += 20;
     g->results = realloc(g->results, g->allocd * sizeof(*g->results));
+    memset(&g->results[g->count], 0, sizeof(*g->results) * (g->allocd - g->count));
   }
   g->results[g->count].str = strdup(s);
   g->results[g->count].str_len = strlen(s);
@@ -239,6 +277,9 @@ graphite_add_expansion(const char *s, struct graphite_impl *g) {
       if(g->results[g->count].re) {
 #ifdef PCRE_STUDY_JIT_COMPILE
         g->results[g->count].re_e = pcre_study(g->results[g->count].re, PCRE_STUDY_JIT_COMPILE, &error);
+        if(g->results[g->count].re_e) {
+          pcre_assign_jit_stack(g->results[g->count].re_e, noit_tag_search_get_tls_pcre_jit_stack, NULL);
+        }
 #else
         g->results[g->count].re_e = pcre_study(g->results[g->count].re, 0, &error);
 #endif
@@ -328,7 +369,7 @@ static void *var_graphite_compile(const char *in, int *erroffset) {
 }
 
 static int var_graphite_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
-  struct graphite_impl *g = calloc(1, sizeof(*impl_data));
+  struct graphite_impl *g = (struct graphite_impl *)impl_data;
   if(g->count == 1) return append_prefix(out, out_len, g->results[0].re_str, g->results[0].re, all);
   int pattern_len = strlen(pattern);
   int out_has = strlen(out);
@@ -357,6 +398,16 @@ static void *var_re_compile(const char *in, int *erroffset) {
   struct re_matcher *impl_data = calloc(1, sizeof(*impl_data));
   impl_data->re_str = strdup(in);
   impl_data->re = re;
+  if(re) {
+#ifdef PCRE_STUDY_JIT_COMPILE
+    impl_data->re_e = pcre_study(re, PCRE_STUDY_JIT_COMPILE, &error);
+    if(impl_data->re_e) {
+      pcre_assign_jit_stack(impl_data->re_e, noit_tag_search_get_tls_pcre_jit_stack, NULL);
+    }
+#else
+    impl_data->re_e = pcre_study(re, 0, &error);
+#endif
+  }
   return impl_data;
 }
 
@@ -399,6 +450,16 @@ static void *var_default_compile(const char *in, int *erroffset) {
   }
   struct re_matcher *impl_data = calloc(1, sizeof(*impl_data));
   impl_data->re = re;
+  if(re) {
+#ifdef PCRE_STUDY_JIT_COMPILE
+    impl_data->re_e = pcre_study(re, PCRE_STUDY_JIT_COMPILE, &error);
+    if(impl_data->re_e) {
+      pcre_assign_jit_stack(impl_data->re_e, noit_tag_search_get_tls_pcre_jit_stack, NULL);
+    }
+#else
+    impl_data->re_e = pcre_study(re, 0, &error);
+#endif
+  }
   impl_data->re_str = tmpstr;
   return impl_data;
 }
@@ -415,6 +476,7 @@ static mtev_boolean var_re_match(void *impl_data, const char *pattern, const cha
 static void var_re_free(void *impl_data) {
   struct re_matcher *m = (struct re_matcher *)impl_data;
   if(m == NULL) return;
+  free(m->re_str);
   if(m->re) pcre_free(m->re);
   if(m->re_e) {
 #ifdef PCRE_STUDY_JIT_COMPILE
