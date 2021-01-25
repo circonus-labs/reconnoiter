@@ -64,7 +64,7 @@ noit_check_recur_name_details(char *buf, int buflen,
                               eventer_t e, void *closure) {
   char id_str[UUID_STR_LEN+1];
   recur_closure_t *rcl = e ? eventer_get_closure(e) : NULL;
-  if(!e) {
+  if(!e || !rcl) {
     snprintf(buf, buflen, "noit_check_recur_handler");
     return;
   }
@@ -80,6 +80,7 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
 
   if(e != rcl->check->fire_event) return 0;
 
+  eventer_set_closure(e, NULL);
   noit_check_resolve(rcl->check);
   ms = noit_check_schedule_next(rcl->self, NULL, rcl->check, now,
                                 rcl->dispatch, NULL);
