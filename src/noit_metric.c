@@ -33,7 +33,6 @@
  */
 
 #include "noit_metric.h"
-#include "noit_metric_private.h"
 
 #include <mtev_b64.h>
 #include <mtev_json_object.h>

@@ -241,6 +241,41 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
                 void *, closure,
                 (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset))
 
+API_EXPORT(const char *)
+  noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
+                             noit_metric_tag_t *output, mtev_boolean *toolong);
+
+static inline int
+noit_metric_tags_compare(const void *v_l, const void *v_r) {
+  const noit_metric_tag_t *l = (noit_metric_tag_t *) v_l;
+  const noit_metric_tag_t *r = (noit_metric_tag_t *) v_r;
+  char lb[NOIT_TAG_MAX_PAIR_LEN], rb[NOIT_TAG_MAX_PAIR_LEN];
+  if(l->total_size > NOIT_TAG_MAX_PAIR_LEN) return -1;
+  if(r->total_size > NOIT_TAG_MAX_PAIR_LEN) return -1;
+  int llen = noit_metric_tagset_decode_tag(lb, sizeof(lb), l->tag, l->total_size);
+  if(llen < 0) return -1;
+  int rlen = noit_metric_tagset_decode_tag(rb, sizeof(rb), r->tag, r->total_size);
+  if(rlen < 0) return -1;
+  size_t memcmp_len = llen < rlen ? llen : rlen;
+  int cmp_rslt = memcmp(lb, rb, memcmp_len);
+  if(cmp_rslt != 0) return cmp_rslt;
+  if(llen < rlen) return -1;
+  if(llen > rlen) return 1;
+  return 0;
+}
+
+static inline int
+noit_metric_tags_decoded_compare(const void *v_l, const void *v_r) {
+  const noit_metric_tag_t *l = (noit_metric_tag_t *) v_l;
+  const noit_metric_tag_t *r = (noit_metric_tag_t *) v_r;
+  size_t memcmp_len = l->total_size < r->total_size ? l->total_size : r->total_size;
+  int cmp_rslt = memcmp(l->tag, r->tag, memcmp_len);
+  if(cmp_rslt != 0) return cmp_rslt;
+  if(l->total_size < r->total_size) return -1;
+  if(l->total_size > r->total_size) return 1;
+  return 0;
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -40,7 +40,6 @@
 #include <mtev_str.h>
 
 #include "noit_metric.h"
-#include "noit_metric_private.h"
 
 #define MOVE_TO_NEXT_TAB(cp, lvalue) do { \
   lvalue = memchr(cp, '\t', strlen(cp)); \
