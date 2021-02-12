@@ -951,8 +951,10 @@ noit_lua_module_cleanup(noit_module_t *mod, noit_check_t *check) {
 
  clean:
   if(ri) {
-    mtev_lua_resume_clean_events(ri);
-    mtev_lua_cancel_coro(ri);
+    if(ri->coro_state) {
+      mtev_lua_resume_clean_events(ri);
+      mtev_lua_cancel_coro(ri);
+    }
     free(ri->context_data);
     free(ri);
   }
@@ -1055,8 +1057,10 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
     noit_check_end(check);
     check->closure = NULL;
   }
-  mtev_lua_resume_clean_events(ri);
-  mtev_lua_cancel_coro(ri);
+  if(ri->coro_state) {
+    mtev_lua_resume_clean_events(ri);
+    mtev_lua_cancel_coro(ri);
+  }
   free(ri->context_data);
   free(ri);
   mtev_lua_gc(lmc);
@@ -1094,9 +1098,6 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   }
   if(needs_release) {
     if(ri->coro_state) {
-      /* Our coro is still "in-flight". To fix this we will unreference
-       * it, garbage collect it and then ensure that it failes a resume
-       */
       lua_module_closure_t *lmc = ri->lmc;
       mtev_lua_resume_clean_events(ri);
       mtev_lua_cancel_coro(ri);
