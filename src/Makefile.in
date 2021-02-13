@@ -111,7 +111,7 @@ FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
 	flatbuffers/filterset_rule_reader.h \
 	flatbuffers/filterset_rule_verifier.h \
 	flatbuffers/filterset_builder.h \
-       	flatbuffers/filterset_rule_builder.h \
+	flatbuffers/filterset_rule_builder.h \
 	flatbuffers/filterset_json_parser.h \
 	flatbuffers/filterset_json_printer.h \
 	flatbuffers/filterset_reader.h \
