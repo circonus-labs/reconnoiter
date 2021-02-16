@@ -2622,7 +2622,7 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
    * `v` before coercing it
    */
   char copy_v[256] = {0}; // intentionally larger than anything we could coerce anyway
-  memcpy(copy_v, v, MIN(strlen(v)+1, 255));
+  strlcpy(copy_v, v, 256);
   const char *safe_v = trim(copy_v);
 
   switch(t) {
