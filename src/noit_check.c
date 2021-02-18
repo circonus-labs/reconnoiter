@@ -2556,6 +2556,40 @@ noit_stats_set_metric_histogram(noit_check_t *check,
   check_stats_set_metric_histogram_hook_invoke(check, cumulative, &m_onstack, count);
   free(replacement);
 }
+
+static char *ltrim(char *s)
+{
+  const char *seps = "\t\n\r \"";
+  size_t totrim = strspn(s, seps);
+  if (totrim > 0) {
+    size_t len = strlen(s);
+    if (totrim == len) {
+      s[0] = '\0';
+    }
+    else {
+      memmove(s, s + totrim, len + 1 - totrim);
+    }
+  }
+  return s;
+}
+
+static char *rtrim(char *s)
+{
+  int i;
+  const char *seps = "\t\n\r \"";
+  i = strlen(s) - 1;
+  while (i >= 0 && strchr(seps, s[i]) != NULL) {
+    s[i] = '\0';
+    i--;
+  }
+  return s;
+}
+
+static char *trim(char *s)
+{
+  return ltrim(rtrim(s));
+}
+
 void
 noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
                              const char *name_raw, metric_type_t t,
@@ -2577,53 +2611,67 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
     f(closure, tagged_name, t, NULL, timestamp);
     return;
   }
+
+  /* It's possible that the incoming value is enclosed in quotation marks.
+   * This is sent commonly over SNMP where the dumb ass switches send back 
+   * a STRING type but then go the extra mile and enclose the string
+   * in quotation marks.  So instead of getting something like: "0.56"
+   * you get something like: "\"0.56\"" which is beyond stupid, but alas.
+   * 
+   * This little snippet trims any enclosing quotation marks and spaces in the incoming 
+   * `v` before coercing it
+   */
+  char copy_v[256] = {0}; // intentionally larger than anything we could coerce anyway
+  strlcpy(copy_v, v, 256);
+  const char *safe_v = trim(copy_v);
+
   switch(t) {
     case METRIC_STRING:
-      f(closure, tagged_name, t, v, timestamp);
+      f(closure, tagged_name, t, safe_v, timestamp);
       break;
     case METRIC_INT32:
     {
       int32_t val;
-      val = strtol(v, &endptr, 10);
-      if(endptr == v) goto bogus;
+      val = strtol(safe_v, &endptr, 10);
+      if(endptr == safe_v) goto bogus;
       f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT32:
     {
       uint32_t val;
-      val = strtoul(v, &endptr, 10);
-      if(endptr == v) goto bogus;
+      val = strtoul(safe_v, &endptr, 10);
+      if(endptr == safe_v) goto bogus;
       f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_INT64:
     {
       int64_t val;
-      val = strtoll(v, &endptr, 10);
-      if(endptr == v) goto bogus;
+      val = strtoll(safe_v, &endptr, 10);
+      if(endptr == safe_v) goto bogus;
       f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_UINT64:
     {
       uint64_t val;
-      val = strtoull(v, &endptr, 10);
-      if(endptr == v) goto bogus;
+      val = strtoull(safe_v, &endptr, 10);
+      if(endptr == safe_v) goto bogus;
       f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_DOUBLE:
     {
       double val;
-      val = strtod(v, &endptr);
-      if(endptr == v) goto bogus;
+      val = strtod(safe_v, &endptr);
+      if(endptr == safe_v) goto bogus;
       f(closure, tagged_name, t, &val, timestamp);
       break;
     }
     case METRIC_GUESS:
-      t = noit_metric_guess_type((char *)v, &replacement);
-      f(closure, tagged_name, t, (t != METRIC_GUESS) ? replacement : v, timestamp);
+      t = noit_metric_guess_type((char *)safe_v, &replacement);
+      f(closure, tagged_name, t, (t != METRIC_GUESS) ? replacement : safe_v, timestamp);
       free(replacement);
       break;
     case METRIC_HISTOGRAM:
@@ -2631,7 +2679,7 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
     case METRIC_ABSENT:
       mtevAssert(0 && "bad metric type passed to noit_stats_set_metric_coerce");
   }
-  if(stats) check_stats_set_metric_coerce_hook_invoke(check, stats, tagged_name, t, v, mtev_true);
+  if(stats) check_stats_set_metric_coerce_hook_invoke(check, stats, tagged_name, t, safe_v, mtev_true);
 }
 
 void
