@@ -1329,7 +1329,8 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   struct check_info *info = check->closure;
   int port = 161;
   mtev_boolean separate_queries = mtev_false;
-  const char *portstr, *versstr, *sepstr;
+  int max_pdu_size = 100;
+  const char *portstr, *versstr, *sepstr, *bsstr;
   const char *err = "unknown err";
   char target_port[64];
 
@@ -1346,6 +1347,14 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
                         strlen("separate_queries"), &sepstr)) {
     if(!strcasecmp(sepstr, "on") || !strcasecmp(sepstr, "true"))
       separate_queries = mtev_true;
+  }
+  if(mtev_hash_retr_str(check->config, "max_pdu_size",
+                        strlen("max_pdu_size"), &bsstr)) {
+    max_pdu_size = atoi(bsstr);
+    // prevent divide by zero from silly users
+    if (max_pdu_size <= 0) {
+      max_pdu_size = 1; // max_pdu_size of 1 makes it behave the same as separate_queries = true
+    }
   }
   if(mtev_hash_retr_str(check->config, "port", strlen("port"),
                         &portstr)) {
@@ -1413,7 +1422,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     /* Separate queries is not supported on v3... it makes no sense */
     if(separate_queries && info->version != SNMP_VERSION_3) {
       int reqid, i;
-      mtevL(nldeb, "Regular old get...\n");
+      mtevL(nldeb, "Individual get...\n");
       for(i=0;i<info->noids;i++) {
         req = snmp_pdu_create(SNMP_MSG_GET);
         if(!req) continue;
@@ -1432,9 +1441,9 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
         mtevL(nldeb, "Sent snmp get[%d/%d] -> reqid:%d\n", i, info->noids, reqid);
       }
     }
-    else {
+    else if (info->version == SNMP_VERSION_3) {
       int reqid, i;
-      mtevL(nldeb, "Regular old get...\n");
+      mtevL(nldeb, "Regular old get (v3)...\n");
       req = snmp_pdu_create(SNMP_MSG_GET);
       if(!req) goto bail;
       noit_snmp_fill_req(req, check, -1);
@@ -1454,6 +1463,34 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
       }
       for(i=0; i<info->noids; i++) info->oids[i].reqid = reqid;
       mtevL(nldeb, "Sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
+    }
+    else {
+      int reqid, i=0, oid_index=0, batch_count, batch_index;
+      mtevL(nldeb, "Batched get size=%d...\n", max_pdu_size);
+
+      batch_count = info->noids / max_pdu_size;
+      batch_count += info->noids % max_pdu_size > 0 ? 1 : 0;
+
+      for (batch_index = 0; batch_index < batch_count; batch_index++) {
+        req = snmp_pdu_create(SNMP_MSG_GET);
+        if(!req) goto bail;
+        int batch_index_start = oid_index;
+        for (i = 0; i < batch_count && oid_index < info->noids; oid_index++, i++) {
+          noit_snmp_fill_req(req, check, oid_index);
+        }
+        req->version = info->version;
+        reqid = snmp_sess_send(ts->slp, req);
+        if(reqid == 0) {
+          int liberr, snmperr;
+          char *errmsg;
+          snmp_sess_error(ts->slp, &liberr, &snmperr, &errmsg);
+          mtevL(nlerr, "Error sending snmp get request: %s\n", errmsg);
+          err = errmsg;
+          if(reqid == 0) goto bail;
+        }
+        for(int j = batch_index_start; j < batch_index_start + i; j++) info->oids[j].reqid = reqid;
+        mtevL(nldeb, "Sent snmp get[batch/%d] -> reqid:%d\n", i, reqid);
+      }
     }
   }
 
