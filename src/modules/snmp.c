@@ -239,6 +239,8 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
   struct check_info *info = check->closure;
   struct variable_list *vars;
 
+  if(info == NULL) return 0;
+
   if(pdu) {
     for(vars = pdu->variables; vars; vars = vars->next_variable)
       info->nresults++;
