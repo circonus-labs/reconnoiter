@@ -28,7 +28,7 @@
                allowed="(?:true|on|false|off)">Issue a separate query (PDU) for each OID; only applicable to v1 and v2c.</parameter>
     <parameter name="max_pdu_size"
                required="optional"
-               default="100"
+               default="50"
                allowed="[0-9]+">If separate_queries is off(false), this will control the maximum size of the PDU (number of OIDs fetched at once)</parameter>
     <parameter name="context_name"
                required="optional"

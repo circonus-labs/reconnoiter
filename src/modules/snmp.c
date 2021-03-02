@@ -917,11 +917,14 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
   /* We don't deal with refcnt hitting zero here.  We could only be hit from
    * the snmp read/timeout stuff.  Handle it there.
    */
+  mtevL(nldeb, "Received reqid:%d\n", reqid);
 
   info = get_check(reqid);
-  if(!info) return 1;
+  if(!info) {
+    mtevL(nlerr, "Cannot find reqid in table\n");
+    return 1;
+  }
   remove_check_req(info, reqid);
-
 
   if(noit_snmp_accumulate_results(info->check, pdu)) {
     mtevL(nldeb, "snmp %s pdu completed check requirements\n", info->check->name);
@@ -1329,7 +1332,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   struct check_info *info = check->closure;
   int port = 161;
   mtev_boolean separate_queries = mtev_false;
-  int max_pdu_size = 100;
+  int max_pdu_size = 50;
   const char *portstr, *versstr, *sepstr, *bsstr;
   const char *err = "unknown err";
   char target_port[64];
@@ -1475,7 +1478,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
         req = snmp_pdu_create(SNMP_MSG_GET);
         if(!req) goto bail;
         int batch_index_start = oid_index;
-        for (i = 0; i < batch_count && oid_index < info->noids; oid_index++, i++) {
+        for (i = 0; i < max_pdu_size && oid_index < info->noids; oid_index++, i++) {
           noit_snmp_fill_req(req, check, oid_index);
         }
         req->version = info->version;
@@ -1488,8 +1491,8 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
           err = errmsg;
           if(reqid == 0) goto bail;
         }
-        for(int j = batch_index_start; j < batch_index_start + i; j++) info->oids[j].reqid = reqid;
-        mtevL(nldeb, "Sent snmp get[batch/%d] -> reqid:%d\n", i, reqid);
+        for(int j = batch_index_start; j < batch_index_start + (oid_index - batch_index_start); j++) info->oids[j].reqid = reqid;
+        mtevL(nldeb, "Sent snmp get[batch/%d of %d] -> reqid:%d\n", batch_index+1, batch_count, reqid);
       }
     }
   }
