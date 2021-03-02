@@ -1355,6 +1355,10 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
                         &portstr)) {
     port = atoi(portstr);
   }
+  if(mtev_hash_retr_str(check->config, "max_pdu_size", strlen("max_pdu_size"),
+                        &bsstr)) {
+    max_pdu_size = atoi(bsstr);
+  }
   if(mtev_hash_retr_str(check->config, "version", strlen("version"),
                         &versstr)) {
     /* We don't care about 2c or others... as they all default to 2c */
@@ -1436,7 +1440,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
         mtevL(nldeb, "Sent snmp get[%d/%d] -> reqid:%d\n", i, info->noids, reqid);
       }
     }
-    else {
+    else if (info->version == SNMP_VERSION_3){
       int reqid, i;
       mtevL(nldeb, "Regular old get...\n");
       req = snmp_pdu_create(SNMP_MSG_GET);
