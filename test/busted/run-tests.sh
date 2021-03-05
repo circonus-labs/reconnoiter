@@ -16,4 +16,7 @@ DIR=`dirname $0`
 LD_LIBRARY_PATH=$DIR/../../src
 export LD_LIBRARY_PATH
 
-LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/9/libasan.so mtevbusted $@
+#LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/9/libasan.so mtevbusted $@
+LD_PRELOAD=/usr/lib64/libasan.so mtevbusted $@
+
+
