@@ -1,7 +1,5 @@
 source buildtools/el7/env.inc
-export PATH="$PATH:/opt/llvm-5.0.0/bin"
+export PATH="/opt/rh/devtoolset-9/root/usr/bin:$PATH"
 export CFLAGS="$CFLAGS -Wno-unused-function -fsanitize=address"
 export CXXFLAGS="$CXXFLAGS -fsanitize=address"
-export LDFLAGS="$LDFLAGS -fsanitize=address -static-libasan"
-export ASAN_SYMBOLIZER_PATH=/opt/llvm-5.0.0/bin/llvm-symbolizer
-export ASAN_OPTIONS=detect_leaks=0,alloc_dealloc_mismatch=1,verify_asan_link_order=0
+export LDFLAGS="$LDFLAGS -fsanitize=address -static-libasan -L/opt/rh/devtoolset-9/root/usr/lib/gcc/x86_64-redhat-linux/9 -Wl,-rpath=/opt/rh/devtoolset-9/root/usr/lib/gcc/x86_64-redhat-linux/9"

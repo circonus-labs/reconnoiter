@@ -13,10 +13,12 @@ CPPFLAGS="\
  -DGTEST_HAS_PTHREAD=1"
 export CFLAGS="\
  -Wall\
- -Werror"
+ -Werror\
+ -Wno-error=placement-new="
 export CXXFLAGS="\
  -Wall\
- -Werror"
+ -Werror\
+ -Wno-error=placement-new="
 export LDFLAGS="\
  -L/opt/circonus/lib\
  -Wl,-rpath=/opt/circonus/lib\
