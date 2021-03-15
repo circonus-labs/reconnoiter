@@ -1225,7 +1225,7 @@ void noit_metric_director_init() {
   if(miss_cache_size) {
     search_miss_cache =
       mtev_frrh_alloc(miss_cache_size, 0,
-                      UINT32_MAX * (1.0 - miss_cache_replacement_probability),
+                      UINT32_MAX * miss_cache_replacement_probability,
                       NULL, NULL, NULL);
     mtev_frrh_set_prob_function(search_miss_cache, generation_aware_displace);
   }
