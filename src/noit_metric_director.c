@@ -332,7 +332,7 @@ name_get_search(check_search_t *cs, const char *metric_name, size_t metric_name_
 }
 
 static check_search_t *
-check_get_search(account_search_t *as, uuid_t check_uuid, bool create) {
+check_get_search(account_search_t *as, const uuid_t check_uuid, bool create) {
   check_search_t cs;
   mtev_uuid_copy(cs.check_uuid, check_uuid);
   unsigned long hash = CK_HS_HASH(&as->check_searches, check_hash, &cs);
@@ -779,7 +779,7 @@ static void set_search_miss_cache(account_search_t *as, noit_metric_id_t *id) {
 static void
 distribute_metric(noit_metric_message_t *message) {
   mtev_perftimer_t start;
-  static uuid_t uuid_zero = { 0 };
+  static const uuid_t uuid_zero = { };
   void *vhash, **vinterests;
   interest_cnt_t has_interests = 0;
   interest_cnt_t interests[nthreads];
@@ -811,7 +811,6 @@ distribute_metric(noit_metric_message_t *message) {
   account_search_t *as = account_get_search(message->id.account_id, false);
   if(as) {
     if(!check_search_miss_cache(as, &message->id)) {
-      uuid_t uuid_zero = { 0 };
       check_search_t *css[2];
       css[0] = check_get_search(as, message->id.id, false);
       css[1] = check_get_search(as, uuid_zero, false);
