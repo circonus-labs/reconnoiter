@@ -1279,6 +1279,7 @@ rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module)
   *name = NULL;
   *module = NULL;
 
+  int cnt = 0;
   for(a = attr->children; a; a = a->next) {
     if(!strcmp((char *)a->name, "target")) {
       *target = (char *)xmlNodeGetContent(a);
@@ -1307,6 +1308,8 @@ rest_check_free_attrs(char *target, char *name, char *module) {
 
 void
 noit_check_rest_init() {
+  set_check_jobq = eventer_jobq_create("set_check");
+  eventer_jobq_set_concurrency(set_check_jobq, 1);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
     noit_rest_show_config, mtev_http_rest_client_cert_auth

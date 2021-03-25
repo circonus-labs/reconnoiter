@@ -31,6 +31,7 @@
 #include "noit_check.h"
 #include "noit_check_rest.h"
 #include "noit_lmdb_tools.h"
+#include <mtev_uuid.h>
 #include <mtev_watchdog.h>
 
 #include <errno.h>
@@ -594,11 +595,13 @@ put_retry:
 }
 
 typedef struct lmdb_set_check_data {
+  xmlDocPtr indoc;
   xmlNodePtr attr;
   xmlNodePtr config;
   uuid_t checkid;
   int error_code;
   char *error_string;
+  mtev_http_rest_closure_t *restc;
   /* Store off the data/free from rest_get_xml_upload here */
   void *xml_data;
   void (*xml_data_free)(void *);
@@ -621,9 +624,102 @@ lmdb_set_check_data_free(void *c) {
 static int
 noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
+
+#define SET_ERROR_CODE(code, str) do { \
+  lscd->error_code = code; \
+  lscd->error_string = strdup(str); \
+  return 0; \
+} while(0);
+
+  lmdb_set_check_data_t *lscd = (lmdb_set_check_data_t *)closure;
+  mtev_http_rest_closure_t *restc = lscd->restc;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   if(mask == EVENTER_ASYNCH_WORK) {
+    int rc = 0;
+    mtev_boolean exists = mtev_false;
+    noit_check_t *check = noit_poller_lookup(lscd->checkid);
+    if(check) {
+      exists = mtev_true;
+    }
+    mtev_boolean in_db = noit_check_lmdb_already_in_db(lscd->checkid);
+    if (!in_db) {
+      if (exists) {
+        SET_ERROR_CODE(403, "uuid not yours");
+      }
+      int64_t old_seq = 0;
+      char *target = NULL, *name = NULL, *module = NULL;
+      noit_module_t *m = NULL;
+      noit_check_t *check = NULL;
+      /* make sure this isn't a dup */
+      rest_check_get_attrs(lscd->attr, &target, &name, &module);
+      exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
+      if(check) {
+        old_seq = check->config_seq;
+      }
+      if(module) {
+        m = noit_module_lookup(module);
+      }
+      rest_check_free_attrs(target, name, module);
+      if(exists) {
+        SET_ERROR_CODE(409, "target`name already registered");
+      }
+      if(!m) {
+        SET_ERROR_CODE(412, "module does not exist");
+      }
+      rc = noit_check_lmdb_configure_check(lscd->checkid, lscd->attr, lscd->config, old_seq);
+      if (rc) {
+        SET_ERROR_CODE(409, "sequencing error");
+      }
+    }
+    if (exists) {
+      int64_t old_seq = 0;
+      int module_change;
+      char *target = NULL, *name = NULL, *module = NULL, *old_seq_string = NULL;;
+      noit_check_t *ocheck;
+      if(!check) {
+        SET_ERROR_CODE(500, "internal check error");
+      }
+
+      /* make sure this isn't a dup */
+      rest_check_get_attrs(lscd->attr, &target, &name, &module);
+
+      ocheck = noit_poller_lookup_by_name(target, name);
+      module_change = strcmp(check->module, module);
+      rest_check_free_attrs(target, name, module);
+      if(ocheck && ocheck != check) {
+        SET_ERROR_CODE(409, "new target`name would collide");
+      }
+      if(module_change) {
+        SET_ERROR_CODE(400, "cannot change module");
+      }
+      old_seq_string = noit_check_lmdb_get_specific_field(lscd->checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", mtev_false);
+      if (old_seq_string) {
+        old_seq = strtoll(old_seq_string, NULL, 10);
+        if (old_seq < 0) {
+          old_seq = 0;
+        }
+      }
+      free(old_seq_string);
+      rc = noit_check_lmdb_configure_check(lscd->checkid, lscd->attr, lscd->config, old_seq);
+      if (rc) {
+        SET_ERROR_CODE(409, "sequencing error");
+      }
+    }
+
+    noit_poller_reload_lmdb(&lscd->checkid, 1);
   }
   if (mask == EVENTER_ASYNCH_COMPLETE) {
+    if (lscd->error_string) {
+      /* Do something here */
+    }
+    if(restc->call_closure_free) {
+      restc->call_closure_free(restc->call_closure);
+    }
+    restc->call_closure_free = NULL;
+    restc->call_closure = NULL;
+    restc->fastpath = noit_check_lmdb_show_check;
+    mtev_http_session_resume_after_float(ctx);
+    return 0;
   }
   return 0;
 }
@@ -636,10 +732,8 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   xmlDocPtr doc = NULL, indoc = NULL;
   xmlNodePtr root, attr, config;
   uuid_t checkid;
-  noit_check_t *check = NULL;
-  int error_code = 500, complete = 0, mask = 0, rc = 0;
+  int error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
-  mtev_boolean exists = mtev_false;
   lmdb_set_check_data_t *lscd = NULL;
 
 #define GOTO_ERROR(ec, es) do { \
@@ -671,6 +765,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   mtevAssert(lscd);
 
   lscd->error_code = 500;
+  lscd->indoc = indoc;
   lscd->attr = attr;
   lscd->config = config;
   /* rest_get_xml_upload sets a closure and free function... we need to set
@@ -678,88 +773,23 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
    * it when we clean up */
   lscd->xml_data = restc->call_closure;
   lscd->xml_data_free = restc->call_closure_free;
+  mtev_uuid_copy(lscd->checkid, checkid);
+  lscd->restc = restc;
 
   restc->call_closure = lscd;
   restc->call_closure_free = lmdb_set_check_data_free;
 
+  eventer_t conne;
+  eventer_t newe;
+  mtev_http_connection *connection = mtev_http_session_connection(ctx);
 
-  check = noit_poller_lookup(checkid);
-  if(check) {
-    exists = mtev_true;
-  }
-  mtev_boolean in_db = noit_check_lmdb_already_in_db(checkid);
-  if (!in_db) {
-    if (exists) {
-      GOTO_ERROR(403, "uuid not yours");
-    }
-    int64_t old_seq = 0;
-    char *target = NULL, *name = NULL, *module = NULL;
-    noit_module_t *m = NULL;
-    noit_check_t *check = NULL;
-    /* make sure this isn't a dup */
-    rest_check_get_attrs(lscd->attr, &target, &name, &module);
-    exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
-    if(check) {
-      old_seq = check->config_seq;
-    }
-    if(module) {
-      m = noit_module_lookup(module);
-    }
-    rest_check_free_attrs(target, name, module);
-    if(exists) {
-      GOTO_ERROR(409, "target`name already registered");
-    }
-    if(!m) {
-      GOTO_ERROR(412, "module does not exist");
-    }
-    rc = noit_check_lmdb_configure_check(checkid, lscd->attr, lscd->config, old_seq);
-    if (rc) {
-      GOTO_ERROR(409, "sequencing error");
-    }
-  }
-  if (exists) {
-    int64_t old_seq = 0;
-    int module_change;
-    char *target = NULL, *name = NULL, *module = NULL, *old_seq_string = NULL;;
-    noit_check_t *ocheck;
-    if(!check) {
-      GOTO_ERROR(500, "internal check error");
-    }
+  conne = mtev_http_connection_event_float(connection);
+  if(conne) eventer_remove_fde(conne);
 
-    /* make sure this isn't a dup */
-    rest_check_get_attrs(lscd->attr, &target, &name, &module);
-
-    ocheck = noit_poller_lookup_by_name(target, name);
-    module_change = strcmp(check->module, module);
-    rest_check_free_attrs(target, name, module);
-    if(ocheck && ocheck != check) {
-      GOTO_ERROR(409, "new target`name would collide");
-    }
-    if(module_change) {
-      GOTO_ERROR(400, "cannot change module");
-    }
-    old_seq_string = noit_check_lmdb_get_specific_field(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", mtev_false);
-    if (old_seq_string) {
-      old_seq = strtoll(old_seq_string, NULL, 10);
-      if (old_seq < 0) {
-        old_seq = 0;
-      }
-    }
-    free(old_seq_string);
-    rc = noit_check_lmdb_configure_check(checkid, lscd->attr, lscd->config, old_seq);
-    if (rc) {
-      GOTO_ERROR(409, "sequencing error");
-    }
-  }
-
-  noit_poller_reload_lmdb(&checkid, 1);
-  if(restc->call_closure_free) {
-    restc->call_closure_free(restc->call_closure);
-  }
-  restc->call_closure_free = NULL;
-  restc->call_closure = NULL;
-  restc->fastpath = noit_check_lmdb_show_check;
-  return restc->fastpath(restc, restc->nparams, restc->params);
+  newe = eventer_alloc_asynch(noit_check_lmdb_set_check_asynch, lscd);
+  if(conne) eventer_set_owner(newe, eventer_get_owner(conne));
+  eventer_add_asynch(jobq, newe);
+  return 0;
 
  error:
   noit_check_set_db_source_header(restc->http_ctx);
