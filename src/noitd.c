@@ -319,6 +319,11 @@ noitd_init_globals(void) {
   noit_module_init_globals();
 }
 
+static void 
+noitd_jobqs_init(void) {
+  mtev_main_eventer_config("jobq_set_check", "10,1,50,gc");
+}
+
 int main(int argc, char **argv) {
   mtev_lock_op_t lock = MTEV_LOCK_OP_LOCK;
   mtev_memory_init();
@@ -326,6 +331,7 @@ int main(int argc, char **argv) {
   if(!config_file) config_file = strdup(ETC_DIR "/" APPNAME ".conf");
   if (xpath) lock = MTEV_LOCK_OP_NONE;
   noitd_init_globals();
+  noitd_jobqs_init();
   return mtev_main(APPNAME, config_file, debug, foreground,
                    lock, glider, droptouser, droptogroup, 
                    child_main);

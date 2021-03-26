@@ -1307,8 +1307,8 @@ rest_check_free_attrs(char *target, char *name, char *module) {
 
 void
 noit_check_rest_init() {
-  set_check_jobq = eventer_jobq_create("set_check");
-  eventer_jobq_set_concurrency(set_check_jobq, 1);
+  set_check_jobq = eventer_jobq_retrieve("set_check");
+  mtevAssert(set_check_jobq);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
     noit_rest_show_config, mtev_http_rest_client_cert_auth
