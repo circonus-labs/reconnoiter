@@ -685,7 +685,7 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
       }
       rest_check_free_attrs(target, name, module);
       if(exists) {
-        SET_ERROR_CODE(409, "target`name already registered");
+        SET_ERROR_CODE(409, "target name already registered");
       }
       if(!m) {
         SET_ERROR_CODE(412, "module does not exist");
