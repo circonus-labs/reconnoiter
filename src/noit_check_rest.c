@@ -1279,7 +1279,6 @@ rest_check_get_attrs(xmlNodePtr attr, char **target, char **name, char **module)
   *name = NULL;
   *module = NULL;
 
-  int cnt = 0;
   for(a = attr->children; a; a = a->next) {
     if(!strcmp((char *)a->name, "target")) {
       *target = (char *)xmlNodeGetContent(a);
