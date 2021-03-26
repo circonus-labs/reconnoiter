@@ -595,7 +595,6 @@ put_retry:
 }
 
 typedef struct lmdb_set_check_data {
-  xmlDocPtr indoc;
   xmlNodePtr attr;
   xmlNodePtr config;
   uuid_t checkid;
@@ -619,6 +618,31 @@ lmdb_set_check_data_free(void *c) {
     }
     free(lscd);
   }
+}
+
+static int
+noit_check_lmdb_set_check_complete(mtev_http_rest_closure_t *restc,
+                                   int npats, char **pats) {
+  lmdb_set_check_data_t *lscd = (lmdb_set_check_data_t *)restc->call_closure;
+  if (lscd->error_string) {
+    mtev_http_rest_closure_t *restc = lscd->restc;
+    mtev_http_session_ctx *ctx = restc->http_ctx;
+    noit_check_set_db_source_header(ctx);
+    mtev_http_response_standard(ctx, lscd->error_code, "ERROR", "text/xml");
+    xmlDocPtr doc = xmlNewDoc((xmlChar *)"1.0");
+    xmlNodePtr root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+    xmlDocSetRootElement(doc, root);
+    xmlNodeAddContent(root, (xmlChar *)lscd->error_string);
+    mtev_http_response_xml(ctx, doc);
+    mtev_http_response_end(ctx);
+    xmlFreeDoc(doc);
+    return 0;
+  }
+  else {
+    return noit_check_lmdb_show_check(restc, npats, pats);
+  }
+  /* Unreachable */
+  return 0;
 }
 
 static int
@@ -709,17 +733,7 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
     noit_poller_reload_lmdb(&lscd->checkid, 1);
   }
   if (mask == EVENTER_ASYNCH_COMPLETE) {
-    if (lscd->error_string) {
-      /* Do something here */
-    }
-    if(restc->call_closure_free) {
-      restc->call_closure_free(restc->call_closure);
-    }
-    restc->call_closure_free = NULL;
-    restc->call_closure = NULL;
-    restc->fastpath = noit_check_lmdb_show_check;
     mtev_http_session_resume_after_float(ctx);
-    return 0;
   }
   return 0;
 }
@@ -765,7 +779,6 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   mtevAssert(lscd);
 
   lscd->error_code = 500;
-  lscd->indoc = indoc;
   lscd->attr = attr;
   lscd->config = config;
   /* rest_get_xml_upload sets a closure and free function... we need to set
@@ -778,6 +791,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
 
   restc->call_closure = lscd;
   restc->call_closure_free = lmdb_set_check_data_free;
+  restc->fastpath = noit_check_lmdb_set_check_complete;
 
   eventer_t conne;
   eventer_t newe;
