@@ -268,8 +268,6 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
 {
   int rc;
   MDB_env *env;
-  MDB_envinfo mei;
-  MDB_stat mst;
 
   mtevAssert(lmdb_instance_mkdir(path));
 
@@ -292,22 +290,6 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     mdb_env_close(env);
     return NULL;
   }
-
-  mdb_env_info(env, &mei);
-  mdb_env_stat(env, &mst);
-
-  uint64_t current_size = mst.ms_psize * mei.me_last_pgno;
-
-#define TEN_GB (uint64_t)(10UL * 1024UL * 1024UL * 1024UL)
-  if (current_size < TEN_GB) {
-    rc = mdb_env_set_mapsize(env, TEN_GB); // at least 10 GB mapsize
-    if (rc != 0) {
-      errno = rc;
-      mdb_env_close(env);
-      return NULL;
-    }
-  }
-#undef TEN_GB
 
   MDB_txn *txn;
   MDB_dbi dbi;

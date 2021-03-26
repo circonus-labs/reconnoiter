@@ -88,6 +88,8 @@
 } while(0)
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
 
+static eventer_jobq_t *set_check_jobq = NULL;
+
 static void
 add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
                     int include_time, mtev_hash_table *supp) {
@@ -1113,7 +1115,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   mtev_boolean exists = mtev_false;
 
   if(noit_check_get_lmdb_instance()) {
-    return noit_check_lmdb_set_check(restc, npats, pats);
+    return noit_check_lmdb_set_check(restc, npats, pats, set_check_jobq);
   }
   NCINIT_WR;
 
@@ -1305,6 +1307,8 @@ rest_check_free_attrs(char *target, char *name, char *module) {
 
 void
 noit_check_rest_init() {
+  set_check_jobq = eventer_jobq_retrieve("set_check");
+  mtevAssert(set_check_jobq);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
     noit_rest_show_config, mtev_http_rest_client_cert_auth
