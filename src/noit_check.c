@@ -3297,7 +3297,7 @@ noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
   xmlAddChild(node, confnode);
   memset(&iter, 0, sizeof(iter));
   while(mtev_hash_adv(check->config, &iter)) {
-    xmlNewChild(confnode, NULL, (xmlChar *)iter.key.str, (xmlChar *)iter.value.str);
+    xmlNewTextChild(confnode, NULL, (xmlChar *)iter.key.str, (xmlChar *)iter.value.str);
   }
 
   mod_cnt = noit_check_registered_module_cnt();
@@ -3317,7 +3317,7 @@ noit_check_to_xml(noit_check_t *check, xmlDocPtr doc, xmlNodePtr parent) {
     memset(&iter, 0, sizeof(iter));
     while(mtev_hash_adv(config, &iter)) {
       xmlNodePtr confnodechild;
-      confnodechild = xmlNewChild(confnode, ns, (xmlChar*) "value", (xmlChar *)iter.value.str);
+      confnodechild = xmlNewTextChild(confnode, ns, (xmlChar*) "value", (xmlChar *)iter.value.str);
       XMLSETPROP(confnodechild, "name", iter.key.str, "%s");
     }
   }
