@@ -609,6 +609,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         if(ctx->stats) stats_set(ctx->stats->jlog_id, STATS_TYPE_UINT32, &ctx->header.chkpt.log);
         change_state(ctx, nctx, JLOG_STREAMER_WANT_COUNT, now);
         break;
+      default:
+        break;
     }
   }
   /* never get here */
