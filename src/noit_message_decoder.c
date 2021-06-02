@@ -41,8 +41,9 @@
 
 #include "noit_metric.h"
 
-#define MOVE_TO_NEXT_TAB(cp, lvalue) do { \
-  lvalue = memchr(cp, '\t', strlen(cp)); \
+#define MOVE_TO_NEXT_TAB(message, cp, lvalue) do { \
+  ssize_t adv = cp - (message)->original_message; \
+  lvalue = memchr(cp, '\t', (message)->original_message_len - adv); \
   if(lvalue){\
     ++lvalue; \
     cp = lvalue; \
@@ -215,7 +216,7 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
   cp = message->original_message;
 
   // Go to the timestamp column
-  MOVE_TO_NEXT_TAB(cp, time_str);
+  MOVE_TO_NEXT_TAB(message, cp, time_str);
   if(time_str == NULL)
     return -1;
   message->noit.name = NULL;
@@ -231,7 +232,7 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
   if(has_noit == 1) { // non bundled messages store the source IP in the second column
     const char *nname = time_str;
     message->noit.name = nname;
-    MOVE_TO_NEXT_TAB(cp, time_str);
+    MOVE_TO_NEXT_TAB(message, cp, time_str);
     if(time_str == NULL)
       return -1;
     message->noit.name_len = time_str - nname - 1;
@@ -243,10 +244,10 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
   if(dp && *dp == '.')
     message->value.whence_ms += (int) (1000.0 * atof(dp));
 
-  MOVE_TO_NEXT_TAB(cp, check_id_str);
+  MOVE_TO_NEXT_TAB(message, cp, check_id_str);
   if(!check_id_str)
     return -2;
-  MOVE_TO_NEXT_TAB(cp, message->id.name);
+  MOVE_TO_NEXT_TAB(message, cp, message->id.name);
   if(!message->id.name)
     return -3;
 
@@ -271,10 +272,10 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
     return -6;
 
   if(*message->original_message == 'M') {
-    MOVE_TO_NEXT_TAB(cp, metric_type_str);
+    MOVE_TO_NEXT_TAB(message, cp, metric_type_str);
     if(!metric_type_str)
       return -4;
-    MOVE_TO_NEXT_TAB(cp, value_str);
+    MOVE_TO_NEXT_TAB(message, cp, value_str);
     if(!value_str)
       return -5;
 
@@ -329,7 +330,7 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
   }
 
   if(*message->original_message == 'H') {
-    MOVE_TO_NEXT_TAB(cp, value_str);
+    MOVE_TO_NEXT_TAB(message, cp, value_str);
     if(!value_str)
       return -4;
 
