@@ -8,7 +8,7 @@ JAVA=@JAVA@
 if [ ! -x $JAVA ]; then
 	JAVA=/usr/bin/java
 fi
-JPARAMS="-Xms32m -Xmx512m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
+JPARAMS="-Xms32m -Xmx512m"
 if [ "$1" = "-d" ]; then
 	JAVA=`echo $JAVA | sed -e 's/java$/jdb/;'`
 	JPARAMS="-sourcepath . $JPARAMS"
