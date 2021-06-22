@@ -59,7 +59,7 @@
     <dependency>
       <groupId>riemann</groupId>
       <artifactId>riemann</artifactId>
-      <version>0.2.9</version>
+      <version>0.3.6</version>
     </dependency>
     <dependency>
       <groupId>reconnoiter</groupId>
