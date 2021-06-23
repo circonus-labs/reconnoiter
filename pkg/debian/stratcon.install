@@ -1,5 +1,4 @@
 etc/reconnoiter/stratcon.conf
-/src/java/reconnoiter-riemann/run-iep.sh usr/bin
 src/java/lib/ usr/sbin/stratcond
 src/java/lib/activemq-all-5.2.0.jar usr/share/java
 src/java/lib/antlr-runtime-3.1.1.jar usr/share/java
@@ -13,6 +12,5 @@ src/java/lib/postgresql-8.3-604.jdbc3.jar usr/share/java
 src/java/lib/rabbitmq-client-2.4.1.jar usr/share/java
 src/java/lib/spring-beans-2.5.5.jar usr/share/java
 src/java/lib/spring-context-2.5.5.jar usr/share/java
-src/java/lib/reconnoiter.jar usr/share/java
 usr/share/man/man8/stratcond.8
 usr/share/reconnoiter/

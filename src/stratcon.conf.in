@@ -8,7 +8,6 @@
       <outlet name="stderr"/>
       <log name="error"/>
       <log name="debug"/>
-      <log name="error/iep"/>
       <log name="error/eventer" disabled="true"/>
       <log name="error/datastore" disabled="true"/>
       <log name="debug/eventer" disabled="true"/>
@@ -37,27 +36,6 @@
     </sslconfig>
     <noit address="127.0.0.1" port="43191" />
   </noits>
-
-  <iep disabled="false">
-    <start directory="%iepdbdir%"
-           command="%iepbindir%/run-iep.sh" />
-    <broker adapter="rabbitmq">
-      <hostname>mq1,mq2</hostname>
-      <username>guest</username>
-      <password>guest</password>
-    </broker>
-    <mq type="rabbitmq">
-      <hostname>mq1,mq2</hostname>
-      <exchange>noit.firehose</exchange>
-      <exchangetype>topic</exchangetype>
-      <routingkey>check,null</routingkey>
-      <username>guest</username>
-      <password>guest</password>
-    </mq>
-    <riemann>
-      <configfile>riemann.config</configfile>
-    </riemann>
-  </iep>
 
   <database>
     <journal>

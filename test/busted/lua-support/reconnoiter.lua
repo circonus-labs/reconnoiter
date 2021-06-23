@@ -612,52 +612,6 @@ function readfile(file)
   return nil
 end
 
-function TestConfig:make_iep_config(fd, opts)
-  if opts.iep.disabled == nil then opts.iep.disabled = "false" end
-  local ieproot = opts.workspace .. "/logs/" .. opts.name .. "_iep_root"
-  local st = mtev.stat(ieproot)
-  if st == nil then mtev.mkdir_for_file(ieproot .. "/file", tonumber('777',8)) end
-  local template = readfile(cwd .. "/../../src/java/reconnoiter-riemann/run-iep.sh")
-  if template == nil then
-    mtev.log("stderr", "cannot open source run-iep.sh\n")
-  end
-
-  local out = template:gsub('\nDIRS="', "\nDIRS=\"" .. cwd .. "/../../src/java/reconnoiter-riemann/target ");
-  out = out:gsub('\nJPARAMS="', "\nJPARAMS=\"-Djava.security.egd=file:/dev/./urandom ");
-  local ss = mtev.open(ieproot .. "/run-iep.sh", O_NEW, tonumber('755', 8))
-  mtev.write(ss, out)
-  mtev.close(ss)
-
-  local rc = mtev.open(ieproot .. "/riemann.config", O_NEW, tonumber('644', 8))
-  mtev.write(rc, opts.iep.riemann.config)
-  mtev.close(rc)
-
-  mtev.write(fd, "\n" ..
-  "<iep disabled=\"" .. opts.iep.disabled .. "\">\n" ..
-  "  <start directory=\"" .. ieproot .. "\"\n" ..
-  "         command=\"" .. ieproot .. "/run-iep.sh\" />\n")
-
-  for mqt, obj in pairs(opts.iep.mq) do
-    if opts.generics[mqt .. "_driver"] ~= nil then
-      mtev.write(fd,"    <mq type=\"" .. mqt .. "\">\n");
-      for k,v in pairs(obj) do
-        mtev.write(fd,"      <" .. k .. ">" .. v .. "</" .. k .. ">\n")
-      end
-      mtev.write(fd,"    </mq>\n")
-    end
-  end
-  for bt, obj in pairs(opts.iep.broker) do
-    if opts.generics[bt .. "_driver"] ~= nil then
-      mtev.write(fd,"    <broker adapter=\"" .. bt .. "\">\n")
-      for k,v in pairs(obj) do
-        mtev.write(fd,"      <" .. k .. ">" .. v .. "</" .. k .. ">\n")
-      end
-      mtev.write(fd,"    </broker>\n")
-    end
-  end
-  mtev.write(fd,"</iep>\n")
-end
-
 function TestConfig:make_database_config(fd, opts)
   mtev.write(fd,"\n" ..
   "<database>\n" ..
@@ -741,23 +695,15 @@ function TestConfig:make_stratcon_config(name, opts)
   if opts == nil then opts = self.opts end
 	if opts.stratcon_stomp_port == nil then opts.stratcon_stomp_port = self.STOMP_PORT end
   self:L("make_stratcon_config in " .. opts.workspace)
+  local logroot = opts.workspace .. "/logs/"
+  local st = mtev.stat(logroot)
+  if st == nil then mtev.mkdir_for_file(logroot .. "/file", tonumber('777',8)) end
   if opts.generics == nil then
     opts.generics = { stomp_driver = { image = 'stomp_driver' },
                       postgres_ingestor = { image = 'postgres_ingestor' } }
   end
   if opts.rest_acls == nil then
     opts.rest_acls = { { type = 'deny', rules = { { type = 'allow' } } } }
-  end
-  if opts.iep == nil then opts.iep = {} end
-  if opts.iep.mq == nil then
-    opts.iep.mq = { stomp = { port = opts.stratcon_stomp_port, hostname = '127.0.0.1' } }
-  end
-  if opts.iep.broker == nil then
-    opts.iep.broker = { stomp = { port = opts.stratcon_stomp_port, hostname = '127.0.0.1' } }
-  end
-  if opts.iep.riemann == nil then
-    opts.iep.riemann = { config =
-"(logging/init :file \"riemann.log\")\n(streams \n (where (and (tagged \"type:numeric\")\n (not (nil? :metric)))\n (reconnoiter/alert-key \"numeric\"))\n)\n" }
   end
   local file = opts.workspace .. "/" .. name .. "_stratcon.conf"
   self:L("make_stratcon_config -> open " .. file);
@@ -771,7 +717,6 @@ function TestConfig:make_stratcon_config(name, opts)
   self:make_modules_config(fd, opts)
   self:make_stratcon_listeners_config(fd, opts)
   self:make_database_config(fd, opts)
-  self:make_iep_config(fd, opts)
   mtev.write(fd, "</stratcon>\n")
   self:L("make_stratcon_config -> close " .. file)
   mtev.close(fd)

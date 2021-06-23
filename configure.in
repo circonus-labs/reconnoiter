@@ -55,7 +55,6 @@ AC_PATH_PROG(AR, ar)
 AC_PATH_PROGS(PERL, perl)
 AC_PATH_PROGS(XSLTPROC, xsltproc)
 AC_PATH_PROGS(XMLLINT, xmllint)
-AC_PATH_PROGS(MAVEN, mvn)
 AC_PATH_PROGS(JAVA, java)
 AC_PATH_PROGS(JAVA, java, , $JAVA_HOME/bin)
 AC_PATH_PROGS(JAVAC, javac)
@@ -170,25 +169,14 @@ if test "x$DTRACE_ENABLED" = "x1" ; then
 	AC_DEFINE(DTRACE_ENABLED, [1], [DTrace enabled])
 fi
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
-AC_MSG_CHECKING([enable build/install of the Java IEP and Jezebel bits])
+AC_MSG_CHECKING([enable build/install of the Jezebel bits])
 
 LUA_MODULE=lua.$MODULEEXT
 if test "$enable_lua" = "no"; then
 	LUA_MODULE=
 fi
 
-INSTALL_IEP=install-iep
-SKIP_IEP=
-RIEMANN_IEP_ENABLE="no"
-if test -z "$ac_cv_path_MAVEN" ; then
-	INSTALL_IEP=
-	SKIP_IEP=_SKIP_
-else
-	RIEMANN_IEP_ENABLE="yes"
-fi
-
 JEZEBEL_JAR_ENABLE="no"
-RECONNOITER_JAR_ENABLE="no"
 if test -z "$ac_cv_path_JAVA" \
 	-o -z "$ac_cv_path_JAVAC" \
 	-o -z "$ac_cv_path_JAR" ; then
@@ -198,7 +186,6 @@ else
 		JAVAPARTS=java
 		AC_MSG_RESULT([yes])
 		JEZEBEL_JAR_ENABLE="yes"
-		RECONNOITER_JAR_ENABLE="yes"
 	else
 		JVERSION=`$ac_cv_path_JAVA -cp buildtools version 1.6`
 		AC_MSG_RESULT([too old: $JVERSION]);
@@ -629,8 +616,6 @@ AC_SUBST(MODULEEXT)
 AC_SUBST(WHOLE_ARCHIVE)
 AC_SUBST(NOWHOLE_ARCHIVE)
 AC_SUBST(MAPFLAGS)
-AC_SUBST(INSTALL_IEP)
-AC_SUBST(SKIP_IEP)
 AC_SUBST(JAVAPARTS)
 AC_SUBST(LUALIBS)
 AC_SUBST(LIBNOIT_LIBS)
@@ -682,7 +667,6 @@ src/man/Makefile
 src/modules/Makefile
 src/modules-lua/Makefile
 src/java/Makefile
-src/java/reconnoiter-riemann/run-iep.sh
 src/java/jezebel
 src/scripts/noit-config
 sql/Makefile
@@ -725,6 +709,4 @@ AC_MSG_RESULT([
 
   == Java bits ==
   Jezebel:            $JEZEBEL_JAR_ENABLE
-  Reconnoiter:        $RECONNOITER_JAR_ENABLE
-  Riemann IEP:        $RIEMANN_IEP_ENABLE
 ])
