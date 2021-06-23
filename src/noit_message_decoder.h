@@ -45,6 +45,9 @@ API_EXPORT(int)
   noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit);
 
 API_EXPORT(int)
+  noit_metric_id_process_tags(noit_metric_id_t *id);
+
+API_EXPORT(int)
   noit_metric_process_tags(noit_metric_message_t *metric);
 
 API_EXPORT(int)
@@ -52,6 +55,9 @@ API_EXPORT(int)
 
 API_EXPORT(void)
   noit_metric_message_clear(noit_metric_message_t* message);
+
+API_EXPORT(void)
+  noit_metric_id_clear(noit_metric_id_t* message);
 
 API_EXPORT(void)
   noit_metric_message_free(noit_metric_message_t* message);
