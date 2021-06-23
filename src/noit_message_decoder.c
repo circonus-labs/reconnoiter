@@ -374,9 +374,8 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
 void noit_metric_id_clear(noit_metric_id_t *id) {
   free(id->alloc_name);
   free(id->stream.tags);
-  id->stream.tag_count = 0;
   free(id->measurement.tags);
-  id->measurement.tag_count = 0;
+  memset(id, 0, sizeof(*id));
 }
 
 void noit_metric_message_clear(noit_metric_message_t* message) {
