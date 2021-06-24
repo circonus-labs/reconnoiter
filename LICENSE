@@ -47,20 +47,12 @@ libudns: LGPL [http://labs.omniti.com/labs/reconnoiter]
 collectd: LGPL [http://labs.omniti.com/labs/reconnoiter]
 yajl: MIT [http://labs.omniti.com/labs/reconnoiter]
 
-activemq: Apache-2.0 [http://activemq.apache.org/]
-reconnoiter.jar: new-BSD [http://labs.omniti.com/labs/reconnoiter]
 jetty 6: Apache 2.0 [http://www.eclipse.org/jetty/]
-antlr: new-BSD [www.antlr.org]
 log4j: Apache 2.0 [http://logging.apache.org/log4j/2.x/]
-cglib: Apache 2.0 [http://cglib.sourceforge.net/]
 postgresql jdbc: new-BSD [http://jdbc.postgresql.org/]
 Apache commons: Apache 2.0 [http://commons.apache.org/]
-protobuf-java: new-BSD [https://code.google.com/p/protobuf/]
-rabbitmq java client: MPL v1.1 [http://www.rabbitmq.com/java-client.html]
-riemann: Eclipse-1.0 [http://riemann.io]
 servlet api: CDDL
 snmp4j: Apache 2.0 [http://www.snmp4j.org/]
-spring: Apache 2.0 [http://www.springsource.org/]
 
  *    "This product includes software developed by the OpenEvidence Project
  *    for use in the OpenEvidence Toolkit (http://www.openevidence.org/)
