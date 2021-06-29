@@ -37,10 +37,7 @@ Source code included in this distribution have varying (but compatible)
 licenses.  They are listed here in brief form.  Their licenses can be
 found in full form with their code within the source tree.
 
-ActiveMQ: Apache-2.0 [https://activemq.apache.org/]
-antlr3: BSD-3-Clause [https://www.antlr3.org/]
 Apache Commons: Apache-2.0 [https://commons.apache.org/]
-cglib: Apache-2.0 [https://github.com/cglib/cglib]
 CollectD: MIT [https://collectd.org]
 FQ: MIT [https://github.com/circonus-labs/fq]
 Jetty 6: Apache-2.0 [https://www.eclipse.org/jetty/]
@@ -53,12 +50,8 @@ LuaJIT: MIT [http://luajit.org]
 MongoDB Java Driver: Apache-2.0 [https://mongodb.github.io/mongo-java-driver/3.3/]
 PostgreSQL JDBC: BSD-2-Clause [https://jdbc.postgresql.org/]
 Prometheus: Apache-2.0 [https://prometheus.io] (protobuf definitions)
-protobuf-java: BSD-3-Clause [https://github.com/protocolbuffers/protobuf]
-RabbitMQ: MPL-1.1 [https://www.rabbitmq.com/java-client.html]
-Riemann: EPL-1.0 [http://riemann.io]
 servlet-api: Apache-2.0 [https://mvnrepository.com/artifact/org.mortbay.jetty/servlet-api/2.5-20081211]
 snmp4j: Apache-2.0 [https://www.snmp4j.org/]
-Spring Framework: Apache-2.0 [https://spring.io/projects/spring-framework]
 
 
  *    "This product includes software developed by the OpenEvidence Project
