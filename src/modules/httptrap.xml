@@ -8,6 +8,10 @@
                required="optional"
                default="true"
                allowed="(?:true|on|false|off)">Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</parameter>
+    <parameter name="fanout"
+               required="optional"
+               default="true"
+               allowed="(?:true|on|false|off)">Instruct httptrap to fanout over multiple eventer threads.</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name="asynch_metrics"
@@ -26,6 +30,10 @@
                required="optional"
                default=""
                allowed="^.$">Specify a PCRE to allow for Origin passing.</parameter>
+    <parameter name="fanout"
+               required="optional"
+               default=""
+               allowed="(?:|true|on|false|off)">Instruct httptrap to fanout over multiple eventer threads.</parameter>
   </checkconfig>
   <examples>
     <example>
