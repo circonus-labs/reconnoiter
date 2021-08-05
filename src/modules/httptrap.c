@@ -42,6 +42,7 @@
 #include <yajl/yajl_parse.h>
 #include <yajl/yajl_gen.h>
 
+#include <mtev_rand.h>
 #include <mtev_rest.h>
 #include <mtev_hash.h>
 #include <mtev_json.h>
@@ -83,6 +84,7 @@ static const char *TRUNCATE_ERROR = "at least one metric exceeded max name lengt
 typedef struct _mod_config {
   mtev_hash_table *options;
   mtev_boolean asynch_metrics;
+  mtev_boolean fanout;
 } httptrap_mod_config_t;
 
 typedef struct httptrap_closure_s {
@@ -238,6 +240,27 @@ noit_httptrap_check_asynch(noit_module_t *self,
   if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
   else check->flags &= ~NP_SUPPRESS_METRICS;
   return is_asynch;
+}
+
+static mtev_boolean
+noit_httptrap_check_fanout(noit_module_t *self,
+                           noit_check_t *check) {
+  const char *config_val;
+  httptrap_mod_config_t *conf;
+  if(!self) return mtev_true;
+  conf = noit_module_get_userdata(self);
+  if(!conf) return mtev_true;
+  mtev_boolean is_fanout = conf->fanout;
+  if(mtev_hash_retr_str(check->config,
+                        "fanout", strlen("fanout"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      is_fanout = mtev_false;
+    else if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
+      is_fanout = mtev_true;
+  }
+
+  return is_fanout;
 }
 
 static int
@@ -1024,21 +1047,27 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     yajl_config(rxc->parser, yajl_allow_multiple_values, 1);
     yajl_config(rxc->parser, yajl_allow_partial_values, 1);
     restc->call_closure_free = rest_json_payload_free;
-  }
-  else rxc = restc->call_closure;
 
-  /* flip threads */
-  {
+    /* flip threads */
     mtev_http_connection *conn = mtev_http_session_connection(ctx);
     eventer_t e = mtev_http_connection_event(conn);
     if(e) {
-      pthread_t tgt = CHOOSE_EVENTER_THREAD_FOR_CHECK(rxc->check);
+      pthread_t tgt;
+      if(noit_httptrap_check_fanout(global_self, rxc->check)) {
+        eventer_pool_t *tgtpool = noit_check_choose_pool(rxc->check);
+        unsigned long rnd = mtev_rand();
+        if(tgtpool) tgt = eventer_choose_owner_pool(tgtpool, rnd);
+        else tgt = eventer_choose_owner(rnd);
+      } else {
+        tgt = CHOOSE_EVENTER_THREAD_FOR_CHECK(rxc->check);
+      }
       if(!pthread_equal(eventer_get_owner(e), tgt)) {
         eventer_set_owner(e, tgt);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }
   }
+  else rxc = restc->call_closure;
 
   /*Examine headers for x-circonus-httptrap-debug flag*/
   req = mtev_http_session_request(ctx);
@@ -1202,6 +1231,14 @@ static int noit_httptrap_init(noit_module_t *self) {
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
       conf->asynch_metrics = mtev_false;
+  }
+
+  conf->fanout = mtev_true;
+  if(mtev_hash_retr_str(conf->options,
+                        "fanout", strlen("fanout"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      conf->fanout = mtev_true;
   }
 
   httptrap_surrogate = mtev_false;
