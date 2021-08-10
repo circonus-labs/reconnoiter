@@ -18,7 +18,7 @@ AC_CANONICAL_HOST
 AC_CONFIG_HEADER(src/noit_config.h)
 
 AC_ARG_WITH([module-stomp],
-	AS_HELP_STRING([--without-module-stomp], [Don't build stomp]))
+	AS_HELP_STRING([--without-module-stomp], [Do not build stomp]))
 
 AC_ARG_ENABLE(strict,
 	[AC_HELP_STRING([--enable-strict],
@@ -84,48 +84,50 @@ if test "x$GCC" = "xyes" ; then
 else
 	DEPFLAGS="-xM1"
 fi
-C99FLAG="-std=c99"
-CFLAGS="$CFLAGS `mtev-config --cflags`"
-if test "x$GCC_VERSION_MAJOR" != "x" -a "$GCC_VERSION_MAJOR" -ge "8" ; then
-	CFLAGS="$CFLAGS -Wno-stringop-truncation"
+if test "x$BUILD_ASAN" = "x" ; then
+    MTEV_CONFIG="mtev-config"
+else
+    MTEV_CONFIG="mtev-config-asan"
 fi
+C99FLAG="-std=c99"
+CFLAGS="$CFLAGS `$MTEV_CONFIG --cflags`"
 WRONG_CFLAGS=$(echo $CFLAGS | [gawk '/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
 CFLAGS=$(echo $CFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
-CPPFLAGS="$CPPFLAGS $WRONG_CFLAGS `mtev-config --cppflags` -DOC_NEW_STYLE_INCLUDES -DOC_FACTOR_INTO_H_AND_CC"
-MODULELD=`mtev-config --moduleld`
-MODULECC=`mtev-config --cc`
-MODULESHCFLAGS=`mtev-config --shcflags`
+CPPFLAGS="$CPPFLAGS $WRONG_CFLAGS `$MTEV_CONFIG --cppflags` -DOC_NEW_STYLE_INCLUDES -DOC_FACTOR_INTO_H_AND_CC"
+MODULELD=`$MTEV_CONFIG --moduleld`
+MODULECC=`$MTEV_CONFIG --cc`
+MODULESHCFLAGS=`$MTEV_CONFIG --shcflags`
 MODULESHCFLAGS="$MODULESHCFLAGS $CFLAGS"
 MODULESHCFLAGS=$(echo $MODULESHCFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
-MODULESHLDFLAGS=`mtev-config --shldflags`
-MODULEEXT=`mtev-config --moduleext`
-MODULES_DIR=`mtev-config --modules-dir`
-NOIT_SYSCONFDIR=`mtev-config --sysconfdir`
-SHLD=`mtev-config --shld`
-SHCFLAGS=`mtev-config --shcflags`
+MODULESHLDFLAGS=`$MTEV_CONFIG --shldflags`
+MODULEEXT=`$MTEV_CONFIG --moduleext`
+MODULES_DIR=`$MTEV_CONFIG --modules-dir`
+NOIT_SYSCONFDIR=`$MTEV_CONFIG --sysconfdir`
+SHLD=`$MTEV_CONFIG --shld`
+SHCFLAGS=`$MTEV_CONFIG --shcflags`
 SHCFLAGS="$SHCFLAGS $CFLAGS"
 SHCFLAGS=$(echo $SHCFLAGS | [gawk '!/^-[ID]/' RS=' ' ORS=' '] | tr '\n' ' ')
-SHLDFLAGS="`mtev-config --shldflags` $LDFLAGS"
-LD=`mtev-config --shld`
-LDFLAGS="$LDFLAGS `mtev-config --ldflags`"
+SHLDFLAGS="`$MTEV_CONFIG --shldflags` $LDFLAGS"
+LD=`$MTEV_CONFIG --shld`
+LDFLAGS="$LDFLAGS `$MTEV_CONFIG --ldflags`"
 
 DTRACEHDR=dtrace_probes.h
 DOTSO=.so
 LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
 
-MTEV_MODULES_DIR=`mtev-config --modules-dir 2>/dev/null`
+MTEV_MODULES_DIR=`$MTEV_CONFIG --modules-dir 2>/dev/null`
 if test "$?" -ne "0" ; then
-	AC_MSG_ERROR([*** mtev-config not found ***])
+	AC_MSG_ERROR([*** $MTEV_CONFIG not found ***])
 fi
 
-MTEV_LIBDIR=`mtev-config --libdir 2>/dev/null`
+MTEV_LIBDIR=`$MTEV_CONFIG --libdir 2>/dev/null`
 if test "$?" -ne "0" ; then
-	AC_MSG_ERROR([*** mtev-config not found ***])
+	AC_MSG_ERROR([*** $MTEV_CONFIG not found ***])
 fi
 
-MTEV_INCLUDEDIR=`mtev-config --includedir 2>/dev/null`
+MTEV_INCLUDEDIR=`$MTEV_CONFIG --includedir 2>/dev/null`
 if test "$?" -ne "0" ; then
-	AC_MSG_ERROR([*** mtev-config not found ***])
+	AC_MSG_ERROR([*** $MTEV_CONFIG not found ***])
 fi
 
 case $host in
@@ -578,15 +580,15 @@ AC_MSG_RESULT([SHCFLAGS $SHCFLAGS])
 MODULESHCFLAGS=$(dedup_args $MODULESHCFLAGS)
 
 FOO=$(echo $CFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
-CXXFLAGS="$CXXFLAGS $FOO -std=c++11"
+CXXFLAGS="$CXXFLAGS $FOO -std=c++17"
 CXXFLAGS=$(dedup_args $CXXFLAGS)
 
 FOO=$(echo $SHCFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
-SHCXXFLAGS="$SHCXXFLAGS $FOO -std=c++11"
+SHCXXFLAGS="$SHCXXFLAGS $FOO -std=c++17"
 SHCXXFLAGS=$(dedup_args $SHCXXFLAGS)
 
 FOO=$(echo $MODULESHCFLAGS | [sed -e "s/ ${C99FLAG}//g" -e 's/ -[^mgIW][^ ]*/ /g'] | [gawk '!a[$$0]++' RS=' ' ORS=' '] | tr '\n' ' ')
-MODULESHCXXFLAGS="$MODULESHCXXFLAGS $FOO -std=c++11"
+MODULESHCXXFLAGS="$MODULESHCXXFLAGS $FOO -std=c++17"
 MODULESHCXXFLAGS=$(dedup_args $MODULESHCXXFLAGS)
 
 LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g; s#-mt##g; s#-errwarn=%all##g;"`
