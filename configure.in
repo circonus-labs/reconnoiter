@@ -214,7 +214,13 @@ LUALIBS="$LUALIBS $LIBS"
 LIBS=$OLD_LIBS
 
 AC_CHECK_HEADER(mtev_config.h, [], [AC_MSG_ERROR(*** libmtev (headers) required ***)])
-AC_CHECK_LIB(mtev, mtev_main, , [AC_MSG_ERROR(*** libmtev is required ***)])
+
+if test "x$BUILD_ASAN" = "x" ; then
+    AC_CHECK_LIB(mtev, mtev_main, , [AC_MSG_ERROR(*** libmtev is required ***)])
+else
+    AC_CHECK_LIB(mtev-asan, mtev_main, , [AC_MSG_ERROR(*** libmtev-asan is required ***)])
+fi
+
 AC_CHECK_LIB(circllhist, hist_alloc, , [AC_MSG_ERROR(*** libcircllhist is required ***)])
 AC_CHECK_HEADER(ck_pr.h, [], [AC_MSG_ERROR(*** libck (headers) required ***)])
 AC_CHECK_LIB(m, sqrt, , )
@@ -238,7 +244,12 @@ AC_CHECK_LIB(flatccrt, flatcc_builder_init, , )
 AC_CHECK_HEADER(curl/curl.h, [], [AC_MSG_ERROR(*** curl headers required ***)])
 AC_CHECK_LIB(curl, curl_easy_init, , [AC_MSG_ERROR(*** curl is required ***)])
 AC_CHECK_LIB(snappyc, snappy_uncompress, , [AC_MSG_ERROR(*** libsnappy is required ***)])
-AC_CHECK_LIB(lmdb, mdb_dbi_open, , [AC_MSG_ERROR(*** lmdb is required ***)])
+
+if test "x$BUILD_ASAN" = "x" ; then
+    AC_CHECK_LIB(lmdb, mdb_dbi_open, , [AC_MSG_ERROR(*** lmdb is required ***)])
+else
+    AC_CHECK_LIB(lmdb-asan, mdb_dbi_open, , [AC_MSG_ERROR(*** lmdb-asan is required ***)])
+fi
 
 AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
 	[
@@ -690,6 +701,8 @@ AC_MSG_RESULT([
   SHLD:               $SHLD
   CLINKFLAGS:         $CLINKFLAGS
   MAPFLAGS:           $MAPFLAGS
+
+  LIBS:               $LIBS
 
   MODULECC:           $MODULECC
   SHCFLAGS:           $SHCFLAGS

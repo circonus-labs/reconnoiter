@@ -1,5 +1,11 @@
 source buildtools/u2004/env.inc
-export CFLAGS="$CFLAGS -Wno-unused-function -fsanitize=address"
+export CFLAGS="\
+ -Wall\
+ -Werror\
+ -Wno-deprecated-declarations\
+ -Wno-unused-variable\
+ -Wno-unused-function\
+ -fsanitize=address"
 export CXXFLAGS="$CXXFLAGS -fsanitize=address"
 export LDFLAGS="$LDFLAGS -fsanitize=address"
 export CC="clang"
