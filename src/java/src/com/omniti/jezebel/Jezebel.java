@@ -98,7 +98,7 @@ public class Jezebel {
     port = cmd.getOptionValue("p");
     if(port == null) port = "8083";
     connector = new SocketConnector();
-    connector.setPort(new Integer(port));
+    connector.setPort(Integer.parseInt(port));
     connector.setHost("127.0.0.1");
     server = new Server();
     server.addConnector(connector);
