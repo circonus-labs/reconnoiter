@@ -5,9 +5,12 @@ export CFLAGS="\
  -Wno-deprecated-declarations\
  -Wno-unused-variable\
  -Wno-unused-function\
- -fsanitize=address"
-export CXXFLAGS="$CXXFLAGS -fsanitize=address"
-export LDFLAGS="$LDFLAGS -fsanitize=address"
+ -g3\
+ -ggdb3\
+ -fsanitize=address\
+ -fsanitize-recover=address"
+export CXXFLAGS="$CXXFLAGS -g3 -ggdb3 -fsanitize=address -fsanitize-recover=address"
+export LDFLAGS="$LDFLAGS -fsanitize=address -fsanitize-recover=address"
 export CC="clang"
 export CXX="clang++"
 export LD="clang"
