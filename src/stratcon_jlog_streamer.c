@@ -1079,8 +1079,9 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
           strlcpy(port_str, "43191", sizeof(port_str));
 
         /* If the user wants a specific CN... limit to that. */
-          if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
-            continue;
+        if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn))) {
+          continue;
+        }
 
         snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s:%s",
                  expected_cn ? expected_cn : "", address, port_str);
@@ -1306,8 +1307,9 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
           strlcpy(port_str, "43191", sizeof(port_str));
 
         /* If the user wants a specific CN... limit to that. */
-          if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
-            continue;
+        if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn))) {
+          continue;
+        }
 
         snprintf(remote_dedup_key, sizeof(remote_dedup_key), "%s:%s:%s",
                  expected_cn ? expected_cn : "", address, port_str);
