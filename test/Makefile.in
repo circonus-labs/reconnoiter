@@ -10,6 +10,7 @@ LIBS=@LIBS@
 PGLIBS=@PGLIBS@
 INSTALL=@INSTALL@
 MTEV_INCLUDEDIR=@MTEV_INCLUDEDIR@
+LMTEV=@LMTEV@
 MAKE_CTESTS=@MAKE_CTESTS@
 
 prefix=@prefix@
@@ -43,7 +44,7 @@ check-lmdb: all
 # This stuff if all cert stuff to make testing the daemons easier
 
 test_tags:	test_tags.c
-	$(CC) -g -o test_tags -I../src $(CPPFLAGS) $(CFLAGS) -I$(MTEV_INCLUDEDIR) test_tags.c -L../src -lnoit $(LDFLAGS) -lmtev
+	$(CC) -g -o test_tags -I../src $(CPPFLAGS) $(CFLAGS) -I$(MTEV_INCLUDEDIR) test_tags.c -L../src -lnoit $(LDFLAGS) $(LMTEV)
 
 others:
 	$(MAKE) -C ../src tests

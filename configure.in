@@ -217,8 +217,10 @@ AC_CHECK_HEADER(mtev_config.h, [], [AC_MSG_ERROR(*** libmtev (headers) required 
 
 if test "x$BUILD_ASAN" = "x" ; then
     AC_CHECK_LIB(mtev, mtev_main, , [AC_MSG_ERROR(*** libmtev is required ***)])
+    LMTEV="-lmtev"
 else
     AC_CHECK_LIB(mtev-asan, mtev_main, , [AC_MSG_ERROR(*** libmtev-asan is required ***)])
+    LMTEV="-lmtev-asan"
 fi
 
 AC_CHECK_LIB(circllhist, hist_alloc, , [AC_MSG_ERROR(*** libcircllhist is required ***)])
@@ -610,6 +612,7 @@ AC_SUBST(MAKE_CTESTS)
 AC_SUBST(MTEV_MODULES_DIR)
 AC_SUBST(MTEV_LIBDIR)
 AC_SUBST(MTEV_INCLUDEDIR)
+AC_SUBST(LMTEV)
 AC_SUBST(DOTSO)
 AC_SUBST(DOTDYLIB)
 AC_SUBST(LD_LIBNOIT_VERSION)
