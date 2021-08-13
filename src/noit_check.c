@@ -322,6 +322,66 @@ static mtev_boolean priority_scheduling = mtev_false;
 static int priority_dead_zone_seconds = 3;
 static noit_lmdb_instance_t *lmdb_instance = NULL;
 
+static void
+noit_check_safe_release(void *p) {
+  noit_check_t *checker = p;
+  if (checker->fire_event) {
+    eventer_t removed = eventer_remove(checker->fire_event);
+
+    if (removed) {
+      free(eventer_get_closure(removed));
+      eventer_free(removed);
+      checker->fire_event = NULL;
+    }
+  }
+  if (checker->target) {
+    free(checker->target);
+  }
+  if (checker->module) {
+    free(checker->module);
+  }
+  if (checker->name) {
+    free(checker->name);
+  }
+  if (checker->filterset) {
+    free(checker->filterset);
+  }
+  if (checker->config) {
+    mtev_hash_destroy(checker->config, free, free);
+    free(checker->config);
+    checker->config = NULL;
+  }
+  if (checker->module_metadata) {
+    for (int i = 0; i < reg_module_id; i++) {
+      struct vp_w_free *tuple;
+      tuple = checker->module_metadata[i];
+      if (tuple) {
+        if (tuple->freefunc) {
+          tuple->freefunc(tuple->ptr);
+        }
+        free(tuple);
+      }
+    }
+    free(checker->module_metadata);
+  }
+  if (checker->module_configs) {
+    for (int i = 0; i < reg_module_id; i++) {
+      if (checker->module_configs[i]) {
+        mtev_hash_destroy(checker->module_configs[i], free, free);
+        free(checker->module_configs[i]);
+      }
+    }
+    free(checker->module_configs);
+  }
+
+  mtev_memory_safe_free(stats_inprogress(checker));
+  mtev_memory_safe_free(stats_current(checker));
+  mtev_memory_safe_free(stats_previous(checker));
+
+  free(checker->statistics);
+
+  pthread_rwlock_destroy(&checker->feeds_lock);
+}
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
   void *vcheck;
@@ -1135,7 +1195,9 @@ noit_check_clone(uuid_t in) {
   if(checker->oncheck) {
     return NULL;
   }
-  new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
+  new_check = mtev_memory_safe_malloc_cleanup(sizeof(*new_check),
+      noit_check_safe_release);
+  memset(new_check, 0, sizeof(*new_check));
   mtevAssert(new_check != NULL);
   memcpy(new_check, checker, sizeof(*new_check));
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
@@ -1641,7 +1703,9 @@ noit_poller_schedule(const char *target,
                      uuid_t in,
                      uuid_t out) {
   noit_check_t *new_check;
-  new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
+  new_check = mtev_memory_safe_malloc_cleanup(sizeof(*new_check),
+      noit_check_safe_release);
+  memset(new_check, 0, sizeof(*new_check));
   mtevAssert(new_check != NULL);
 
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
@@ -1713,52 +1777,6 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
   }
 
   mtevAssert(noit_poller_lookup_by_name__nolock(checker->target, checker->name) != checker);
-
-  if(checker->fire_event) {
-     eventer_remove(checker->fire_event);
-     free(eventer_get_closure(checker->fire_event));
-     eventer_free(checker->fire_event);
-     checker->fire_event = NULL;
-  }
-  if(checker->target) free(checker->target);
-  if(checker->module) free(checker->module);
-  if(checker->name) free(checker->name);
-  if(checker->filterset) free(checker->filterset);
-  if(checker->config) {
-    mtev_hash_destroy(checker->config, free, free);
-    free(checker->config);
-    checker->config = NULL;
-  }
-  if(checker->module_metadata) {
-    int i;
-    for(i=0; i<reg_module_id; i++) {
-      struct vp_w_free *tuple;
-      tuple = checker->module_metadata[i];
-      if(tuple) {
-        if(tuple->freefunc) tuple->freefunc(tuple->ptr);
-        free(tuple);
-      }
-    }
-    free(checker->module_metadata);
-  }
-  if(checker->module_configs) {
-    int i;
-    for(i=0; i<reg_module_id; i++) {
-      if(checker->module_configs[i]) {
-        mtev_hash_destroy(checker->module_configs[i], free, free);
-        free(checker->module_configs[i]);
-      }
-    }
-    free(checker->module_configs);
-  }
-
-  mtev_memory_safe_free(stats_inprogress(checker));
-  mtev_memory_safe_free(stats_current(checker));
-  mtev_memory_safe_free(stats_previous(checker));
-
-  free(checker->statistics);
-
-  pthread_rwlock_destroy(&checker->feeds_lock);
   mtev_memory_safe_free(checker);
 }
 void
