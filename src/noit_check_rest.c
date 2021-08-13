@@ -980,7 +980,6 @@ make_conf_path(char *path) {
   char fullpath[1024], *tok, *brk;
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
-  fullpath[sizeof(fullpath)-1] = '\0';
   section = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
   start = mtev_conf_section_to_xmlnodeptr(section);
   if(mtev_conf_section_is_empty(section)) {
