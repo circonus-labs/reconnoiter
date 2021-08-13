@@ -1238,7 +1238,7 @@ static int noit_httptrap_init(noit_module_t *self) {
                         "fanout", strlen("fanout"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      conf->fanout = mtev_true;
+      conf->fanout = mtev_false;
   }
 
   httptrap_surrogate = mtev_false;
