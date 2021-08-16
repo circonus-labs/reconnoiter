@@ -5,6 +5,7 @@ if test -z "${OS}" ; then
     echo Usage: ci-asan.sh '<OS>' 1>&2
     exit 1
 fi
+shift   # further arguments are passed to 'make'
 
 # Clear environment, with exceptions
 for i in $(env | sed 's/=.*//' | grep -Ev '^(CI_ENV|JENKINS|GIT_|JOB_NAME|BUILD_NUMBER)'); do
@@ -33,7 +34,7 @@ autoreconf -i
 	    --libdir=/opt/noit/prod/lib \
 	    --libexecdir=/opt/noit/prod/libexec
 make clean
-make
+make $@
 P OK
 
 H Test
