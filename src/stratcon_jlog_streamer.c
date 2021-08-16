@@ -74,6 +74,17 @@ static mtev_boolean stratcon_selfcheck_extended_id = mtev_true;
 
 static struct timeval DEFAULT_NOIT_PERIOD_TV = { 5UL, 0UL };
 
+void stratcon_foreach_noit(void (*f)(void *, const char *, const char *), void *c) {
+  pthread_mutex_lock(&noits_lock);
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  while(mtev_hash_adv(&noits, &iter)) {
+    mtev_connection_ctx_t *ctx = iter.value.ptr;
+    const char *cn = mtev_hash_dict_get(ctx->config, "cn");
+    f(c, cn, ctx->remote_str);
+  }
+  pthread_mutex_unlock(&noits_lock);
+}
+
 static stats_ns_t *iep_ns, *durable_ns;
 struct jlog_stream_stats {
   stats_handle_t *total_events;
