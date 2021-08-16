@@ -110,4 +110,6 @@ API_EXPORT(int)
 API_EXPORT(int)
   stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len);
 
+API_EXPORT(void)
+  stratcon_foreach_noit(void (*f)(void *, const char *cn, const char *reemote), void *);
 #endif
