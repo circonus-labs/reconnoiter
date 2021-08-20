@@ -1110,7 +1110,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   xmlDocPtr doc = NULL, indoc = NULL;
   xmlNodePtr node, root, attr, config, parent;
   uuid_t checkid;
-  noit_check_t *check;
+  noit_check_t *check = NULL;
   char xpath[1024], *uuid_conf = NULL;
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";

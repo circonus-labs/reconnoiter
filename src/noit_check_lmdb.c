@@ -310,7 +310,7 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   xmlNodePtr root, state;
   int error_code = 500;
   uuid_t checkid;
-  noit_check_t *check;
+  noit_check_t *check = NULL;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);

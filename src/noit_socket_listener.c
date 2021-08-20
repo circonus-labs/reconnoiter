@@ -403,6 +403,7 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   uuid_t checkid;
   char uuid_str[UUID_STR_LEN+1];
   char secret[64];
+  noit_check_t *check = NULL;
   mtev_acceptor_closure_t *ac = closure;
   if(!ac) return 0;
 
@@ -448,7 +449,7 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
     ERR_TO_CLIENT("invalid uuid: format\n");
     goto bail;
   }
-  noit_check_t *check = noit_poller_lookup(checkid);
+  check = noit_poller_lookup(checkid);
   if(!check) {
     ERR_TO_CLIENT("invalid uuid: not found\n");
     goto bail;

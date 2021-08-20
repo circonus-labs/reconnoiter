@@ -212,7 +212,10 @@ static int ping_icmp_timeout(eventer_t e, int mask,
     mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
                      free, NULL);
   ck_spinlock_unlock(&ping_data->in_flight_lock);
-  if(should_free) free(pcl);
+  if(should_free) {
+    noit_check_deref(pcl->check);
+    free(pcl);
+  }
   return 0;
 }
 
@@ -562,6 +565,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
              pcl->check->target, pcl->check->target_ip, strerror(errno));
   }
  cleanup:
+  noit_check_deref(pcl->check);
   free(pcl->payload);
   free(pcl);
   return 0;
@@ -679,7 +683,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
 
     pcl = calloc(1, sizeof(*pcl));
     pcl->self = self;
-    pcl->check = check;
+    pcl->check = noit_check_ref(check);
     pcl->payload = icp;
     pcl->payload_len = packet_len;
     pcl->icp_len = icp_len;
@@ -691,7 +695,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   pcl = calloc(1, sizeof(*pcl));
   pcl->self = self;
-  pcl->check = check;
+  pcl->check = noit_check_ref(check);
   newe = eventer_in(ping_icmp_timeout, pcl, p_int);
   ci->timeout_event = newe;
   eventer_add(newe);

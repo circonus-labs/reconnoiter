@@ -960,7 +960,7 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
     mtev_http_response_header_set(ctx, "Access-Control-Allow-Headers", "Content-Type");
   }
   mtev_http_response_end(ctx);
-  noit_check_defer(check);
+  noit_check_deref(check);
   return 0;
 
  error:
@@ -969,7 +969,7 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
   yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
-  noit_check_defer(check);
+  noit_check_deref(check);
   return 0;
 }
 
