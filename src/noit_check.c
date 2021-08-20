@@ -2244,7 +2244,10 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 noit_check_t *noit_check_ref(noit_check_t *check) {
-  ck_pr_add_int(&check->ref_cnt, 1);
+  if (check) {
+    ck_pr_add_int(&check->ref_cnt, 1);
+  }
+
   return check;
 }
 void noit_check_deref(noit_check_t *check) {
