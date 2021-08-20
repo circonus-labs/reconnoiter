@@ -127,6 +127,7 @@ local function mtevenv()
       valid_key = true
     elseif string.sub(k, 1, 5) == "ASAN_" then
       valid_key = true
+      copy['LD_PRELOAD'] = '/opt/circonus/lib/libmtev-asan.so'
     end
     if valid_key then
       copy[k] = v

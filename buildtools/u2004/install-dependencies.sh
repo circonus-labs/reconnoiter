@@ -34,14 +34,18 @@ DEPS_CIRC="
     circonus-developer-protobuf-c-compiler
     circonus-field-ck
     circonus-field-jdk
+    circonus-platform-database-lmdb
+    circonus-platform-database-lmdb-asan
     circonus-platform-database-postgresql-client
     circonus-platform-library-apr
     circonus-platform-library-apr-util
     circonus-platform-library-curl
     circonus-platform-library-flatcc
+    circonus-platform-library-jemalloc
     circonus-platform-library-jlog
     circonus-platform-library-libcircllhist
     circonus-platform-library-libmtev
+    circonus-platform-library-libmtev-asan
     circonus-platform-library-libsnappy-c
     circonus-platform-library-net-snmp-c
     circonus-platform-library-hwloc
@@ -51,9 +55,9 @@ DEPS_CIRC="
     circonus-platform-library-udns
     circonus-platform-library-uuid
     circonus-platform-library-yajl
+    circonus-platform-lua-luasocket
     circonus-platform-lua-pgmoon
     circonus-platform-runtime-luajit
-    circonus-platform-lua-luasocket
 "
 
 echo "Installing buildenv and reconnoiter deps"

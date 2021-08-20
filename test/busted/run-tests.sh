@@ -5,15 +5,19 @@ export PATH
 
 if [ -f /opt/llvm-5.0.0/bin/llvm-symbolizer ]
 then
-  export ASAN_SYMBOLIZER_PATH=/opt/llvm-5.0.0/bin/llvm-symbolizer
+  ASAN_SYMBOLIZER_PATH=/opt/llvm-5.0.0/bin/llvm-symbolizer
 else
-  export ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer
+  ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer
 fi
-export ASAN_OPTIONS=detect_leaks=0,alloc_dealloc_mismatch=1
-
 
 DIR=`dirname $0`
 LD_LIBRARY_PATH=$DIR/../../src
-export LD_LIBRARY_PATH
+ASAN_OPTIONS="${ASAN_OPTIONS},log_path=${PWD}/${DIR}/asan.log"
+export LD_LIBRARY_PATH ASAN_SYMBOLIZER_PATH ASAN_OPTIONS
 
-mtevbusted $@
+if [ -n $BUILD_ASAN ]; then
+  echo "Running tests with ASAN"
+  mtevbusted-asan $@
+else
+  mtevbusted $@
+fi
