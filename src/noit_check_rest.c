@@ -541,7 +541,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   xmlNodePtr node, root, attr, config, state, tmp, anode;
   mtev_conf_section_t section;
   uuid_t checkid;
-  noit_check_t *check;
+  noit_check_t *check = NULL;
   char xpath[1024], *uuid_conf = NULL, *module = NULL, *value = NULL;
   int rv, mod, mod_cnt, cnt, error_code = 500;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;

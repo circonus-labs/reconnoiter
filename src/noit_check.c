@@ -1263,8 +1263,7 @@ noit_check_watch(uuid_t in, int period) {
     n.period = period;
     if(mtev_skiplist_find(watchlist, &n, NULL) == NULL) {
       mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
-      noit_check_ref(f);
-      mtev_skiplist_insert(watchlist, f);
+      mtev_skiplist_insert(watchlist, noit_check_ref(f));
     }
     return f;
   }
