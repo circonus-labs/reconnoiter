@@ -15,9 +15,9 @@ LD_LIBRARY_PATH=$DIR/../../src
 ASAN_OPTIONS="${ASAN_OPTIONS},log_path=${PWD}/${DIR}/asan.log"
 export LD_LIBRARY_PATH ASAN_SYMBOLIZER_PATH ASAN_OPTIONS
 
-if [ -n $BUILD_ASAN ]; then
+if [ -z "$BUILD_ASAN" ]; then
+  mtevbusted $@
+else
   echo "Running tests with ASAN"
   mtevbusted-asan $@
-else
-  mtevbusted $@
 fi
