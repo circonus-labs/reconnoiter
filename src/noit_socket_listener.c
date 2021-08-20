@@ -478,9 +478,11 @@ listener_mtev_listener(eventer_t e, int mask, void *closure, struct timeval *now
   listener_closure_ref(lc);
 
   mtev_acceptor_closure_set_ctx(ac, inst, NULL);
+  noit_check_deref(check);
   return listener_handler(e, mask, inst, now);
 
   bail:
+  noit_check_deref(check);
   eventer_remove_fde(e);
   eventer_close(e, &mask);
   mtev_acceptor_closure_free(ac);

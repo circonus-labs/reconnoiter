@@ -629,6 +629,7 @@ histogram_hb_hook_impl(void *closure, noit_module_t *self,
    */
   struct histogram_config *conf = mtev_image_get_userdata(&self->hdr);
   noit_check_t *metrics_source = check;
+  bool ref = false;
   mtev_hash_table *metrics;
 #define NEED_PARENT (NP_TRANSIENT | NP_PASSIVE_COLLECTION)
 
@@ -639,11 +640,15 @@ histogram_hb_hook_impl(void *closure, noit_module_t *self,
   if((check->flags & NEED_PARENT) == NEED_PARENT) {
     metrics_source = noit_poller_lookup(check->checkid);
     if(metrics_source == NULL) return MTEV_HOOK_CONTINUE;
+    ref = true;
   }
   /* quick disqualifictaion */
   metrics = noit_check_get_module_metadata(metrics_source, histogram_module_id);
   if(!metrics || mtev_hash_size(metrics) == 0) return MTEV_HOOK_CONTINUE;
   heartbeat_all_metrics(conf, check, metrics);
+  if (ref) {
+    noit_check_deref(metrics_source);
+  }
   return MTEV_HOOK_CONTINUE;
 }
 

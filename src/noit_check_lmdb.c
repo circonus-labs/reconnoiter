@@ -407,6 +407,7 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
 
  cleanup:
   if(doc) xmlFreeDoc(doc);
+  noit_check_deref(check);
   return 0;
 }
 
@@ -661,13 +662,14 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
   if(mask == EVENTER_ASYNCH_WORK) {
     int rc = 0;
     mtev_boolean exists = mtev_false;
-    noit_check_t *check = noit_poller_lookup(lscd->checkid);
-    if(check) {
+    noit_check_t *outer_check = noit_poller_lookup(lscd->checkid);
+    if(outer_check) {
       exists = mtev_true;
     }
     mtev_boolean in_db = noit_check_lmdb_already_in_db(lscd->checkid);
     if (!in_db) {
       if (exists) {
+        noit_check_deref(outer_check);
         SET_ERROR_CODE(403, "uuid not yours");
       }
       int64_t old_seq = 0;
@@ -685,13 +687,19 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
       }
       rest_check_free_attrs(target, name, module);
       if(exists) {
+        noit_check_deref(check);
+        noit_check_deref(outer_check);
         SET_ERROR_CODE(409, "target name already registered");
       }
       if(!m) {
+        noit_check_deref(check);
+        noit_check_deref(outer_check);
         SET_ERROR_CODE(412, "module does not exist");
       }
       rc = noit_check_lmdb_configure_check(lscd->checkid, lscd->attr, lscd->config, old_seq);
       if (rc) {
+        noit_check_deref(check);
+        noit_check_deref(outer_check);
         SET_ERROR_CODE(409, "sequencing error");
       }
     }
@@ -700,7 +708,8 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
       int module_change;
       char *target = NULL, *name = NULL, *module = NULL, *old_seq_string = NULL;;
       noit_check_t *ocheck;
-      if(!check) {
+      if(!outer_check) {
+        noit_check_deref(outer_check);
         SET_ERROR_CODE(500, "internal check error");
       }
 
@@ -708,12 +717,16 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
       rest_check_get_attrs(lscd->attr, &target, &name, &module);
 
       ocheck = noit_poller_lookup_by_name(target, name);
-      module_change = strcmp(check->module, module);
+      module_change = strcmp(outer_check->module, module);
       rest_check_free_attrs(target, name, module);
-      if(ocheck && ocheck != check) {
+      if(ocheck && ocheck != outer_check) {
+        noit_check_deref(outer_check);
+        noit_check_deref(ocheck);
         SET_ERROR_CODE(409, "new target`name would collide");
       }
+      noit_check_deref(ocheck);
       if(module_change) {
+        noit_check_deref(outer_check);
         SET_ERROR_CODE(400, "cannot change module");
       }
       old_seq_string = noit_check_lmdb_get_specific_field(lscd->checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", mtev_false);
@@ -726,11 +739,13 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
       free(old_seq_string);
       rc = noit_check_lmdb_configure_check(lscd->checkid, lscd->attr, lscd->config, old_seq);
       if (rc) {
+        noit_check_deref(outer_check);
         SET_ERROR_CODE(409, "sequencing error");
       }
     }
 
     noit_poller_reload_lmdb(&lscd->checkid, 1);
+    noit_check_deref(outer_check);
   }
   if (mask == EVENTER_ASYNCH_COMPLETE) {
     mtev_http_session_resume_after_float(ctx);
@@ -1110,6 +1125,7 @@ noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
+  noit_check_deref(check);
   return 0;
 }
 
@@ -1652,9 +1668,11 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
 
     /* too old, don't bother */
     if(check && check->config_seq >= seq) {
+      noit_check_deref(check);
       i++;
       continue;
     }
+    noit_check_deref(check);
     int rv = noit_check_lmdb_convert_one_xml_check_to_lmdb(section, namespaces, namespace_cnt, &error);
     if (rv || error) {
       mtevL(mtev_error, "noit_check_lmdb_process_repl: failed to convert check: %s\n", error ? error : "(unknown error)");

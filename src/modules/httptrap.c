@@ -754,7 +754,9 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   char buffer[32768];
 
   rxc = restc->call_closure;
-  rxc->check = noit_poller_lookup(rxc->check_id);
+  if (!rxc->check) {
+    rxc->check = noit_poller_lookup(rxc->check_id);
+  }
   if (!rxc->check) {
     rxc->error = strdup("Unable to retrieve check");
     *complete = 1;
@@ -911,7 +913,7 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
   int error_code = 500;
   const char *error = "internal error", *secret = NULL;
   mtev_http_session_ctx *ctx = restc->http_ctx;
-  noit_check_t *check;
+  noit_check_t *check = NULL;
   uuid_t check_id;
 
   if(npats != 2) {
@@ -958,6 +960,7 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
     mtev_http_response_header_set(ctx, "Access-Control-Allow-Headers", "Content-Type");
   }
   mtev_http_response_end(ctx);
+  noit_check_defer(check);
   return 0;
 
  error:
@@ -966,6 +969,7 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
   yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
+  noit_check_defer(check);
   return 0;
 }
 
@@ -1013,6 +1017,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     if(!httptrap_surrogate && strcmp(check->module, "httptrap")) {
       error = "no such httptrap check";
       error_code = 404;
+      noit_check_deref(check);
       goto error;
     }
 
@@ -1025,6 +1030,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     if(!allowed) {
       error = "secret mismatch";
       error_code = 403;
+      noit_check_deref(check);
       goto error;
     }
 
@@ -1167,9 +1173,15 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, json_out, strlen(json_out));
   json_object_put(obj);
   mtev_http_response_end(ctx);
+  if (rxc) {
+    noit_check_deref(rxc->check);
+  }
   return 0;
 
  error:
+  if (rxc) {
+    noit_check_deref(rxc->check);
+  }
   mtev_http_response_standard(ctx, error_code, "ERROR", "application/json");
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if (rxc && rxc->error)

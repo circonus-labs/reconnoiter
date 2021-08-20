@@ -819,7 +819,7 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
                                     void *magic) {
   /* the noit pieces */
   struct timeval now;
-  noit_check_t *check;
+  noit_check_t *check = NULL;
   struct target_session *ts = magic;
   snmp_mod_config_t *conf;
   const char *community = NULL;
@@ -908,6 +908,7 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
  cleanup:
   if(newpdu != pdu)
     snmp_free_pdu(newpdu);
+  noit_check_deref(check);
   return 0;
 }
 static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,

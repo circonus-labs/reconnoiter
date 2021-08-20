@@ -467,6 +467,7 @@ rest_show_check_owner(mtev_http_rest_closure_t *restc,
   noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(restc->http_ctx, 204, "OK", "application/json");
   mtev_http_response_end(restc->http_ctx);
+  noit_check_deref(check);
   return 0;
 }
 
@@ -527,6 +528,7 @@ rest_show_check_json(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(restc->http_ctx, "\n", 1);
   json_object_put(doc);
   mtev_http_response_end(restc->http_ctx);
+  noit_check_deref(check);
   return 0;
 }
 static int
@@ -738,6 +740,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   if(uuid_conf) xmlFree(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
+  noit_check_deref(check);
   NCUNLOCK;
   return 0;
 }
@@ -1151,7 +1154,10 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       /* make sure this isn't a dup */
       rest_check_get_attrs(attr, &target, &name, &module);
       exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
-      if(check) old_seq = check->config_seq;
+      if(check) {
+        old_seq = check->config_seq;
+        noit_check_deref(check);
+      }
       if(module) m = noit_module_lookup(module);
       rest_check_free_attrs(target, name, module);
       if(exists) FAILC(409, "target`name already registered");
@@ -1189,6 +1195,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     rest_check_get_attrs(attr, &target, &name, &module);
 
     ocheck = noit_poller_lookup_by_name(target, name);
+    noit_check_deref(ocheck);
     module_change = strcmp(check->module, module);
     rest_check_free_attrs(target, name, module);
     if(ocheck && ocheck != check) FAILC(409, "new target`name would collide");
@@ -1231,6 +1238,7 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   NCUNLOCK;
+  noit_check_deref(check);
   return 0;
 }
 

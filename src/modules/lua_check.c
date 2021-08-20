@@ -814,6 +814,15 @@ static void
 ctype_noit_check_helper(lua_State *L, va_list ap) {
   noit_lua_setup_check(L, va_arg(ap, noit_check_t *));
 }
+static int gc_the_check(lua_State *L) {
+  if(lua_gettop(L) == 1) { 
+    noit_check_t *check = lua_touserdata(L, lua_upvalueindex(1));
+
+    noit_check_deref(check);
+  }
+
+  return 0;
+}
 void
 noit_lua_setup_check(lua_State *L,
                      noit_check_t *check) {
@@ -823,6 +832,10 @@ noit_lua_setup_check(lua_State *L,
   if(luaL_newmetatable(L, "noit_check_t") == 1) {
     lua_pushcclosure(L, noit_check_index_func, 0);
     lua_setfield(L, -2, "__index");
+
+    lua_pushstring(L, "__gc");
+    lua_pushcfunction(L, gc_the_check);
+    lua_settable(L, -3);
   }
   lua_setmetatable(L, -2);
 }

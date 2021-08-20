@@ -90,6 +90,7 @@ noit_conf_checks_lmdb_console_show_check(mtev_console_closure_t ncct,
         mtev_uuid_copy(checkid, tmp_check->checkid);
         mtev_uuid_unparse_lower(checkid, uuid_str);
         found = mtev_true;
+        noit_check_deref(tmp_check);
       }
     }
     free(copy);

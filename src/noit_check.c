@@ -385,8 +385,9 @@ noit_check_safe_release(void *p) {
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
   void *vcheck;
-  if(mtev_hash_retrieve(&polls, (char *)in, UUID_SIZE, &vcheck))
-    return (noit_check_t *)vcheck;
+  if (mtev_hash_retrieve(&polls, (char *)in, UUID_SIZE, &vcheck)) {
+    return noit_check_ref((noit_check_t *)vcheck);
+  }
   return NULL;
 }
 static noit_check_t *
@@ -396,7 +397,13 @@ noit_poller_lookup_by_name__nolock(char *target, char *name) {
   memset(&tmp_check, 0, sizeof(tmp_check));
   tmp_check.target = target;
   tmp_check.name = name;
-  return mtev_skiplist_find(polls_by_name, &tmp_check, NULL);
+  noit_check_t *check = mtev_skiplist_find(polls_by_name, &tmp_check, NULL);
+
+  if (check) {
+    return noit_check_ref(check);
+  }
+
+  return NULL;
 }
 
 static int
@@ -1023,6 +1030,7 @@ noit_poller_make_causal_map() {
         parent->causal_checks = dep;
         mtevL(check_debug, "Causal map %s`%s --> %s`%s\n",
               parent->target, parent->name, check->target, check->name);
+        noit_check_deref(parent);
       }
     }
   }
@@ -1195,9 +1203,8 @@ noit_check_clone(uuid_t in) {
   if(checker->oncheck) {
     return NULL;
   }
-  new_check = mtev_memory_safe_malloc_cleanup(sizeof(*new_check),
-      noit_check_safe_release);
-  memset(new_check, 0, sizeof(*new_check));
+  new_check = calloc(1, sizeof(*new_check));
+  new_check->ref_cnt = 1;
   mtevAssert(new_check != NULL);
   memcpy(new_check, checker, sizeof(*new_check));
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
@@ -1256,6 +1263,7 @@ noit_check_watch(uuid_t in, int period) {
     n.period = period;
     if(mtev_skiplist_find(watchlist, &n, NULL) == NULL) {
       mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
+      noit_check_ref(f);
       mtev_skiplist_insert(watchlist, f);
     }
     return f;
@@ -1329,7 +1337,7 @@ noit_check_watch(uuid_t in, int period) {
   f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
   mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
-  mtev_skiplist_insert(watchlist, f);
+  mtev_skiplist_insert(watchlist, noit_check_ref(f));
   return f;
 }
 
@@ -1341,11 +1349,14 @@ noit_check_get_watch(uuid_t in, int period) {
   n.period = period;
   if(period == 0) {
     f = noit_poller_lookup(in);
-    if(f) n.period = f->period;
+    if(f) {
+      n.period = f->period;
+      noit_check_deref(f);
+    }
   }
 
   f = mtev_skiplist_find(watchlist, &n, NULL);
-  return f;
+  return noit_check_ref(f);
 }
 
 void
@@ -1402,9 +1413,11 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
             check->target, check->name, check->period);
       check->flags |= NP_KILLED;
     }
-    if(noit_poller_lookup(check->checkid) != check) {
+    noit_check_t *existing = noit_poller_lookup(check->checkid);
+    if(existing != check) {
       noit_poller_free_check(check);
     }
+    noit_check_deref(existing);
   }
   pthread_rwlock_unlock(&check->feeds_lock);
 }
@@ -1702,11 +1715,8 @@ noit_poller_schedule(const char *target,
                      int flags,
                      uuid_t in,
                      uuid_t out) {
-  noit_check_t *new_check;
-  new_check = mtev_memory_safe_malloc_cleanup(sizeof(*new_check),
-      noit_check_safe_release);
-  memset(new_check, 0, sizeof(*new_check));
-  mtevAssert(new_check != NULL);
+  noit_check_t *new_check = calloc(1, sizeof(*new_check));
+  new_check->ref_cnt = 1;
 
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
 
@@ -1776,8 +1786,10 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
     return;
   }
 
-  mtevAssert(noit_poller_lookup_by_name__nolock(checker->target, checker->name) != checker);
-  mtev_memory_safe_free(checker);
+  noit_check_t *existing = noit_poller_lookup_by_name__nolock(checker->target, checker->name);
+  mtevAssert(existing != checker);
+  noit_check_deref(checker);
+  noit_check_deref(existing);
 }
 void
 noit_poller_free_check(noit_check_t *checker) {
@@ -2104,7 +2116,7 @@ static int ip_module_collector(noit_check_t *check, void *cl) {
   struct ip_module_collector_crutch *c = cl;
   if(c->idx >= c->allocd) return 0;
   if(strcmp(check->module, c->module)) return 0;
-  c->array[c->idx++] = check;
+  c->array[c->idx++] = noit_check_ref(check);
   return 1;
 }
 int
@@ -2167,6 +2179,7 @@ noit_check_xpath(char *xpath, int len,
       return -1;
     }
     mtev_uuid_unparse_lower(check->checkid, uuid_str);
+    noit_check_deref(check);
     snprintf(xpath, len, "/noit/checks%s%s/check[@uuid=\"%s\"]",
              base, base_trailing_slash ? "" : "/", uuid_str);
   }
@@ -2230,6 +2243,21 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   noit_check_set_stats(check);
   noit_check_end(check);
   return 0;
+}
+noit_check_t *noit_check_ref(noit_check_t *check) {
+  ck_pr_add_int(&check->ref_cnt, 1);
+  return check;
+}
+void noit_check_deref(noit_check_t *check) {
+  if (check) {
+    bool done;
+
+    ck_pr_dec_int_zero(&check->ref_cnt, &done);
+
+    if (done) {
+      noit_check_safe_release(check);
+    }
+  }
 }
 void noit_check_begin(noit_check_t *check) {
   const char *force_str = NULL;
@@ -3382,6 +3410,7 @@ noit_check_process_repl(xmlDocPtr doc) {
     /* too old, don't bother */
     if(check && check->config_seq >= seq) {
       i++;
+      noit_check_deref(check);
       continue;
     }
 
@@ -3398,6 +3427,7 @@ noit_check_process_repl(xmlDocPtr doc) {
         xmlFreeNode(node);
       }
       mtev_conf_release_section_write(oldsection);
+      noit_check_deref(check);
     }
 
     xmlNodePtr checks_node = mtev_conf_section_to_xmlnodeptr(checks);

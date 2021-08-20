@@ -89,6 +89,7 @@ reverse_check_allow(const char *id, mtev_acceptor_closure_t *ac) {
   else {
     snprintf(expected_id, sizeof(expected_id), "check/%s", uuid_str);
   }
+  noit_check_deref(check);
   if(!strncmp(id, expected_id, strlen(id))) return MTEV_ACL_ALLOW;
   return MTEV_ACL_DENY;
 }
