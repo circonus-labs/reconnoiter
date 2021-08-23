@@ -325,6 +325,14 @@ static noit_lmdb_instance_t *lmdb_instance = NULL;
 static void
 noit_check_safe_release(void *p) {
   noit_check_t *checker = p;
+  noit_module_t *mod = noit_module_lookup(checker->module);
+  if(mod && mod->cleanup) {
+    mod->cleanup(mod, checker);
+  }
+  else if(checker->closure) {
+    free(checker->closure);
+    checker->closure = NULL;
+  }
   if (checker->fire_event) {
     eventer_t removed = eventer_remove(checker->fire_event);
 
@@ -1758,13 +1766,6 @@ static void recycle_check(noit_check_t *checker, mtev_boolean has_lock) {
 }
 void
 noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
-  noit_module_t *mod = noit_module_lookup(checker->module);
-  if(mod && mod->cleanup) mod->cleanup(mod, checker);
-  else if(checker->closure) {
-    free(checker->closure);
-    checker->closure = NULL;
-  }
-
   if (checker->flags & NP_PASSIVE_COLLECTION) {
     struct timeval current_time;
     mtev_gettimeofday(&current_time, NULL);

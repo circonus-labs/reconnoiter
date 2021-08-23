@@ -394,7 +394,8 @@ static int ping_icmp_handler(eventer_t e, int mask,
         if(olde) {
           eventer_remove(olde);
           free(eventer_get_closure(olde));
-          eventer_free(olde);
+          eventer_deref(olde);
+          eventer_deref(olde);
           data->timeout_event = NULL;
         }
       }
@@ -578,7 +579,8 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
       eventer_t e = eventer_remove(ci->timeout_event);
       if(e) {
         free(eventer_get_closure(e));
-        eventer_free(e);
+        eventer_deref(e);
+        eventer_deref(e);
       }
     }
     if(ci->turnaround) free(ci->turnaround);
@@ -629,7 +631,8 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     eventer_t olde = eventer_remove(ci->timeout_event);
     if(olde) {
       free(eventer_get_closure(olde));
-      eventer_free(olde);
+      eventer_deref(olde);
+      eventer_deref(olde);
     }
     ci->timeout_event = NULL;
   }
