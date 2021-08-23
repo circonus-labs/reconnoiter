@@ -83,6 +83,7 @@ test/03.pem
 test/badclient.crt
 test/badclient.csr
 test/badclient.key
+test/busted/asan.log.*
 test/client.crt
 test/client.csr
 test/client.key

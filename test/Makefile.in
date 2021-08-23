@@ -114,6 +114,7 @@ clean-keys:
 clean-tests:
 	rm -rf t/logs
 	rm -f test_tags
+	rm -f busted/asan.log*
 
 distclean:	clean
 	rm -f Makefile

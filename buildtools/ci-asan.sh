@@ -7,6 +7,9 @@ if test -z "${OS}" ; then
 fi
 shift   # further arguments are passed to 'make'
 
+# Remember the working directory when we started
+original_wd="$PWD"
+
 # Clear environment, with exceptions
 for i in $(env | sed 's/=.*//' | grep -Ev '^(CI_ENV|JENKINS|GIT_|JOB_NAME|BUILD_NUMBER)'); do
     unset "$i"
@@ -37,6 +40,41 @@ make clean
 make $@
 P OK
 
+# Don't exit if tests fail, as there may be ASAN logs we'll want to see.
+set +e
+
 H Test
 make check
+ERR_STATUS=$?
+
+sleep 1  # we might race with the appearance of logs?
+
+# If ASAN logs exist, ensure they're symbolized and print them out.
+# This ensures they will be recorded in CI history.
+# Print them in ascending time order to aid with matching to test failures.
+if [[ -x /usr/bin/asan_symbolize-11 ]]; then
+    ASAN_SYMBOLIZE="/usr/bin/asan_symbolize-11"
+else
+    ASAN_SYMBOLIZE="/usr/bin/asan_symbolize"
+fi
+
+pushd $original_wd > /dev/null
+
+if [[ -n "$(find test/busted -maxdepth 1 -name 'asan.log*' -print -quit)" ]]; then
+    pushd test/busted > /dev/null
+
+    H Process ASAN Logs
+    for log in $(ls -tr asan.log.*); do
+        printf "=-= Begin %s =-=\n" $log
+        $ASAN_SYMBOLIZE / < $log | c++filt
+        printf "=-= End %s =-=\n\n" $log
+    done
+
+    popd > /dev/null
+fi
+
+if [[ $ERR_STATUS -gt 0 ]]; then
+    exit $ERR_STATUS
+fi
+
 P OK
