@@ -47,19 +47,27 @@ H Test
 make check
 ERR_STATUS=$?
 
+sleep 1  # we might race with the appearance of logs?
+
 # If ASAN logs exist, ensure they're symbolized and print them out.
 # This ensures they will be recorded in CI history.
 # Print them in ascending time order to aid with matching to test failures.
+if [[ -x /usr/bin/asan_symbolize-11 ]]; then
+    ASAN_SYMBOLIZE="/usr/bin/asan_symbolize-11"
+else
+    ASAN_SYMBOLIZE="/usr/bin/asan_symbolize"
+fi
+
 pushd $original_wd > /dev/null
 
 if [[ -n "$(find test/busted -maxdepth 1 -name 'asan.log*' -print -quit)" ]]; then
     pushd test/busted > /dev/null
 
-    H ASAN Logs
+    H Process ASAN Logs
     for log in $(ls -tr asan.log.*); do
-        printf "-- Begin %s --\n" $log
-        /usr/bin/asan_symbolize / < $log | c++filt
-        printf "-- End %s --\n\n" $log
+        printf "=-= Begin %s =-=\n" $log
+        $ASAN_SYMBOLIZE / < $log | c++filt
+        printf "=-= End %s =-=\n\n" $log
     done
 
     popd > /dev/null
