@@ -244,7 +244,6 @@ noit_conf_checks_lmdb_console_watch_check(mtev_console_closure_t ncct,
   int period = 0;
   mtev_boolean exists = mtev_false;
   uuid_t checkid;
-  noit_check_t *check = NULL;
 
   if(argc < 1 || argc > 2) {
     nc_printf(ncct, "requires one or two arguments\n");
@@ -267,7 +266,7 @@ noit_conf_checks_lmdb_console_watch_check(mtev_console_closure_t ncct,
   }
 
   if(adding) {
-    check = noit_check_watch(checkid, period);
+    noit_check_t *check = noit_check_watch(checkid, period);
     /* This check must be watched from the console */
     noit_check_transient_add_feed(check, ncct->feed_path);
     /* Note the check */
@@ -276,11 +275,13 @@ noit_conf_checks_lmdb_console_watch_check(mtev_console_closure_t ncct,
     if(!NOIT_CHECK_LIVE(check)) {
       noit_check_activate(check);
     }
+    noit_check_deref(check);
   }
   else {
-    check = noit_check_get_watch(checkid, period);
+    noit_check_t *check = noit_check_get_watch(checkid, period);
     if(check) {
       noit_check_transient_remove_feed(check, ncct->feed_path);
+      noit_check_deref(check);
     }
   }
 

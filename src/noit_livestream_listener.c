@@ -86,6 +86,7 @@ noit_livestream_closure_free(noit_livestream_closure_t *jcl) {
     free(tofree->buff);
     free(tofree);
   }
+  noit_check_deref(jcl->check);
   free(jcl);
 }
 

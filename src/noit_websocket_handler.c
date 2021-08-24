@@ -88,7 +88,10 @@ noit_websocket_closure_alloc(void) {
 void
 noit_websocket_closure_free(void *jcl) {
   noit_websocket_closure_t *w = jcl;
-  if (w->check) noit_check_transient_remove_feed(w->check, w->feed);
+  if (w->check) {
+    noit_check_transient_remove_feed(w->check, w->feed);
+    noit_check_deref(w->check);
+  }
   free(w->feed);
 
   mtev_log_stream_close(w->log_stream);
