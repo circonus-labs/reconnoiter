@@ -121,6 +121,7 @@ typedef struct dep_list {
 
 typedef struct noit_check {
   uuid_t checkid;
+  int32_t ref_cnt;
   int8_t target_family;
   union {
     struct in_addr addr;
@@ -159,6 +160,8 @@ typedef struct noit_check {
 
 API_EXPORT(void) noit_check_begin(noit_check_t *);
 API_EXPORT(void) noit_check_end(noit_check_t *);
+API_EXPORT(noit_check_t*) noit_check_ref(noit_check_t *check);
+API_EXPORT(void) noit_check_deref(noit_check_t *check);
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
 #define NOIT_CHECK_DISABLED(a) ((a)->flags & NP_DISABLED)

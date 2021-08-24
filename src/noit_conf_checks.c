@@ -560,6 +560,7 @@ noit_console_get_running_stats(mtev_console_closure_t ncct,
       nc_print_stat_metrics(ncct, check, c);
     }
     mtev_memory_end();
+    noit_check_deref(check);
   }
 }
 static int
@@ -918,11 +919,11 @@ noit_console_config_show(mtev_console_closure_t ncct,
       }
       nc_printf(ncct, "check[@uuid=\"%s\"] ", uuid_str ? uuid_str : "undefined");
       if(uuid_str && mtev_uuid_parse(uuid_str, checkid) == 0) {
-        noit_check_t *check;
-        check = noit_poller_lookup(checkid);
+        noit_check_t *check = noit_poller_lookup(checkid);
         if(check) {
           busted = 0;
           nc_printf(ncct, "%s`%s`%s", check->target, check->module, check->name);
+          noit_check_deref(check);
         }
       }
       if(uuid_str) free(uuid_str);
@@ -955,9 +956,11 @@ conf_t_check_prompt(EditLine *el) {
   check = noit_poller_lookup(info->current_check);
   if(check &&
      check->target && check->target[0] &&
-     check->name && check->name[0])
+     check->name && check->name[0]) {
     snprintf(info->prompt, sizeof(info->prompt),
              pfmt, check->target, "`", check->name);
+    noit_check_deref(check);
+  }
   else {
     char uuid_str[37];
     mtev_uuid_unparse_lower(info->current_check, uuid_str);
@@ -1022,9 +1025,13 @@ replace_config(mtev_console_closure_t ncct,
     uuid_t checkid;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(mtev_conf_get_uuid(mtev_conf_section_from_xmlnodeptr(node), "@uuid", checkid)) {
-      noit_check_t *check;
-      check = noit_poller_lookup(checkid);
-      if(check && NOIT_CHECK_LIVE(check)) active++;
+      noit_check_t *check = noit_poller_lookup(checkid);
+      if (check) {
+        if (NOIT_CHECK_LIVE(check)) {
+          active++;
+        }
+        noit_check_deref(check);
+      }
     }
   }
   if(pobj) xmlXPathFreeObject(pobj);
@@ -1049,6 +1056,7 @@ replace_config(mtev_console_closure_t ncct,
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
       if(NOIT_CHECK_LIVE(check)) active++;
+      noit_check_deref(check);
     }
   }
   if(active) {
@@ -1137,9 +1145,13 @@ replace_attr(mtev_console_closure_t ncct,
       uuid_t checkid;
       node = xmlXPathNodeSetItem(pobj->nodesetval, i);
       if(mtev_conf_get_uuid(mtev_conf_section_from_xmlnodeptr(node), "@uuid", checkid)) {
-        noit_check_t *check;
-        check = noit_poller_lookup(checkid);
-        if(check && NOIT_CHECK_LIVE(check)) active++;
+        noit_check_t *check = noit_poller_lookup(checkid);
+        if (check) {
+          if (NOIT_CHECK_LIVE(check)) {
+            active++;
+          }
+          noit_check_deref(check);
+        }
       }
     }
     if(pobj) xmlXPathFreeObject(pobj);
@@ -1162,9 +1174,13 @@ replace_attr(mtev_console_closure_t ncct,
      * This is the counterpart noted above.
      */
     if(mtev_conf_get_uuid(section, "@uuid", checkid)) {
-      noit_check_t *check;
-      check = noit_poller_lookup(checkid);
-      if(check && NOIT_CHECK_LIVE(check)) active++;
+      noit_check_t *check = noit_poller_lookup(checkid);
+      if (check) {
+        if (NOIT_CHECK_LIVE(check)) {
+          active++;
+        }
+        noit_check_deref(check);
+      }
     }
   }
   if(active) {

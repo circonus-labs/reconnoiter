@@ -293,6 +293,7 @@ noit_cluster_xml_check_changes(uuid_t peerid, const char *cn,
         xmlAddChild(parent, checknode);
         last_seen = node->seq;
       }
+      noit_check_deref(check);
     }
   }
   pthread_mutex_unlock(&noit_peer_lock);

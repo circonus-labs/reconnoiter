@@ -331,8 +331,12 @@ statsd_handle_single_message(noit_module_t *const self,
   mtevL(nldeb, "statsd(%zu bytes) from '%s' -> %d checks%s\n", payload->iov_len,
         ip, (int)nchecks, parent ? " + a parent" : "");
   if(parent) checks[nchecks++] = parent;
-  if(nchecks)
+  if(nchecks) {
     statsd_handle_payload(checks, nchecks, payload->iov_base, payload->iov_len);
+    for (size_t i = 0; i < nchecks; i++) {
+      noit_check_deref(checks[i]);
+    }
+  }
 }
 
 static int

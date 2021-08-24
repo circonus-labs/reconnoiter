@@ -212,7 +212,10 @@ static int ping_icmp_timeout(eventer_t e, int mask,
     mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
                      free, NULL);
   ck_spinlock_unlock(&ping_data->in_flight_lock);
-  if(should_free) free(pcl);
+  if(should_free) {
+    noit_check_deref(pcl->check);
+    free(pcl);
+  }
   return 0;
 }
 
@@ -391,7 +394,8 @@ static int ping_icmp_handler(eventer_t e, int mask,
         if(olde) {
           eventer_remove(olde);
           free(eventer_get_closure(olde));
-          eventer_free(olde);
+          eventer_deref(olde);
+          eventer_deref(olde);
           data->timeout_event = NULL;
         }
       }
@@ -562,6 +566,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
              pcl->check->target, pcl->check->target_ip, strerror(errno));
   }
  cleanup:
+  noit_check_deref(pcl->check);
   free(pcl->payload);
   free(pcl);
   return 0;
@@ -574,7 +579,8 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
       eventer_t e = eventer_remove(ci->timeout_event);
       if(e) {
         free(eventer_get_closure(e));
-        eventer_free(e);
+        eventer_deref(e);
+        eventer_deref(e);
       }
     }
     if(ci->turnaround) free(ci->turnaround);
@@ -625,7 +631,8 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     eventer_t olde = eventer_remove(ci->timeout_event);
     if(olde) {
       free(eventer_get_closure(olde));
-      eventer_free(olde);
+      eventer_deref(olde);
+      eventer_deref(olde);
     }
     ci->timeout_event = NULL;
   }
@@ -679,7 +686,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
 
     pcl = calloc(1, sizeof(*pcl));
     pcl->self = self;
-    pcl->check = check;
+    pcl->check = noit_check_ref(check);
     pcl->payload = icp;
     pcl->payload_len = packet_len;
     pcl->icp_len = icp_len;
@@ -691,7 +698,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   pcl = calloc(1, sizeof(*pcl));
   pcl->self = self;
-  pcl->check = check;
+  pcl->check = noit_check_ref(check);
   newe = eventer_in(ping_icmp_timeout, pcl, p_int);
   ci->timeout_event = newe;
   eventer_add(newe);

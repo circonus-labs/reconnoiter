@@ -85,7 +85,7 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
   ms = noit_check_schedule_next(rcl->self, NULL, rcl->check, now,
                                 rcl->dispatch, NULL);
   if(ms == 0)
-    rcl->check->fire_event = NULL; /* This is us, we get free post-return */
+    rcl->check->fire_event = NULL; /* This is us, we get freed post-return */
   if(NOIT_CHECK_RESOLVED(rcl->check)) {
     if(MTEV_HOOK_CONTINUE ==
        check_preflight_hook_invoke(rcl->self, rcl->check, rcl->cause)) {
@@ -106,6 +106,7 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
   else
     mtevL(noit_debug, "skipping %s`%s`%s, unresolved\n",
           rcl->check->target, rcl->check->module, rcl->check->name);
+  noit_check_deref(rcl->check);
   free(rcl);
   return 0;
 }
@@ -183,7 +184,7 @@ noit_check_schedule_next(noit_module_t *self,
 
   rcl = calloc(1, sizeof(*rcl));
   rcl->self = self;
-  rcl->check = check;
+  rcl->check = noit_check_ref(check);
   rcl->cause = cause;
   rcl->dispatch = dispatch;
   newe = eventer_alloc_timer(noit_check_recur_handler, rcl, &tgt);
