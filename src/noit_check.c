@@ -1907,7 +1907,7 @@ check_recycle_bin_processor_internal() {
     }
 
     if (free_check == mtev_true) {
-      mtevL(check_debug, "0x%p: Check is ready to free.\n", check);
+      mtevL(check_debug, "%p: Check is ready to free.\n", check);
       noit_poller_free_check_internal(curr->checker, mtev_true);
       if(prev) prev->next = curr->next;
       else checker_rcb = curr->next;
