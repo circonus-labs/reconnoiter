@@ -686,7 +686,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
 
     pcl = calloc(1, sizeof(*pcl));
     pcl->self = self;
-    pcl->check = noit_check_ref(check);
+    pcl->check = check;
     pcl->payload = icp;
     pcl->payload_len = packet_len;
     pcl->icp_len = icp_len;
@@ -698,7 +698,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   pcl = calloc(1, sizeof(*pcl));
   pcl->self = self;
-  pcl->check = noit_check_ref(check);
+  pcl->check = check;
   newe = eventer_in(ping_icmp_timeout, pcl, p_int);
   ci->timeout_event = newe;
   eventer_add(newe);

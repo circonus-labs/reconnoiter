@@ -209,7 +209,7 @@ struct stats_t {
   int8_t available;
   int8_t state;
   uint32_t duration;
-  mtev_hash_table metrics;
+  mtev_hash_table name_to_metric;
   char status[256];
 };
 
@@ -240,7 +240,7 @@ noit_check_stats_status(stats_t *s, const char *n) {
 }
 mtev_hash_table *
 noit_check_stats_metrics(stats_t *s) {
-  return &s->metrics;
+  return &s->name_to_metric;
 }
 void
 noit_stats_set_whence(noit_check_t *c, struct timeval *t) {
@@ -272,14 +272,14 @@ noit_check_safe_free_metric(void *vs) {
 static void
 noit_check_safe_free_stats(void *vs) {
   stats_t *s = vs;
-  mtev_hash_destroy(&s->metrics, NULL, (void (*)(void *))mtev_memory_safe_free);
+  mtev_hash_destroy(&s->name_to_metric, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 static stats_t *
 noit_check_stats_alloc() {
   stats_t *n;
   n = mtev_memory_safe_malloc_cleanup(sizeof(*n), noit_check_safe_free_stats);
   memset(n, 0, sizeof(*n));
-  mtev_hash_init_mtev_memory(&n->metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_mtev_memory(&n->name_to_metric, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   return n;
 }
 static void *
@@ -338,7 +338,8 @@ noit_check_safe_release(void *p) {
 
     if (removed) {
       free(eventer_get_closure(removed));
-      eventer_free(removed);
+      eventer_deref(removed);
+      eventer_deref(removed);
       checker->fire_event = NULL;
     }
   }
@@ -2317,20 +2318,20 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
 
 static void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
-  mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
+  mtev_hash_replace(&newstate->name_to_metric, m->metric_name, strlen(m->metric_name),
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 
 mtev_boolean
 noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean create) {
   void *vm;
-  if(mtev_hash_retrieve(&newstate->metrics,
+  if(mtev_hash_retrieve(&newstate->name_to_metric,
       m->metric_name, strlen(m->metric_name), &vm)) {
     ((metric_t *)vm)->logged = mtev_true;
     return mtev_false;
   } else if(create) {
     m->logged = mtev_true;
-    mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
+    mtev_hash_replace(&newstate->name_to_metric, m->metric_name, strlen(m->metric_name),
                         m, NULL, (void (*)(void *))mtev_memory_safe_free);
     return mtev_true;
   }
@@ -2524,7 +2525,7 @@ noit_stats_get_metric(noit_check_t *check,
     return NULL;
   if(newstate == NULL)
     newstate = stats_inprogress(check);
-  if(mtev_hash_retrieve(&newstate->metrics, name_copy, strlen(name_copy), &v))
+  if(mtev_hash_retrieve(&newstate->name_to_metric, name_copy, strlen(name_copy), &v))
     return (metric_t *)v;
   return NULL;
 }
@@ -2847,7 +2848,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
   while(next && mtev_skiplist_data(next) && nwatches < 8192) {
     noit_check_t *wcheck = mtev_skiplist_data(next);
     if(mtev_uuid_compare(n.checkid, wcheck->checkid)) break;
-    watches[nwatches++] = wcheck;
+    watches[nwatches++] = noit_check_ref(wcheck);
     mtev_skiplist_next(watchlist, &next);
   }
   pthread_mutex_unlock(&polls_lock);
@@ -2867,6 +2868,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
     }
     /* Swap them back out */
     wcheck->statistics = backup;
+    noit_check_deref(wcheck);
   }
 }
 static void
@@ -2884,10 +2886,10 @@ stats_merge(stats_t *tgt, stats_t *src) {
   tgt->state = src->state;
   tgt->duration = src->duration;
 
-  while(mtev_hash_next(&src->metrics, &iter, &name, &namelen, &vm)) {
+  while(mtev_hash_next(&src->name_to_metric, &iter, &name, &namelen, &vm)) {
     __stats_add_metric(tgt, (metric_t *)vm);
   }
-  mtev_hash_delete_all(&src->metrics, NULL, NULL);
+  mtev_hash_delete_all(&src->name_to_metric, NULL, NULL);
 }
 void
 noit_check_set_stats(noit_check_t *check) {
