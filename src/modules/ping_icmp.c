@@ -342,6 +342,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if((check->generation & 0xffff) != payload->generation) {
       mtevLT(nldeb, now,
              "ping_icmp response in generation gap\n");
+      noit_check_deref(check);
       continue;
     }
     data = (struct check_info *)check->closure;
@@ -351,6 +352,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if(!data->timeout_event) {
       mtevLT(nldeb, now,
              "ping_icmp response timeout/completion for check '%s'\n", uuid_str);
+      noit_check_deref(check);
       continue;
     }
 
@@ -358,16 +360,19 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if(payload->check_no != data->check_no) {
       mtevLT(nldeb, now,
              "ping_icmp response check number mismatch for check '%s'\n", uuid_str);
+      noit_check_deref(check);
       continue;
     }
     if(payload->check_pack_cnt != data->expected_count) {
       mtevLT(nldeb, now,
              "ping_icmp response check packet count mismatch for check '%s'\n", uuid_str);
+      noit_check_deref(check);
       continue;
     }
     if(payload->check_pack_no >= data->expected_count) { 
       mtevLT(nldeb, now,
              "ping_icmp response check packet number mismatch for check '%s'\n", uuid_str);
+      noit_check_deref(check);
       continue;
     }
 
@@ -392,14 +397,15 @@ static int ping_icmp_handler(eventer_t e, int mask,
         ping_icmp_log_results(self, check);
         eventer_t olde = eventer_remove(data->timeout_event);
         if(olde) {
-          eventer_remove(olde);
           free(eventer_get_closure(olde));
           eventer_deref(olde);
           eventer_deref(olde);
+          noit_check_deref(check);
           data->timeout_event = NULL;
         }
       }
     }
+    noit_check_deref(check);
   }
   return EVENTER_READ;
 }
@@ -686,7 +692,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
 
     pcl = calloc(1, sizeof(*pcl));
     pcl->self = self;
-    pcl->check = check;
+    pcl->check = noit_check_ref(check);
     pcl->payload = icp;
     pcl->payload_len = packet_len;
     pcl->icp_len = icp_len;
@@ -698,7 +704,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   pcl = calloc(1, sizeof(*pcl));
   pcl->self = self;
-  pcl->check = check;
+  pcl->check = noit_check_ref(check);
   newe = eventer_in(ping_icmp_timeout, pcl, p_int);
   ci->timeout_event = newe;
   eventer_add(newe);
