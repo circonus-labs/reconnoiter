@@ -115,14 +115,6 @@ noit_lua/snmp.so:	noit_lua_snmp.lo
 		mv noit_lua/snmp.@MODULEEXT@ noit_lua/snmp.so; \
 	fi
 
-postgres.@MODULEEXT@:	postgres.lo
-	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ postgres.lo $(PGLIBS) -lz -lssl -lcrypto
-
-postgres.lo:	postgres.c postgres.xmlh
-	@echo "- compiling $<"
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
-
 postgres_ingestor.@MODULEEXT@:	postgres_ingestor.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ postgres_ingestor.lo $(PGLIBS) -lz -lssl -lcrypto
@@ -180,14 +172,6 @@ rabbitmq_driver.lo:	rabbitmq_driver.c rabbitmq_driver.xmlh
 rabbitmq_driver.@MODULEEXT@:    $(RABBITMQ_DRIVER_OBJS)
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(RABBITMQ_DRIVER_OBJS)
-
-mysql.@MODULEEXT@:	mysql.lo
-	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ mysql.lo $(MYLIBS)
-
-mysql.lo:	mysql.c mysql.xmlh
-	@echo "- compiling $<"
-	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(MYCFLAGS) -c $< -o $@
 
 dns.@MODULEEXT@:	dns.lo
 	@echo "- linking $@"
