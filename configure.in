@@ -349,7 +349,7 @@ AC_TRY_LINK([
 	],
 	[ PGconn *dbh = PQconnectdb(""); (void)dbh; ],
 	[
-		BUILD_MODULES="$BUILD_MODULES postgres.$MODULEEXT"
+		BUILD_MODULES="$BUILD_MODULES"
 		BUILD_SMODULES="$BUILD_SMODULES postgres_ingestor.$MODULEEXT"
 		POSTGRES_MODULE="yes"
 		POSTGRES_INGESTOR_MODULE="yes"
