@@ -13,7 +13,6 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/jmx.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/lua.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/mongodb.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/mysql.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.carbon.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.cim.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.circonuswindowsagent.xml"/>
@@ -46,7 +45,6 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.varnish.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/opentsdb.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ping_icmp.xml"/>
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/postgres.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/prometheus.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/resolver_cache.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/reverse_check.xml"/>
