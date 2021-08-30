@@ -8,7 +8,6 @@
  	NetSNMP is required for the lua-snmp bindings that power OID lookups.  The standard SNMP querying implementation is in Java and shipped with the repo.  There pure-C SNMP check requires patches to NetSNMP (producing libnetsnmp-c) and patches are provided in the reconnoiter tree for the bold
  * Fq is required if you want FQ drivers
  * apr is required if you want to build STOMP drivers.
- * mysql libraries for pure-C mysql client (Java recommended)
  * libssh2 is required for the ssh2 check.
  * pickletools for the graphite check.
 
