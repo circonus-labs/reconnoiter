@@ -6,13 +6,13 @@
     <varlistentry>
       <term>loader</term>
       <listitem>
-        <para>C</para>
+        <para>lua</para>
       </listitem>
     </varlistentry>
     <varlistentry>
-      <term>image</term>
+      <term>object</term>
       <listitem>
-        <para>postgres.so</para>
+        <para>noit.module.jezebel</para>
       </listitem>
     </varlistentry>
   </variablelist>
@@ -71,7 +71,7 @@
       <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
-          &lt;module image="postgres" name="postgres"/&gt;
+          &lt;module loader="lua" name="postgres" object="noit.module.jezebel"/&gt;
         &lt;/modules&gt;
         &lt;checks&gt;
           &lt;databases&gt;
