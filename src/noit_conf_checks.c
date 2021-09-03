@@ -507,6 +507,7 @@ noit_console_get_running_stats(mtev_console_closure_t ncct,
     }
     if(NOIT_CHECK_DELETED(check)) {
       /* Nothing more to do here */
+      noit_check_deref(check);
       return;
     }
 
@@ -962,12 +963,14 @@ conf_t_check_prompt(EditLine *el) {
      check->name && check->name[0]) {
     snprintf(info->prompt, sizeof(info->prompt),
              pfmt, check->target, "`", check->name);
-    noit_check_deref(check);
   }
   else {
     char uuid_str[37];
     mtev_uuid_unparse_lower(info->current_check, uuid_str);
     snprintf(info->prompt, sizeof(info->prompt), pfmt, "[", uuid_str, "]");
+  }
+  if (check) {
+    noit_check_deref(check);
   }
   return info->prompt;
 }
@@ -1056,8 +1059,7 @@ replace_config(mtev_console_closure_t ncct,
      * This is the counterpart noted above.
      */
     if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
-      noit_check_t *check;
-      check = noit_poller_lookup(checkid);
+      noit_check_t *check = noit_poller_lookup(checkid);
       if(NOIT_CHECK_LIVE(check)) active++;
       noit_check_deref(check);
     }

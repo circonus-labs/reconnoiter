@@ -876,6 +876,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   }
   mtev_hash_destroy(options, free, free);
   free(options);
+  noit_check_deref((noit_check_t *)vcheck);
 }
 void *
 noit_poller_check_found_and_backdated(uuid_t uuid, int64_t config_seq, int *found, mtev_boolean *backdated) {
@@ -889,6 +890,7 @@ noit_poller_check_found_and_backdated(uuid_t uuid, int64_t config_seq, int *foun
 
     /* Otherwise note a non-increasing sequence */
     if(check->config_seq > config_seq) *backdated = mtev_true;
+    noit_check_ref(check);
   }
   pthread_mutex_unlock(&polls_lock);
   return vcheck;
@@ -1272,7 +1274,11 @@ noit_check_watch(uuid_t in, int period) {
     n.period = period;
     if(mtev_skiplist_find(watchlist, &n, NULL) == NULL) {
       mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
-      mtev_skiplist_insert(watchlist, noit_check_ref(f));
+      if (!mtev_skiplist_insert(watchlist, noit_check_ref(f))) {
+        // If the insert failed, it was already on the list
+        // We should deref
+        noit_check_deref(f);
+      }
     }
     return f;
   }
@@ -1286,6 +1292,7 @@ noit_check_watch(uuid_t in, int period) {
     if (f->transient_period_granularity < 0) {
       granularity_pi = f->transient_period_granularity;
     }
+    noit_check_deref(f);
   }
   else {
     if (noit_check_get_lmdb_instance()) {
@@ -1338,14 +1345,20 @@ noit_check_watch(uuid_t in, int period) {
   n.period = period;
 
   f = mtev_skiplist_find(watchlist, &n, NULL);
-  if(f) return f;
+  if(f) {
+    return noit_check_ref(f);
+  }
   f = noit_check_clone(in);
   if(!f) return NULL;
   f->period = period;
   f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
   mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
-  mtev_skiplist_insert(watchlist, noit_check_ref(f));
+  if (!mtev_skiplist_insert(watchlist, noit_check_ref(f))) {
+    // If the insert failed, it was already on the list
+    // We should deref
+    noit_check_deref(f);
+  }
   return f;
 }
 
@@ -3729,6 +3742,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     free(moptions);
   }
   mtev_hash_destroy(&options, free, free);
+  noit_check_deref((noit_check_t *)vcheck);
 
   return rc;
 }
