@@ -1443,9 +1443,12 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
     mtev_uuid_unparse_lower(check->checkid, uuid_str);
     mtevL(check_debug, "Unwatching %s@%d\n", uuid_str, check->period);
     pthread_mutex_lock(&watchlist_lock);
-    mtev_skiplist_remove(watchlist, check, NULL);
+
+    if (mtev_skiplist_remove(watchlist, check, NULL)) {
+      noit_check_deref(check);
+    }
+
     pthread_mutex_unlock(&watchlist_lock);
-    noit_check_deref(check);
     mtev_skiplist_destroy(check->feeds, free);
     free(check->feeds);
     check->feeds = NULL;
