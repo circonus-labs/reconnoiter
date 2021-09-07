@@ -899,9 +899,13 @@ noit_poller_check_found_and_backdated(uuid_t uuid, int64_t config_seq, int *foun
     /* Otherwise note a non-increasing sequence */
     if(check->config_seq > config_seq) *backdated = mtev_true;
     noit_check_ref(check);
+    pthread_mutex_unlock(&polls_lock);
+    return check;
   }
-  pthread_mutex_unlock(&polls_lock);
-  return NULL;
+  else {
+    pthread_mutex_unlock(&polls_lock);
+    return NULL;
+  }
 }
 void
 noit_poller_process_checks(const char *xpath) {
@@ -3019,20 +3023,19 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
                             int argc, char **argv,
                             mtev_console_state_t *dstate,
                             void *closure) {
-  mtev_skiplist_node *iter, *fiter;
-  int nwatches = 0, i;
+  int nwatches = 0;
   noit_check_t *watches[8192];
 
   nc_printf(ncct, "%d active watches.\n", mtev_skiplist_size(watchlist));
   pthread_mutex_lock(&watchlist_lock);
-  for(iter = mtev_skiplist_getlist(watchlist); iter && nwatches < 8192;
+  for(mtev_skiplist_node *iter = mtev_skiplist_getlist(watchlist); iter && nwatches < 8192;
       mtev_skiplist_next(watchlist, &iter)) {
     noit_check_t *check = mtev_skiplist_data(iter);
     watches[nwatches++] = noit_check_ref(check);
   }
   pthread_mutex_unlock(&watchlist_lock);
 
-  for(i=0;i<nwatches;i++) {
+  for(int i=0;i<nwatches;i++) {
     noit_check_t *check = watches[i];
     char uuid_str[UUID_STR_LEN + 1];
 
@@ -3041,7 +3044,7 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
               uuid_str, check->target, check->module, check->name,
               check->period, check->feeds ? mtev_skiplist_size(check->feeds) : 0);
     if(check->feeds && mtev_skiplist_size(check->feeds)) {
-      for(fiter = mtev_skiplist_getlist(check->feeds); fiter;
+      for(mtev_skiplist_node *fiter = mtev_skiplist_getlist(check->feeds); fiter;
           mtev_skiplist_next(check->feeds, &fiter)) {
         nc_printf(ncct, "\t\t%s\n", (const char *)mtev_skiplist_data(fiter));
       }
