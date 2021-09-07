@@ -314,6 +314,7 @@ static pthread_mutex_t recycling_lock = PTHREAD_MUTEX_INITIALIZER;
 static mtev_hash_table polls;
 static mtev_hash_table dns_ignore_list;
 static mtev_skiplist *watchlist;
+static pthread_mutex_t watchlist_lock = PTHREAD_MUTEX_INITIALIZER;
 static mtev_skiplist *polls_by_name;
 static uint32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
@@ -453,7 +454,13 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char 
     mtevAssert(new_check->name || newname);
     /* This remove could fail -- no big deal */
     if(new_check->name != NULL) {
-      mtevAssert(mtev_skiplist_remove(polls_by_name, new_check, NULL));
+      mtev_skiplist_node *it;
+      noit_check_t *found = mtev_skiplist_find(polls_by_name, new_check, &it);
+
+      if (found) {
+        noit_check_deref(found);
+        mtev_skiplist_remove_node(polls_by_name, it, NULL);
+      }
     }
 
     /* optional update the name (at the critical point) */
@@ -468,11 +475,12 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname, const char 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
     rv = 0;
-    if(!mtev_skiplist_insert(polls_by_name, new_check)) {
+    if(!mtev_skiplist_insert(polls_by_name, noit_check_ref(new_check))) {
       mtevL(check_error, "Check %s`%s disabled due to naming conflict\n",
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
       rv = -1;
+      noit_check_deref(new_check);
     }
     if(oldname) free(oldname);
   } else {
@@ -703,7 +711,7 @@ noit_check_fake_last_check(noit_check_t *check,
 }
 static void
 noit_poller_process_check_conf(mtev_conf_section_t section) {
-  void *vcheck;
+  noit_check_t *check;
   char uuid_str[37];
   char target[256] = "";
   char module[256] = "";
@@ -849,13 +857,13 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   flags |= noit_calc_rtype_flag(resolve_rtype);
 
-  vcheck = noit_poller_check_found_and_backdated(uuid, config_seq, &found, &backdated);
+  check = noit_poller_check_found_and_backdated(uuid, config_seq, &found, &backdated);
 
   if(found)
     noit_poller_deschedule(uuid, mtev_false, mtev_true);
   if(backdated) {
     mtevL(check_error, "Check config seq backwards, ignored\n");
-    if(found) noit_check_log_delete((noit_check_t *)vcheck);
+    if(found) noit_check_log_delete(check);
   }
   else {
     noit_poller_schedule(target, module, name, filterset, options,
@@ -876,9 +884,9 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   }
   mtev_hash_destroy(options, free, free);
   free(options);
-  noit_check_deref((noit_check_t *)vcheck);
+  noit_check_deref(check);
 }
-void *
+noit_check_t *
 noit_poller_check_found_and_backdated(uuid_t uuid, int64_t config_seq, int *found, mtev_boolean *backdated) {
   void *vcheck = NULL;
   pthread_mutex_lock(&polls_lock);
@@ -893,7 +901,7 @@ noit_poller_check_found_and_backdated(uuid_t uuid, int64_t config_seq, int *foun
     noit_check_ref(check);
   }
   pthread_mutex_unlock(&polls_lock);
-  return vcheck;
+  return NULL;
 }
 void
 noit_poller_process_checks(const char *xpath) {
@@ -1272,13 +1280,11 @@ noit_check_watch(uuid_t in, int period) {
     mtev_uuid_copy(n.checkid, in);
     f = noit_poller_lookup(in);
     n.period = period;
-    if(mtev_skiplist_find(watchlist, &n, NULL) == NULL) {
+    if (mtev_skiplist_insert(watchlist, noit_check_ref(f))) {
       mtevL(check_debug, "Watching %s@%d\n", uuid_str, period);
-      if (!mtev_skiplist_insert(watchlist, noit_check_ref(f))) {
-        // If the insert failed, it was already on the list
-        // We should deref
-        noit_check_deref(f);
-      }
+    }
+    else {
+      noit_check_deref(f);
     }
     return f;
   }
@@ -1344,10 +1350,14 @@ noit_check_watch(uuid_t in, int period) {
   mtev_uuid_copy(n.checkid, in);
   n.period = period;
 
+  pthread_mutex_lock(&watchlist_lock);
   f = mtev_skiplist_find(watchlist, &n, NULL);
   if(f) {
-    return noit_check_ref(f);
+    noit_check_ref(f);
+    pthread_mutex_unlock(&watchlist_lock);
+    return f;
   }
+  pthread_mutex_unlock(&watchlist_lock);
   f = noit_check_clone(in);
   if(!f) return NULL;
   f->period = period;
@@ -1376,8 +1386,11 @@ noit_check_get_watch(uuid_t in, int period) {
     }
   }
 
+  pthread_mutex_lock(&watchlist_lock);
   f = mtev_skiplist_find(watchlist, &n, NULL);
-  return noit_check_ref(f);
+  noit_check_ref(f);
+  pthread_mutex_unlock(&watchlist_lock);
+  return f;
 }
 
 void
@@ -1425,7 +1438,10 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
     char uuid_str[UUID_STR_LEN + 1];
     mtev_uuid_unparse_lower(check->checkid, uuid_str);
     mtevL(check_debug, "Unwatching %s@%d\n", uuid_str, check->period);
+    pthread_mutex_lock(&watchlist_lock);
     mtev_skiplist_remove(watchlist, check, NULL);
+    pthread_mutex_unlock(&watchlist_lock);
+    noit_check_deref(check);
     mtev_skiplist_destroy(check->feeds, free);
     free(check->feeds);
     check->feeds = NULL;
@@ -1737,8 +1753,8 @@ noit_poller_schedule(const char *target,
                      uuid_t in,
                      uuid_t out) {
   noit_check_t *new_check = calloc(1, sizeof(*new_check));
-  new_check->ref_cnt = 1;
 
+  new_check->ref_cnt = 2;
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
 
   /* The module and the UUID can never be changed */
@@ -1757,7 +1773,7 @@ noit_poller_schedule(const char *target,
                     new_check, NULL, (NoitHashFreeFunc)noit_poller_free_check);
   mtev_uuid_copy(out, new_check->checkid);
   noit_check_log_check(new_check);
-
+  noit_check_deref(new_check);
   return 0;
 }
 
@@ -1801,9 +1817,10 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
   }
 
   noit_check_t *existing = noit_poller_lookup_by_name__nolock(checker->target, checker->name);
+
   mtevAssert(existing != checker);
-  noit_check_deref(checker);
   noit_check_deref(existing);
+  noit_check_deref(checker);
 }
 void
 noit_poller_free_check(noit_check_t *checker) {
@@ -1869,6 +1886,38 @@ check_recycle_bin_processor_internal_cleanup_lmdb(struct check_remove_todo *head
     free(tofree);
   }
 }
+static int
+noit_poller_deschedule_no_lock(uuid_t in, mtev_boolean log, mtev_boolean readding) {
+  void *vcheck;
+  noit_check_t *checker;
+
+  if(mtev_hash_retrieve(&polls,
+                        (char *)in, UUID_SIZE,
+                        &vcheck) == 0) {
+    return -1;
+  }
+  checker = (noit_check_t *)vcheck;
+  checker->flags |= (NP_DISABLED|NP_KILLED|NP_DELETED);
+  noit_check_ref(checker);
+
+  if(log) noit_check_log_delete(checker);
+
+  if(checker->config_seq == 0 || readding) {
+    mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
+    noit_check_deref(checker);
+    mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
+    noit_check_deref(checker);
+  }
+
+  check_deleted_hook_invoke(checker);
+
+  if(checker->config_seq == 0 || readding) {
+    noit_poller_free_check(checker);
+    return 1;
+  }
+
+  return 0;
+}
 static void
 check_recycle_bin_processor_internal() {
   struct check_remove_todo *head = NULL;
@@ -1889,7 +1938,7 @@ check_recycle_bin_processor_internal() {
       mtevL(check_debug, "cluster delete of %s complete.\n", idstr);
       /* Set the config_seq to zero so it can be truly descheduled */
       check->config_seq = 0;
-      noit_poller_deschedule(check->checkid, mtev_true, mtev_false);
+      noit_poller_deschedule_no_lock(check->checkid, mtev_true, mtev_false);
     }
   }
   pthread_mutex_unlock(&polls_lock);
@@ -1945,31 +1994,12 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
 
 int
 noit_poller_deschedule(uuid_t in, mtev_boolean log, mtev_boolean readding) {
-  void *vcheck;
-  noit_check_t *checker;
-  if(mtev_hash_retrieve(&polls,
-                        (char *)in, UUID_SIZE,
-                        &vcheck) == 0) {
-    return -1;
-  }
-  checker = (noit_check_t *)vcheck;
-  checker->flags |= (NP_DISABLED|NP_KILLED|NP_DELETED);
+  int rc;
 
-  if(log) noit_check_log_delete(checker);
-
-  if(checker->config_seq == 0 || readding) {
-    mtevAssert(mtev_skiplist_remove(polls_by_name, checker, NULL));
-    mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
-  }
-
-  check_deleted_hook_invoke(checker);
-
-  if(checker->config_seq == 0 || readding) {
-    noit_poller_free_check(checker);
-    return 1;
-  }
-
-  return 0;
+  pthread_mutex_lock(&polls_lock);
+  rc = noit_poller_deschedule_no_lock(in, log, readding);
+  pthread_mutex_unlock(&polls_lock);
+  return rc;
 }
 
 noit_check_t *
@@ -2267,11 +2297,7 @@ noit_check_t *noit_check_ref(noit_check_t *check) {
 }
 void noit_check_deref(noit_check_t *check) {
   if (check) {
-    bool done;
-
-    ck_pr_dec_int_zero(&check->ref_cnt, &done);
-
-    if (done) {
+    if (ck_pr_dec_int_is_zero(&check->ref_cnt)) {
       noit_check_safe_release(check);
     }
   }
@@ -2856,7 +2882,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
 
   noit_check_set_stats(check);
 
-  pthread_mutex_lock(&polls_lock);
+  pthread_mutex_lock(&watchlist_lock);
   mtev_skiplist_find_neighbors(watchlist, &n, NULL, NULL, &next);
   while(next && mtev_skiplist_data(next) && nwatches < 8192) {
     noit_check_t *wcheck = mtev_skiplist_data(next);
@@ -2864,7 +2890,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
     watches[nwatches++] = noit_check_ref(wcheck);
     mtev_skiplist_next(watchlist, &next);
   }
-  pthread_mutex_unlock(&polls_lock);
+  pthread_mutex_unlock(&watchlist_lock);
 
   for(i=0;i<nwatches;i++) {
     void *backup;
@@ -2998,13 +3024,13 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
   noit_check_t *watches[8192];
 
   nc_printf(ncct, "%d active watches.\n", mtev_skiplist_size(watchlist));
-  pthread_mutex_lock(&polls_lock);
+  pthread_mutex_lock(&watchlist_lock);
   for(iter = mtev_skiplist_getlist(watchlist); iter && nwatches < 8192;
       mtev_skiplist_next(watchlist, &iter)) {
     noit_check_t *check = mtev_skiplist_data(iter);
-    watches[nwatches++] = check;
+    watches[nwatches++] = noit_check_ref(check);
   }
-  pthread_mutex_unlock(&polls_lock);
+  pthread_mutex_unlock(&watchlist_lock);
 
   for(i=0;i<nwatches;i++) {
     noit_check_t *check = watches[i];
@@ -3020,6 +3046,7 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
         nc_printf(ncct, "\t\t%s\n", (const char *)mtev_skiplist_data(fiter));
       }
     }
+    noit_check_deref(check);
   }
   return 0;
 }
@@ -3468,7 +3495,7 @@ noit_check_process_repl(xmlDocPtr doc) {
  * It is the responsibility of the caller to handle this */
 int
 noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t checkid) {
-  void *vcheck = NULL;
+  noit_check_t *check = NULL;
   int rc = 0;
   char uuid_str[37];
   char target[256] = "";
@@ -3709,7 +3736,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
 
   flags |= noit_calc_rtype_flag(resolve_rtype);
 
-  vcheck = noit_poller_check_found_and_backdated(checkid, config_seq, &found, &backdated);
+  check = noit_poller_check_found_and_backdated(checkid, config_seq, &found, &backdated);
 
   if(found) {
     noit_poller_deschedule(checkid, mtev_false, mtev_true);
@@ -3717,7 +3744,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   if(backdated) {
     mtevL(mtev_error, "Check config seq backwards, ignored\n");
     if(found) {
-      noit_check_log_delete((noit_check_t *)vcheck);
+      noit_check_log_delete(check);
     }
   }
   else {
@@ -3742,8 +3769,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
     free(moptions);
   }
   mtev_hash_destroy(&options, free, free);
-  noit_check_deref((noit_check_t *)vcheck);
-
+  noit_check_deref(check);
   return rc;
 }
 

@@ -82,9 +82,9 @@
 #define NP_TRANSIENT             0x00000010
 /* The check requires name service resolution */
 #define NP_RESOLVE               0x00000020
-/* Name service resolution has been compelted for the check */
+/* Name service resolution has been completed for the check */
 #define NP_RESOLVED              0x00000040
-/* The check has been deleted, but is kept as a tombstone */
+/* The check has been deleted but is kept as a tombstone */
 #define NP_DELETED               0x00000080
 /* This check should have 'S' lines suppressed from logging */
 #define NP_SUPPRESS_STATUS       0x00001000
@@ -184,7 +184,7 @@ API_EXPORT(int) noit_poller_check_count();
 API_EXPORT(int) noit_poller_transient_check_count();
 API_EXPORT(void) noit_poller_reload(const char *xpath); /* NULL for all */
 API_EXPORT(void) noit_poller_reload_lmdb(uuid_t *checks, int cnt); /* NULL for all */
-API_EXPORT(void*) noit_poller_check_found_and_backdated(uuid_t uuid,
+API_EXPORT(noit_check_t*) noit_poller_check_found_and_backdated(uuid_t uuid,
                                                         int64_t config_seq,
                                                         int *found,
                                                         mtev_boolean *backdated);
