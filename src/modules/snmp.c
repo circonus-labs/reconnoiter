@@ -1340,7 +1340,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
 
   info->version = SNMP_VERSION_2c;
   info->self = self;
-  info->check = check;
+  info->check = noit_check_ref(check);
   info->timedout = 0;
 
   BAIL_ON_RUNNING_CHECK(check);
@@ -1391,10 +1391,11 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     mtevL(nldeb, "Probing for v3\n");
     if (!magic) goto bail;
     magic->cb = noit_snmp_asynch_response;
-    magic->check = check;
+    magic->check = noit_check_ref(check);
     magic->ts = ts;
-  
+
     if (snmpv3_build_probe_pdu(&probe) != 0) {
+      noit_check_deref(magic->check);
       free(magic);
       goto bail;
     }
@@ -1410,6 +1411,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     if (!snmp_sess_async_send(ts->slp, probe, probe_engine_step1_cb, magic)) {
       ts->refcnt--;
       snmp_free_pdu(probe);
+      noit_check_deref(magic->check);
       free(magic);
       ts->sess_handle->flags &= ~SNMP_FLAGS_DONT_PROBE;
       goto bail;
@@ -1723,6 +1725,18 @@ static int noit_snmp_init(noit_module_t *self) {
   return 0;
 }
 
+static void
+noit_snmp_cleanup(noit_module_t *self, noit_check_t *check) {
+  if (check->closure) {
+    struct check_info *ci = check->closure;
+
+    check->closure = NULL;
+    mtevAssert(check == ci->check);
+    noit_check_deref(ci->check);
+    free(ci);
+  }
+}
+
 #include "snmp.xmlh"
 noit_module_t snmp = {
   {
@@ -1736,7 +1750,7 @@ noit_module_t snmp = {
   noit_snmp_config,
   noit_snmp_init,
   noit_snmp_initiate_check,
-  NULL, /* noit_snmp_cleanup */
+  noit_snmp_cleanup,
   .thread_unsafe = 1
 };
 
@@ -1753,6 +1767,6 @@ noit_module_t snmptrap = {
   noit_snmp_config,
   noit_snmp_init,
   noit_snmptrap_initiate_check,
-  NULL, /* noit_snmp_cleanup */
+  noit_snmp_cleanup,
   .thread_unsafe = 1
 };
