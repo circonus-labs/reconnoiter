@@ -1340,7 +1340,15 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
 
   info->version = SNMP_VERSION_2c;
   info->self = self;
-  info->check = noit_check_ref(check);
+
+  if (info->check != check) {
+    if (info->check) {
+      noit_check_deref(info->check);
+    }
+
+    info->check = noit_check_ref(check);
+  }
+
   info->timedout = 0;
 
   BAIL_ON_RUNNING_CHECK(check);
