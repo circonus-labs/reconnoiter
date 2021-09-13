@@ -350,7 +350,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
 
   /* kick it off, if it isn't running already */
   if(!NOIT_CHECK_LIVE(handler_data->check)) noit_check_activate(handler_data->check);
-
+  mtev_memory_end();
   return 0;
 
  websocket_handler_error:

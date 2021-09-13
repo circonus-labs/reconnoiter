@@ -1177,6 +1177,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   if (rxc) {
     noit_check_deref(rxc->check);
   }
+  mtev_memory_end();
   return 0;
 
  error:
