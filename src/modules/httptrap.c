@@ -992,6 +992,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_hash_table *hdrs;
   uint64_t current_counter = ck_pr_faa_64(&httptrap_count, 1);
 
+  mtev_memory_begin();
   mtevL(nldeb, "httptrap handler initiated for %s (%" PRIu64 ")\n", npats ? pats[0] : "?", current_counter);
 
   if(npats != 2) {
@@ -1190,6 +1191,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
+  mtev_memory_end();
   return 0;
 }
 

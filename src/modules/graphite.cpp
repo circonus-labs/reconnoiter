@@ -36,6 +36,7 @@
 extern "C" {
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -228,6 +229,8 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
   ptrdiff_t d = 0;
   int rv = 0;
 
+  mtev_memory_begin();
+
   for (s = buffer; length && *s; s = e + 1) {
     rv++;
 
@@ -357,6 +360,7 @@ graphite_handle_payload(noit_check_t *check, char *buffer, size_t len)
                                  &tv);
     mtev_dyn_buffer_destroy(&tagged_name);
   }
+  mtev_memory_end();
   return rv;
 }
 

@@ -40,6 +40,7 @@
 #include <mtev_rest.h>
 #include <mtev_hash.h>
 #include <mtev_json.h>
+#include <mtev_memory.h>
 #include <mtev_uuid.h>
 #include <mtev_b64.h>
 #include <mtev_dyn_buffer.h>
@@ -66,6 +67,8 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
   ptrdiff_t length = c_length;
   ptrdiff_t d = 0;
   int rv = 0;
+
+  mtev_memory_begin();
 
   for (s = buffer; length && *s; s = e + 1) {
     rv++;
@@ -253,6 +256,7 @@ opentsdb_handle_payload(noit_check_t *check, char *buffer, size_t len)
                                           &tv);
     mtev_dyn_buffer_destroy(&tagged_name);
   }
+  mtev_memory_end();
   return rv;
 }
 
