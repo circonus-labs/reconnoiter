@@ -605,7 +605,7 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
 } while(0)
 
   int i = 0, j = 0;
-  filterset_t *set = NULL;;
+  filterset_t *set = NULL;
   int64_t seq = 0;
   size_t num_rules = 0;
   /* We need to align the flatbuffer */
@@ -708,7 +708,6 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
       }
       else {
         mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type (%s), skipping...\n", info_type);
-        free(rule);
         continue;
       }
       switch(noit_ns(FiltersetRuleInfo_data_type(rule_info_table))) {
