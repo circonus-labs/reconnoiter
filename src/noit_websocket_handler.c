@@ -371,7 +371,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
     mtevL(noit_error, "websocket error: %s\n", error);
     mtev_json_object_put(e);
   }
-  mtev_memory_begin();
+  mtev_memory_end();
 #endif
   return -1;
 }
