@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 #include <mtev_uuid.h>
 #include <mtev_rand.h>
 
@@ -198,6 +199,8 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   struct check_info *data;
   ping_icmp_data_t *ping_data;
 
+  mtev_memory_begin();
+
   if(!NOIT_CHECK_KILLED(pcl->check) && !NOIT_CHECK_DISABLED(pcl->check)) {
     ping_icmp_log_results(pcl->self, pcl->check);
   }
@@ -216,6 +219,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
     noit_check_deref(pcl->check);
     free(pcl);
   }
+  mtev_memory_end();
   return 0;
 }
 

@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 #include <mtev_str.h>
 #include <mtev_json.h>
 #include <eventer/eventer.h>
@@ -80,6 +81,7 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
 
   if(e != rcl->check->fire_event) return 0;
 
+  mtev_memory_begin();
   eventer_set_closure(e, NULL);
   noit_check_resolve(rcl->check);
   ms = noit_check_schedule_next(rcl->self, NULL, rcl->check, now,
@@ -108,6 +110,7 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
           rcl->check->target, rcl->check->module, rcl->check->name);
   noit_check_deref(rcl->check);
   free(rcl);
+  mtev_memory_end();
   return 0;
 }
 

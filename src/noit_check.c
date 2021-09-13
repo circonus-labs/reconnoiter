@@ -244,22 +244,27 @@ noit_check_stats_metrics(stats_t *s) {
 }
 void
 noit_stats_set_whence(noit_check_t *c, struct timeval *t) {
+  mtevAssert(mtev_memory_in_cs());
   (void)noit_check_stats_whence(noit_check_get_stats_inprogress(c), t);
 }
 void
 noit_stats_set_state(noit_check_t *c, int8_t t) {
+  mtevAssert(mtev_memory_in_cs());
   (void)noit_check_stats_state(noit_check_get_stats_inprogress(c), &t);
 }
 void
 noit_stats_set_duration(noit_check_t *c, uint32_t t) {
+  mtevAssert(mtev_memory_in_cs());
   (void)noit_check_stats_duration(noit_check_get_stats_inprogress(c), &t);
 }
 void
 noit_stats_set_status(noit_check_t *c, const char *s) {
+  mtevAssert(mtev_memory_in_cs());
   (void)noit_check_stats_status(noit_check_get_stats_inprogress(c), s);
 }
 void
 noit_stats_set_available(noit_check_t *c, int8_t t) {
+  mtevAssert(mtev_memory_in_cs());
   (void)noit_check_stats_available(noit_check_get_stats_inprogress(c), &t);
 }
 static void
