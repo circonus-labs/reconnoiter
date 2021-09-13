@@ -39,6 +39,7 @@
 #include <math.h>
 
 #include <mtev_hash.h>
+#include <mtev_memory.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_module.h"
@@ -226,6 +227,8 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
   char feedname_buff[128];
   mtev_log_stream_t feed;
 
+  mtev_memory_begin();
+
   if(mask & (EVENTER_READ | EVENTER_WRITE)) {
     /* this case is impossible from the eventer.  It is called as
      * such on the synchronous completion of the event.
@@ -254,6 +257,7 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
     default:
       mtevFatal(mtev_error, "Unknown mask: 0x%04x\n", mask);
   }
+  mtev_memory_end();
   return 0;
 }
 
