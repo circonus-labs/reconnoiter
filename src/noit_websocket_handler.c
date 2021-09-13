@@ -280,6 +280,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
   struct mtev_json_object *request = mtev_json_tokener_parse_ex(tok, (const char *)msg, msg_len);
   enum mtev_json_tokener_error err = tok->err;
   mtev_json_tokener_free(tok);
+  mtev_memory_begin();
   if (err != mtev_json_tokener_success || !request) {
     error = "Unable to parse incoming json";
     goto websocket_handler_error;
@@ -370,6 +371,7 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
     mtevL(noit_error, "websocket error: %s\n", error);
     mtev_json_object_put(e);
   }
+  mtev_memory_end();
 #endif
   return -1;
 }

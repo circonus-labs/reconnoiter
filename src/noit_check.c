@@ -282,6 +282,7 @@ noit_check_safe_free_stats(void *vs) {
 static stats_t *
 noit_check_stats_alloc() {
   stats_t *n;
+  mtevAssert(mtev_memory_in_cs());
   n = mtev_memory_safe_malloc_cleanup(sizeof(*n), noit_check_safe_free_stats);
   memset(n, 0, sizeof(*n));
   mtev_hash_init_mtev_memory(&n->name_to_metric, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
@@ -389,6 +390,7 @@ noit_check_safe_release(void *p) {
     free(checker->module_configs);
   }
 
+  mtevAssert(mtev_memory_in_cs());
   mtev_memory_safe_free(stats_inprogress(checker));
   mtev_memory_safe_free(stats_current(checker));
   mtev_memory_safe_free(stats_previous(checker));
@@ -1766,6 +1768,7 @@ noit_poller_schedule(const char *target,
                      uuid_t out) {
   noit_check_t *new_check = calloc(1, sizeof(*new_check));
 
+  mtev_memory_begin();
   new_check->ref_cnt = 2;
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
 
@@ -1786,6 +1789,7 @@ noit_poller_schedule(const char *target,
   mtev_uuid_copy(out, new_check->checkid);
   noit_check_log_check(new_check);
   noit_check_deref(new_check);
+  mtev_memory_end();
   return 0;
 }
 
@@ -2369,6 +2373,7 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
 
 static void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
+  mtevAssert(mtev_memory_in_cs());
   mtev_hash_replace(&newstate->name_to_metric, m->metric_name, strlen(m->metric_name),
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
@@ -2376,6 +2381,7 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
 mtev_boolean
 noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean create) {
   void *vm;
+  mtevAssert(mtev_memory_in_cs());
   if(mtev_hash_retrieve(&newstate->name_to_metric,
       m->metric_name, strlen(m->metric_name), &vm)) {
     ((metric_t *)vm)->logged = mtev_true;
@@ -2605,6 +2611,8 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
     return;
   }
 
+  mtevAssert(mtev_memory_in_cs());
+
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
   memset(m, 0, sizeof(*m));
 
@@ -2811,6 +2819,8 @@ record_immediate_metric_with_tagset(noit_check_t *check,
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
   memset(m, 0, sizeof(*m));
 
+  mtevAssert(mtev_memory_in_cs());
+
   if(noit_stats_populate_metric_with_tagset(m, name, type, value)) {
     mtev_memory_safe_free(m);
     return;
@@ -2948,6 +2958,8 @@ noit_check_set_stats(noit_check_t *check) {
   char *cp;
   dep_list_t *dep;
   stats_t *prev = NULL, *current = NULL;
+
+  mtevAssert(mtev_memory_in_cs());
 
   if(check_set_stats_hook_invoke(check) == MTEV_HOOK_ABORT) return;
 

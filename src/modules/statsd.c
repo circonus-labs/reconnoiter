@@ -45,6 +45,7 @@
 #endif
 
 #include <mtev_hash.h>
+#include <mtev_memory.h>
 #include <mtev_rand.h>
 
 #include "noit_module.h"
@@ -312,6 +313,8 @@ statsd_handle_single_message(noit_module_t *const self,
   char ip[INET6_ADDRSTRLEN];
   int nchecks = 0;
 
+  mtev_memory_begin();
+
   switch(addr->in.sin_family) {
   case AF_INET:
     inet_ntop(AF_INET, &addr->in.sin_addr, ip, INET6_ADDRSTRLEN);
@@ -337,6 +340,8 @@ statsd_handle_single_message(noit_module_t *const self,
       noit_check_deref(checks[i]);
     }
   }
+
+  mtev_memory_end();
 }
 
 static int

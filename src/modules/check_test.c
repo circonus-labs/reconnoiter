@@ -109,6 +109,8 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   mtev_hash_table *conf_hash = NULL;
   mtev_hash_table **moptions = NULL;
 
+  mtev_memory_begin();
+
   for(a = attr->children; a; a = a->next) {
     if(!strcmp((char *)a->name, "target"))
       target = (char *)xmlNodeGetContent(a);
@@ -200,6 +202,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   if(module) xmlFree(module);
   if(filterset) xmlFree(filterset);
   if(resolve_rtype) xmlFree(resolve_rtype);
+  mtev_memory_end();
   return c;
 }
 
