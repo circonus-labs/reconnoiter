@@ -164,8 +164,8 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
 
 static int
 noit_lua_module_set_description(lua_State *L) {
-  noit_module_t *module;
-  module = lua_touserdata(L, lua_upvalueindex(1));
+  noit_module_t *module = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   if(lua_gettop(L) == 1) {
     if(pthread_equal(pthread_self(), loader_main_thread)) {
       free((void *)module->hdr.description);
@@ -175,12 +175,13 @@ noit_lua_module_set_description(lua_State *L) {
   else if(lua_gettop(L) > 1)
     luaL_error(L, "wrong number of arguments");
   lua_pushstring(L, module->hdr.description);
+  mtev_memory_end();
   return 1;
 }
 static int
 noit_lua_module_set_name(lua_State *L) {
-  noit_module_t *module;
-  module = lua_touserdata(L, lua_upvalueindex(1));
+  noit_module_t *module = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   if(lua_gettop(L) == 1) {
     if(pthread_equal(pthread_self(), loader_main_thread)) {
       free((void *)module->hdr.name);
@@ -190,12 +191,13 @@ noit_lua_module_set_name(lua_State *L) {
   else if(lua_gettop(L) > 1)
     luaL_error(L, "wrong number of arguments");
   lua_pushstring(L, module->hdr.name);
+  mtev_memory_end();
   return 1;
 }
 static int
 noit_lua_module_set_xml_description(lua_State *L) {
-  noit_module_t *module;
-  module = lua_touserdata(L, lua_upvalueindex(1));
+  noit_module_t *module = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   if(lua_gettop(L) == 1) {
     if(pthread_equal(pthread_self(), loader_main_thread)) {
       free((void *)module->hdr.xml_description);
@@ -205,6 +207,7 @@ noit_lua_module_set_xml_description(lua_State *L) {
   else if(lua_gettop(L) > 1)
     luaL_error(L, "wrong number of arguments");
   lua_pushstring(L, module->hdr.xml_description);
+  mtev_memory_end();
   return 1;
 }
 static int
@@ -259,9 +262,11 @@ noit_lua_get_available(lua_State *L) {
   stats_t *current;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   current = noit_check_get_stats_current(check);
   av[0] = (char)noit_check_stats_available(current, NULL);
   lua_pushstring(L, av);
+  mtev_memory_end();
   return 1;
 }
 static int
@@ -269,7 +274,9 @@ noit_lua_set_available(lua_State *L) {
   noit_check_t *check;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   noit_stats_set_available(check, lua_tointeger(L, lua_upvalueindex(2)));
+  mtev_memory_end();
   return 0;
 }
 static int
@@ -279,9 +286,11 @@ noit_lua_get_state(lua_State *L) {
   stats_t *current;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   current = noit_check_get_stats_current(check);
   status[0] = (char)noit_check_stats_state(current, NULL);
   lua_pushstring(L, status);
+  mtev_memory_end();
   return 1;
 }
 
@@ -379,7 +388,9 @@ noit_lua_set_state(lua_State *L) {
   noit_check_t *check;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   noit_stats_set_state(check, lua_tointeger(L, lua_upvalueindex(2)));
+  mtev_memory_end();
   return 0;
 }
 static int
@@ -388,8 +399,10 @@ noit_lua_set_status(lua_State *L) {
   noit_check_t *check;
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   ns = lua_tostring(L, 1);
   noit_stats_set_status(check, ns);
+  mtev_memory_end();
   return 0;
 }
 static int
@@ -430,6 +443,8 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
   int64_t __l = 0;
   uint64_t __L = 0;
 
+  mtev_memory_begin();
+
   if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
@@ -462,6 +477,7 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
       if(!lua_isnumber(L, 2)) {
         set(check, metric_name, metric_type, NULL, &whence);
         lua_pushboolean(L, 0);
+        mtev_memory_end();
         return 1;
       }
     default:
@@ -499,6 +515,7 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
       luaL_error(L, "illegal metric type: %d", metric_type);
   }
   lua_pushboolean(L, 1);
+  mtev_memory_end();
   return 1;
 }
 
@@ -507,6 +524,7 @@ noit_lua_set_metric_histogram(lua_State *L) {
   noit_check_t *check;
   const char *metric_name;
 
+  mtev_memory_begin();
   if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
@@ -514,10 +532,12 @@ noit_lua_set_metric_histogram(lua_State *L) {
 
   if(lua_isnil(L, 2)) {
     lua_pushboolean(L, 1);
+    mtev_memory_end();
     return 1;
   }
   noit_stats_set_metric_histogram(check, metric_name, mtev_false, METRIC_GUESS, (void *)lua_tostring(L,2), 1);
   lua_pushboolean(L, 1);
+  mtev_memory_end();
   return 1;
 }
 
@@ -529,6 +549,7 @@ noit_lua_set_histo_metric(lua_State *L) {
   const char *hist_encoded;
   uint64_t whence_s;
 
+  mtev_memory_begin();
   if(lua_gettop(L) != 3 && lua_gettop(L) != 4) luaL_error(L, "need arguments: <metric_name> <encoded_histo> <whence_s> [cumulative]");
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
@@ -537,6 +558,7 @@ noit_lua_set_histo_metric(lua_State *L) {
 
   metric_name = lua_tostring(L, 1);
   if(lua_isnil(L, 2)) {
+    mtev_memory_end();
     return luaL_error(L, "argument #2 must not be nil");
   }
 
@@ -547,11 +569,13 @@ noit_lua_set_histo_metric(lua_State *L) {
 
   if(noit_stats_log_immediate_histo(check, metric_name, hist_encoded,
       hist_encoded_len, cumulative, whence_s) == mtev_false) {
+    mtev_memory_end();
     return luaL_error(L,
         "Unable to invoke noit_log_histo_encoded! Did you load the histogram module?!");
   }
 
   lua_pushboolean(L, 1);
+  mtev_memory_end();
   return 1;
 }
 
@@ -559,7 +583,9 @@ static void
 noit_stats_set_metric_ignore_whence(noit_check_t *check,
                       const char *name, metric_type_t type,
                       const void *value, const struct timeval *ignored) {
+  mtev_memory_begin();
   noit_stats_set_metric(check, name, type, value);
+  mtev_memory_end();
 }
 
 static int
@@ -580,6 +606,7 @@ noit_lua_interpolate(lua_State *L) {
 
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
+  mtev_memory_begin();
   if(!lua_isstring(L,1) && !lua_istable(L,1)) {
     luaL_error(L, "noit.check.interpolate(<string|table>)");
   }
@@ -611,6 +638,7 @@ noit_lua_interpolate(lua_State *L) {
     }
   }
   mtev_hash_destroy(&check_attrs_hash, NULL, NULL);
+  mtev_memory_end();
   return 1;
 }
 
@@ -819,7 +847,9 @@ static int gc_the_check(lua_State *L) {
   if(lua_gettop(L) == 1) { 
     noit_check_t *check = lua_touserdata(L, lua_upvalueindex(1));
 
+    mtev_memory_begin();
     noit_check_deref(check);
+    mtev_memory_end();
   }
 
   return 0;
@@ -990,10 +1020,12 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
 
   /* Only set out stats/log if someone has actually performed a check */
+  mtev_memory_begin();
   inprogress = noit_check_get_stats_inprogress(check);
   if(noit_check_stats_state(inprogress,NULL) != NP_UNKNOWN ||
      noit_check_stats_available(inprogress,NULL) != NP_UNKNOWN)
     noit_check_set_stats(check);
+  mtev_memory_end();
 }
 
 int
@@ -1096,6 +1128,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   ci->timed_out = 1;
   mtev_lua_deregister_event(ri, e, 0);
 
+  mtev_memory_begin();
   self = ci->self;
   check = ci->check;
 
@@ -1123,6 +1156,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   }
 
   if(int_cl->free) int_cl->free(int_cl);
+  mtev_memory_end();
   return 0;
 }
 
