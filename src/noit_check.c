@@ -921,9 +921,11 @@ noit_poller_process_checks(const char *xpath) {
   __config_load_generation++;
   mtevL(check_debug, "processing checks\n");
   sec = mtev_conf_get_sections_read(MTEV_CONF_ROOT, xpath, &cnt);
+  mtev_memory_begin();
   for(i=0; i<cnt; i++) {
     noit_poller_process_check_conf(sec[i]);
   }
+  mtev_memory_end();
   mtev_conf_release_sections_read(sec, cnt);
   mtevL(check_debug, "processed %d checks\n", cnt);
 }
@@ -1233,6 +1235,7 @@ noit_check_clone(uuid_t in) {
   if(checker->oncheck) {
     return NULL;
   }
+  mtevAssert(mtev_memory_in_cs());
   new_check = calloc(1, sizeof(*new_check));
   new_check->ref_cnt = 1;
   mtevAssert(new_check != NULL);
@@ -1768,6 +1771,7 @@ noit_poller_schedule(const char *target,
                      uuid_t out) {
   noit_check_t *new_check = calloc(1, sizeof(*new_check));
 
+  mtevAssert(mtev_memory_in_cs());
   mtev_memory_begin();
   new_check->ref_cnt = 2;
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
@@ -3508,7 +3512,9 @@ noit_check_process_repl(xmlDocPtr doc) {
     child = xmlDocCopyNode(child, checks_node->doc, 1);
     xmlAddChild(mtev_conf_section_to_xmlnodeptr(checks), child);
     CONF_DIRTY(section);
+    mtev_memory_begin();
     noit_poller_process_check_conf(section);
+    mtev_memory_end();
     i++;
   }
   mtev_conf_release_section_write(checks);
@@ -3574,6 +3580,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   }
 
   rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_GET_CURRENT);
+  mtev_memory_begin();
   while (rc == 0) {
     noit_lmdb_check_data_t *data = noit_lmdb_check_data_from_key(mdb_key.mv_data);
     mtevAssert(data);
@@ -3799,6 +3806,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   }
   mtev_hash_destroy(&options, free, free);
   noit_check_deref(check);
+  mtev_memory_end();
   return rc;
 }
 
