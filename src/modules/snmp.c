@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -918,11 +919,13 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
   /* We don't deal with refcnt hitting zero here.  We could only be hit from
    * the snmp read/timeout stuff.  Handle it there.
    */
+  mtev_memory_begin();
   mtevL(nldeb, "Received reqid:%d\n", reqid);
 
   info = get_check(reqid);
   if(!info) {
     mtevL(nlerr, "Cannot find reqid in table\n");
+    mtev_memory_end();
     return 1;
   }
   remove_check_req(info, reqid);
@@ -941,6 +944,7 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
     noit_snmp_log_results(info->self, info->check, NULL);
     noit_check_end(info->check);
   }
+  mtev_memory_end();
   return 1;
 }
 
