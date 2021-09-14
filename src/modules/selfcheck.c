@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -157,6 +158,7 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
     crutch.tagged = (format && !strcmp(format, "tagged"));
   }
 
+  mtev_memory_begin();
   mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(check, &now);
@@ -212,6 +214,7 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   noit_jlog_foreach_feed_stats(selfcheck_feed_details, &crutch);
 
   noit_check_set_stats(check);
+  mtev_memory_end();
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \

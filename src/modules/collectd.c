@@ -23,6 +23,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -1414,7 +1415,10 @@ collectd_submit_internal(noit_module_t *self, noit_check_t *check,
 static int
 collectd_submit(noit_module_t *self, noit_check_t *check,
                 noit_check_t *cause) {
-  return collectd_submit_internal(self, check, cause, mtev_false);
+  mtev_memory_begin();
+  const int rc = collectd_submit_internal(self, check, cause, mtev_false);
+  mtev_memory_end();
+  return rc;
 }
 
 struct collectd_pkt {

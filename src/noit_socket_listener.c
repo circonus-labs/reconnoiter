@@ -157,6 +157,7 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
   int stats_count = 0;
   stats_t *s = noit_check_get_stats_inprogress(check);
 
+  mtev_memory_begin();
   mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(check, &now);
@@ -164,14 +165,12 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
 
   /* We just want to set the number of metrics here to the number
    * of metrics in the stats_t struct */
-  mtev_memory_begin();
   if (s) {
     mtev_hash_table *metrics = noit_check_stats_metrics(s);
     if (metrics) {
       stats_count = mtev_hash_size(metrics);
     }
   }
-  mtev_memory_end();
 
   snprintf(human_buffer, sizeof(human_buffer),
            "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
@@ -188,7 +187,7 @@ listener_submit(noit_module_t *self, noit_check_t *check, noit_check_t *cause)
     noit_check_passive_set_stats(check);
 
   memcpy(&check->last_fire_time, &now, sizeof(now));
- 
+  mtev_memory_end();
   return 0;
 }
 

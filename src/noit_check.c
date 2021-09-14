@@ -2842,16 +2842,22 @@ noit_stats_log_immediate_metric_timed(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 const void *value, const struct timeval *whence) {
   char tagged_name[MAX_METRIC_TAGGED_NAME];
+
+  mtev_memory_begin();
+
   if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {
+    mtev_memory_end();
     return;
   }
 
   if(noit_stats_log_immediate_metric_timed_hook_invoke(check, tagged_name, type,
                                                        value, whence) != MTEV_HOOK_CONTINUE) {
+    mtev_memory_end();
     return;
   }
 
   record_immediate_metric_with_tagset(check, tagged_name, type, value, mtev_true, whence);
+  mtev_memory_end();
 }
 void
 noit_stats_log_immediate_metric(noit_check_t *check,

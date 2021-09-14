@@ -431,6 +431,7 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check, cons
   struct timeval duration, now;
   char buff[128];
 
+  mtev_memory_begin();
   mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(check, &now);
@@ -442,7 +443,7 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check, cons
   noit_stats_set_status(check, buff);
 
   noit_check_set_stats(check);
-  return;
+  mtev_memory_end();
 }
 
 static int noit_snmp_session_cleanse(struct target_session *ts,

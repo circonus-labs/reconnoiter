@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -149,6 +150,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   mtevL(data->nldeb, "external(%s) (error: %d, exit: %x)\n",
         check->target, ci->errortype, ci->exit_code);
 
+  mtev_memory_begin();
   mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(check, &now);
@@ -310,6 +312,8 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
           WTERMSIG(ci->exit_code), WCOREDUMP(ci->exit_code)?", cored":"",
           ci->error ? ci->error : "");
   }
+
+  mtev_memory_end();
 }
 static int external_timeout(eventer_t e, int mask,
                             void *closure, struct timeval *now) {
