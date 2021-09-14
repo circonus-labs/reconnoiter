@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -268,6 +269,7 @@ static void dns_check_log_results(struct dns_check_info *ci) {
   double rtt;
   char buff[48];
 
+  mtev_memory_begin();
   mtev_gettimeofday(&now, NULL);
   sub_timeval(now, ci->check->last_fire_time, &duration);
   rtt = duration.tv_sec * 1000.0 + duration.tv_usec / 1000.0;
@@ -290,6 +292,7 @@ static void dns_check_log_results(struct dns_check_info *ci) {
   noit_check_set_stats(ci->check);
   if(ci->error) free(ci->error);
   ci->error = NULL;
+  mtev_memory_end();
 }
 
 static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *key,

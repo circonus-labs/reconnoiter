@@ -31,6 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -116,6 +117,7 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
     char human_buffer[256];
     ccl = (statsd_closure_t*)check->closure;
     mtev_gettimeofday(&now, NULL);
+    mtev_memory_begin();
     sub_timeval(now, check->last_fire_time, &duration);
     noit_stats_set_whence(check, &now);
     noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
@@ -135,6 +137,7 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
       noit_check_passive_set_stats(check);
 
     memcpy(&check->last_fire_time, &now, sizeof(duration));
+    mtev_memory_end();
   }
   ccl->stats_count = 0;
   return 0;

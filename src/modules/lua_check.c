@@ -1046,6 +1046,7 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   stats_t *inprogress;
 
+  mtev_memory_begin();
   mtev_gettimeofday(&ci->finish_time, NULL);
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
@@ -1053,7 +1054,6 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
 
   /* Only set out stats/log if someone has actually performed a check */
-  mtev_memory_begin();
   inprogress = noit_check_get_stats_inprogress(check);
   if(noit_check_stats_state(inprogress,NULL) != NP_UNKNOWN ||
      noit_check_stats_available(inprogress,NULL) != NP_UNKNOWN)

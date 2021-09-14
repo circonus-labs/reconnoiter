@@ -242,6 +242,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
 
   ping_data = noit_module_get_userdata(self);
   uint32_t packets_remaining = packets_per_cycle;
+  mtev_memory_begin();
   while(packets_remaining--) {
     struct ping_session_key k;
     int inlen;
@@ -411,6 +412,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
     noit_check_deref(check);
   }
+  mtev_memory_end();
   return EVENTER_READ;
 }
 static int ping_icmp4_handler(eventer_t e, int mask,

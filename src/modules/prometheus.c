@@ -29,6 +29,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <mtev_defines.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -167,6 +168,7 @@ static int prometheus_submit(noit_module_t *self, noit_check_t *check,
     int stats_count = 0;
     stats_t *s = noit_check_get_stats_inprogress(check);
 
+    mtev_memory_begin();
     mtev_gettimeofday(&now, NULL);
     sub_timeval(now, check->last_fire_time, &duration);
     noit_stats_set_whence(check, &now);
@@ -196,6 +198,7 @@ static int prometheus_submit(noit_module_t *self, noit_check_t *check,
       noit_check_passive_set_stats(check);
 
     memcpy(&check->last_fire_time, &now, sizeof(now));
+    mtev_memory_end();
   }
   return 0;
 }
