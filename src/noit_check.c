@@ -2842,6 +2842,7 @@ noit_stats_log_immediate_metric_timed(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 const void *value, const struct timeval *whence) {
   char tagged_name[MAX_METRIC_TAGGED_NAME];
+
   mtev_memory_begin();
 
   if(noit_check_build_tag_extended_name(tagged_name, sizeof(tagged_name), name, check) <= 0) {

@@ -172,8 +172,11 @@ noit_lua_module_set_description(lua_State *L) {
       module->hdr.description = strdup(lua_tostring(L, 1));
     }
   }
-  else if(lua_gettop(L) > 1)
+  else if(lua_gettop(L) > 1) {
+    mtev_memory_end();
     luaL_error(L, "wrong number of arguments");
+  }
+
   lua_pushstring(L, module->hdr.description);
   mtev_memory_end();
   return 1;
@@ -188,8 +191,11 @@ noit_lua_module_set_name(lua_State *L) {
       module->hdr.name = strdup(lua_tostring(L, 1));
     }
   }
-  else if(lua_gettop(L) > 1)
+  else if(lua_gettop(L) > 1) {
     luaL_error(L, "wrong number of arguments");
+    mtev_memory_end();
+  }
+
   lua_pushstring(L, module->hdr.name);
   mtev_memory_end();
   return 1;
@@ -204,8 +210,10 @@ noit_lua_module_set_xml_description(lua_State *L) {
       module->hdr.xml_description = strdup(lua_tostring(L, 1));
     }
   }
-  else if(lua_gettop(L) > 1)
+  else if(lua_gettop(L) > 1) {
+    mtev_memory_end();
     luaL_error(L, "wrong number of arguments");
+  }
   lua_pushstring(L, module->hdr.xml_description);
   mtev_memory_end();
   return 1;
@@ -445,9 +453,15 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
 
   mtev_memory_begin();
 
-  if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
+  if(lua_gettop(L) < 2 || lua_gettop(L) > 4) {
+    mtev_memory_end();
+    luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
+  }
   check = lua_touserdata(L, lua_upvalueindex(1));
-  if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
+  if(!lua_isstring(L, 1)) {
+    mtev_memory_end();
+    luaL_error(L, "argument #1 must be a string");
+  }
   metric_name = lua_tostring(L, 1);
   metric_type = lua_tointeger(L, lua_upvalueindex(2));
 
@@ -512,6 +526,7 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
     case METRIC_HISTOGRAM:
     case METRIC_HISTOGRAM_CUMULATIVE:
     case METRIC_ABSENT:
+      mtev_memory_end();
       luaL_error(L, "illegal metric type: %d", metric_type);
   }
   lua_pushboolean(L, 1);
@@ -525,9 +540,15 @@ noit_lua_set_metric_histogram(lua_State *L) {
   const char *metric_name;
 
   mtev_memory_begin();
-  if(lua_gettop(L) < 2 || lua_gettop(L) > 4) luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
+  if(lua_gettop(L) < 2 || lua_gettop(L) > 4) {
+    mtev_memory_end();
+    luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
+  }
   check = lua_touserdata(L, lua_upvalueindex(1));
-  if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
+  if(!lua_isstring(L, 1)) {
+    mtev_memory_end();
+    luaL_error(L, "argument #1 must be a string");
+  }
   metric_name = lua_tostring(L, 1);
 
   if(lua_isnil(L, 2)) {
@@ -550,11 +571,23 @@ noit_lua_set_histo_metric(lua_State *L) {
   uint64_t whence_s;
 
   mtev_memory_begin();
-  if(lua_gettop(L) != 3 && lua_gettop(L) != 4) luaL_error(L, "need arguments: <metric_name> <encoded_histo> <whence_s> [cumulative]");
+  if(lua_gettop(L) != 3 && lua_gettop(L) != 4) {
+    mtev_memory_end();
+    luaL_error(L, "need arguments: <metric_name> <encoded_histo> <whence_s> [cumulative]");
+  }
   check = lua_touserdata(L, lua_upvalueindex(1));
-  if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
-  if(!lua_isstring(L, 2)) luaL_error(L, "argument #2 must be a string");
-  if(!lua_isnumber(L, 3)) luaL_error(L, "argument #3 must be a number");
+  if(!lua_isstring(L, 1)) {
+    mtev_memory_end();
+    luaL_error(L, "argument #1 must be a string");
+  }
+  if(!lua_isstring(L, 2)) {
+    mtev_memory_end();
+    luaL_error(L, "argument #2 must be a string");
+  }
+  if(!lua_isnumber(L, 3)) {
+    mtev_memory_end();
+    luaL_error(L, "argument #3 must be a number");
+  }
 
   metric_name = lua_tostring(L, 1);
   if(lua_isnil(L, 2)) {
