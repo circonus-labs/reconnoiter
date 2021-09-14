@@ -192,8 +192,8 @@ noit_lua_module_set_name(lua_State *L) {
     }
   }
   else if(lua_gettop(L) > 1) {
-    luaL_error(L, "wrong number of arguments");
     mtev_memory_end();
+    luaL_error(L, "wrong number of arguments");
   }
 
   lua_pushstring(L, module->hdr.name);
