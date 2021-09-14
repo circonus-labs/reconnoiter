@@ -855,7 +855,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
       noit_check_passive_set_stats(check);
 
     memcpy(&check->last_fire_time, &now, sizeof(now));
-    mtev_memory_begin();
+    mtev_memory_end();
   }
   return 0;
 }
