@@ -31,6 +31,7 @@
 #include "noit_check.h"
 #include "noit_check_rest.h"
 #include "noit_lmdb_tools.h"
+#include <mtev_memory.h>
 #include <mtev_uuid.h>
 #include <mtev_watchdog.h>
 
@@ -1227,11 +1228,15 @@ void
 noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
   int i = 0;
   if (!uuids) {
+    mtev_memory_begin();
     noit_check_lmdb_poller_process_all_checks();
+    mtev_memory_end();
   }
   else {
     for (i = 0; i < uuid_cnt; i++) {
+      mtev_memory_begin();
       noit_check_lmdb_poller_process_check(uuids[i]);
+      mtev_memory_end();
     }
   }
 }
