@@ -272,6 +272,7 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
   if(check->flags & NP_TRANSIENT) return 0;
 
   mtev_gettimeofday(&now, NULL);
+  mtev_memory_begin();
 
   /* If we're immediately logging things and we've done so within the
    * check's period... we've no reason to passively log now.
@@ -290,8 +291,6 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
     /*  Don't count the first run */
     char human_buffer[256];
     gcl = (ganglia_closure_t*)check->closure; 
-
-    mtev_memory_begin();
     noit_stats_set_whence(check, &now);
     sub_timeval(now, check->last_fire_time, &duration);
     noit_stats_set_duration(check, duration.tv_sec);
@@ -310,9 +309,9 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
       noit_check_passive_set_stats(check);
 
     memcpy(&check->last_fire_time, &now, sizeof(duration));
-    mtev_memory_end();
   }
   clear_closure(check, gcl);
+  mtev_memory_end();
   return 0;
 }
 
