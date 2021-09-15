@@ -1072,6 +1072,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       }
       if(!pthread_equal(eventer_get_owner(e), tgt)) {
         eventer_set_owner(e, tgt);
+        mtev_memory_end();
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }
@@ -1097,6 +1098,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   if(rxc == NULL && !complete)
   {
     mtevL(nldeb, "Payload read abort with mask %d for %s (%" PRIu64 ")\n", mask, pats[0], current_counter);
+    mtev_memory_end();
     return mask;
   }
 
