@@ -641,7 +641,12 @@ noit_check_lmdb_set_check_complete(mtev_http_rest_closure_t *restc,
     return 0;
   }
   else {
-    return noit_check_lmdb_show_check(restc, npats, pats);
+    int rv;
+
+    mtev_memory_begin();
+    rv = noit_check_lmdb_show_check(restc, npats, pats);
+    mtev_memory_end();
+    return rv;
   }
   /* Unreachable */
   return 0;

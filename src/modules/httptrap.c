@@ -754,14 +754,8 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   char buffer[32768];
 
   rxc = restc->call_closure;
-  if (!rxc->check) {
-    rxc->check = noit_poller_lookup(rxc->check_id);
-  }
-  if (!rxc->check) {
-    rxc->error = strdup("Unable to retrieve check");
-    *complete = 1;
-    return NULL;
-  }
+  mtevAssert(rxc);
+  mtevAssert(rxc->check);
 
   if(!strcmp(rxc->check->module, "httptrap")) ccl = rxc->check->closure;
   rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : global_self, rxc->check);

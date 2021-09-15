@@ -550,8 +550,12 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   void *data;
   mtev_hash_table *configh;
 
+  mtev_memory_begin();
+
   if(noit_check_get_lmdb_instance()) {
-    return noit_check_lmdb_show_check(restc, npats, pats);
+    rv = noit_check_lmdb_show_check(restc, npats, pats);
+    mtev_memory_end();
+    return rv;
   }
   NCINIT_RD;
 
@@ -578,7 +582,9 @@ rest_show_check(mtev_http_rest_closure_t *restc,
     if(uuid_conf) xmlFree(uuid_conf);
     if(pobj) xmlXPathFreeObject(pobj);
     NCUNLOCK;
-    return rest_show_check_json(restc, checkid);
+    rv = rest_show_check_json(restc, checkid);
+    mtev_memory_end();
+    return rv;
   }
 
   doc = xmlNewDoc((xmlChar *)"1.0");
@@ -742,6 +748,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   if(doc) xmlFreeDoc(doc);
   noit_check_deref(check);
   NCUNLOCK;
+  mtev_memory_end();
   return 0;
 }
 
@@ -1023,8 +1030,12 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   int rv, cnt, error_code = 500;
   mtev_boolean exists = mtev_false;
 
+  mtev_memory_begin();
+
   if(noit_check_get_lmdb_instance()) {
-    return noit_check_lmdb_delete_check(restc, npats, pats);
+    rv = noit_check_lmdb_delete_check(restc, npats, pats);
+    mtev_memory_end();
+    return rv;
   }
 
   NCINIT_WR;
@@ -1098,6 +1109,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   if(pobj) xmlXPathFreeObject(pobj);
   (void)error;
   NCUNLOCK;
+  mtev_memory_end();
   return 0;
 }
 
@@ -1220,7 +1232,11 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   if(pobj) xmlXPathFreeObject(pobj);
   restc->fastpath = rest_show_check;
   NCUNLOCK;
-  return restc->fastpath(restc, restc->nparams, restc->params);
+
+  mtev_memory_begin();
+  rv = restc->fastpath(restc, restc->nparams, restc->params);
+  mtev_memory_end();
+  return rv;
 
  error:
   noit_check_set_db_source_header(restc->http_ctx);
