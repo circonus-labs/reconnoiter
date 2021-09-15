@@ -1996,7 +1996,6 @@ check_recycle_bin_processor_internal() {
     }
   }
   pthread_mutex_unlock(&polls_lock);
-  mtev_memory_begin();
 
   if (noit_check_get_lmdb_instance()) {
     check_recycle_bin_processor_internal_cleanup_lmdb(head);
@@ -2036,6 +2035,7 @@ check_recycle_bin_processor_internal() {
       curr = curr->next;
     }
   }
+  mtev_memory_end();
   pthread_mutex_unlock(&recycling_lock);
 }
 
