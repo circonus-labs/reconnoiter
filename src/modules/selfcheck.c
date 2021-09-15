@@ -239,6 +239,7 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
     selfcheck_log_results(ci->self, ci->check);
     selfcheck_cleanse(ci->self, ci->check);
     noit_check_end(check);
+    mtev_memory_end();
     return 0;
   }
   switch(mask) {
@@ -251,6 +252,7 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
       if(!feed) ci->logsize = -1;
       else ci->logsize = mtev_log_stream_size(feed);
       ci->timed_out = 0;
+      mtev_memory_end();
       return 0;
       break;
     case EVENTER_ASYNCH_CLEANUP:
