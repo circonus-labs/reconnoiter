@@ -257,6 +257,8 @@ check_test_sweeper(eventer_t e, int mask, void *closure,
                    struct timeval *now) {
   int left = 0;
   mtev_skiplist_node *iter = NULL;
+
+  mtev_memory_begin();
   sweeper_event = NULL;
   iter = mtev_skiplist_getlist(in_progress);
   while(iter) {
@@ -282,6 +284,7 @@ check_test_sweeper(eventer_t e, int mask, void *closure,
   }
 
   if(left) check_test_schedule_sweeper();
+  mtev_memory_end();
   return 0;
 }
 

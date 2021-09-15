@@ -814,6 +814,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
 
 void
 noit_check_log_bundle_metrics(noit_check_t *check, struct timeval *w, mtev_hash_table *in_metrics) {
+  mtev_memory_begin();
   handle_extra_feeds_metrics(check, noit_check_log_bundle_serialize, w, in_metrics);
   if(!(check->flags & (NP_TRANSIENT))) {
     SETUP_LOG(bundle, return);
@@ -826,6 +827,7 @@ noit_check_log_bundle_metrics(noit_check_t *check, struct timeval *w, mtev_hash_
     if(*bundle_use_flatbuffer) noit_check_log_bundle_fb_serialize(bundle_log, check, w, in_metrics);
     else noit_check_log_bundle_serialize(bundle_log, check, w, in_metrics);
   }
+  mtev_memory_end();
 }
 
 void

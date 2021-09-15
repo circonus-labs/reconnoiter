@@ -193,15 +193,33 @@ free_metric(metric_t *m) {
 
 stats_t *
 noit_check_get_stats_inprogress(noit_check_t *c) {
-  return stats_inprogress(c);
+  stats_t *r;
+
+  mtevAssert(mtev_memory_in_cs());
+  pthread_mutex_lock(&c->statistics_lock);
+  r = stats_inprogress(c);
+  pthread_mutex_unlock(&c->statistics_lock);
+  return r;
 }
 stats_t *
 noit_check_get_stats_current(noit_check_t *c) {
-  return stats_current(c);
+  stats_t *r;
+
+  mtevAssert(mtev_memory_in_cs());
+  pthread_mutex_lock(&c->statistics_lock);
+  r = stats_current(c);
+  pthread_mutex_unlock(&c->statistics_lock);
+  return r;
 }
 stats_t *
 noit_check_get_stats_previous(noit_check_t *c) {
-  return stats_previous(c);
+  stats_t *r;
+
+  mtevAssert(mtev_memory_in_cs());
+  pthread_mutex_lock(&c->statistics_lock);
+  r = stats_previous(c);
+  pthread_mutex_unlock(&c->statistics_lock);
+  return r;
 }
 
 struct stats_t {
@@ -391,6 +409,7 @@ noit_check_safe_release(void *p) {
   }
 
   mtevAssert(mtev_memory_in_cs());
+  pthread_mutex_lock(&checker->statistics_lock);
   mtev_memory_safe_free(stats_inprogress(checker));
   mtev_memory_safe_free(stats_current(checker));
   mtev_memory_safe_free(stats_previous(checker));
@@ -398,6 +417,7 @@ noit_check_safe_release(void *p) {
   free(checker->statistics);
 
   pthread_rwlock_destroy(&checker->feeds_lock);
+  pthread_mutex_destroy(&checker->statistics_lock);
 }
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
@@ -1226,6 +1246,8 @@ noit_check_clone(uuid_t in) {
   int i;
   noit_check_t *checker, *new_check;
   void *vcheck;
+  pthread_mutexattr_t attr;
+
   if(mtev_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
                         &vcheck) == 0) {
@@ -1241,6 +1263,11 @@ noit_check_clone(uuid_t in) {
   mtevAssert(new_check != NULL);
   memcpy(new_check, checker, sizeof(*new_check));
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
+
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&new_check->statistics_lock, &attr);
+
   new_check->target = strdup(new_check->target);
   new_check->module = strdup(new_check->module);
   new_check->name = strdup(new_check->name);
@@ -1770,11 +1797,17 @@ noit_poller_schedule(const char *target,
                      uuid_t in,
                      uuid_t out) {
   noit_check_t *new_check = calloc(1, sizeof(*new_check));
+  pthread_mutexattr_t attr;
 
   mtevAssert(mtev_memory_in_cs());
-  mtev_memory_begin();
   new_check->ref_cnt = 2;
   pthread_rwlock_init(&new_check->feeds_lock, NULL);
+
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&new_check->statistics_lock, &attr);
+
+  mtev_memory_begin();
 
   /* The module and the UUID can never be changed */
   new_check->module = strdup(module);
@@ -1944,6 +1977,7 @@ check_recycle_bin_processor_internal() {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   struct _checker_rcb *prev = NULL, *curr = NULL;
   mtevL(check_debug, "Scanning checks for cluster sync\n");
+  mtev_memory_begin();
   pthread_mutex_lock(&polls_lock);
   while(mtev_hash_adv(&polls, &iter)) {
     noit_check_t *check = (noit_check_t *)iter.value.ptr;
@@ -1962,6 +1996,7 @@ check_recycle_bin_processor_internal() {
     }
   }
   pthread_mutex_unlock(&polls_lock);
+  mtev_memory_begin();
 
   if (noit_check_get_lmdb_instance()) {
     check_recycle_bin_processor_internal_cleanup_lmdb(head);
@@ -2584,8 +2619,11 @@ noit_stats_get_metric(noit_check_t *check,
   if(noit_metric_canonicalize(name, strlen(name),
                               name_copy, sizeof(name_copy), mtev_true) <= 0)
     return NULL;
-  if(newstate == NULL)
+  if(newstate == NULL) {
+    pthread_mutex_lock(&check->statistics_lock);
     newstate = stats_inprogress(check);
+    pthread_mutex_unlock(&check->statistics_lock);
+  }
   if(mtev_hash_retrieve(&newstate->name_to_metric, name_copy, strlen(name_copy), &v))
     return (metric_t *)v;
   return NULL;
@@ -2904,7 +2942,7 @@ noit_stats_log_immediate_histo(noit_check_t *check,
 
 void
 noit_check_passive_set_stats(noit_check_t *check) {
-  int i, nwatches = 0;
+  int nwatches = 0;
   mtev_skiplist_node *next;
   noit_check_t n;
   noit_check_t *watches[8192];
@@ -2924,9 +2962,11 @@ noit_check_passive_set_stats(noit_check_t *check) {
   }
   pthread_mutex_unlock(&watchlist_lock);
 
-  for(i=0;i<nwatches;i++) {
+  for(int i=0;i<nwatches;i++) {
     void *backup;
     noit_check_t *wcheck = watches[i];
+
+    pthread_mutex_lock(&wcheck->statistics_lock);
     /* Swap the real check's stats into place */
     backup = wcheck->statistics;
     wcheck->statistics = check->statistics;
@@ -2939,6 +2979,7 @@ noit_check_passive_set_stats(noit_check_t *check) {
     }
     /* Swap them back out */
     wcheck->statistics = backup;
+    pthread_mutex_unlock(&wcheck->statistics_lock);
     noit_check_deref(wcheck);
   }
 }
@@ -2966,12 +3007,13 @@ void
 noit_check_set_stats(noit_check_t *check) {
   int report_change = 0;
   char *cp;
-  dep_list_t *dep;
   stats_t *prev = NULL, *current = NULL;
 
   mtevAssert(mtev_memory_in_cs());
 
   if(check_set_stats_hook_invoke(check) == MTEV_HOOK_ABORT) return;
+
+  pthread_mutex_lock(&check->statistics_lock);
 
   if(perpetual_metrics) {
     if(!stats_previous(check)) {
@@ -3030,8 +3072,9 @@ noit_check_set_stats(noit_check_t *check) {
   }
   /* count the check as complete */
   check_completion_count++;
+  pthread_mutex_unlock(&check->statistics_lock);
 
-  for(dep = check->causal_checks; dep; dep = dep->next) {
+  for(dep_list_t *dep = check->causal_checks; dep; dep = dep->next) {
     noit_module_t *mod;
     mod = noit_module_lookup(dep->check->module);
     if(!mod) {
@@ -3090,6 +3133,9 @@ nc_printf_check_brief(mtev_console_closure_t ncct,
   stats_t *current;
   char out[512];
   char uuid_str[37];
+
+  mtev_memory_begin();
+
   if(NOIT_CHECK_DELETED(check))
     snprintf(out, sizeof(out), "-- deleted pending cluster synchronization --");
   else
@@ -3100,6 +3146,7 @@ nc_printf_check_brief(mtev_console_closure_t ncct,
   current = stats_current(check);
   if(current)
     nc_printf(ncct, "\t%s\n", current->status);
+  mtev_memory_end();
 }
 
 char *

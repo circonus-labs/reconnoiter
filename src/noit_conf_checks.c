@@ -563,8 +563,8 @@ noit_console_get_running_stats(mtev_console_closure_t ncct,
       nc_printf(ncct, " metrics (previous):\n");
       nc_print_stat_metrics(ncct, check, c);
     }
-    mtev_memory_end();
     noit_check_deref(check);
+    mtev_memory_end();
   }
 }
 static int

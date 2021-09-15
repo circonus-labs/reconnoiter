@@ -154,6 +154,7 @@ typedef struct noit_check {
   struct timeval initial_schedule_time;
   int64_t config_seq;                    /* If non-zero, must increase */
 
+  pthread_mutex_t statistics_lock;
   void *statistics;
   Zipkin_Span *span;
 } noit_check_t;
