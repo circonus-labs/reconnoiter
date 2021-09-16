@@ -734,10 +734,43 @@ noit_metric_tag_search_ref(noit_metric_tag_search_ast_t *node) {
   return node;
 }
 
+static void
+unescape_regex(char *inout) {
+  char *in = inout, *out = inout;
+  while(*in) {
+    if(*in == '\\') {
+      if(in[1] == ':' || in[1] == ',' || in[1] == '/' ||
+         in[1] == '(' || in[1] == ')' || in[1] == '\\') {
+        in++;
+      }
+    }
+    *out++ = *in++;
+  }
+  *out = '\0';
+}
+
+static inline mtev_boolean is_allowable_escape(char in) {
+  return in == '\\' || in == ')' || in == '(' || in == ':' || in == ',' || in == '"';
+}
+static inline void unescape_tag_string(char *inout) {
+  char *in = inout, *out = inout;
+  while(*in) {
+    if(*in == '\\') {
+      if(in[1] == ':' || in[1] == ',' || in[1] == '"' ||
+         in[1] == '(' || in[1] == ')' || in[1] == '\\') {
+        in++;
+      }
+    }
+    *out++ = *in++;
+  }
+  *out = '\0';
+}
+
 static mtev_boolean
 noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int part) {
   char decoded_tag[512];
   const char *query = *endq;
+  int is_escaped = mtev_false;
   int is_encoded_match = memcmp(query, "b!", 2) == 0;
   int is_encoded = is_encoded_match || memcmp(query, "b\"", 2) == 0 || memcmp(query, "b/", 2) == 0;
   int is_alt = memcmp(query, "b[", 2) == 0 || *query == '[';
@@ -767,15 +800,24 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
   if(*query == '/' && !m->impl) {
     m->impl = &var_re_matcher;
     *endq = query+1;
-    while(**endq && **endq != ',' && **endq != ')' && (part == 2 || **endq != ':')) (*endq)++;
-    if(**endq != ',' && **endq != ')' && (part == 2 || **endq != ':')) return mtev_false;
-    (*endq)--;
-    if(*endq <= query) return mtev_false;
+    while(**endq && **endq != '/') {
+      if((*endq)[0] == '\\') {
+        if((*endq)[1]) (*endq)++; // escapes
+        else break;
+      }
+      (*endq)++;
+    }
     if(**endq != '/') {
-      /* not a regex */
       *endq = query;
       goto not_a_regex;
     }
+    (*endq)++;
+    if(**endq != ',' && **endq != ')' && (part == 2 || **endq != ':')) {
+      *endq = query;
+      goto not_a_regex;
+    }
+    (*endq)--;
+    if(*endq <= query) return mtev_false;
     if (is_encoded) {
       int len = mtev_b64_decode(query + 1, *endq - query - 1, (unsigned char *)decoded_tag, 
 				sizeof(decoded_tag));
@@ -783,6 +825,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       m->str = mtev_strndup(decoded_tag, len);
     } else {
       m->str = mtev_strndup(query + 1, *endq - query - 1);
+      unescape_regex(m->str);
     }
     if(m->impl) {
       int erroffset = 0;
@@ -804,21 +847,32 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       if (is_encoded_match && *query != '!') return mtev_false;
       *endq = query + 1;
       query = *endq;
+    } else {
+      if(!is_encoded && *query == '"') {
+        is_escaped = mtev_true;
+        *endq = query + 1;
+        query = *endq;
+      }
     }
 
-    while(**endq &&
-          (is_encoded ?
-           noit_metric_tagset_is_taggable_b64_char(**endq) :
+    if(is_encoded) {
+      while(**endq && noit_metric_tagset_is_taggable_b64_char(**endq)) (*endq)++;
+    } else if(is_escaped) {
+      while(**endq && **endq != '"') {
+        if(**endq == '\\') {
+          if(is_allowable_escape((*endq)[1])) (*endq)++;
+          else return mtev_false;
+        }
+        (*endq)++;
+      }
+    } else {
+      while(**endq &&
            (
             (part == 2 ?
                noit_metric_tagset_is_taggable_value(*endq, 1) :
                noit_metric_tagset_is_taggable_key(*endq, 1)
             ) || **endq == '*' || **endq == '?'
-           )
-          )
-         )
-    {
-      (*endq)++;
+           )) (*endq)++;
     }
 
     if(*endq == query && part == 1) return mtev_false;
@@ -827,6 +881,13 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
 				sizeof(decoded_tag));
       if (len == 0 && part == 1) return mtev_false;
       m->str = mtev_strndup(decoded_tag, len);
+      if (!is_encoded_match && **endq != '"') return mtev_false;
+      if (is_encoded_match && **endq != '!') return mtev_false;
+      (*endq)++; // skip the trailing quotation mark
+    } else if(is_escaped) {
+      m->str = mtev_strndup(query, *endq - query);
+      unescape_tag_string(m->str);
+      if (**endq != '"') return mtev_false;
       (*endq)++; // skip the trailing quotation mark
     } else {
       m->str = mtev_strndup(query, *endq - query);
@@ -858,6 +919,7 @@ static noit_metric_tag_search_ast_t *
 noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean allow_match) {
   noit_metric_tag_search_ast_t *node = NULL;
   *endq = query;
+  while(*query && isspace(*query)) query++;
   if(!strncmp(query, "and(", 4) ||
      !strncmp(query, "or(", 3)) {
     *endq = strchr(query, '(');
@@ -867,7 +929,9 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     noit_metric_tag_search_ast_t *arg = NULL;
     do {
       (*endq)++;
+      while(**endq && isspace(**endq)) (*endq)++;
       arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+      while(**endq && isspace(**endq)) (*endq)++;
       if((**endq != ',' && **endq != ')') || !arg) goto error;
       node->contents.args.cnt++;
       node->contents.args.node = realloc(node->contents.args.node, sizeof(arg) * node->contents.args.cnt);
@@ -877,6 +941,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
   }
   else if(!strncmp(query, "not(", 4)) {
     *endq = query + 4;
+    while(**endq && isspace(**endq)) (*endq)++;
     node = calloc(1, sizeof(*node));
     node->operation = OP_NOT_ARGS;
     noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);

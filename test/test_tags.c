@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "noit_metric.h"
 #include "noit_metric_tag_search.h"
 #include "noit_message_decoder.h"
@@ -112,7 +113,7 @@ struct {
     const char *query;
     mtev_boolean match;
     uint64_t bench_ns;
-  } queries[12];
+  } queries[13];
 } testmatches[] = {
   { "__name:f1.f2.f3.f4.f5.f6",
     {
@@ -131,9 +132,11 @@ struct {
     "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value,empty:",
     {
       { "and(foo:bar)", mtev_true },
+      { "and(/^f(o{2})$/:/(b|a){2,2}r/)", mtev_true },
       { "and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", mtev_true },
       { "and(b/c29tZS4q/:value)", mtev_true },
       { "and(quux:value)", mtev_false },
+      { "and([exact]\"some\\:stuff[here]\":value)", mtev_true },
       { "and(empty:/^$/)", mtev_true },
       { "and(empty:)", mtev_true },
       { "and(empty)", mtev_true },
@@ -149,6 +152,7 @@ struct {
       { "and(*:*)", mtev_true },
       { "and(*:bar)", mtev_true },
       { "and(foo:bar)", mtev_false },
+      { "and(*:/ba\\(.?\\)r/)", mtev_true },
       { "and(b\"KGZvbyk=\":bar)", mtev_true },
       { "and(b/XChm/:bar)", mtev_true },
       { NULL, 0 }
@@ -351,7 +355,7 @@ void test_ast_decode()
   else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
 
   /* base64 regex parse */
-  query = "and(foo:bar,not(b/c29tZS4q/:value))";
+  query = " and( foo:bar, not( b/c29tZS4q/:value))";
   ast = noit_metric_tag_search_parse(query, &erroroffset);
   if(ast) {
     unparse = noit_metric_tag_search_unparse(ast);
@@ -473,45 +477,57 @@ void test_fuzz_canon() {
     int cnt = 0;
     char buff[4096];
     char _obuff[32678];
-    char *obuff = _obuff + 10;
-    memcpy(_obuff, "metric|ST[", 10);
     char out[MAX_METRIC_TAGGED_NAME];
     mtev_hash_table unique;
     mtev_hash_init(&unique);
-    for(int i=1; i<260; i++) {
-      int offset = i;
-  
+    _obuff[0] = '\0';
+    strlcat(_obuff, "metric|ST[", sizeof(_obuff));
+    for(int tc=0; tc<4; tc++) {
+      if(tc) strlcat(_obuff, ",", sizeof(_obuff));
+      int pre_tag_len = strlen(_obuff);
+      char cat, val;
+      cat = 'a' + (lrand48() % 26);
+      val = 'a' + (lrand48() % 26);
+    for(int i=10; i<20; i++) {
+      _obuff[pre_tag_len] = '\0';
       if(encode & 1) {
-        memset(buff, ',', i);
-        offset = mtev_b64_encode((unsigned char *)buff, i, obuff+2, sizeof(_obuff)-2);
+        memset(buff, cat, i);
+        strlcat(_obuff, "b\"", sizeof(_obuff));
+        int len = strlen(_obuff);
+        int offset = mtev_b64_encode((unsigned char *)buff, i, _obuff+len, sizeof(_obuff)-len);
         assert(offset > 0);
-        obuff[0] = 'b'; obuff[1] = '"';
-        obuff[offset + 2] = '"';
-        offset += 3;
+        _obuff[len + offset] = '\0';
+        strlcat(_obuff, "\"", sizeof(_obuff));
       } else {
-        memset(buff, 'c', i);
-        memcpy(obuff, buff, offset);
+        memset(buff, cat, i);
+        buff[i] = '\0';
+        strlcat(_obuff, buff, sizeof(_obuff));
       }
-      obuff[offset] = ':';
-      for(int j=1; j<260; j++) {
+      strlcat(_obuff, ":", sizeof(_obuff));
+      int pre_tagval_len = strlen(_obuff);
+      for(int j=230; j<260; j++) {
+        _obuff[pre_tagval_len] = '\0';
         if(encode & 2) {
-          memset(buff, ',', j);
-          int vlen = mtev_b64_encode((unsigned char *)buff, j, obuff+offset+3, sizeof(_obuff)-(offset+4));
-          assert(vlen > 0);
-          obuff[offset+1] = 'b'; obuff[offset+2] = '"';
-          obuff[offset + vlen + 3] = '"';
-          obuff[offset + vlen + 4] = ']';
-          obuff[offset + vlen + 5] = '\0';
+          memset(buff, val, j);
+          strlcat(_obuff, "b\"", sizeof(_obuff));
+          int len = strlen(_obuff);
+          int offset = mtev_b64_encode((unsigned char *)buff, j, _obuff+len, sizeof(_obuff)-len);
+          assert(offset > 0);
+          _obuff[len + offset] = '\0';
+          strlcat(_obuff, "\"", sizeof(_obuff));
         } else {
-          memset(buff, 'v', j);
-          memset(obuff+offset+1, 'v', j);
-          obuff[offset+j+1] = ']';
-          obuff[offset+j+2] = '\0';
+          memset(buff, val, j);
+          buff[j] = '\0';
+          strlcat(_obuff, buff, sizeof(_obuff));
         }
+        strlcat(_obuff, "]", sizeof(_obuff));
         /* We can only operate on metric names up to sizeof(out), so just elide the testing
          * from longer names. */
         if(strlen(_obuff) <= sizeof(out)) {
-          int len = noit_metric_canonicalize(_obuff, strlen(_obuff), out, sizeof(out), mtev_true);
+          char *copy = malloc(strlen(_obuff));
+          memcpy(copy, _obuff, strlen(_obuff));
+          int len = noit_metric_canonicalize(copy, strlen(_obuff), out, sizeof(out), mtev_true);
+          free(copy);
           if(len < 0) {
             test_assert_namef(len > 0, "canonicalization failed %d (%s)", len, _obuff);
             return;
@@ -520,6 +536,8 @@ void test_fuzz_canon() {
           cnt++;
         }
       }
+      _obuff[strlen(_obuff)-1] = '\0';
+    }
     }
     test_assert_namef(mtev_hash_size(&unique) == cnt, "fuzzed uniquely [%c%c] (%d==%d)",
                       encode & 1 ? 'b' : '-',
