@@ -912,6 +912,8 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
   noit_check_t *check = NULL;
   uuid_t check_id;
 
+  mtev_memory_begin();
+
   if(npats != 2) {
     error = "bad uri";
     error_code = 404;
@@ -957,6 +959,7 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
   }
   mtev_http_response_end(ctx);
   noit_check_deref(check);
+  mtev_memory_end();
   return 0;
 
  error:
@@ -966,6 +969,7 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
   noit_check_deref(check);
+  mtev_memory_end();
   return 0;
 }
 
@@ -1176,6 +1180,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     noit_check_deref(rxc->check);
   }
   mtev_memory_end();
+  mtevAssert(!mtev_memory_in_cs());
   return 0;
 
  error:
@@ -1191,6 +1196,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
   mtev_memory_end();
+  mtevAssert(!mtev_memory_in_cs());
   return 0;
 }
 
