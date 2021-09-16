@@ -1029,7 +1029,10 @@ noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *
   // setup check tags
   noit_metric_tagset_t tagset_check = id->check;
   // Add in extra tags: __uuid
-  if ( tagset_check.tag_count > MAX_TAGS - 1 ) { return 0; }
+  if (tagset_check.tag_count > MAX_TAGS - 1) {
+    mtev_memory_end();
+    return 0;
+  }
   MKTAGSETCOPY(tagset_check);
   char uuid_str[13 + UUID_STR_LEN + 1];
   strcpy(uuid_str, "__check_uuid:");
@@ -1044,7 +1047,10 @@ noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *
   // setup stream tags
   noit_metric_tagset_t tagset_stream = id->stream;
   // Add in extra tags: __name
-  if ( tagset_stream.tag_count > MAX_TAGS - 1 ) { return 0; }
+  if (tagset_stream.tag_count > MAX_TAGS - 1) {
+    mtev_memory_end();
+    return 0;
+  }
   MKTAGSETCOPY(tagset_stream);
   char name_str[NOIT_TAG_MAX_PAIR_LEN + 1];
   snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);

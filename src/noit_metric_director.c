@@ -557,7 +557,10 @@ noit_metric_director_deregister_search_on_thread(int thread_id, int64_t account_
   thread_id = safe_thread_id(thread_id);
   mtev_memory_begin();
   account_search_t *searches = account_get_search(account_id, false);
-  if(!searches) return mtev_false;
+  if(!searches) {
+    mtev_memory_end();
+    return mtev_false;
+  }
   tag_search_registration_t *found = NULL, dummy = { .ast_id = ast_id };
   check_search_t *cs = check_get_search(searches, check_uuid, false);
   if(cs)  {
