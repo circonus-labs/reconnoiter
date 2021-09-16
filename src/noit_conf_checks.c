@@ -578,7 +578,12 @@ noit_console_show_check(mtev_console_closure_t ncct,
   xmlXPathContextPtr xpath_ctxt = NULL;
 
   if (noit_check_get_lmdb_instance()) {
-    return noit_conf_checks_lmdb_console_show_check(ncct, argc, argv, state, closure);
+    int rv;
+
+    mtev_memory_begin();
+    rv = noit_conf_checks_lmdb_console_show_check(ncct, argc, argv, state, closure);
+    mtev_memory_end();
+    return rv;
   }
 
   if(argc > 1) {
