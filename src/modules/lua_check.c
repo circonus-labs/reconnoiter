@@ -455,12 +455,12 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
 
   if(lua_gettop(L) < 2 || lua_gettop(L) > 4) {
     mtev_memory_end();
-    luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
+    return luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   }
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) {
     mtev_memory_end();
-    luaL_error(L, "argument #1 must be a string");
+    return luaL_error(L, "argument #1 must be a string");
   }
   metric_name = lua_tostring(L, 1);
   metric_type = lua_tointeger(L, lua_upvalueindex(2));
@@ -480,6 +480,7 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
   if(lua_isnil(L, 2)) {
     set(check, metric_name, metric_type, NULL, &whence);
     lua_pushboolean(L, 1);
+    mtev_memory_end();
     return 1;
   }
   switch(metric_type) {
@@ -542,12 +543,12 @@ noit_lua_set_metric_histogram(lua_State *L) {
   mtev_memory_begin();
   if(lua_gettop(L) < 2 || lua_gettop(L) > 4) {
     mtev_memory_end();
-    luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
+    return luaL_error(L, "need 2-4 arguments: <metric_name> <value> [whence_s] [whence_us]");
   }
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) {
     mtev_memory_end();
-    luaL_error(L, "argument #1 must be a string");
+    return luaL_error(L, "argument #1 must be a string");
   }
   metric_name = lua_tostring(L, 1);
 
@@ -573,20 +574,20 @@ noit_lua_set_histo_metric(lua_State *L) {
   mtev_memory_begin();
   if(lua_gettop(L) != 3 && lua_gettop(L) != 4) {
     mtev_memory_end();
-    luaL_error(L, "need arguments: <metric_name> <encoded_histo> <whence_s> [cumulative]");
+    return luaL_error(L, "need arguments: <metric_name> <encoded_histo> <whence_s> [cumulative]");
   }
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) {
     mtev_memory_end();
-    luaL_error(L, "argument #1 must be a string");
+    return luaL_error(L, "argument #1 must be a string");
   }
   if(!lua_isstring(L, 2)) {
     mtev_memory_end();
-    luaL_error(L, "argument #2 must be a string");
+    return luaL_error(L, "argument #2 must be a string");
   }
   if(!lua_isnumber(L, 3)) {
     mtev_memory_end();
-    luaL_error(L, "argument #3 must be a number");
+    return luaL_error(L, "argument #3 must be a number");
   }
 
   metric_name = lua_tostring(L, 1);
@@ -641,7 +642,8 @@ noit_lua_interpolate(lua_State *L) {
   check = lua_touserdata(L, lua_upvalueindex(1));
   mtev_memory_begin();
   if(!lua_isstring(L,1) && !lua_istable(L,1)) {
-    luaL_error(L, "noit.check.interpolate(<string|table>)");
+    mtev_memory_end();
+    return luaL_error(L, "noit.check.interpolate(<string|table>)");
   }
 
   noit_check_make_attrs(check, &check_attrs_hash);

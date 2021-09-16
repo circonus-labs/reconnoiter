@@ -280,8 +280,10 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
   immediate = noit_collects_check_asynch(self, check);
   last = noit_check_stats_whence(noit_check_get_stats_current(check), NULL);
   sub_timeval(now, *last, &age);
-  if(immediate && (age.tv_sec * 1000 + age.tv_usec / 1000) < check->period)
+  if(immediate && (age.tv_sec * 1000 + age.tv_usec / 1000) < check->period) {
+    mtev_memory_end();
     return 0;
+  }
 
   if(!check->closure) {
     gcl = check->closure = (void *)calloc(1, sizeof(ganglia_closure_t)); 

@@ -817,7 +817,7 @@ noit_check_log_bundle_metrics(noit_check_t *check, struct timeval *w, mtev_hash_
   mtev_memory_begin();
   handle_extra_feeds_metrics(check, noit_check_log_bundle_serialize, w, in_metrics);
   if(!(check->flags & (NP_TRANSIENT))) {
-    SETUP_LOG(bundle, return);
+    SETUP_LOG(bundle, mtev_memory_end(); return);
     if(!bundle_use_flatbuffer) {
       const char *v = mtev_log_stream_get_property(bundle_log, "flatbuffer");
       if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) bundle_use_flatbuffer_impl = mtev_true;
