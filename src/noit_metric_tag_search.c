@@ -739,8 +739,7 @@ unescape_regex(char *inout) {
   char *in = inout, *out = inout;
   while(*in) {
     if(*in == '\\') {
-      if(in[1] == ':' || in[1] == ',' || in[1] == '/' ||
-         in[1] == '(' || in[1] == ')' || in[1] == '\\') {
+      if(in[1] == '/' || in[1] == '\\') {
         in++;
       }
     }
@@ -750,14 +749,13 @@ unescape_regex(char *inout) {
 }
 
 static inline mtev_boolean is_allowable_escape(char in) {
-  return in == '\\' || in == ')' || in == '(' || in == ':' || in == ',' || in == '"';
+  return in == '\\' || in == '"';
 }
 static inline void unescape_tag_string(char *inout) {
   char *in = inout, *out = inout;
   while(*in) {
     if(*in == '\\') {
-      if(in[1] == ':' || in[1] == ',' || in[1] == '"' ||
-         in[1] == '(' || in[1] == ')' || in[1] == '\\') {
+      if(in[1] == '"' || in[1] == '\\') {
         in++;
       }
     }

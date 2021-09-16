@@ -136,7 +136,7 @@ struct {
       { "and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", mtev_true },
       { "and(b/c29tZS4q/:value)", mtev_true },
       { "and(quux:value)", mtev_false },
-      { "and([exact]\"some\\:stuff[here]\":value)", mtev_true },
+      { "and([exact]\"some:stuff[here]\":value)", mtev_true },
       { "and(empty:/^$/)", mtev_true },
       { "and(empty:)", mtev_true },
       { "and(empty)", mtev_true },
@@ -152,7 +152,7 @@ struct {
       { "and(*:*)", mtev_true },
       { "and(*:bar)", mtev_true },
       { "and(foo:bar)", mtev_false },
-      { "and(*:/ba\\(.?\\)r/)", mtev_true },
+      { "and(*:/ba(.?)r/)", mtev_true },
       { "and(b\"KGZvbyk=\":bar)", mtev_true },
       { "and(b/XChm/:bar)", mtev_true },
       { NULL, 0 }
