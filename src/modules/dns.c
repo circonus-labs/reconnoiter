@@ -462,11 +462,14 @@ static int dns_module_eventer_callback(eventer_t e, int mask, void *closure,
                                        struct timeval *now) {
   dns_ctx_handle_t *h = closure;
   dns_module_dns_ctx_acquire(h);
+  mtev_memory_begin();
   dns_ioevent(h->ctx, now->tv_sec);
   if(dns_module_dns_ctx_release(h, mtev_true)) {
     /* We've been closed */
+    mtev_memory_end();
     return 0;
   }
+  mtev_memory_end();
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
@@ -476,8 +479,10 @@ static int dns_module_check_timeout(eventer_t e, int mask, void *closure,
   ci = closure;
   mtevAssert(ci->timeout_event != NULL);
   ci->timeout_event = NULL;
+  mtev_memory_begin();
   dns_check_log_results(ci);
   __deactivate_ci(ci);
+  mtev_memory_end();
   return 0;
 }
 
@@ -486,8 +491,10 @@ static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
   dns_ctx_handle_t *h = closure;
   mtevAssert(h);
   h->timeout = NULL; /* This will be free upon return from this function */
+  mtev_memory_begin();
   dns_timeouts(h->ctx, 0, now->tv_sec);
   dns_module_dns_ctx_release(h, mtev_false);
+  mtev_memory_end();
   return 0;
 }
 static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
