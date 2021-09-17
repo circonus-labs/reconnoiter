@@ -265,7 +265,7 @@ noit_httptrap_check_fanout(noit_module_t *self,
 
 static int
 set_array_key(struct rest_json_payload *json) {
-  if(json->array_depth[json->depth] > 0) {
+  if(json->depth >= 0 && json->array_depth[json->depth] > 0) {
     char str[256];
     int strLen;
     snprintf(str, sizeof(str), "%d", json->array_depth[json->depth] - 1);
@@ -498,7 +498,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
 
   _YD("[%3d]%-.*s cb_end_map\n", json->depth, json->depth, "");
   json->depth--;
-  metric_name = json->keys[json->depth];
+  metric_name = json->keys[MAX(json->depth, 0)];
   if((json->saw_complex_type & HT_EX_VALUE) &&
      (
        (json->saw_complex_type & HT_EX_TYPE) ||

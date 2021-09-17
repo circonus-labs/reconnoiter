@@ -174,7 +174,7 @@ noit_lua_module_set_description(lua_State *L) {
   }
   else if(lua_gettop(L) > 1) {
     mtev_memory_end();
-    luaL_error(L, "wrong number of arguments");
+    return luaL_error(L, "wrong number of arguments");
   }
 
   lua_pushstring(L, module->hdr.description);
@@ -193,7 +193,7 @@ noit_lua_module_set_name(lua_State *L) {
   }
   else if(lua_gettop(L) > 1) {
     mtev_memory_end();
-    luaL_error(L, "wrong number of arguments");
+    return luaL_error(L, "wrong number of arguments");
   }
 
   lua_pushstring(L, module->hdr.name);
@@ -212,7 +212,7 @@ noit_lua_module_set_xml_description(lua_State *L) {
   }
   else if(lua_gettop(L) > 1) {
     mtev_memory_end();
-    luaL_error(L, "wrong number of arguments");
+    return luaL_error(L, "wrong number of arguments");
   }
   lua_pushstring(L, module->hdr.xml_description);
   mtev_memory_end();
@@ -226,12 +226,12 @@ noit_module_index_func(lua_State *L) {
   n = lua_gettop(L);    /* number of arguments */
   mtevAssert(n == 2);
   if(!luaL_checkudata(L, 1, "noit_module_t")) {
-    luaL_error(L, "metatable error, arg1 not a noit_module_t!");
+    return luaL_error(L, "metatable error, arg1 not a noit_module_t!");
   }
   udata = lua_touserdata(L, 1);
   module = *udata;
   if(!lua_isstring(L, 2)) {
-    luaL_error(L, "metatable error, arg2 not a string!");
+    return luaL_error(L, "metatable error, arg2 not a string!");
   }
   k = lua_tostring(L, 2);
   switch(*k) {
@@ -268,7 +268,9 @@ noit_lua_get_available(lua_State *L) {
   char av[2] = { '\0', '\0' };
   noit_check_t *check;
   stats_t *current;
-  if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
+  if(lua_gettop(L)) {
+    return luaL_error(L, "wrong number of arguments");
+  }
   check = lua_touserdata(L, lua_upvalueindex(1));
   mtev_memory_begin();
   current = noit_check_get_stats_current(check);
@@ -280,7 +282,9 @@ noit_lua_get_available(lua_State *L) {
 static int
 noit_lua_set_available(lua_State *L) {
   noit_check_t *check;
-  if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
+  if(lua_gettop(L)) {
+    return luaL_error(L, "wrong number of arguments");
+  }
   check = lua_touserdata(L, lua_upvalueindex(1));
   mtev_memory_begin();
   noit_stats_set_available(check, lua_tointeger(L, lua_upvalueindex(2)));
@@ -292,7 +296,9 @@ noit_lua_get_state(lua_State *L) {
   char status[2] = { '\0', '\0' };
   noit_check_t *check;
   stats_t *current;
-  if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
+  if(lua_gettop(L)) {
+    return luaL_error(L, "wrong number of arguments");
+  }
   check = lua_touserdata(L, lua_upvalueindex(1));
   mtev_memory_begin();
   current = noit_check_get_stats_current(check);
@@ -528,7 +534,7 @@ noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
     case METRIC_HISTOGRAM_CUMULATIVE:
     case METRIC_ABSENT:
       mtev_memory_end();
-      luaL_error(L, "illegal metric type: %d", metric_type);
+      return luaL_error(L, "illegal metric type: %d", metric_type);
   }
   lua_pushboolean(L, 1);
   mtev_memory_end();
