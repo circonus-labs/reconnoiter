@@ -285,6 +285,7 @@ check_test_sweeper(eventer_t e, int mask, void *closure,
 
   if(left) check_test_schedule_sweeper();
   mtev_memory_end();
+  mtevAssert(!mtev_memory_in_cs());
   return 0;
 }
 

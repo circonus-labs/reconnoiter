@@ -1143,7 +1143,7 @@ noit_check_dns_ignore_list_init() {
 }
 void
 noit_poller_init() {
-  srand48((getpid() << 16) ^ time(NULL));
+  srand48(((uint64_t)getpid() << 16) ^ time(NULL));
 
   check_error = mtev_log_stream_find("error/noit/check");
   check_debug = mtev_log_stream_find("debug/noit/check");
@@ -2035,8 +2035,8 @@ check_recycle_bin_processor_internal() {
       curr = curr->next;
     }
   }
-  mtev_memory_end();
   pthread_mutex_unlock(&recycling_lock);
+  mtev_memory_end();
 }
 
 static int
