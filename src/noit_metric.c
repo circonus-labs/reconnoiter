@@ -480,7 +480,9 @@ noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, const char *enc
       decoded += encoded_size - (encoded - encoded_tag);
     }
   }
-  *decoded = '\0';
+  if (decoded - decoded_tag < max_len) {
+    *decoded = '\0';
+  }
   return decoded - decoded_tag;
 }
 
