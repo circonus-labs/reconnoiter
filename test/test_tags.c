@@ -638,6 +638,40 @@ void loop(char *str) {
   printf("canonicalize('%s') -> %f ns/op\n", str, (elapsed * 1000000000.0) / (double)nloop);
 }
 
+void test_tag_at_limit(void) {
+  const char *tag_name = "image_id:docker-pullable://repo.abcd.ef/"
+    "pipeline-docker-automation/application_framework_project/example-"
+    "isolated-service/automation/jtd-test/1-b1b0798069f37ddbbdec9722276152182c2de82a"
+    "@sha256:b93831fef47e19c2f96e14b48f8715fc0ec5fd9a3f025ea4e9e5d0a2c6d5255d]";
+  const size_t tag_name_len = strlen(tag_name);
+  mtev_boolean too_long = mtev_false;
+  noit_metric_tag_t tag;
+  ssize_t len;
+  char dbuff[NOIT_TAG_MAX_PAIR_LEN * 3];
+
+  assert(tag_name_len - 1 == NOIT_TAG_MAX_PAIR_LEN);
+
+  noit_metric_tags_parse_one(tag_name, tag_name_len - 1, &tag, &too_long);
+  assert(too_long == mtev_false);
+
+  memset(dbuff, 0xff, NOIT_TAG_MAX_PAIR_LEN * 3);
+  len = noit_metric_tagset_decode_tag(dbuff + NOIT_TAG_MAX_PAIR_LEN, NOIT_TAG_MAX_PAIR_LEN, tag.tag, tag.total_size);
+
+  assert(len >= 0);
+  assert((uint8_t)dbuff[NOIT_TAG_MAX_PAIR_LEN - 1] == 0xff);
+  assert((uint8_t)dbuff[NOIT_TAG_MAX_PAIR_LEN + NOIT_TAG_MAX_PAIR_LEN] == 0xff);
+  assert(memcmp(tag_name, dbuff + NOIT_TAG_MAX_PAIR_LEN, NOIT_TAG_MAX_PAIR_LEN) != 0);
+  assert((uint8_t)dbuff[NOIT_TAG_MAX_PAIR_LEN] == 'i');
+  assert((uint8_t)dbuff[NOIT_TAG_MAX_PAIR_LEN + NOIT_TAG_MAX_PAIR_LEN] == 0xff);
+
+  len = noit_metric_tagset_encode_tag(dbuff + NOIT_TAG_MAX_PAIR_LEN,
+    NOIT_TAG_MAX_PAIR_LEN,
+    dbuff + NOIT_TAG_MAX_PAIR_LEN,
+    NOIT_TAG_MAX_PAIR_LEN);
+  assert(len >= 0);
+  assert(memcmp(tag_name, dbuff + NOIT_TAG_MAX_PAIR_LEN, NOIT_TAG_MAX_PAIR_LEN) == 0);
+}
+
 int main(int argc, char * const *argv)
 {
   int opt;
@@ -652,6 +686,7 @@ int main(int argc, char * const *argv)
   test_tag_decode();
   test_ast_decode();
   test_tag_match();
+  test_tag_at_limit();
   metric_parsing();
   query_parsing();
   printf("\nPerformance:\n====================\n");

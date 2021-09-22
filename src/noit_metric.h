@@ -192,6 +192,22 @@ API_EXPORT(ssize_t)
                                            const char *decoded_tag, size_t decoded_len,
                                            noit_metric_encode_type_t left,
                                            noit_metric_encode_type_t right);
+
+/*!
+ * \brief Decode a single tag from \a encoded_tag and outputs it to
+ * \a decoded_tag
+ *
+ * \param decoded_tag Receives the value of the tag once decoded.  This
+ * string will be null terminated if and only if there is an extra byte
+ * available in the buffer to write the null terminator
+ * \param max_len The number of bytes available to write in \a decoded_tag
+ * \param encoded_tag Contains the encoded tag name to decode
+ * \param encoded_size The length in bytes of \a encoded_tag
+ * \return The size of the output of \a decoded_tag, this string is only
+ * null terminate if an extra byte is available at the end of the output
+ * buffer to facilitate logging.  It should not be considered a null
+ * terminated string
+ */
 API_EXPORT(ssize_t)
   noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, 
                                 const char *encoded_tag, size_t encoded_size);
