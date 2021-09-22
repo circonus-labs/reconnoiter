@@ -30,7 +30,7 @@ CC=@CC@
 SHLD=@SHLD@
 CPPFLAGS=-I. @CPPFLAGS@
 CFLAGS=@CFLAGS@ -DHIDE_EVENTER_ABI
-COPT=-O5
+COPT=-O2
 SHCFLAGS=@SHCFLAGS@
 CLINKFLAGS=@CLINKFLAGS@
 LUACFLAGS=@LUACFLAGS@
@@ -138,7 +138,7 @@ LUALIBS=@LUALIBS@
 
 LIBNOIT_OBJS=noit_check_log_helpers.lo noit_fb.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
-	noit_metric_director.lo noit_message_decoder.lo noit_metric.lo \
+	noit_metric_director.lo noit_message_decoder.hlo noit_metric.hlo \
 	noit_metric_tag_search.lo noit_version.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o noit_metric.o
