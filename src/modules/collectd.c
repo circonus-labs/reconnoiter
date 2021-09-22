@@ -1543,7 +1543,9 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
     pkt.self = self;
     pkt.payload = packet;
     pkt.len = inlen;
+    mtev_memory_begin();
     check_cnt = noit_poller_target_ip_do(ip_p, push_packet_at_check ,&pkt);
+    mtev_memory_end();
     if(check_cnt == 0)
       mtevL(nlerr, "collectd: No defined check from ip [%s].\n", ip_p);
   }
