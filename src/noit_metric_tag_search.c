@@ -796,7 +796,6 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     query = *endq;
   }
   if(*query == '/' && !m->impl) {
-    m->impl = &var_re_matcher;
     *endq = query+1;
     while(**endq && **endq != '/') {
       if((*endq)[0] == '\\') {
@@ -814,6 +813,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       *endq = query;
       goto not_a_regex;
     }
+    m->impl = &var_re_matcher;
     (*endq)--;
     if(*endq <= query) return mtev_false;
     if (is_encoded) {
@@ -1143,8 +1143,8 @@ noit_metric_tag_search_unparse_part(noit_metric_tag_search_ast_t *search, mtev_d
   switch(search->operation) {
     case OP_MATCH: {
       noit_metric_tag_match_t *spec = &search->contents.spec;
-      mtev_dyn_buffer_add_printf(buf, "%s", spec->cat.str);
-      if (spec->name.str) mtev_dyn_buffer_add_printf(buf, ":%s", spec->name.str);
+      mtev_dyn_buffer_add_printf(buf, "[%s]%s", spec->cat.impl->impl_name, spec->cat.str);
+      if (spec->name.str) mtev_dyn_buffer_add_printf(buf, ":[%s]%s", spec->name.impl->impl_name, spec->name.str);
       break;
     }
     case OP_NOT_ARGS:

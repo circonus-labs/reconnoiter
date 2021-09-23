@@ -113,7 +113,7 @@ struct {
     const char *query;
     mtev_boolean match;
     uint64_t bench_ns;
-  } queries[13];
+  } queries[14];
 } testmatches[] = {
   { "__name:f1.f2.f3.f4.f5.f6",
     {
@@ -129,14 +129,15 @@ struct {
     }
   },
   {
-    "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value,empty:",
+    "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":/value,empty:",
     {
       { "and(foo:bar)", mtev_true },
+      { "and(foo:/)", mtev_false },
       { "and(/^f(o{2})$/:/(b|a){2,2}r/)", mtev_true },
-      { "and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":value)", mtev_true },
-      { "and(b/c29tZS4q/:value)", mtev_true },
-      { "and(quux:value)", mtev_false },
-      { "and([exact]\"some:stuff[here]\":value)", mtev_true },
+      { "and(foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":/value)", mtev_true },
+      { "and(b/c29tZS4q/:/value)", mtev_true },
+      { "and(quux:/value)", mtev_false },
+      { "and([exact]\"some:stuff[here]\":/value)", mtev_true },
       { "and(empty:/^$/)", mtev_true },
       { "and(empty:)", mtev_true },
       { "and(empty)", mtev_true },
