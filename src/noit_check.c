@@ -35,6 +35,7 @@
 #include "noit_config.h"
 #include <mtev_uuid.h>
 #include <mtev_json.h>
+#include <mtev_memory.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -2120,8 +2121,11 @@ noit_poller_target_ip_do(const char *target_ip,
 
   todo_count = count;
   count = 0;
-  for(i=0;i<todo_count;i++)
+  for(i=0;i<todo_count;i++) {
+    mtev_memory_begin();
     count += f(todo[i],closure);
+    mtev_memory_end();
+  }
 
   if(todo != todo_onstack) free(todo);
   return count;
@@ -2169,8 +2173,11 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
 
   todo_count = count;
   count = 0;
-  for(i=0;i<todo_count;i++)
+  for(i=0;i<todo_count;i++) {
+    mtev_memory_begin();
     count += f(todo[i],closure);
+    mtev_memory_end();
+  }
 
   if(todo != todo_onstack) free(todo);
   return count;
