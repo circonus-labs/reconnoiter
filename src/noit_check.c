@@ -2199,8 +2199,11 @@ noit_poller_do(int (*f)(noit_check_t *, void *),
 
   max_count = count;
   count = 0;
-  for(i=0;i<max_count;i++)
+  for(i=0;i<max_count;i++) {
+    mtev_memory_begin();
     count += f(todo[i], closure);
+    mtev_memory_end();
+  }
   free(todo);
   return count;
 }
