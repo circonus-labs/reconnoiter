@@ -670,7 +670,9 @@ noit_console_show_check(mtev_console_closure_t ncct,
     }
     mtev_hash_destroy(config, free, free);
     free(config);
+    mtev_memory_begin();
     noit_console_get_running_stats(ncct, checkid);
+    mtev_memory_end();
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
