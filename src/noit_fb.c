@@ -62,6 +62,28 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
     noit_ns(AbsentNumericValue_ref_t) x = noit_ns(AbsentNumericValue_create(B));  \
     noit_ns(MetricSample_value_AbsentNumericValue_add(B, x));                 \
   }
+  
+#define ENCODE_HISTOGRAM(CUMULATIVE, MFIELD)                                           \
+    if(m->metric_value.MFIELD != NULL) {                                               \
+      noit_ns(MetricSample_value_Histogram_start(B));                                  \
+      noit_ns(Histogram_buckets_start(B));                                             \
+      if(m->metric_value.MFIELD->buckets != NULL) {                                    \
+        for (int i = 0; i < m->metric_value.MFIELD->num_buckets; i++) {                \
+          noit_ns(Histogram_buckets_push_create(                                       \
+            B,                                                                         \
+            m->metric_value.MFIELD->buckets[i].count,                                  \
+            m->metric_value.MFIELD->buckets[i].val,                                    \
+            m->metric_value.MFIELD->buckets[i].exp)                                    \
+          );                                                                           \
+        }                                                                              \
+      }                                                                                \
+      noit_ns(Histogram_buckets_end(B));                                               \
+      noit_ns(Histogram_cumulative_add(B, CUMULATIVE));                                \
+      noit_ns(MetricSample_value_Histogram_end(B));                                    \
+    } else {                                                                           \
+      noit_ns(AbsentHistogramValue_ref_t) x = noit_ns(AbsentHistogramValue_create(B)); \
+      noit_ns(MetricSample_value_AbsentHistogramValue_add(B, x));                      \
+    }
 
   /* any of these types can be null */
   switch(m->metric_type) {
@@ -91,8 +113,10 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
     }
     break;
   case METRIC_HISTOGRAM:
+    ENCODE_HISTOGRAM(0, h);
+    break;
   case METRIC_HISTOGRAM_CUMULATIVE:
-    /* This will need to be filled in once histograms are included in the metric_t */
+    ENCODE_HISTOGRAM(1, H);
     break;
   case METRIC_ABSENT:
   case METRIC_GUESS:
