@@ -63,27 +63,29 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
     noit_ns(MetricSample_value_AbsentNumericValue_add(B, x));                 \
   }
   
-#define ENCODE_HISTOGRAM(CUMULATIVE, MFIELD)                                           \
-    if(m->metric_value.MFIELD != NULL) {                                               \
-      noit_ns(MetricSample_value_Histogram_start(B));                                  \
-      noit_ns(Histogram_buckets_start(B));                                             \
-      if(m->metric_value.MFIELD->buckets != NULL) {                                    \
-        for (int i = 0; i < m->metric_value.MFIELD->num_buckets; i++) {                \
-          noit_ns(Histogram_buckets_push_create(                                       \
-            B,                                                                         \
-            m->metric_value.MFIELD->buckets[i].count,                                  \
-            m->metric_value.MFIELD->buckets[i].val,                                    \
-            m->metric_value.MFIELD->buckets[i].exp)                                    \
-          );                                                                           \
-        }                                                                              \
-      }                                                                                \
-      noit_ns(Histogram_buckets_end(B));                                               \
-      noit_ns(Histogram_cumulative_add(B, CUMULATIVE));                                \
-      noit_ns(MetricSample_value_Histogram_end(B));                                    \
-    } else {                                                                           \
-      noit_ns(AbsentHistogramValue_ref_t) x = noit_ns(AbsentHistogramValue_create(B)); \
-      noit_ns(MetricSample_value_AbsentHistogramValue_add(B, x));                      \
-    }
+#define ENCODE_HISTOGRAM(MFIELD)            \
+  if (m->metric_value.MFIELD != NULL) {     \
+    struct noit_HistogramBucket* h_buckets; \
+    if( (h_buckets = (struct noit_HistogramBucket*)malloc(sizeof(struct noit_HistogramBucket) * m->metric_value.MFIELD->num_buckets)) == NULL ) \
+    {\
+      noit_ns(AbsentHistogramValue_ref_t) x = noit_ns(AbsentHistogramValue_create(B));\
+      noit_ns(MetricSample_value_AbsentHistogramValue_add(B, x));\
+      break;\
+    }\
+    for (int i = 0; i < m->metric_value.MFIELD->num_buckets; i++) {  \
+      h_buckets[i].count = m->metric_value.MFIELD->buckets[i].count; \
+      h_buckets[i].val   = m->metric_value.MFIELD->buckets[i].val;   \
+      h_buckets[i].exp   = m->metric_value.MFIELD->buckets[i].exp;   \
+    }\
+    noit_ns(HistogramBucket_vec_ref_t) hbv = noit_ns( HistogramBucket_vec_create(B,  h_buckets, m->metric_value.MFIELD->num_buckets) ); \
+    flatbuffers_bool_t cumulative = m->metric_value.MFIELD->cumulative;\
+    noit_ns(Histogram_ref_t) hv = noit_ns(Histogram_create(B, hbv, cumulative)); \
+    noit_ns(MetricSample_value_Histogram_add(B, hv)); \
+    free(h_buckets); \
+  } else { \
+      noit_ns(AbsentHistogramValue_ref_t) x = noit_ns(AbsentHistogramValue_create(B));\
+      noit_ns(MetricSample_value_AbsentHistogramValue_add(B, x));\
+  }
 
   /* any of these types can be null */
   switch(m->metric_type) {
@@ -113,10 +115,10 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
     }
     break;
   case METRIC_HISTOGRAM:
-    ENCODE_HISTOGRAM(0, h);
+    ENCODE_HISTOGRAM(h)
     break;
   case METRIC_HISTOGRAM_CUMULATIVE:
-    ENCODE_HISTOGRAM(1, H);
+    ENCODE_HISTOGRAM(H)
     break;
   case METRIC_ABSENT:
   case METRIC_GUESS:

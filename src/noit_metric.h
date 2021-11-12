@@ -83,7 +83,7 @@ typedef struct {
 typedef struct {
   noit_histogram_bucket_t* buckets;
   mtev_boolean cumulative;
-  uint64_t num_buckets;
+  size_t num_buckets;
 } noit_histogram_t;
 
 typedef struct {
