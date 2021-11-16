@@ -115,10 +115,8 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
     }
     break;
   case METRIC_HISTOGRAM:
-    ENCODE_HISTOGRAM(h)
-    break;
   case METRIC_HISTOGRAM_CUMULATIVE:
-    ENCODE_HISTOGRAM(H)
+    ENCODE_HISTOGRAM(h)
     break;
   case METRIC_ABSENT:
   case METRIC_GUESS:

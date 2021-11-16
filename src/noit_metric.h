@@ -96,7 +96,6 @@ typedef struct {
     int64_t *l;
     uint64_t *L;
     noit_histogram_t *h;
-    noit_histogram_t *H;
     char *s;
     void *vp; /* used for clever assignments */
   } metric_value;
