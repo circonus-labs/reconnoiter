@@ -37,6 +37,7 @@
 #include <mtev_defines.h>
 #include <mtev_hooks.h>
 #include <mtev_uuid.h>
+#include <circllhist.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,18 +76,6 @@ typedef enum {
    (t) == METRIC_INT64 || (t) == METRIC_UINT64 || (t) == METRIC_DOUBLE)
 
 typedef struct {
-  uint64_t count;
-  uint8_t  val;
-  uint8_t  exp;
-} noit_histogram_bucket_t;
-
-typedef struct {
-  noit_histogram_bucket_t* buckets;
-  mtev_boolean cumulative;
-  size_t num_buckets;
-} noit_histogram_t;
-
-typedef struct {
   char *metric_name;
   metric_type_t metric_type;
   union {
@@ -95,7 +84,7 @@ typedef struct {
     uint32_t *I;
     int64_t *l;
     uint64_t *L;
-    noit_histogram_t *h;
+    histogram_t *h;
     char *s;
     void *vp; /* used for clever assignments */
   } metric_value;
