@@ -57,7 +57,7 @@ do
         esac
 done
 
-JARS="$JARS jezebel.jar log4j-1.2.15.jar \
+JARS="$JARS jezebel.jar \
 	jetty-6.1.20.jar servlet-api-2.5-20081211.jar \
 	jetty-util-6.1.20.jar \
 	commons-cli-1.1.jar commons-logging-1.1.1.jar \
