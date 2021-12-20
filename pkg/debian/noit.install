@@ -7,7 +7,6 @@ usr/bin/noit_jlogctl
 usr/lib/noit/
 usr/sbin/noitd
 src/java/lib/jezebel.jar usr/share/java
-src/java/lib/log4j-1.2.15.jar usr/share/java
 src/java/lib/jetty-6.1.20.jar usr/share/java
 src/java/lib/servlet-api-2.5-20081211.jar usr/share/java
 src/java/lib/jetty-util-6.1.20.jar usr/share/java
