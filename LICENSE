@@ -44,7 +44,6 @@ Jetty 6: Apache-2.0 [https://www.eclipse.org/jetty/]
 JUnit 3: CPL-1.0 [https://mvnrepository.com/artifact/junit/junit/3.8.1]
 libmtev: BSD-3-Clause [https://github.com/circonus-labs/libmtev] (web UI)
 libstomp: Apache-2.0 [https://github.com/a3linux/libstomp]
-Log4j: Apache-2.0 [http://logging.apache.org/log4j/2.x/]
 Lua: MIT [http://www.lua.org]
 LuaJIT: MIT [http://luajit.org]
 MongoDB Java Driver: Apache-2.0 [https://mongodb.github.io/mongo-java-driver/3.3/]
