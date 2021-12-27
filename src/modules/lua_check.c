@@ -31,9 +31,6 @@
 #include <mtev_defines.h>
 
 #include <unistd.h>
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
 
 #include <mtev_conf.h>
 #include <mtev_dso.h>

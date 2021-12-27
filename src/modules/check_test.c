@@ -155,8 +155,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   }
   mod_cnt = noit_check_registered_module_cnt();
   if(mod_cnt > 0) {
-    moptions = alloca(mod_cnt * sizeof(*moptions));
-    memset(moptions, 0, mod_cnt * sizeof(*moptions));
+    moptions = calloc(mod_cnt, sizeof(*moptions));
     for(i=0; i<mod_cnt; i++) {
       const char *name;
       mtev_conf_section_t checks;
@@ -196,6 +195,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
         free(moptions[i]);
       }
     }
+    free(moptions);
   }
   if(target) xmlFree(target);
   if(name) xmlFree(name);

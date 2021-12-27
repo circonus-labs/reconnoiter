@@ -96,16 +96,22 @@ stratcon_ingest_sweep_journals_int(const char *base,
   size = pathconf(path, _PC_NAME_MAX);
 #endif
   size = MAX(size, PATH_MAX + 128);
-  de = alloca(size);
+  de = malloc(size);
   root = opendir(path);
-  if(!root) return;
+  if (!root) {
+    free(de);
+    return;
+  }
   while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
     mtev_watchdog_child_heartbeat();
     cnt++;
   }
   closedir(root);
   root = opendir(path);
-  if(!root) return;
+  if (!root) {
+    free(de);
+    return;
+  }
   entries = malloc(sizeof(*entries) * cnt);
   while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
     mtev_watchdog_child_heartbeat();
@@ -144,6 +150,7 @@ stratcon_ingest_sweep_journals_int(const char *base,
   for(i=0; i<cnt; i++)
     free(entries[i]);
   free(entries);
+  free(de);
 }
 void
 stratcon_ingest_sweep_journals(const char *base, int (*test)(const char *),

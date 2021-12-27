@@ -917,16 +917,7 @@ put_retry:
   }
   else {
     /* We found it - increment by one */
-    char *val_string = NULL;
-    bool allocated = false;
-
-    if (mdb_data.mv_size < 10) {
-      val_string = (char *)alloca(mdb_data.mv_size + 1);
-    }
-    else {
-      val_string = (char *)calloc(1, mdb_data.mv_size + 1);
-      allocated = true;
-    }
+    char *val_string = (char *)calloc(1, mdb_data.mv_size + 1);
 
     mdb_key.mv_data = key;
     mdb_key.mv_size = key_size;
@@ -943,7 +934,7 @@ put_retry:
     mdb_data.mv_data = buff;
     mdb_data.mv_size = strlen(buff);
 
-    if (allocated) {
+    if (val_string) {
       free(val_string);
     }
     new_seq = seq;

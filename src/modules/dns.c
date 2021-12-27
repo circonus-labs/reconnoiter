@@ -560,6 +560,7 @@ static char *encode_txt(char *dst, const unsigned char *src, int len) {
 static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
                       struct dns_rr *rr, char **output) {
   char buff[DNS_MAXDN], *txt_str = buff, *c;
+  char *txt_str_malloc = NULL;
   uint32_t ttl, vu;
   int32_t vs;
   int totalsize;
@@ -601,7 +602,8 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
     for(tmp = dptr; tmp < dend; totalsize += *tmp, tmp += *tmp + 1)
       if(tmp + *tmp + 1 > dend) goto decode_err;
     /* worst case: every character escaped + '\0' */
-    txt_str = alloca(totalsize * 3 + 1);
+    txt_str_malloc = malloc(totalsize * 3 + 1);
+    txt_str = txt_str_malloc;
     if(!txt_str) goto decode_err;
     c = txt_str;
     for(tmp = dptr; tmp < dend; tmp += *tmp + 1)
@@ -667,10 +669,12 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
   else
     *output = strdup(txt_str);
   ci->nrr++;
+  if (txt_str_malloc) { free(txt_str_malloc); }
   return;
 
  decode_err:
   ci->error = strdup("RR decode error");
+  if (txt_str_malloc) { free(txt_str_malloc); }
   return;
 }
 
@@ -747,7 +751,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   /* calculate the length and allocate on the stack */
   len = 0;
   for(i=0; i<ci->nrr; i++) len += strlen(result_str[i]) + 2;
-  result_combined = alloca(len);
+  result_combined = malloc(len);
   result_combined[0] = '\0';
   /* string it together */
   len = 0;
@@ -763,6 +767,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   noit_stats_set_metric(ci->check, "answer", METRIC_STRING, result_combined);
 
  cleanup:
+  if (result_combined) { free(result_combined); }
   if(result) free(result);
   if(ci->timeout_event) {
     eventer_t e = eventer_remove(ci->timeout_event);

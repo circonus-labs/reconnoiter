@@ -204,7 +204,7 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
   unsigned int ulen;
   int i, size, cnt = 0, has_status = 0;
   const char *cp1, *cp2, *rest, *error_str = NULL;
-  char *timestamp, *uuid_str, *target, *module, *name, *ulen_str, *nipstr = NULL;
+  char *timestamp = NULL, *uuid_str = NULL, *target = NULL, *module = NULL, *name = NULL, *ulen_str = NULL, *nipstr = NULL;
   unsigned char *raw_protobuf = NULL;
 
   *out = NULL;
@@ -229,8 +229,8 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
   if(*cp1 == '\0') { error_str = "short line @ " #tgt; goto bad_line; } \
   cp2 = mtev_memmem(cp1, len - (cp1 - line), "\t", 1); \
   if(cp2 == NULL) { error_str = "no tab after " #tgt; goto bad_line; } \
-  tgt = (char *)alloca(cp2 - cp1 + 1); \
-  if(!tgt) { error_str = "alloca failed for " #tgt; goto bad_line; } \
+  tgt = (char *)malloc(cp2 - cp1 + 1); \
+  if(!tgt) { error_str = "malloc failed for " #tgt; goto bad_line; } \
   memcpy(tgt, cp1, cp2 - cp1); \
   tgt[cp2 - cp1] = '\0'; \
   cp1 = cp2 + 1; \
@@ -359,6 +359,13 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
  good_line:
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);
+  if (nipstr) { free(nipstr); }
+  if (ulen_str) { free(ulen_str); }
+  if (name) { free(name); }
+  if (module) { free(module); }
+  if (target) { free(target); }
+  if (uuid_str) { free(uuid_str); }
+  if (timestamp) { free(timestamp); }
 
   return cnt + has_status;
 }
@@ -369,7 +376,7 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   unsigned int ulen;
   int i, size;
   const char *cp1, *cp2, *rest, *error_str = NULL;
-  char *target, *module, *name, *whence_str, *ulen_str, *nipstr = NULL;
+  char *target, *module, *name, *whence_str = NULL, *ulen_str = NULL, *nipstr = NULL;
   unsigned char *raw_data = NULL;
   const char *value_str;
   size_t value_size;
@@ -386,8 +393,8 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   if(*cp1 == '\0') { error_str = "short line @ " #tgt; goto bad_line; } \
   cp2 = mtev_memmem(cp1, len - (cp1 - line), "\t", 1); \
   if(cp2 == NULL) { error_str = "no tab after " #tgt; goto bad_line; } \
-  tgt = (char *)alloca(cp2 - cp1 + 1); \
-  if(!tgt) { error_str = "alloca failed for " #tgt; goto bad_line; } \
+  tgt = (char *)malloc(cp2 - cp1 + 1); \
+  if(!tgt) { error_str = "malloc failed for " #tgt; goto bad_line; } \
   memcpy(tgt, cp1, cp2 - cp1); \
   tgt[cp2 - cp1] = '\0'; \
   cp1 = cp2 + 1; \
@@ -547,6 +554,9 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     }
   }
 
+  if (ulen_str) { free(ulen_str); }
+  if (whence_str) { free(whence_str); }
+
   return total_lines;
 
  bad_line:
@@ -556,6 +566,8 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
      */
     *out = NULL;
   }
+  if (ulen_str) { free(ulen_str); }
+  if (whence_str) { free(whence_str); }
   if(error_str) mtevL(noit_error, "bundle: bad line due to %s\n", error_str);
 
   return 0; 
