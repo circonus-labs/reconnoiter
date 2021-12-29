@@ -359,13 +359,13 @@ noit_check_log_b12_to_sm(const char *line, int len, char ***out, int noit_ip, no
  good_line:
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);
-  if (nipstr) { free(nipstr); }
-  if (ulen_str) { free(ulen_str); }
-  if (name) { free(name); }
-  if (module) { free(module); }
-  if (target) { free(target); }
-  if (uuid_str) { free(uuid_str); }
-  if (timestamp) { free(timestamp); }
+  free(nipstr);
+  free(ulen_str);
+  free(name);
+  free(module);
+  free(target);
+  free(uuid_str);
+  free(timestamp);
 
   return cnt + has_status;
 }
@@ -554,8 +554,8 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
     }
   }
 
-  if (ulen_str) { free(ulen_str); }
-  if (whence_str) { free(whence_str); }
+  free(ulen_str);
+  free(whence_str);
 
   return total_lines;
 
@@ -566,8 +566,8 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
      */
     *out = NULL;
   }
-  if (ulen_str) { free(ulen_str); }
-  if (whence_str) { free(whence_str); }
+  free(ulen_str);
+  free(whence_str);
   if(error_str) mtevL(noit_error, "bundle: bad line due to %s\n", error_str);
 
   return 0; 

@@ -934,9 +934,7 @@ put_retry:
     mdb_data.mv_data = buff;
     mdb_data.mv_size = strlen(buff);
 
-    if (val_string) {
-      free(val_string);
-    }
+    free(val_string);
     new_seq = seq;
   }
 

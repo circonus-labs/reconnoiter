@@ -564,7 +564,7 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
     }
   }
 
-  if (out_q) { free(out_q); }
+  free(out_q);
 }
 
 static mtev_hook_return_t

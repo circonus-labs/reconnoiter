@@ -669,12 +669,12 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
   else
     *output = strdup(txt_str);
   ci->nrr++;
-  if (txt_str_malloc) { free(txt_str_malloc); }
+  free(txt_str_malloc);
   return;
 
  decode_err:
   ci->error = strdup("RR decode error");
-  if (txt_str_malloc) { free(txt_str_malloc); }
+  free(txt_str_malloc);
   return;
 }
 
@@ -767,7 +767,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   noit_stats_set_metric(ci->check, "answer", METRIC_STRING, result_combined);
 
  cleanup:
-  if (result_combined) { free(result_combined); }
+  free(result_combined);
   if(result) free(result);
   if(ci->timeout_event) {
     eventer_t e = eventer_remove(ci->timeout_event);

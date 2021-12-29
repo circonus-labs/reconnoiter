@@ -778,12 +778,12 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
     mtevL(noit_stderr, "check has no uuid\n");
-    if (moptions) { free(moptions); }
+    free(moptions);
     return;
   }
   if(mtev_conf_env_off(section, NULL)) {
     mtevL(noit_stderr, "check %s environmentally disabled.\n", uuid_str);
-    if (moptions) { free(moptions); }
+    free(moptions);
     return;
   }
 
@@ -791,7 +791,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   if(mtev_uuid_parse(uuid_str, uuid)) {
     mtevL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
-    if (moptions) { free(moptions); }
+    free(moptions);
     return;
   }
 
@@ -913,7 +913,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
       free(moptions[ridx]);
     }
   }
-  if (moptions) { free(moptions); }
+  free(moptions);
   mtev_hash_destroy(options, free, free);
   free(options);
   noit_check_deref(check);
@@ -3855,7 +3855,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       free(moptions[ridx]);
     }
   }
-  if (moptions) { free(moptions); }
+  free(moptions);
   mtev_hash_destroy(&options, free, free);
   noit_check_deref(check);
   mtev_memory_end();
