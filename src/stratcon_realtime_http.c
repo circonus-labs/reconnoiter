@@ -312,7 +312,7 @@ stratcon_realtime_uri_parse(realtime_context *rc, const char *uri) {
   if(strncmp(uri, "/data/", 6)) return 0;
   cp = uri + 6;
   len = strlen(cp);
-  copy = alloca(len + 1);
+  copy = malloc(len + 1);
   if(!copy) return 0;
   memcpy(copy, cp, len);
   copy[len] = '\0';
@@ -338,6 +338,7 @@ stratcon_realtime_uri_parse(realtime_context *rc, const char *uri) {
     rc->checklist = node;
     cnt++;
   }
+  free(copy);
   return cnt;
 }
 static void

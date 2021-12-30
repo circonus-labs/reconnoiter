@@ -518,14 +518,14 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
   int klen;
   void *data;
   mtev_hash_table *metrics;
-  double *out_q;
+  double *out_q = NULL;
 
   noit_check_get_stats_current(check);
   /* Only need to do work if it's asked for */
   if(!conf->mean && !conf->sum && conf->n_quantiles < 1) return;
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) return;
-  out_q = alloca(sizeof(double) * conf->n_quantiles);
+  out_q = malloc(sizeof(double) * conf->n_quantiles);
 
   while(mtev_hash_next(metrics, &iter, &metric_name, &klen, &data)) {
     char mname[MAX_METRIC_TAGGED_NAME];
@@ -563,6 +563,8 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
       }
     }
   }
+
+  free(out_q);
 }
 
 static mtev_hook_return_t

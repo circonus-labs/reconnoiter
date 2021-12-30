@@ -767,7 +767,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
   mtev_watchdog_child_heartbeat();
 
   if(reg_module_id > 0) {
-    moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
+    moptions = malloc(reg_module_id * sizeof(mtev_hash_table *));
     memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
     moptions_used = mtev_true;
   }
@@ -778,10 +778,12 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
     mtevL(noit_stderr, "check has no uuid\n");
+    free(moptions);
     return;
   }
   if(mtev_conf_env_off(section, NULL)) {
     mtevL(noit_stderr, "check %s environmentally disabled.\n", uuid_str);
+    free(moptions);
     return;
   }
 
@@ -789,6 +791,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
 
   if(mtev_uuid_parse(uuid_str, uuid)) {
     mtevL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
+    free(moptions);
     return;
   }
 
@@ -910,6 +913,7 @@ noit_poller_process_check_conf(mtev_conf_section_t section) {
       free(moptions[ridx]);
     }
   }
+  free(moptions);
   mtev_hash_destroy(options, free, free);
   free(options);
   noit_check_deref(check);
@@ -3612,7 +3616,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   mtev_boolean disabled = mtev_false, busted = mtev_false, deleted = mtev_false;
   mtev_hash_table options;
   mtev_hash_table **moptions = NULL;
-  mtev_boolean moptions_used = mtev_false, moptions_malloced = mtev_false, backdated = mtev_false;
+  mtev_boolean moptions_used = mtev_false, backdated = mtev_false;
   MDB_val mdb_key, mdb_data;
 
   /* We want to heartbeat here... otherwise, if a lot of checks are 
@@ -3625,14 +3629,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
   mtev_hash_init(&options);
 
   if(reg_module_id > 0) {
-    if (reg_module_id > 10) {
-      moptions = malloc(reg_module_id * sizeof(mtev_hash_table *));
-      moptions_malloced = mtev_true;
-    }
-    else {
-      moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
-    }
-    memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
+    moptions = calloc(reg_module_id, sizeof(mtev_hash_table *));
     moptions_used = mtev_true;
   }
 
@@ -3858,9 +3855,7 @@ noit_poller_lmdb_create_check_from_database_locked(MDB_cursor *cursor, uuid_t ch
       free(moptions[ridx]);
     }
   }
-  if (moptions_malloced == mtev_true) {
-    free(moptions);
-  }
+  free(moptions);
   mtev_hash_destroy(&options, free, free);
   noit_check_deref(check);
   mtev_memory_end();
