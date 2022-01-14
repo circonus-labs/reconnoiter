@@ -53,6 +53,7 @@
 #include <mtev_rest.h>
 #include <mtev_json.h>
 #include <mtev_stats.h>
+#include <mtev_consul.h>
 
 #include "noit_mtev_bridge.h"
 #include "stratcon_dtrace_probes.h"
@@ -67,6 +68,16 @@ pthread_mutex_t noits_lock;
 mtev_hash_table noits;
 pthread_mutex_t noit_ip_by_cn_lock;
 mtev_hash_table noit_ip_by_cn;
+struct ipport {
+  unsigned short port;
+  char target[INET6_ADDRSTRLEN];
+};
+struct ipport *ipport_new(const char *target, unsigned short port) {
+  struct ipport *n = calloc(1, sizeof(*n));
+  n->port = port;
+  if(target) strlcpy(n->target, target, sizeof(n->target));
+  return n;
+}
 static uuid_t self_stratcon_id;
 static char self_stratcon_hostname[256] = "\0";
 static struct sockaddr_in self_stratcon_ip;
@@ -98,6 +109,83 @@ struct jlog_stream_stats {
 };
 mtev_hash_table noit_stats_iep; /* this is persistent */
 mtev_hash_table noit_stats_durable; /* this is persistent */
+mtev_hash_table noit_consul_service;
+
+/* consul actuation */
+static void consul_start(const char *cn, const struct ipport *tgt) {
+  if(mtev_consul_service_alloc_available()) {
+    if(strlen(tgt->target)) { /* we only start if we have an address */
+      mtev_hash_table *tags = calloc(1, sizeof(*tags));
+      mtev_hash_init(tags);
+      mtev_hash_dict_store(tags, "cn", cn);
+      mtev_consul_service *service =
+        mtev_consul_service_alloc("noit", cn, tgt->target, tgt->port,
+            tags, true, NULL, false);
+      mtev_consul_service_check_https(service, "/capa.json", "GET", cn, true, 10, NULL);
+      mtev_consul_register(service);
+    }
+  }
+}
+static void consul_stop(const char *cn) {
+  if(mtev_consul_service_registry_available()) {
+    service_register *sr = mtev_consul_service_registry(cn);
+    if(sr) {
+      struct ipport tgt = { .port = 0, .target = "unknown" };
+      void *vtgt = NULL;
+      pthread_mutex_lock(&noit_ip_by_cn_lock);
+      if(mtev_hash_retrieve(&noit_ip_by_cn, strdup(cn), strlen(cn),
+                            &vtgt)) {
+        tgt = *(struct ipport *)vtgt;
+      }
+      pthread_mutex_unlock(&noit_ip_by_cn_lock);
+      consul_start(cn, &tgt);
+    } else {
+      mtevL(mtev_error, "No consul service instance %s\n", cn);
+    }
+  }
+}
+static void consul_stop_free(void *cn) {
+  consul_stop((const char *)cn);
+  free(cn);
+}
+static mtev_hook_return_t
+consul_proxy_hook(void *closure, const char *id, int family, struct sockaddr *addr, bool up) {
+  if(!strncmp(id, "noit/", 5)) {
+    int len;
+    struct ipport tgt;
+    const char *cn = id + 5;
+    switch(family) {
+      case AF_INET:
+        len = sizeof(struct sockaddr_in);
+        struct in_addr addr_any = { .s_addr = INADDR_ANY };
+        if(0 == memcmp(&addr_any, &((struct sockaddr_in *)addr)->sin_addr, sizeof(addr_any))) {
+          inet_ntop(family, &self_stratcon_ip.sin_addr, tgt.target, len);
+        }
+        else {
+          inet_ntop(family, &((struct sockaddr_in *)addr)->sin_addr, tgt.target, len);
+        }
+        tgt.port = htons(((struct sockaddr_in *)addr)->sin_port);
+        break;
+      case AF_INET6:
+        len = sizeof(struct sockaddr_in6);
+        inet_ntop(family, &((struct sockaddr_in6 *)addr)->sin6_addr, tgt.target, len);
+        tgt.port = htons(((struct sockaddr_in6 *)addr)->sin6_port);
+        cn = NULL;
+        break;
+      default:
+        cn = NULL;
+        break;
+    }
+    if(cn) {
+      if(up) {
+        consul_start(cn, &tgt);
+      } else {
+        consul_stop(cn);
+      }
+    }
+  }
+  return MTEV_HOOK_CONTINUE;
+}
 
 static jlog_streamer_stats_t *
 stats_alloc(stats_ns_t *parent, const char *cn) {
@@ -635,9 +723,9 @@ stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len) {
   pthread_mutex_lock(&noit_ip_by_cn_lock);
   if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vip)) {
     int new_len;
-    char *new_ip = (char *)vip;
-    new_len = strlen(new_ip);
-    strlcpy(ip, new_ip, len);
+    struct ipport *new_ip = (struct ipport *)vip;
+    new_len = strlen(new_ip->target);
+    strlcpy(ip, new_ip->target, len);
     if(new_len >= len) rv = new_len+1;
     else rv = 0;
   }
@@ -650,18 +738,23 @@ stratcon_jlog_streamer_recache_noit() {
   mtev_conf_section_t *noit_configs;
   noit_configs = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "//noits//noit", &cnt);
   pthread_mutex_lock(&noit_ip_by_cn_lock);
-  mtev_hash_delete_all(&noit_ip_by_cn, free, free);
+  mtev_hash_delete_all(&noit_ip_by_cn, consul_stop_free, free);
   for(di=0; di<cnt; di++) {
     char address[64];
     if(mtev_conf_env_off(noit_configs[di], NULL)) continue;
     if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
                                  address, sizeof(address))) {
+      int port = 43191;
+      mtev_conf_get_int32(noit_configs[di], "self::node()/@port", &port);
       char expected_cn[256];
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
-                                 expected_cn, sizeof(expected_cn)))
+                                 expected_cn, sizeof(expected_cn))) {
+        struct ipport *tgt = ipport_new(address, port);
         mtev_hash_store(&noit_ip_by_cn,
                         strdup(expected_cn), strlen(expected_cn),
-                        strdup(address));
+                        tgt);
+        consul_start(expected_cn, tgt);
+      }
     }
   }
   mtev_conf_release_sections_read(noit_configs, cnt);
@@ -1391,8 +1484,10 @@ stratcon_add_noit(const char *target, unsigned short port,
     xmlAddChild(config, cnnode);
     xmlAddChild(newnoit, config);
     pthread_mutex_lock(&noit_ip_by_cn_lock);
+    struct ipport *tgt = ipport_new(target, port);
     mtev_hash_replace(&noit_ip_by_cn, strdup(cn), strlen(cn),
-                      strdup(target), free, free);
+                      tgt, free, free);
+    consul_start(cn, tgt);
     pthread_mutex_unlock(&noit_ip_by_cn_lock);
   }
   if(stratcon_datastore_get_enabled())
@@ -1437,6 +1532,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
         pthread_mutex_lock(&noit_ip_by_cn_lock);
         mtev_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
                          free, free);
+        consul_stop(expected_cn);
         pthread_mutex_unlock(&noit_ip_by_cn_lock);
       } else continue;
     }
@@ -1455,6 +1551,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
     for(i=0; i<cnt; i++) {
       pthread_mutex_lock(&noit_ip_by_cn_lock);
       mtev_hash_delete(&noit_ip_by_cn, cn, strlen(cn), free, free);
+      consul_stop(cn);
       pthread_mutex_unlock(&noit_ip_by_cn_lock);
       CONF_REMOVE(noit_configs[i]);
       xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
@@ -1653,6 +1750,10 @@ stratcon_jlog_streamer_init(const char *toplevel) {
 
   mtev_uuid_clear(self_stratcon_id);
 
+  self_stratcon_ip.sin_family = AF_INET;
+  remote.s_addr = 0x08080808;
+  mtev_getip_ipv4(remote, &self_stratcon_ip.sin_addr);
+
   if(mtev_conf_get_stringbuf(MTEV_CONF_ROOT, "/stratcon/@id",
                              uuid_str, sizeof(uuid_str)) &&
      mtev_uuid_parse(uuid_str, self_stratcon_id) == 0) {
@@ -1667,9 +1768,6 @@ stratcon_jlog_streamer_init(const char *toplevel) {
       DEFAULT_NOIT_PERIOD_TV.tv_sec = period / 1000;
       DEFAULT_NOIT_PERIOD_TV.tv_usec = (period % 1000) * 1000;
     }
-    self_stratcon_ip.sin_family = AF_INET;
-    remote.s_addr = 0xffffffff;
-    mtev_getip_ipv4(remote, &self_stratcon_ip.sin_addr);
     gethostname(self_stratcon_hostname, sizeof(self_stratcon_hostname));
     eventer_add_in(periodic_noit_metrics, NULL, whence);
     stats_ns_t *ns = mtev_stats_ns(NULL, "stratcon");
@@ -1689,5 +1787,6 @@ stratcon_jlog_streamer_init_globals(void) {
   stats_ns_add_tag(iep_ns, "feed-type", "iep");
   durable_ns = mtev_stats_ns(fns, "storage");
   stats_ns_add_tag(durable_ns, "feed-type", "storage");
+  mtev_reverse_proxy_changed_hook_register("stratcon", consul_proxy_hook, NULL);
 }
 
