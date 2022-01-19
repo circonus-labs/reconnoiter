@@ -288,6 +288,7 @@ static void consul_update(const char *cn, bool is_storage, bool disconnected,
                           int64_t last_event_ms, int64_t session_duiration_ms) {
   if(mtev_consul_service_alloc_available()) {
     service_register *sr = mtev_consul_service_registry(cn);
+    if(!sr) return;
     void *vtgt = NULL;
     pthread_mutex_lock(&noit_ip_by_cn_lock);
     if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn),
