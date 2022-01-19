@@ -54,6 +54,7 @@
 #include <mtev_json.h>
 #include <mtev_stats.h>
 #include <mtev_consul.h>
+#include <mtev_curl.h>
 
 #include "noit_mtev_bridge.h"
 #include "stratcon_dtrace_probes.h"
@@ -68,15 +69,109 @@ pthread_mutex_t noits_lock;
 mtev_hash_table noits;
 pthread_mutex_t noit_ip_by_cn_lock;
 mtev_hash_table noit_ip_by_cn;
-struct ipport {
+struct noit_meta {
+  char *cn;
   unsigned short port;
   char target[INET6_ADDRSTRLEN];
+  int storage_svc_idx;
+  int transient_svc_idx;
+  mtev_hash_table *tags;
+  mtev_hash_table *meta;
 };
-struct ipport *ipport_new(const char *target, unsigned short port) {
-  struct ipport *n = calloc(1, sizeof(*n));
+
+static void consul_start(struct noit_meta *tgt, bool launch);
+
+struct noit_meta *noit_meta_new(const char *cn, const char *target, unsigned short port) {
+  struct noit_meta *n = calloc(1, sizeof(*n));
+  n->cn = strdup(cn);
   n->port = port;
   if(target) strlcpy(n->target, target, sizeof(n->target));
+  n->tags = calloc(1, sizeof(*n->tags));
+  mtev_hash_init(n->tags);
+  mtev_hash_dict_store(n->tags, "cn", cn);
+  n->meta = calloc(1, sizeof(*n->meta));
+  mtev_hash_init(n->meta);
   return n;
+}
+static void noit_meta_free(void *vnm) {
+  struct noit_meta *n = (struct noit_meta *)vnm;
+  mtev_hash_destroy(n->tags, free, free);
+  free(n->tags);
+  mtev_hash_destroy(n->meta, free, free);
+  free(n->meta);
+  free(n->cn);
+  free(n);
+}
+static const char *extract_key(const mtev_json_object *o, const char *path) {
+  char *path_copy = strdup(path);
+  char *brk = NULL;
+  for(const char *cp = strtok_r(path_copy, ".", &brk);
+      cp; cp = strtok_r(NULL, ".", &brk)) {
+    if(!mtev_json_object_is_type(o, json_type_object)) return NULL;
+    o = mtev_json_object_object_get(o, cp);
+  }
+  return mtev_json_object_get_string(o);
+}
+static bool dict_is_different(mtev_hash_table *a, mtev_hash_table *b) {
+  if(mtev_hash_size(a) != mtev_hash_size(b)) return true;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  while(mtev_hash_adv(a, &iter)) {
+    const char *bval = mtev_hash_dict_get(b, iter.key.str);
+    if(!bval) return true;
+    if(strcmp(iter.value.str, bval)) return true;
+  }
+  return false;
+}
+static void refresh_meta_from_json(const char *cn, mtev_json_object *o) {
+  mtev_hash_table tags, meta;
+  if(!mtev_json_object_is_type(o, json_type_object)) return;
+  mtev_hash_init(&tags);
+  mtev_hash_init(&meta);
+#define META(key, path) do { \
+  const char *_val; \
+  if(NULL != (_val = extract_key(o, path))) { \
+    mtev_hash_dict_store(&meta, key, _val); \
+  } \
+} while(0)
+  META("noit_version", "version");
+  META("mtev_version", "mtev_version");
+  META("kernel_type", "unameRun.sysname");
+  META("kernel_arch", "unameRun.machine");
+  META("kernel_release", "unameRun.release");
+
+  mtev_hash_dict_store(&tags, "cn", cn);
+  mtev_json_object *modules = mtev_json_object_object_get(o, "modules");
+  if(modules && mtev_json_object_is_type(modules, json_type_object)) {
+    mtev_json_object_object_foreach(modules, key, val) {
+      const char *type = extract_key(val, "type");
+      if(!strcmp(type, "module")) {
+        char tagname[128];
+        snprintf(tagname, sizeof(tagname), "check:%s", key);
+        mtev_hash_dict_store(&tags, tagname, "");
+      }
+    }
+  }
+
+  pthread_mutex_lock(&noit_ip_by_cn_lock);
+  bool changed = false;
+  void *vnm = NULL;
+  if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vnm)) {
+    struct noit_meta *nm = vnm;
+    if(dict_is_different(nm->tags, &tags)) {
+      mtev_hash_delete_all(nm->tags, free, free);
+      mtev_hash_merge_as_dict(nm->tags, &tags);
+      changed = true;
+    }
+    if(dict_is_different(nm->meta, &meta)) {
+      mtev_hash_delete_all(nm->meta, free, free);
+      mtev_hash_merge_as_dict(nm->meta, &meta);
+      changed = true;
+    }
+    if(changed) consul_start(nm, false);
+  }
+  pthread_mutex_unlock(&noit_ip_by_cn_lock);
+  mtev_hash_destroy(&tags, free, free);
+  mtev_hash_destroy(&meta, free, free);
 }
 static uuid_t self_stratcon_id;
 static char self_stratcon_hostname[256] = "\0";
@@ -111,49 +206,182 @@ mtev_hash_table noit_stats_iep; /* this is persistent */
 mtev_hash_table noit_stats_durable; /* this is persistent */
 mtev_hash_table noit_consul_service;
 
+long WARNING_DELAY_MS = 30 * 1000; // 20 seconds
+long WARNING_SESSION_TIME_MS = 10 * 1000; // 15 seconds
+
+static void consul_meta_updater(void) {
+  char *cn = eventer_aco_arg();
+  char *ca_chain = NULL, *cert = NULL, *key = NULL;
+  mtevL(mtev_error, "CONSUL_META_UPDATER[%s] starting\n", cn);
+  eventer_aco_sleep(&(struct timeval){ 1UL, 0UL });
+  while(1) {
+    if(!ca_chain) {
+      pthread_mutex_lock(&noits_lock);
+      mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+      /* snag a copy of the sslconfig elements to use with curl */
+      while(ca_chain == NULL && mtev_hash_adv(&noits, &iter)) {
+        mtev_connection_ctx_t *conn = iter.value.ptr;
+        if(conn && conn->sslconfig) {
+          ca_chain = mtev_hash_dict_get(conn->sslconfig, "ca_chain");
+          cert = mtev_hash_dict_get(conn->sslconfig, "certificate");
+          key = mtev_hash_dict_get(conn->sslconfig, "key");
+        }
+      }
+      pthread_mutex_unlock(&noits_lock);
+      if(ca_chain) ca_chain = strdup(ca_chain);
+      free(cert);
+      if(cert) cert = strdup(cert);
+      free(key);
+      if(key) key = strdup(key);
+    }
+    char url[512];
+    mtev_curl_handle_t *ch = mtev_curl_easy_aco(false);
+    CURL *curl = mtev_curl_handle_get_easy_handle(ch);
+    struct curl_slist *connect_to = NULL;
+
+    pthread_mutex_lock(&noit_ip_by_cn_lock);
+    void *vtgt = NULL;
+    struct noit_meta *live = NULL;
+    if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vtgt)) {
+      char connect_to_str[256];
+      live = vtgt;
+      snprintf(url, sizeof(url), "https://%s:%u/capa.json", live->cn, live->port);
+      snprintf(connect_to_str, sizeof(connect_to_str), "%s:%u:%s:%u", live->cn, live->port, live->target, live->port);
+      connect_to = curl_slist_append(connect_to, connect_to_str);
+    }
+    pthread_mutex_unlock(&noit_ip_by_cn_lock);
+
+    if(live) {
+      curl_easy_setopt(curl, CURLOPT_URL, url);
+      curl_easy_setopt(curl, CURLOPT_CONNECT_TO, connect_to);
+      if(ca_chain) curl_easy_setopt(curl, CURLOPT_CAINFO, ca_chain);
+      if(cert && key) {
+        curl_easy_setopt(curl, CURLOPT_SSLCERT, cert);
+        curl_easy_setopt(curl, CURLOPT_SSLKEY, key);
+      }
+      mtev_curl_perform_aco(ch);
+
+      size_t buffer_len = 0;
+      const char *buffer = mtev_curl_handle_get_buffer(ch, &buffer_len);
+      if(buffer_len) {
+        mtev_json_object *obj = mtev_json_tokener_parse_len(buffer, buffer_len, NULL);
+        if(obj) {
+          refresh_meta_from_json(cn, obj);
+          MJ_DROP(obj);
+        }
+      }
+    }
+
+    curl_slist_free_all(connect_to);
+    mtev_curl_handle_free_aco(ch);
+
+    if(!live) break;
+    eventer_aco_sleep(&(struct timeval){ 5UL, 0UL });
+  }
+  mtevL(mtev_error, "CONSUL_META_UPDATER[%s] ending\n", cn);
+  free(ca_chain);
+  free(cn);
+}
+
 /* consul actuation */
-static void consul_start(const char *cn, const struct ipport *tgt) {
+static void consul_update(const char *cn, bool is_storage, bool disconnected,
+                          int64_t last_event_ms, int64_t session_duiration_ms) {
+  if(mtev_consul_service_alloc_available()) {
+    service_register *sr = mtev_consul_service_registry(cn);
+    void *vtgt = NULL;
+    pthread_mutex_lock(&noit_ip_by_cn_lock);
+    if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn),
+                          &vtgt)) {
+      struct noit_meta *tgt = vtgt;
+      int svc_idx = is_storage ? tgt->storage_svc_idx : tgt->transient_svc_idx;
+      if(svc_idx >= 0) {
+        char msg[256];
+        if(disconnected) {
+          mtev_consul_set_critical(sr, svc_idx, "disconnected");
+        }
+        else if(last_event_ms > WARNING_DELAY_MS) {
+          snprintf(msg, sizeof(msg), "data delayed: delayed %fs, up %fs",
+                  (double)last_event_ms/1000.0, (double)session_duiration_ms/1000.0);
+          mtev_consul_set_warning(sr, svc_idx, msg);
+        }
+        else if(session_duiration_ms < WARNING_SESSION_TIME_MS) {
+          snprintf(msg, sizeof(msg), "session unstable: delayed %fs, up %fs",
+                  (double)last_event_ms/1000.0, (double)session_duiration_ms/1000.0);
+          mtev_consul_set_warning(sr, svc_idx, msg);
+        }
+        else {
+          snprintf(msg, sizeof(msg), "feed current: delayed %fs, up %fs",
+                  (double)last_event_ms/1000.0, (double)session_duiration_ms/1000.0);
+          mtev_consul_set_passing(sr, svc_idx, msg);
+        }
+      }
+    }
+    pthread_mutex_unlock(&noit_ip_by_cn_lock);
+  }
+}
+static void consul_start(struct noit_meta *tgt, bool launch) {
   if(mtev_consul_service_alloc_available()) {
     if(strlen(tgt->target)) { /* we only start if we have an address */
-      mtev_hash_table *tags = calloc(1, sizeof(*tags));
-      mtev_hash_init(tags);
-      mtev_hash_dict_store(tags, "cn", cn);
       mtev_consul_service *service =
-        mtev_consul_service_alloc("noit", cn, tgt->target, tgt->port,
-            tags, true, NULL, false);
-      mtev_consul_service_check_https(service, "/capa.json", "GET", cn, true, 10, NULL);
+        mtev_consul_service_alloc("noit", tgt->cn, tgt->target, tgt->port,
+            tgt->tags, false, tgt->meta, false);
+      mtev_consul_service_check_https(service, "CAPA", "/capa.json", "GET", tgt->cn, true, 10, NULL, 60*30);
+      if(stratcon_datastore_get_enabled()) {
+        tgt->storage_svc_idx = mtev_consul_service_check_push(service, "Storage Feed", 10, 0);
+      }
+      if(stratcon_iep_get_enabled()) {
+        tgt->transient_svc_idx = mtev_consul_service_check_push(service, "Alerting Feed", 10, 0);
+      }
       mtev_consul_register(service);
+      service_register *sr = mtev_consul_service_registry(tgt->cn);
+      if(sr) {
+        if(tgt->storage_svc_idx >= 0) mtev_consul_set_critical(sr, tgt->storage_svc_idx, "unknown");
+        if(tgt->transient_svc_idx >= 0) mtev_consul_set_critical(sr, tgt->transient_svc_idx, "unknown");
+      }
+      if(launch) eventer_aco_start(consul_meta_updater, strdup(tgt->cn));
     }
   }
 }
-static void consul_stop(const char *cn) {
+static void consul_reset(const char *cn) {
   if(mtev_consul_service_registry_available()) {
     service_register *sr = mtev_consul_service_registry(cn);
     if(sr) {
-      struct ipport tgt = { .port = 0, .target = "unknown" };
+      struct noit_meta *meta = NULL;
       void *vtgt = NULL;
       pthread_mutex_lock(&noit_ip_by_cn_lock);
-      if(mtev_hash_retrieve(&noit_ip_by_cn, strdup(cn), strlen(cn),
+      if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn),
                             &vtgt)) {
-        tgt = *(struct ipport *)vtgt;
+        meta = (struct noit_meta *)vtgt;
+        strlcpy(meta->target, "unknown", sizeof(meta->target));
+        meta->port = 0;
+        consul_start(meta, false);
+      } else {
+        meta = noit_meta_new(cn, "unknown", 0);
+        mtev_hash_store(&noit_ip_by_cn, meta->cn, strlen(meta->cn), meta);
+        consul_start(meta, true);
       }
       pthread_mutex_unlock(&noit_ip_by_cn_lock);
-      consul_start(cn, &tgt);
     } else {
       mtevL(mtev_error, "No consul service instance %s\n", cn);
     }
   }
 }
-static void consul_stop_free(void *cn) {
-  consul_stop((const char *)cn);
+static void consul_stop(void *cn) {
+  if(mtev_consul_service_registry_available()) {
+    service_register *sr = mtev_consul_service_registry(cn);
+    if(sr) {
+      mtev_consul_service_register_deregister(sr);
+    }
+  }
   free(cn);
 }
 static mtev_hook_return_t
 consul_proxy_hook(void *closure, const char *id, int family, struct sockaddr *addr, bool up) {
   if(!strncmp(id, "noit/", 5)) {
     int len;
-    struct ipport tgt;
+    struct noit_meta tgt;
     const char *cn = id + 5;
+    void *vtgt = NULL;
     switch(family) {
       case AF_INET:
         len = sizeof(struct sockaddr_in);
@@ -177,10 +405,24 @@ consul_proxy_hook(void *closure, const char *id, int family, struct sockaddr *ad
         break;
     }
     if(cn) {
-      if(up) {
-        consul_start(cn, &tgt);
+      struct noit_meta *meta;
+      bool launch = false;
+      pthread_mutex_lock(&noit_ip_by_cn_lock);
+      if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vtgt)) {
+        meta = (struct noit_meta *)vtgt;
+        memcpy(meta->target, tgt.target, sizeof(meta->target));
+        meta->port = tgt.port;
       } else {
-        consul_stop(cn);
+        meta = noit_meta_new(cn, tgt.target, tgt.port);
+        mtev_hash_store(&noit_ip_by_cn, meta->cn, strlen(meta->cn), meta);
+        launch = true;
+      }
+      if(up) {
+        consul_start(meta, launch);
+        pthread_mutex_unlock(&noit_ip_by_cn_lock);
+      } else {
+        pthread_mutex_unlock(&noit_ip_by_cn_lock);
+        consul_reset(cn);
       }
     }
   }
@@ -723,7 +965,7 @@ stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len) {
   pthread_mutex_lock(&noit_ip_by_cn_lock);
   if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vip)) {
     int new_len;
-    struct ipport *new_ip = (struct ipport *)vip;
+    struct noit_meta *new_ip = (struct noit_meta *)vip;
     new_len = strlen(new_ip->target);
     strlcpy(ip, new_ip->target, len);
     if(new_len >= len) rv = new_len+1;
@@ -738,7 +980,7 @@ stratcon_jlog_streamer_recache_noit() {
   mtev_conf_section_t *noit_configs;
   noit_configs = mtev_conf_get_sections_read(MTEV_CONF_ROOT, "//noits//noit", &cnt);
   pthread_mutex_lock(&noit_ip_by_cn_lock);
-  mtev_hash_delete_all(&noit_ip_by_cn, consul_stop_free, free);
+  mtev_hash_delete_all(&noit_ip_by_cn, consul_stop, noit_meta_free);
   for(di=0; di<cnt; di++) {
     char address[64];
     if(mtev_conf_env_off(noit_configs[di], NULL)) continue;
@@ -749,11 +991,11 @@ stratcon_jlog_streamer_recache_noit() {
       char expected_cn[256];
       if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn, sizeof(expected_cn))) {
-        struct ipport *tgt = ipport_new(address, port);
+        struct noit_meta *tgt = noit_meta_new(expected_cn, address, port);
         mtev_hash_store(&noit_ip_by_cn,
-                        strdup(expected_cn), strlen(expected_cn),
+                        tgt->cn, strlen(tgt->cn),
                         tgt);
-        consul_start(expected_cn, tgt);
+        consul_start(tgt, true);
       }
     }
   }
@@ -916,6 +1158,10 @@ emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
   session_duration_ms = session_duration.tv_sec * 1000 +
                         session_duration.tv_usec / 1000;
 
+  if(feedtype && (!strcmp(feedtype, "iep") || !strcmp(feedtype, "storage"))) {
+    consul_update(cn_expected, !strcmp(feedtype, "storage"),
+                  nctx->retry_event, last_event_ms, session_duration_ms);
+  }
   push_noit_m_str("state", nctx->remote_cn ? "connected" :
                              (nctx->retry_event ? "disconnected" :
                                                   "connecting"));
@@ -1484,10 +1730,10 @@ stratcon_add_noit(const char *target, unsigned short port,
     xmlAddChild(config, cnnode);
     xmlAddChild(newnoit, config);
     pthread_mutex_lock(&noit_ip_by_cn_lock);
-    struct ipport *tgt = ipport_new(target, port);
-    mtev_hash_replace(&noit_ip_by_cn, strdup(cn), strlen(cn),
-                      tgt, free, free);
-    consul_start(cn, tgt);
+    struct noit_meta *tgt = noit_meta_new(cn, target, port);
+    mtev_hash_replace(&noit_ip_by_cn, tgt->cn, strlen(tgt->cn),
+                      tgt, NULL, noit_meta_free);
+    consul_start(tgt, true);
     pthread_mutex_unlock(&noit_ip_by_cn_lock);
   }
   if(stratcon_datastore_get_enabled())
@@ -1531,8 +1777,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
       if(!cn || !strcmp(cn, expected_cn)) {
         pthread_mutex_lock(&noit_ip_by_cn_lock);
         mtev_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
-                         free, free);
-        consul_stop(expected_cn);
+                         consul_stop, noit_meta_free);
         pthread_mutex_unlock(&noit_ip_by_cn_lock);
       } else continue;
     }
@@ -1550,8 +1795,7 @@ stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
     noit_configs = mtev_conf_get_sections_write(MTEV_CONF_ROOT, path, &cnt);
     for(i=0; i<cnt; i++) {
       pthread_mutex_lock(&noit_ip_by_cn_lock);
-      mtev_hash_delete(&noit_ip_by_cn, cn, strlen(cn), free, free);
-      consul_stop(cn);
+      mtev_hash_delete(&noit_ip_by_cn, cn, strlen(cn), consul_stop, noit_meta_free);
       pthread_mutex_unlock(&noit_ip_by_cn_lock);
       CONF_REMOVE(noit_configs[i]);
       xmlUnlinkNode(mtev_conf_section_to_xmlnodeptr(noit_configs[i]));
