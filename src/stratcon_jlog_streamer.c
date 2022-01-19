@@ -206,8 +206,8 @@ mtev_hash_table noit_stats_iep; /* this is persistent */
 mtev_hash_table noit_stats_durable; /* this is persistent */
 mtev_hash_table noit_consul_service;
 
-long WARNING_DELAY_MS = 30 * 1000; // 20 seconds
-long WARNING_SESSION_TIME_MS = 10 * 1000; // 15 seconds
+long WARNING_DELAY_MS = 30 * 1000;
+long WARNING_SESSION_TIME_MS = 10 * 1000;
 
 static void consul_meta_updater(void) {
   char *cn = eventer_aco_arg();
