@@ -128,7 +128,7 @@ static int external_config(noit_module_t *self, mtev_hash_table *options) {
   }
   else {
     data = calloc(1, sizeof(*data));
-    mtev_hash_init(&data->external_checks);
+    mtev_hash_init_locks(&data->external_checks, 128, MTEV_HASH_LOCK_MODE_MUTEX);
   }
   data->options = options;
   if(!data->options) {
