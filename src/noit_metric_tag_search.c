@@ -766,7 +766,6 @@ static inline void unescape_tag_string(char *inout) {
 
 static mtev_boolean
 noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int part) {
-  char decoded_tag[512];
   const char *query = *endq;
   int is_escaped = mtev_false;
   int is_encoded_match = memcmp(query, "b!", 2) == 0;
@@ -817,10 +816,16 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     (*endq)--;
     if(*endq <= query) return mtev_false;
     if (is_encoded) {
+      MTEV_MAYBE_DECL_VARS(char, decoded_tag, 512);
+      MTEV_MAYBE_REALLOC(decoded_tag, mtev_b64_max_decode_len(*endq - query - 1) + 1);
       int len = mtev_b64_decode(query + 1, *endq - query - 1, (unsigned char *)decoded_tag, 
-				sizeof(decoded_tag));
-      if (len == 0) return mtev_false;
+				MTEV_MAYBE_SIZE(decoded_tag));
+      if (len == 0) {
+        MTEV_MAYBE_FREE(decoded_tag);
+        return mtev_false;
+      }
       m->str = mtev_strndup(decoded_tag, len);
+      MTEV_MAYBE_FREE(decoded_tag);
     } else {
       m->str = mtev_strndup(query + 1, *endq - query - 1);
       unescape_regex(m->str);
@@ -875,10 +880,16 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
 
     if(*endq == query && part == 1) return mtev_false;
     if (is_encoded) {
+      MTEV_MAYBE_DECL_VARS(char, decoded_tag, 512);
+      MTEV_MAYBE_REALLOC(decoded_tag, mtev_b64_max_decode_len(*endq - query) + 1);
       int len = mtev_b64_decode(query, *endq - query, (unsigned char *)decoded_tag, 
-				sizeof(decoded_tag));
-      if (len == 0 && part == 1) return mtev_false;
+				MTEV_MAYBE_SIZE(decoded_tag));
+      if (len == 0 && part == 1) {
+        MTEV_MAYBE_FREE(decoded_tag);
+        return mtev_false;
+      }
       m->str = mtev_strndup(decoded_tag, len);
+      MTEV_MAYBE_FREE(decoded_tag);
       if (!is_encoded_match && **endq != '"') return mtev_false;
       if (is_encoded_match && **endq != '!') return mtev_false;
       (*endq)++; // skip the trailing quotation mark
@@ -1011,26 +1022,35 @@ noit_metric_tag_search_parse(const char *query, int *erroff) {
 
 static mtev_boolean
 noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m) {
-  char decoded_tag[512];
+  MTEV_MAYBE_DECL_VARS(char, decoded_tag, 512);
+  mtev_boolean rv = mtev_false;
   const char *ssubj = subj;
   int ssubj_len = subj_len;
   if (memcmp(subj, "b\"", 2) == 0) {
     const char *start = subj + 2;
     const char *end = memchr(start, '"', subj_len - 2);
-    if (!end) return mtev_false; // not decodable, no match
+    if (!end) goto out; // not decodable, no match
+    MTEV_MAYBE_REALLOC(decoded_tag, mtev_b64_max_decode_len(end-start) + 1);
     int len = mtev_b64_decode(start, end - start, (unsigned char *)decoded_tag, 
-			      sizeof(decoded_tag));
-    if (len == 0) return mtev_false; // decode failed, no match
+			      MTEV_MAYBE_SIZE(decoded_tag));
+    if (len == 0) goto out; // decode failed, no match
     ssubj_len = len;
     ssubj = decoded_tag;
   }
   if(m->impl) {
-    if(m->impl->match(m->impl_data, m->str, ssubj, ssubj_len)) return mtev_true;
-    return mtev_false;
+    if(m->impl->match(m->impl_data, m->str, ssubj, ssubj_len)) {
+      rv = mtev_true;
+    }
   }
-  if(m->str == NULL) return mtev_true;
-  if(strlen(m->str) == ssubj_len && !memcmp(m->str, ssubj, ssubj_len)) return mtev_true;
-  return mtev_false;
+  else if(m->str == NULL) {
+    rv = true;
+  }
+  else if(strlen(m->str) == ssubj_len && !memcmp(m->str, ssubj, ssubj_len)) {
+    rv = true;
+  }
+out:
+  MTEV_MAYBE_FREE(decoded_tag);
+  return rv;
 }
 static mtev_boolean
 noit_metric_tag_match_evaluate_against_tags_multi(struct noit_metric_tag_match_t *match,
