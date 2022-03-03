@@ -75,6 +75,11 @@ typedef enum {
   OP_MATCH
 } noit_metric_tag_search_op_t;
 
+typedef enum {
+  HINT_INDEX_UNKNOWN = 0,
+  HINT_INDEX_NONE
+} noit_metric_tag_search_hint_t;
+
 typedef struct noit_metric_tag_search_ast_t noit_metric_tag_search_ast_t;
 typedef struct noit_var_match_t noit_var_match_t;
 

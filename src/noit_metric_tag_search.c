@@ -580,6 +580,7 @@ typedef struct noit_metric_tag_search_ast_t {
   void *user_data;
   void (*user_data_free)(void *);
   uint32_t refcnt;
+  noit_metric_tag_search_hint_t hint;
 } noit_metric_tag_search_ast_t;
 
 void
@@ -931,6 +932,31 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
   return mtev_true;
 }
 
+static bool
+noit_metric_tag_parse_hint(const char *query, const char **endq, noit_metric_tag_search_ast_t *node) {
+  bool found = true;
+  *endq = query;
+  if (!*endq) return false;
+  if (**endq != ',') return false;
+  (*endq)++;
+  while(**endq && isspace(**endq)) (*endq)++;
+  if (!*endq) return false;;
+  if (!strncmp(*endq, "index:none", 10)) {
+    *endq = query + 11;
+    node->hint = HINT_INDEX_NONE;
+  }
+  if (!found) {
+    node->hint = HINT_INDEX_UNKNOWN;
+    return false;
+  }
+  while(**endq && isspace(**endq)) (*endq)++;
+  if (!*endq || **endq != ')') return false;
+  (*endq)++;
+  while(**endq && isspace(**endq)) (*endq)++;
+  if (!*endq) return false;
+  return true;
+}
+
 static noit_metric_tag_search_ast_t *
 noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean allow_match) {
   noit_metric_tag_search_ast_t *node = NULL;
@@ -946,19 +972,36 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     do {
       (*endq)++;
       while(**endq && isspace(**endq)) (*endq)++;
+      bool hinted = false;
+      if (!strncmp(*endq, "hint(", 5)) {
+        *endq += 5;
+        hinted = true;
+      }
       arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
       while(**endq && isspace(**endq)) (*endq)++;
+      if (hinted) {
+        if (!noit_metric_tag_parse_hint(*endq, endq, arg)) goto error;
+      }
       if((**endq != ',' && **endq != ')') || !arg) goto error;
       noit_metric_tag_search_add_arg(node, arg);
     } while(**endq == ',');
     (*endq)++;
   }
   else if(!strncmp(query, "not(", 4)) {
+    bool hinted = false;
     *endq = query + 4;
     while(**endq && isspace(**endq)) (*endq)++;
     node = calloc(1, sizeof(*node));
     node->operation = OP_NOT_ARGS;
+    if (!strncmp(*endq, "hint(", 5)) {
+      *endq += 5;
+      hinted = true;
+    }
     noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+    while(**endq && isspace(**endq)) (*endq)++;
+    if (hinted) {
+      if (!noit_metric_tag_parse_hint(*endq, endq, node)) goto error;
+    }
     if(**endq != ')' || !arg) goto error;
     noit_metric_tag_search_add_arg(node, arg);
     (*endq)++;
