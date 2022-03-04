@@ -953,6 +953,10 @@ noit_metric_tag_parse_hint(const char *query, const char **endq, noit_metric_tag
     *endq += 10;
     node->hint = HINT_INDEX_NONE;
   }
+  else if (!strncmp(*endq, "index:default", 13)) {
+    *endq += 13;
+    node->hint = HINT_INDEX_DEFAULT;
+  }
   if (!found) {
     return false;
   }
