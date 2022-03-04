@@ -76,7 +76,7 @@ typedef enum {
 } noit_metric_tag_search_op_t;
 
 typedef enum {
-  HINT_INDEX_UNKNOWN = 0,
+  HINT_INDEX_DEFAULT = 0,
   HINT_INDEX_NONE
 } noit_metric_tag_search_hint_t;
 

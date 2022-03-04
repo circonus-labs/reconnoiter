@@ -935,6 +935,9 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
 static bool
 noit_metric_tag_parse_hint(const char *query, const char **endq, noit_metric_tag_search_ast_t *node) {
   bool found = true;
+  if (!node) return false;
+  node->hint = HINT_INDEX_DEFAULT;
+
   *endq = query;
   if (!*endq) return false;
   if (**endq != ',') return false;
@@ -942,11 +945,10 @@ noit_metric_tag_parse_hint(const char *query, const char **endq, noit_metric_tag
   while(**endq && isspace(**endq)) (*endq)++;
   if (!*endq) return false;;
   if (!strncmp(*endq, "index:none", 10)) {
-    *endq = query + 11;
+    *endq += 10;
     node->hint = HINT_INDEX_NONE;
   }
   if (!found) {
-    node->hint = HINT_INDEX_UNKNOWN;
     return false;
   }
   while(**endq && isspace(**endq)) (*endq)++;
@@ -1004,6 +1006,14 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     }
     if(**endq != ')' || !arg) goto error;
     noit_metric_tag_search_add_arg(node, arg);
+    (*endq)++;
+  }
+  else if(!strncmp(query, "hint(", 5)) {
+    *endq = query + 5;
+    while(**endq && isspace(**endq)) (*endq)++;
+    noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+    while(**endq && isspace(**endq)) (*endq)++;
+    if (!*endq) goto error;
     (*endq)++;
   }
   else if(allow_match) {
