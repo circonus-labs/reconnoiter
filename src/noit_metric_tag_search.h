@@ -146,6 +146,9 @@ API_EXPORT(const noit_var_match_t *)
 API_EXPORT(const noit_var_match_t *)
   noit_metric_tag_search_get_name(const noit_metric_tag_search_ast_t *node);
 
+API_EXPORT(const noit_metric_tag_search_hint_t)
+  noit_metric_tag_search_get_hint(const noit_metric_tag_search_ast_t *node);
+
 API_EXPORT(mtev_boolean)
   noit_var_match(const noit_var_match_t *node, const char *subj, size_t subj_len);
 

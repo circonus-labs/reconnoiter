@@ -619,6 +619,11 @@ noit_metric_tag_search_get_name(const noit_metric_tag_search_ast_t *node) {
   return node->operation == OP_MATCH ? &node->contents.spec.name : NULL;
 }
 
+const noit_metric_tag_search_hint_t
+noit_metric_tag_search_get_hint(const noit_metric_tag_search_ast_t *node) {
+  return node ? node->hint : HINT_INDEX_DEFAULT;
+}
+
 const char *
 noit_var_val(const noit_var_match_t *node) {
   return node ? node->str : NULL;
