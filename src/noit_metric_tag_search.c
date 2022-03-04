@@ -1008,14 +1008,6 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     noit_metric_tag_search_add_arg(node, arg);
     (*endq)++;
   }
-  else if(!strncmp(query, "hint(", 5)) {
-    *endq = query + 5;
-    while(**endq && isspace(**endq)) (*endq)++;
-    noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
-    while(**endq && isspace(**endq)) (*endq)++;
-    if (!*endq) goto error;
-    (*endq)++;
-  }
   else if(allow_match) {
     node = calloc(1, sizeof(*node));
     node->operation = OP_MATCH;
