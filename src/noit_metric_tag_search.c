@@ -589,7 +589,6 @@ noit_metric_tag_search_resize_args(noit_metric_tag_search_ast_t *node, int new_s
          node->operation == OP_AND_ARGS);
   if(new_size == 0) new_size = DEFAULT_CHILDREN_ALLOC;
   if(node->contents.args.nallocd >= new_size) return;
-  assert(node->contents.args.nallocd <= new_size);
   noit_metric_tag_search_ast_t **new_nodes = calloc(new_size, sizeof(*new_nodes));
   for(size_t i=0; i<node->contents.args.cnt; i++) {
     new_nodes[i] = node->contents.args.node[i];
