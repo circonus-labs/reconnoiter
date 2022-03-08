@@ -565,11 +565,14 @@ typedef struct noit_metric_tag_match_t {
   noit_var_match_t name;
 } noit_metric_tag_match_t;
 
+#define DEFAULT_CHILDREN_ALLOC 16
+
 typedef struct noit_metric_tag_search_ast_t {
   noit_metric_tag_search_op_t operation;
   union {
     struct {
       int cnt;
+      int nallocd;
       struct noit_metric_tag_search_ast_t **node;
     } args;
     noit_metric_tag_match_t spec;
@@ -580,19 +583,20 @@ typedef struct noit_metric_tag_search_ast_t {
 } noit_metric_tag_search_ast_t;
 
 void
-noit_metric_tag_search_resize_args(noit_metric_tag_search_ast_t *node, int cnt) {
+noit_metric_tag_search_resize_args(noit_metric_tag_search_ast_t *node, int new_size) {
   assert(node->operation == OP_NOT_ARGS ||
          node->operation == OP_OR_ARGS ||
          node->operation == OP_AND_ARGS);
-  if(node->contents.args.cnt == cnt) return;
-  assert(node->contents.args.cnt <= cnt);
-  noit_metric_tag_search_ast_t **new_nodes = calloc(cnt, sizeof(*new_nodes));
+  if(new_size == 0) new_size = DEFAULT_CHILDREN_ALLOC;
+  if(node->contents.args.nallocd >= new_size) return;
+  assert(node->contents.args.nallocd <= new_size);
+  noit_metric_tag_search_ast_t **new_nodes = calloc(new_size, sizeof(*new_nodes));
   for(size_t i=0; i<node->contents.args.cnt; i++) {
     new_nodes[i] = node->contents.args.node[i];
   }
   free(node->contents.args.node);
   node->contents.args.node = new_nodes;
-  node->contents.args.cnt = cnt;
+  node->contents.args.nallocd = new_size;
 }
 
 noit_metric_tag_search_op_t
@@ -666,9 +670,13 @@ void
 noit_metric_tag_search_set_arg(noit_metric_tag_search_ast_t *node, int idx, noit_metric_tag_search_ast_t *r) {
   assert(node->operation != OP_MATCH);
   assert(node->operation != OP_NOT_ARGS || idx == 0);
-  if(idx == node->contents.args.cnt) noit_metric_tag_search_resize_args(node, idx+1);
-  assert(node->contents.args.cnt > idx);
+  noit_metric_tag_search_resize_args(node, node->contents.args.nallocd*2);
+  assert(node->contents.args.nallocd > idx);
+  noit_metric_tag_search_ast_t *prev = node->contents.args.node[idx];
   node->contents.args.node[idx] = r;
+  assert(node->contents.args.cnt >= idx); // can't insert with gaps.
+  if(node->contents.args.cnt == idx) node->contents.args.cnt++;
+  else noit_metric_tag_search_free(prev);
 }
 void
 noit_metric_tag_search_add_arg(noit_metric_tag_search_ast_t *node, noit_metric_tag_search_ast_t *r) {
@@ -942,9 +950,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
       arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
       while(**endq && isspace(**endq)) (*endq)++;
       if((**endq != ',' && **endq != ')') || !arg) goto error;
-      node->contents.args.cnt++;
-      node->contents.args.node = realloc(node->contents.args.node, sizeof(arg) * node->contents.args.cnt);
-      node->contents.args.node[node->contents.args.cnt - 1] = arg;
+      noit_metric_tag_search_add_arg(node, arg);
     } while(**endq == ',');
     (*endq)++;
   }
@@ -955,9 +961,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     node->operation = OP_NOT_ARGS;
     noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
     if(**endq != ')' || !arg) goto error;
-    node->contents.args.cnt++;
-    node->contents.args.node = realloc(node->contents.args.node, sizeof(arg) * node->contents.args.cnt);
-    node->contents.args.node[node->contents.args.cnt - 1] = arg;
+    noit_metric_tag_search_add_arg(node, arg);
     (*endq)++;
   }
   else if(allow_match) {
@@ -993,6 +997,7 @@ noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
   }
   else {
     noit_metric_tag_search_ast_t **nodes = calloc(out->contents.args.cnt, sizeof(*nodes));
+    out->contents.args.nallocd = out->contents.args.cnt;
     for(int i=0; i<out->contents.args.cnt; i++)
       nodes[i] = noit_metric_tag_search_clone(out->contents.args.node[i]);
     out->contents.args.node = nodes;
