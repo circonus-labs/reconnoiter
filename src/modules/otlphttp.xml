@@ -1,0 +1,45 @@
+<module>
+  <name>otlphttp</name>
+  <description>
+    <para>The otlphttp module provides a simple way to push native OpenTelemetry data into reconnoiter via the otlphttp exporter.  Simply configure otel collector to write to the provided URL in its otlphttp endpoint.</para>
+  </description>
+  <loader>C</loader>
+  <image>otlphttp.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="secret"
+      required="optional"
+      default=""
+      allowed=".+">Specify the secret with which metrics may be submitted.  Those lacking the secret in the URL will be ignored.</parameter>
+    <parameter name="hist_approx_mode"
+      required="optional"
+      default="high"
+      allowed="^(?:low|mid|high|harmonic_mean)$">Specify the OpenHistogram method of approximation when converting histograms.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Sending otel data</title>
+
+      <programlisting><![CDATA[
+        exporters:
+          otlphttp:
+            metrics_endpoint: https://broker:43191/module/otlphttp/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y
+      ]]></programlisting>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="otlphttp" name="otlphttp"/>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="otlphttp"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><secret>s3cr3tk3y</secret></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>
