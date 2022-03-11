@@ -77,7 +77,8 @@ typedef enum {
 
 typedef enum {
   HINT_INDEX_DEFAULT = 0,
-  HINT_INDEX_NONE
+  HINT_INDEX_NONE,
+  HINT_INDEX_FULL
 } noit_metric_tag_search_hint_t;
 
 typedef struct noit_metric_tag_search_ast_t noit_metric_tag_search_ast_t;
