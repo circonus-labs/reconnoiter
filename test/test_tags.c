@@ -187,7 +187,9 @@ struct {
     "b\"Lz9oaXN0b2dyYW0vKC4rKSQp\":quux",
     {
       { "and(*:*)", mtev_true },
-      { "and(b!Lz9oaXN0b2dyYW0vKC4rKSQp!:quux)", mtev_true },
+      { "and(hint(*:*))", mtev_true },
+      { "and(hint(*:*,index:none))", mtev_true },
+      { "hint(and(b!Lz9oaXN0b2dyYW0vKC4rKSQp!:quux),foo:bar)", mtev_true },
       { NULL, 0 }
     }
   },
@@ -619,6 +621,19 @@ void query_parsing(void) {
       test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, testqueries[i]);
     }
   }
+
+  const char *query = "hint(and(a:b),foo:bar,index:b\"bm9uZQ==\")";
+  ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert_namef(noit_metric_tag_search_has_hint(ast, "foo", "bar"), "%s missing foo:bar", query);
+    test_assert_namef(noit_metric_tag_search_has_hint(ast, "index", "none"), "%s missing index:none", query);
+    test_assert_namef(!noit_metric_tag_search_has_hint(ast, "index", "bitmap"), "%s missing index:bitmap", query);
+    free(unparse);
+    noit_metric_tag_search_free(ast);
+  } else {
+    test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
+  }
 }
 
 void loop(char *str) {
@@ -676,6 +691,21 @@ void test_tag_at_limit(void) {
 int main(int argc, char * const *argv)
 {
   int opt;
+  if (argc > 1) {
+    for(int i=1; i< argc; i++) {
+      int erroroffset;
+      noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse(argv[i], &erroroffset);
+      if(!ast) {
+        printf("error at %d\n", erroroffset);
+      } else {
+        char *str = noit_metric_tag_search_unparse(ast);
+        printf("-> %s\n", str);
+        free(str);
+      }
+    }
+    exit(0);
+  }
+
   while(-1 != (opt = getopt(argc, argv, "b"))) {
     switch(opt) {
     case 'b': benchmark = true; break;

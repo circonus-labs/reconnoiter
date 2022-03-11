@@ -72,7 +72,8 @@ typedef enum {
   OP_AND_ARGS,
   OP_OR_ARGS,
   OP_NOT_ARGS,
-  OP_MATCH
+  OP_MATCH,
+  OP_HINT_ARGS
 } noit_metric_tag_search_op_t;
 
 typedef struct noit_metric_tag_search_ast_t noit_metric_tag_search_ast_t;
@@ -164,6 +165,9 @@ API_EXPORT(mtev_boolean)
 API_EXPORT(mtev_boolean)
   noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *search,
                                                     noit_metric_id_t *id);
+
+API_EXPORT(mtev_boolean)
+  noit_metric_tag_search_has_hint(const noit_metric_tag_search_ast_t *search, const char *cat, const char *name);
 
 API_EXPORT(char *)
   noit_metric_tag_search_unparse(noit_metric_tag_search_ast_t *);
