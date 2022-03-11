@@ -586,7 +586,8 @@ void
 noit_metric_tag_search_resize_args(noit_metric_tag_search_ast_t *node, int new_size) {
   assert(node->operation == OP_NOT_ARGS ||
          node->operation == OP_OR_ARGS ||
-         node->operation == OP_AND_ARGS);
+         node->operation == OP_AND_ARGS ||
+         node->operation == OP_HINT_ARGS);
   if(new_size == 0) new_size = DEFAULT_CHILDREN_ALLOC;
   if(node->contents.args.nallocd >= new_size) return;
   noit_metric_tag_search_ast_t **new_nodes = calloc(new_size, sizeof(*new_nodes));
@@ -953,6 +954,22 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     } while(**endq == ',');
     (*endq)++;
   }
+  else if(!strncmp(query, "hint(", 5)) {
+    *endq = strchr(query, '(');
+    if(*endq == NULL) goto error; /* This is not possible, but coverity */
+    node = calloc(1, sizeof(*node));
+    node->operation = OP_HINT_ARGS;
+    noit_metric_tag_search_ast_t *arg = NULL;
+    do {
+      (*endq)++;
+      while(**endq && isspace(**endq)) (*endq)++;
+      arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+      while(**endq && isspace(**endq)) (*endq)++;
+      if((**endq != ',' && **endq != ')') || !arg) goto error;
+      noit_metric_tag_search_add_arg(node, arg);
+    } while(**endq == ',');
+    (*endq)++;
+  }
   else if(!strncmp(query, "not(", 4)) {
     *endq = query + 4;
     while(**endq && isspace(**endq)) (*endq)++;
@@ -1087,6 +1104,11 @@ noit_metric_tag_search_evaluate_against_tags_multi(noit_metric_tag_search_ast_t 
         }
       }
       return mtev_true;
+    case OP_HINT_ARGS:
+      if(!noit_metric_tag_search_evaluate_against_tags_multi(search->contents.args.node[0], set, set_cnt)) {
+        return mtev_false;
+      }
+      return mtev_true;
     case OP_OR_ARGS:
       for(int i=0; i<search->contents.args.cnt; i++) {
         if(noit_metric_tag_search_evaluate_against_tags_multi(search->contents.args.node[i], set, set_cnt)) {
@@ -1162,6 +1184,23 @@ noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *
   return ok;
 }
 
+mtev_boolean
+noit_metric_tag_search_has_hint(const noit_metric_tag_search_ast_t *search, const char *cat, const char *name) {
+  if(cat == NULL || search == NULL || search->operation != OP_HINT_ARGS) return mtev_false;
+  for(int i=1; i<search->contents.args.cnt; i++) {
+    if(search->contents.args.node[i]->operation == OP_MATCH) {
+      const noit_metric_tag_search_ast_t *node = search->contents.args.node[i];
+      if(!strcmp(node->contents.spec.cat.str, cat)) {
+        if(node->contents.spec.name.str == NULL && name == NULL) return mtev_true;
+        if(!(node->contents.spec.name.str == NULL || name == NULL)) {
+          if(!strcmp(node->contents.spec.name.str, name)) return mtev_true;
+        }
+      }
+    }
+  }
+  return mtev_false;
+}
+
 static void
 noit_metric_tag_search_unparse_part(noit_metric_tag_search_ast_t *search, mtev_dyn_buffer_t *buf) {
   switch(search->operation) {
@@ -1179,6 +1218,14 @@ noit_metric_tag_search_unparse_part(noit_metric_tag_search_ast_t *search, mtev_d
       break;
     case OP_AND_ARGS:
       mtev_dyn_buffer_add_printf(buf, "and(");
+      for(int i=0; i<search->contents.args.cnt; i++) {
+        noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf);
+        if (i != search->contents.args.cnt - 1) mtev_dyn_buffer_add_printf(buf, ",");
+      }
+      mtev_dyn_buffer_add_printf(buf, ")");
+      break;
+    case OP_HINT_ARGS:
+      mtev_dyn_buffer_add_printf(buf, "hint(");
       for(int i=0; i<search->contents.args.cnt; i++) {
         noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf);
         if (i != search->contents.args.cnt - 1) mtev_dyn_buffer_add_printf(buf, ",");
