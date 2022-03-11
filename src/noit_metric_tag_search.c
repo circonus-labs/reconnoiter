@@ -1011,7 +1011,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
     while(**endq && isspace(**endq)) (*endq)++;
     if (hinted) {
-      if (!noit_metric_tag_parse_hint(*endq, endq, node)) goto error;
+      if (!noit_metric_tag_parse_hint(*endq, endq, arg)) goto error;
     }
     if(**endq != ')' || !arg) goto error;
     noit_metric_tag_search_add_arg(node, arg);
