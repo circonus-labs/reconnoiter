@@ -969,12 +969,14 @@ noit_metric_tag_parse_hint(const char *query, const char **endq, noit_metric_tag
 }
 
 static noit_metric_tag_search_ast_t *
-noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean allow_match) {
+noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean allow_match, mtev_boolean parent_is_hint) {
   noit_metric_tag_search_ast_t *node = NULL;
   *endq = query;
   while(*query && isspace(*query)) query++;
   if(!strncmp(query, "and(", 4) ||
      !strncmp(query, "or(", 3)) {
+    // we only allow hints on matches
+    if (parent_is_hint) goto error;
     *endq = strchr(query, '(');
     if(*endq == NULL) goto error; /* This is not possible, but coverity */
     node = calloc(1, sizeof(*node));
@@ -983,12 +985,12 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     do {
       (*endq)++;
       while(**endq && isspace(**endq)) (*endq)++;
-      bool hinted = false;
+      mtev_boolean hinted = mtev_false;
       if (!strncmp(*endq, "hint(", 5)) {
         *endq += 5;
-        hinted = true;
+        hinted = mtev_true;
       }
-      arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+      arg = noit_metric_tag_part_parse(*endq, endq, mtev_true, hinted);
       while(**endq && isspace(**endq)) (*endq)++;
       if (hinted) {
         if (!noit_metric_tag_parse_hint(*endq, endq, arg)) goto error;
@@ -999,16 +1001,18 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     (*endq)++;
   }
   else if(!strncmp(query, "not(", 4)) {
-    bool hinted = false;
+    // we only allow hints on matches
+    if (parent_is_hint) goto error;
+    mtev_boolean hinted = mtev_false;
     *endq = query + 4;
     while(**endq && isspace(**endq)) (*endq)++;
     node = calloc(1, sizeof(*node));
     node->operation = OP_NOT_ARGS;
     if (!strncmp(*endq, "hint(", 5)) {
       *endq += 5;
-      hinted = true;
+      hinted = mtev_true;
     }
-    noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+    noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true, hinted);
     while(**endq && isspace(**endq)) (*endq)++;
     if (hinted) {
       if (!noit_metric_tag_parse_hint(*endq, endq, arg)) goto error;
@@ -1065,7 +1069,7 @@ noit_metric_tag_search_ast_t *
 noit_metric_tag_search_parse(const char *query, int *erroff) {
   noit_metric_tag_search_ast_t *tree;
   const char *eop;
-  if(NULL == (tree = noit_metric_tag_part_parse(query, &eop, mtev_false))) {
+  if(NULL == (tree = noit_metric_tag_part_parse(query, &eop, mtev_false, mtev_false))) {
     *erroff = eop - query;
     return NULL;
   }
