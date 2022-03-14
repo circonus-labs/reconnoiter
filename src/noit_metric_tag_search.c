@@ -1074,8 +1074,8 @@ out:
   return rv;
 }
 static mtev_boolean
-noit_metric_tag_match_evaluate_against_tags_multi(struct noit_metric_tag_match_t *match,
-                                                  noit_metric_tagset_t **sets, int set_cnt) {
+noit_metric_tag_match_evaluate_against_tags_multi(const struct noit_metric_tag_match_t *match,
+                                                  const noit_metric_tagset_t **sets, const int set_cnt) {
   for(int s=0; s<set_cnt; s++) {
     noit_metric_tagset_t *set = sets[s];
     for(int i=0; i<set->tag_count; i++) {
@@ -1090,8 +1090,8 @@ noit_metric_tag_match_evaluate_against_tags_multi(struct noit_metric_tag_match_t
   return mtev_false;
 }
 mtev_boolean
-noit_metric_tag_search_evaluate_against_tags_multi(noit_metric_tag_search_ast_t *search,
-                                                   noit_metric_tagset_t **set, int set_cnt) {
+noit_metric_tag_search_evaluate_against_tags_multi(const noit_metric_tag_search_ast_t *search,
+                                                   const noit_metric_tagset_t **set, const int set_cnt) {
   switch(search->operation) {
     case OP_MATCH: return noit_metric_tag_match_evaluate_against_tags_multi(&search->contents.spec, set, set_cnt);
     case OP_NOT_ARGS:
@@ -1120,14 +1120,14 @@ noit_metric_tag_search_evaluate_against_tags_multi(noit_metric_tag_search_ast_t 
   return mtev_false;
 }
 mtev_boolean
-noit_metric_tag_search_evaluate_against_tags(noit_metric_tag_search_ast_t *search,
-                                             noit_metric_tagset_t *set) {
+noit_metric_tag_search_evaluate_against_tags(const noit_metric_tag_search_ast_t *search,
+                                             const noit_metric_tagset_t *set) {
   return noit_metric_tag_search_evaluate_against_tags_multi(search, &set, 1);
 }
 
 mtev_boolean
-noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *search,
-                                                  noit_metric_id_t *id) {
+noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_ast_t *search,
+                                                  const noit_metric_id_t *id) {
   mtev_memory_begin();
 
 #define MKTAGSETCOPY(name) \
