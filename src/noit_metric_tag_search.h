@@ -155,16 +155,16 @@ API_EXPORT(const char *)
   noit_var_impl_name(const noit_var_match_t *node);
 
 API_EXPORT(mtev_boolean)
-  noit_metric_tag_search_evaluate_against_tags(noit_metric_tag_search_ast_t *search,
-                                               noit_metric_tagset_t *tags);
+  noit_metric_tag_search_evaluate_against_tags(const noit_metric_tag_search_ast_t *search,
+                                               const noit_metric_tagset_t *tags);
 
 API_EXPORT(mtev_boolean)
-  noit_metric_tag_search_evaluate_against_tags_multi(noit_metric_tag_search_ast_t *search,
-                                                     noit_metric_tagset_t **tags, int ntagsets);
+  noit_metric_tag_search_evaluate_against_tags_multi(const noit_metric_tag_search_ast_t *search,
+                                                     const noit_metric_tagset_t **tags, const int ntagsets);
 
 API_EXPORT(mtev_boolean)
-  noit_metric_tag_search_evaluate_against_metric_id(noit_metric_tag_search_ast_t *search,
-                                                    noit_metric_id_t *id);
+  noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_ast_t *search,
+                                                    const noit_metric_id_t *id);
 
 API_EXPORT(mtev_boolean)
   noit_metric_tag_search_has_hint(const noit_metric_tag_search_ast_t *search, const char *cat, const char *name);
