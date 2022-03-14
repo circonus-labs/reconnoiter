@@ -116,20 +116,16 @@ free_prometheus_upload(void *pul)
 static prometheus_upload_t *
 rest_get_upload(mtev_http_rest_closure_t *restc, int *mask, int *complete)
 {
-
   prometheus_upload_t *rxc;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
-  int content_length;
 
-  content_length = mtev_http_request_content_length(req);
   rxc = (prometheus_upload_t *)restc->call_closure;
 
   while(!rxc->complete) {
     int len;
     mtev_dyn_buffer_ensure(&rxc->data, READ_CHUNK);
     len = mtev_http_session_req_consume(restc->http_ctx,
-                                        mtev_dyn_buffer_write_pointer(&rxc->data),
-                                        MIN(content_length - mtev_dyn_buffer_used(&rxc->data), READ_CHUNK),
+                                        mtev_dyn_buffer_write_pointer(&rxc->data), READ_CHUNK,
                                         READ_CHUNK,
                                         mask);
     if(len > 0) {
@@ -140,9 +136,8 @@ rest_get_upload(mtev_http_rest_closure_t *restc, int *mask, int *complete)
       *complete = 1;
       return NULL;
     }
-    content_length = mtev_http_request_content_length(req);
     if(len == 0 && mtev_http_request_payload_complete(req)) {
-      rxc->complete = 1;
+      rxc->complete = mtev_true;
     }
   }
 
