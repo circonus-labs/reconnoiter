@@ -50,6 +50,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
 	reverse_check.@MODULEEXT@ prometheus.@MODULEEXT@ \
 	graphite.@MODULEEXT@ opentsdb.@MODULEEXT@ \
+	otlphttp.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so noit_lua/libnoit_binding.so
@@ -211,6 +212,18 @@ graphite.@MODULEEXT@:	graphite.lo
 
 graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite_pickle.xmlh graphite.cpp
 
+OTEL_METRICS_OBJS=opentelemetry/proto/metrics/v1/metrics.pb.lo \
+		  opentelemetry/proto/common/v1/common.pb.lo \
+		  opentelemetry/proto/resource/v1/resource.pb.lo \
+		  opentelemetry/proto/collector/metrics/v1/metrics_service.pb.lo
+
+otlphttp.@MODULEEXT@:	otlphttp.lo $(OTEL_METRICS_OBJS)
+	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf
+
+otlphttp.lo:	otlphttp.xmlh otlphttp.cpp
+otel-metrics.pb.lo:	otel-metrics.pb.cpp
+
 opentsdb.@MODULEEXT@:	opentsdb.lo
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ opentsdb.lo
@@ -264,7 +277,11 @@ snmp.lo:	snmp.xmlh snmptrap.xmlh
 
 .cpp.lo:
 	@echo "- compiling $<"
-	$(Q)$(MODULECXX) $(CPPFLAGS) $(MODULESHCXXFLAGS) -c $< -o $@
+	$(Q)$(MODULECXX) $(CPPFLAGS) $(MODULESHCXXFLAGS) -I. -c $< -o $@
+
+.cc.lo:
+	@echo "- compiling $<"
+	$(Q)$(MODULECXX) $(CPPFLAGS) $(MODULESHCXXFLAGS) -I. -c $< -o $@
 
 .c.lo:
 	@echo "- compiling $<"
@@ -302,6 +319,7 @@ install-smodules:	$(SMODULES)
 
 clean:
 	rm -f *.lo *.@MODULEEXT@ *.xmlh $(RABBITMQ_DRIVER_OBJS)
+	rm -f $(OTEL_METRICS_OBJS)
 	rm -f prometheus.pb-c.* types.pb-c.*
 
 distclean:	clean
