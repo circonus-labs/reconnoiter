@@ -47,7 +47,7 @@ typedef struct noit_var_match_t {
   const noit_var_match_impl_t *impl;
 } noit_var_match_t;
 
-static mtev_boolean noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m);
+static mtev_boolean noit_match_str(const char *subj, int subj_len, const struct noit_var_match_t *m);
 
 static pthread_mutex_t noit_tags_search_tls_jit_init_lock = PTHREAD_MUTEX_INITIALIZER;
 static __thread pcre_jit_stack *noit_tag_search_tls_jit_stack;
@@ -1042,7 +1042,7 @@ noit_metric_tag_search_parse(const char *query, int *erroff) {
 }
 
 static mtev_boolean
-noit_match_str(const char *subj, int subj_len, struct noit_var_match_t *m) {
+noit_match_str(const char *subj, int subj_len, const struct noit_var_match_t *m) {
   MTEV_MAYBE_DECL_VARS(char, decoded_tag, 512);
   mtev_boolean rv = mtev_false;
   const char *ssubj = subj;
@@ -1077,7 +1077,7 @@ static mtev_boolean
 noit_metric_tag_match_evaluate_against_tags_multi(const struct noit_metric_tag_match_t *match,
                                                   const noit_metric_tagset_t **sets, const int set_cnt) {
   for(int s=0; s<set_cnt; s++) {
-    noit_metric_tagset_t *set = sets[s];
+    const noit_metric_tagset_t *set = sets[s];
     for(int i=0; i<set->tag_count; i++) {
       if(set->tags[i].total_size >= set->tags[i].category_size &&
          noit_match_str(set->tags[i].tag, set->tags[i].category_size - 1, &match->cat) &&
@@ -1178,7 +1178,7 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
     return mtev_false;
   }
 
-  noit_metric_tagset_t *tagsets[3] = { &tagset_check, &tagset_stream, &tagset_measurement };
+  const noit_metric_tagset_t *tagsets[3] = { &tagset_check, &tagset_stream, &tagset_measurement };
   mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 3);
   mtev_memory_end();
   return ok;
