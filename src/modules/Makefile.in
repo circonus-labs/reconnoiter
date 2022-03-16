@@ -202,7 +202,7 @@ prometheus.c: prometheus.pb-c.h types.pb-c.h
 
 prometheus.@MODULEEXT@:	prometheus.lo prometheus.pb-c.lo types.pb-c.lo
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ prometheus.lo prometheus.pb-c.lo types.pb-c.lo
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ prometheus.lo prometheus.pb-c.lo types.pb-c.lo -lsnappyc
 
 prometheus.lo:	prometheus.xmlh
 

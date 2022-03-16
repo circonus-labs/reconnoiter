@@ -161,9 +161,9 @@ static int prometheus_submit(noit_module_t *self, noit_check_t *check,
     struct timeval now;
     char human_buffer[256];
     int stats_count = 0;
-    stats_t *s = noit_check_get_stats_inprogress(check);
 
     mtev_memory_begin();
+    stats_t *s = noit_check_get_stats_inprogress(check);
     mtev_gettimeofday(&now, NULL);
     sub_timeval(now, check->last_fire_time, &duration);
     noit_stats_set_whence(check, &now);
@@ -295,8 +295,8 @@ metric_local_batch(prometheus_upload_t *rxc, const char *name, double val, struc
     metric_local_batch_flush_immediate(rxc);
     return;
   }
-  //metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), metric_local_free);
-  metric_t *m = malloc(sizeof(*m));
+  mtev_memory_begin();
+  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), metric_local_free);
   memset(m, 0, sizeof(*m));
   m->metric_name = malloc(cmetric_len);
   memcpy(m->metric_name, cmetric, cmetric_len);
@@ -307,6 +307,7 @@ metric_local_batch(prometheus_upload_t *rxc, const char *name, double val, struc
 
   noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
   mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
+  mtev_memory_end();
 }
 
 static int
@@ -472,6 +473,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 
     /*Retrieve check information.*/
     check = rxc->check;
+    mtev_memory_begin();
     c = noit_check_get_stats_inprogress(check);
     metrics = noit_check_stats_metrics(c);
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
@@ -493,6 +495,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       json_object_object_add(value_obj, "_value", json_object_new_string(buff));
       json_object_object_add(metrics_obj, metric_name, value_obj);
     }
+    mtev_memory_end();
 
     /*Output stats and metrics.*/
     json_object_object_add(obj, "stats", json_object_new_int(cnt));
