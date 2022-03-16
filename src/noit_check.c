@@ -2409,7 +2409,6 @@ void noit_check_begin(noit_check_t *check) {
   }
 }
 void noit_check_end(noit_check_t *check) {
-  mtevAssert(NOIT_CHECK_RUNNING(check));
   check->flags &= ~NP_RUNNING;
   if(check->span) {
     mtev_zipkin_span_annotate(check->span, NULL, "check_end", false);
