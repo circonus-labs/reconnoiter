@@ -672,11 +672,9 @@ noit_metric_tag_search_set_arg(noit_metric_tag_search_ast_t *node, int idx, noit
   assert(node->operation != OP_NOT_ARGS || idx == 0);
   noit_metric_tag_search_resize_args(node, node->contents.args.nallocd*2);
   assert(node->contents.args.nallocd > idx);
-  noit_metric_tag_search_ast_t *prev = node->contents.args.node[idx];
   node->contents.args.node[idx] = r;
   assert(node->contents.args.cnt >= idx); // can't insert with gaps.
   if(node->contents.args.cnt == idx) node->contents.args.cnt++;
-  else noit_metric_tag_search_free(prev);
 }
 void
 noit_metric_tag_search_add_arg(noit_metric_tag_search_ast_t *node, noit_metric_tag_search_ast_t *r) {
