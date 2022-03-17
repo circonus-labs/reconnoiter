@@ -745,6 +745,12 @@ noit_metric_parse_tags(const char *input, size_t input_len,
 ssize_t
 noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
                          mtev_boolean null_term) {
+  return noit_metric_canonicalize_ex(input, input_len, output, output_len, null_term, true, true);
+}
+ssize_t
+noit_metric_canonicalize_ex(const char *input, size_t input_len, char *output, size_t output_len,
+                            mtev_boolean null_term, mtev_boolean include_stream_tags,
+                            mtev_boolean include_measurement_tags) {
   int i = 0, ntags = 0;
   struct tag_replacements repl = { .used = 0 };
   noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
@@ -777,7 +783,7 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
   if(input_len < 1) return -5;
   memcpy(out, output, input_len);
   out += input_len;
-  if(n_stags) {
+  if(include_stream_tags && n_stags) {
     memcpy(out, "|ST[", 4); out += 4;
     len = noit_metric_tags_canonical(stags, n_stags, out, (output_len - (out-buff)), mtev_true);
     if(len < 0) {
@@ -787,7 +793,7 @@ noit_metric_canonicalize(const char *input, size_t input_len, char *output, size
     out += len;
     *out++ = ']';
   }
-  if(n_mtags) {
+  if(include_measurement_tags && n_mtags) {
     memcpy(out, "|MT{", 4); out += 4;
     len = noit_metric_tags_canonical(mtags, n_mtags, out, (output_len - (out-buff)), mtev_true);
     if(len < 0) {

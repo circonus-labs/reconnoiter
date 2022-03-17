@@ -244,6 +244,11 @@ API_EXPORT(size_t)
   noit_metric_clean_name(char *m, size_t len);
 
 API_EXPORT(ssize_t)
+  noit_metric_canonicalize_ex(const char *input, size_t input_len, char *output, size_t output_len,
+                              mtev_boolean null_term, mtev_boolean include_stream_tags,
+                              mtev_boolean include_measurement_tags);
+
+API_EXPORT(ssize_t)
   noit_metric_canonicalize(const char *input, size_t input_len, char *output, size_t output_len,
                            mtev_boolean null_term);
 
