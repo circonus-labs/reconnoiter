@@ -550,6 +550,42 @@ void test_fuzz_canon() {
   }
 }
 
+void test_reorder_tags(void) {
+  int erroroffset = 0;
+  const char *query = "and(a:b,c:d)";
+  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if(ast) {
+    const int replace_idx = 1;
+    char *unparse = noit_metric_tag_search_unparse(ast);
+    test_assert(strcmp("and([exact]a:[exact]b,[exact]c:[exact]d)", unparse) == 0);
+    free(unparse);
+    test_assert(noit_metric_tag_search_get_nargs(ast) == 2);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(noit_metric_tag_search_get_arg(ast,0))),"a") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(noit_metric_tag_search_get_arg(ast,0))),"b") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(noit_metric_tag_search_get_arg(ast,1))),"c") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(noit_metric_tag_search_get_arg(ast,1))),"d") == 0);
+
+    noit_metric_tag_search_ast_t *swap = noit_metric_tag_search_get_arg(ast, replace_idx);
+    noit_metric_tag_search_set_arg(ast, replace_idx,
+                                   noit_metric_tag_search_get_arg(ast, replace_idx - 1));
+    noit_metric_tag_search_set_arg(ast, replace_idx - 1, swap);
+
+    test_assert(noit_metric_tag_search_get_nargs(ast) == 2);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(noit_metric_tag_search_get_arg(ast,0))),"c") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(noit_metric_tag_search_get_arg(ast,0))),"d") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(noit_metric_tag_search_get_arg(ast,1))),"a") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(noit_metric_tag_search_get_arg(ast,1))),"b") == 0);
+
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert(strcmp("and([exact]c:[exact]d,[exact]a:[exact]b)", unparse) == 0);
+
+    free(unparse);
+    noit_metric_tag_search_free(ast);
+  } else {
+    test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
+  }
+}
+
 void test_line(const char *name, const char *in, const char *expect, int rval_expect, mtev_boolean allocd) {
   noit_metric_message_t message;
   memset(&message, 0, sizeof(message));
@@ -634,6 +670,7 @@ void query_parsing(void) {
   } else {
     test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
   }
+  test_reorder_tags();
 }
 
 void loop(char *str) {
