@@ -38,6 +38,7 @@
 #include <math.h>
 #include <ctype.h>
 
+#include <mtev_rand.h>
 #include <mtev_rest.h>
 #include <mtev_hash.h>
 #include <mtev_json.h>
@@ -365,21 +366,23 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     memcpy(rxc->check_id, check_id, UUID_SIZE);
     restc->call_closure_free = free_prometheus_upload;
     mtev_dyn_buffer_init(&rxc->data);
-  }
-  else rxc = restc->call_closure;
 
-  /* flip threads */
-  {
     mtev_http_connection *conn = mtev_http_session_connection(ctx);
     eventer_t e = mtev_http_connection_event(conn);
     if(e) {
-      pthread_t tgt = CHOOSE_EVENTER_THREAD_FOR_CHECK(rxc->check);
+      /* We want to fan out a single check over multiple threads. */
+      eventer_pool_t *dedicated_pool = noit_check_choose_pool(rxc->check);
+      int rnd = mtev_rand();
+      pthread_t tgt = dedicated_pool ?
+        eventer_choose_owner_pool(dedicated_pool, rnd) :
+        eventer_choose_owner(rnd);
       if(!pthread_equal(eventer_get_owner(e), tgt)) {
         eventer_set_owner(e, tgt);
         return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
       }
     }
   }
+  else rxc = restc->call_closure;
 
   rxc = rest_get_upload(restc, &mask, &complete);
   if(rxc == NULL && !complete) return mask;
