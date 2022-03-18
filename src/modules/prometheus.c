@@ -313,6 +313,7 @@ metric_local_batch(prometheus_upload_t *rxc, const char *name, double val, struc
 static int
 rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 {
+  int error_code = 500;
   int mask, complete = 0, cnt;
   prometheus_upload_t *rxc = NULL;
   const char *error = "internal error", *secret = NULL;
@@ -340,10 +341,12 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     check = noit_poller_lookup(check_id);
     if(!check) {
       error = "no such check";
+      error_code = 404;
       goto error;
     }
     if(strcmp(check->module, "prometheus")) {
       error = "no such prometheus check";
+      error_code = 404;
       goto error;
     }
 
@@ -354,6 +357,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 
     if(!allowed) {
       error = "secret mismatch";
+      error_code = 403;
       goto error;
     }
 
@@ -386,6 +390,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 
   if(!rxc) {
     error = "No data?";
+    error_code = 400;
     goto error;
   }
 
@@ -396,6 +401,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   if (!snappy_uncompressed_length((const char *)mtev_dyn_buffer_data(&rxc->data), 
                                   mtev_dyn_buffer_used(&rxc->data), &uncompressed_size)) {
     error = "Cannot snappy decompress incoming prometheus data";
+    error_code = 400;
     mtevL(noit_error, "%s\n", error);
     goto error;
   }
@@ -406,6 +412,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   if (x) {
     mtev_dyn_buffer_destroy(&uncompressed);
     error = "Cannot snappy decompress incoming prometheus data";
+    error_code = 400;
     mtevL(noit_error, "%s, error code: %d\n", error, x);
     goto error;
   }
@@ -419,6 +426,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   if(!write) {
     mtev_dyn_buffer_destroy(&uncompressed);
     error = "Prometheus__WriteRequest decode: protobuf invalid";
+    error_code = 400;
     mtevL(noit_error, "%s\n", error);
     goto error;
   }
@@ -509,7 +517,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   return 0;
 
  error:
-  mtev_http_response_server_error(ctx, "application/json");
+  mtev_http_response_standard(ctx, error_code, "ERROR", "application/json");
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
