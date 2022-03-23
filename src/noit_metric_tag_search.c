@@ -1200,7 +1200,7 @@ noit_metric_tag_search_has_hint(const noit_metric_tag_search_ast_t *search, cons
 }
 
 static void
-noit_metric_tag_search_unparse_part(noit_metric_tag_search_ast_t *search, mtev_dyn_buffer_t *buf) {
+noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, mtev_dyn_buffer_t *buf) {
   switch(search->operation) {
     case OP_MATCH: {
       noit_metric_tag_match_t *spec = &search->contents.spec;
@@ -1242,7 +1242,7 @@ noit_metric_tag_search_unparse_part(noit_metric_tag_search_ast_t *search, mtev_d
 }
 
 char *
-noit_metric_tag_search_unparse(noit_metric_tag_search_ast_t *search) {
+noit_metric_tag_search_unparse(const noit_metric_tag_search_ast_t *search) {
   char *res;
   mtev_dyn_buffer_t buf;
   mtev_dyn_buffer_init(&buf);
