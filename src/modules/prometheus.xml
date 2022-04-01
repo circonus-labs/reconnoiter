@@ -9,6 +9,22 @@
   <moduleconfig>
   </moduleconfig>
   <checkconfig>
+    <parameter name="extract_units"
+      required="optional"
+      default="false"
+      allowed="(?:true|false)">Determine units and move them to stream tags.</parameter>
+    <parameter name="allowed_units"
+      required="optional"
+      default=""
+      allowed=".+">A comma-separated list of units to extract if extract_units is also true. This replaces the compiled builtins.</parameter>
+    <parameter name="coerce_histograms"
+      required="optional"
+      default="false"
+      allowed="(?:true|false)">Coerce prometheus style histograms into OpenHistograms</parameter>
+    <parameter name="hist_approx_mode"
+      required="optional"
+      default="high"
+      allowed="^(?:low|mid|high|harmonic_mean)$">Specify the OpenHistogram method of approximation when converting histograms.</parameter>
     <parameter name="secret"
                required="optional"
                default=""
