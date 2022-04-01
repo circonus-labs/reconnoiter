@@ -147,6 +147,7 @@ free_prometheus_upload(void *pul)
   free(p->immediate_metrics);
   mtev_hash_destroy(p->hists, NULL, hist_in_progress_free);
   free(p->hists);
+  free(p->allowed_units);
   free(p->units_str);
   free(p);
 }
