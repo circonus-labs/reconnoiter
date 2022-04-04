@@ -321,10 +321,12 @@ static int external_timeout(eventer_t e, int mask,
   struct check_info *data;
   if(!NOIT_CHECK_KILLED(ecl->check) && !NOIT_CHECK_DISABLED(ecl->check)) {
     data = (struct check_info *)ecl->check->closure;
-    data->errortype = EXTERNAL_ERROR_TIMEOUT;
-    data->exit_code = 3;
-    external_log_results(ecl->self, ecl->check);
-    data->timeout_event = NULL;
+    if(data) {
+      data->errortype = EXTERNAL_ERROR_TIMEOUT;
+      data->exit_code = 3;
+      external_log_results(ecl->self, ecl->check);
+      data->timeout_event = NULL;
+    }
   }
   return 0;
 }
@@ -655,6 +657,10 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
 
   if(mask == EVENTER_ASYNCH_CLEANUP) {
     eventer_set_mask(e, 0);
+    return 0;
+  }
+  if(!ci) {
+    noit_check_end(ecl->check);
     return 0;
   }
   if (!mask) {
