@@ -590,6 +590,9 @@ noit_metric_tag_search_resize_args(noit_metric_tag_search_ast_t *node, int new_s
          node->operation == OP_HINT_ARGS);
   if(new_size == 0) new_size = DEFAULT_CHILDREN_ALLOC;
   if(node->contents.args.nallocd >= new_size) return;
+  int target_size = MAX(node->contents.args.nallocd, DEFAULT_CHILDREN_ALLOC);
+  while(target_size < new_size) target_size *= 2;
+  new_size = target_size;
   noit_metric_tag_search_ast_t **new_nodes = calloc(new_size, sizeof(*new_nodes));
   for(size_t i=0; i<node->contents.args.cnt; i++) {
     new_nodes[i] = node->contents.args.node[i];
@@ -670,7 +673,8 @@ void
 noit_metric_tag_search_set_arg(noit_metric_tag_search_ast_t *node, int idx, noit_metric_tag_search_ast_t *r) {
   assert(node->operation != OP_MATCH);
   assert(node->operation != OP_NOT_ARGS || idx == 0);
-  noit_metric_tag_search_resize_args(node, node->contents.args.nallocd*2);
+
+  noit_metric_tag_search_resize_args(node, idx+1);
   assert(node->contents.args.nallocd > idx);
   node->contents.args.node[idx] = r;
   assert(node->contents.args.cnt >= idx); // can't insert with gaps.
@@ -1203,7 +1207,7 @@ static void
 noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, mtev_dyn_buffer_t *buf) {
   switch(search->operation) {
     case OP_MATCH: {
-      noit_metric_tag_match_t *spec = &search->contents.spec;
+      const noit_metric_tag_match_t *spec = &search->contents.spec;
       mtev_dyn_buffer_add_printf(buf, "[%s]%s", spec->cat.impl->impl_name, spec->cat.str);
       if (spec->name.str) mtev_dyn_buffer_add_printf(buf, ":[%s]%s", spec->name.impl->impl_name, spec->name.str);
       break;
