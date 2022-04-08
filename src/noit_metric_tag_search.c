@@ -1265,9 +1265,6 @@ noit_metric_tag_search_swap(noit_metric_tag_search_ast_t *search, int idx1, int 
     return -1;
   }
   int nargs = noit_metric_tag_search_get_nargs(search);
-  if (nargs == 0) {
-    return -1;
-  }
   if (idx1 >= nargs || idx2 >= nargs) {
     return -1;
   }
