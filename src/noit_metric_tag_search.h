@@ -172,6 +172,9 @@ API_EXPORT(mtev_boolean)
 API_EXPORT(char *)
   noit_metric_tag_search_unparse(const noit_metric_tag_search_ast_t *);
 
+API_EXPORT(int)
+  noit_metric_tag_search_swap(noit_metric_tag_search_ast_t *, int, int);
+
 API_EXPORT(void)
   noit_var_matcher_register(const noit_var_match_impl_t *matcher);
 
