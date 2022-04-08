@@ -1255,3 +1255,34 @@ noit_metric_tag_search_unparse(const noit_metric_tag_search_ast_t *search) {
   mtev_dyn_buffer_destroy(&buf);
   return res;
 }
+
+int
+noit_metric_tag_search_swap(noit_metric_tag_search_ast_t *search, int idx1, int idx2) {
+  if (!search) {
+    return -1;
+  }
+  if (idx1 < 0 || idx2 < 0) {
+    return -1;
+  }
+  int nargs = noit_metric_tag_search_get_nargs(search);
+  if (nargs == 0) {
+    return -1;
+  }
+  if (idx1 >= nargs || idx2 >= nargs) {
+    return -1;
+  }
+  if (idx1 == idx2) {
+    /* nothing to do */
+    return 0;
+  }
+
+  noit_metric_tag_search_ast_t *arg1 = noit_metric_tag_search_get_arg(search, idx1);
+  noit_metric_tag_search_ast_t *arg2 = noit_metric_tag_search_get_arg(search, idx2);
+
+  if (!arg1 || !arg2) {
+    return -1;
+  }
+  noit_metric_tag_search_set_arg(search, idx1, arg2);
+  noit_metric_tag_search_set_arg(search, idx2, arg1);
+  return 0;
+}

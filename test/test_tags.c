@@ -673,6 +673,27 @@ void query_parsing(void) {
   test_reorder_tags();
 }
 
+void query_argument_swapping(void) {
+  int erroroffset = 0;
+  const char *query = "and(a:b,c:d,e:f,g:h,i:j)";
+  noit_metric_tag_search_ast_t *ast = noit_metric_tag_search_parse(query, &erroroffset);
+  if (ast) {
+    test_assert(-1 == noit_metric_tag_search_swap(ast, 0, 120));
+    test_assert(-1 == noit_metric_tag_search_swap(ast, 120, 0));
+    test_assert(-1 == noit_metric_tag_search_swap(ast, -1, 0));
+    test_assert(0 == noit_metric_tag_search_swap(ast, 1, 3));
+    char *unparse = noit_metric_tag_search_unparse(ast);
+    test_assert(strcmp("and([exact]a:[exact]b,[exact]g:[exact]h,[exact]e:[exact]f,[exact]c:[exact]d,[exact]i:[exact]j)", unparse) == 0);
+    free(unparse);
+    test_assert(0 == noit_metric_tag_search_swap(ast, 0, 0));
+    unparse = noit_metric_tag_search_unparse(ast);
+    test_assert(strcmp("and([exact]a:[exact]b,[exact]g:[exact]h,[exact]e:[exact]f,[exact]c:[exact]d,[exact]i:[exact]j)", unparse) == 0);
+    free(unparse);
+  } else {
+    test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
+  }
+}
+
 void loop(char *str) {
   int len;
   const int nloop = 100000;
@@ -757,6 +778,7 @@ int main(int argc, char * const *argv)
   test_tag_at_limit();
   metric_parsing();
   query_parsing();
+  query_argument_swapping();
   printf("\nPerformance:\n====================\n");
   loop("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");
