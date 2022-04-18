@@ -467,6 +467,7 @@ static void *var_default_compile(const char *in, int *erroffset) {
 static mtev_boolean var_re_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
   (void)pattern;
   struct re_matcher *m = (struct re_matcher *)impl_data;
+  if(m == NULL) return mtev_false;
   int ovector[30], rv;
   rv = pcre_exec(m->re, m->re_e, in, in_len, 0, 0, ovector, 30);
   if(rv >= 0) return mtev_true;
@@ -490,7 +491,7 @@ static void var_re_free(void *impl_data) {
 
 static int var_re_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
   struct re_matcher *m = (struct re_matcher *)impl_data;
-  return append_prefix(out, out_len, m->re_str, m->re, all);
+  return append_prefix(out, out_len, m ? m->re_str : "", m ? m->re : NULL, all);
 }
 
 static mtev_boolean var_exact_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
