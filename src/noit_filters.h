@@ -49,6 +49,8 @@
 #define FILTERSET_DENY_STRING "deny"
 #define FILTERSET_SKIPTO_STRING "skipto:"
 #define FILTERSET_SKIPTO_STRING_NO_COLON "skipto"
+#define FILTERSET_ADD_MEASUREMENT_TAG_STRING "add_measurement_tag:"
+#define FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON "add_measurement_tag"
 
 #define FILTERSET_TARGET_STRING "target"
 #define FILTERSET_MODULE_STRING "module"
@@ -58,12 +60,18 @@
 #define FILTERSET_TAG_STREAM_TAGS_STRING "stream_tags"
 #define FILTERSET_TAG_MEASUREMENT_TAGS_STRING "measurement_tags"
 
-typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
+typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO, NOIT_FILTER_ADD_MEASUREMENT_TAG } noit_ruletype_t;
+
+typedef struct _measurement_tag {
+  char *add_measurement_tag_cat;
+  char *add_measurement_tag_val;
+} _measurement_tag_t;
 
 typedef struct _filterrule {
   char *ruleid;
   char *skipto;
   struct _filterrule *skipto_rule;
+  _measurement_tag_t measurement_tag;
   noit_ruletype_t type;
   char *target_re;
   pcre *target_override;

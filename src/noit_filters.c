@@ -82,6 +82,14 @@ static bool initialized = false;
 } while(0)
 
 static void
+measurement_tag_free(const _measurement_tag_t *mt) {
+  if (mt) {
+    free(mt->add_measurement_tag_cat);
+    free(mt->add_measurement_tag_val);
+  }
+}
+
+static void
 filterrule_free(void *vp) {
   filterrule_t *r = vp;
   FRF(r,target);
@@ -94,6 +102,7 @@ filterrule_free(void *vp) {
   noit_metric_tag_search_free(r->mtsearch);
   free(r->ruleid);
   free(r->skipto);
+  measurement_tag_free(&r->measurement_tag);
   pthread_mutex_destroy(&r->flush_lock);
   free(r);
 }
@@ -214,7 +223,8 @@ noit_filter_validate_filter(xmlDocPtr doc, char *name, int64_t *seq, const char 
     CHECK_N_SET(rule) {
       type = (char *)xmlGetProp(r, (xmlChar *)"type");
       if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow") &&
-                   strncmp(type, "skipto:", strlen("skipto:")))) {
+                   strncmp(type, "skipto:", strlen("skipto:")) &&
+                   strncmp(type, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING)))) {
         if(type) xmlFree(type);
         *err = "unknown type";
         return NULL;
@@ -317,8 +327,9 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     char buffer[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
        (strcmp(buffer, FILTERSET_ACCEPT_STRING) && strcmp(buffer, FILTERSET_ALLOW_STRING) && strcmp(buffer, FILTERSET_DENY_STRING) &&
-        strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)))) {
-      mtevL(nf_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
+        strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)) &&
+        strncmp(buffer, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING)))) {
+      mtevL(nf_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:' or 'add_measurement_tag:'\n");
       continue;
     }
     mtevL(nf_debug, "Prepending %s into %s\n", buffer, set->name);
@@ -327,6 +338,25 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
       rule->type = NOIT_FILTER_SKIPTO;
       rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
+    }
+    else if (!strncasecmp(buffer, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING))) {
+      rule->type = NOIT_FILTER_ADD_MEASUREMENT_TAG;
+      rule->measurement_tag.add_measurement_tag_cat = NULL;
+      rule->measurement_tag.add_measurement_tag_val = NULL;
+      const char *mt = buffer+strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING);
+      const char *colon = strstr(mt, ":");
+      if (colon) {
+        size_t cat_len = colon - mt;
+        if (cat_len) {
+          rule->measurement_tag.add_measurement_tag_cat = (char *)calloc(1, cat_len + 1);
+          memcpy(rule->measurement_tag.add_measurement_tag_cat, mt, cat_len);
+          rule->measurement_tag.add_measurement_tag_val = strdup(colon + 1);
+        }
+      }
+      else {
+        rule->measurement_tag.add_measurement_tag_cat = strdup(mt);
+        /* no tag val */
+      }
     }
     else {
       rule->type = (!strcmp(buffer, FILTERSET_ACCEPT_STRING) || !strcmp(buffer, FILTERSET_ALLOW_STRING)) ?

@@ -65,6 +65,7 @@ typedef struct noit_filter_lmdb_rule_filterset {
   char *metric_attribute;
   char *stream_tags_tag_str;
   char *measurement_tags_tag_str;
+  _measurement_tag_t measurement_tag;
 } noit_filter_lmdb_filterset_rule_t;
 
 typedef enum {
@@ -97,6 +98,8 @@ noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
   if (rule) {
     free(rule->skipto);
     free(rule->ruleid);
+    free(rule->measurement_tag.add_measurement_tag_cat);
+    free(rule->measurement_tag.add_measurement_tag_val);
     free(rule);
   }
 }
@@ -322,6 +325,9 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
           noit_ns(FiltersetRule_skipto_value_create_str(B, rule->skipto));
         }
         break;
+      case NOIT_FILTER_ADD_MEASUREMENT_TAG:
+        // TODO: Need to handle this
+        break;
       default:
         mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
         break;
@@ -421,6 +427,25 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
   if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
     rule->type = NOIT_FILTER_SKIPTO;
     rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
+  }
+  else if (!strncasecmp(buffer, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING))) {
+    rule->type = NOIT_FILTER_ADD_MEASUREMENT_TAG;
+    rule->measurement_tag.add_measurement_tag_cat = NULL;
+    rule->measurement_tag.add_measurement_tag_val = NULL;
+    const char *mt = buffer+strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING);
+    const char *colon = strstr(mt, ":");
+    if (colon) {
+      size_t cat_len = colon - mt;
+      if (cat_len) {
+        rule->measurement_tag.add_measurement_tag_cat = (char *)calloc(1, cat_len + 1);
+        memcpy(rule->measurement_tag.add_measurement_tag_cat, mt, cat_len);
+        rule->measurement_tag.add_measurement_tag_val = strdup(colon + 1);
+      }
+    }
+    else {
+      rule->measurement_tag.add_measurement_tag_cat = strdup(mt);
+      /* no tag val */
+    }
   }
   else {
     /* NOTE: With XML filtersets, "accept" and "allow" were both accepted and did the same thing. With
@@ -680,6 +705,9 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
       else {
         mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: skipto type with no value\n");
       }
+    }
+    else if (!strcmp(rule_type, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON)) {
+      // TODO: Need to handle this
     }
     else {
       mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type - %s - setting to deny\n", rule_type);
