@@ -767,13 +767,13 @@ noit_apply_filterset(const char *filterset,
           skipto_rule = r->skipto_rule;
           continue;
         }
+        else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
+          noit_add_measurement_tag(r, &mtset);
+          continue;
+        }
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
         break;
-      }
-      else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
-        noit_add_measurement_tag(r, &mtset);
-        continue;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
 #define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && mtev_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
