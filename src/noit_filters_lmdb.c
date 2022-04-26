@@ -326,7 +326,8 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
         }
         break;
       case NOIT_FILTER_ADD_MEASUREMENT_TAG:
-        // TODO: Need to handle this
+        noit_ns(FiltersetRule_rule_type_create_str(B, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON));
+        // TODO: Need to handle adding measurement tags in the flatbuffer
         break;
       default:
         mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
