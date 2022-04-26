@@ -327,7 +327,14 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
         break;
       case NOIT_FILTER_ADD_MEASUREMENT_TAG:
         noit_ns(FiltersetRule_rule_type_create_str(B, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON));
-        // TODO: Need to handle adding measurement tags in the flatbuffer
+        if (rule->measurement_tag.add_measurement_tag_cat) {
+          noit_ns(FiltersetRule_measurement_tag_value_start(B));
+          noit_ns(FiltersetRuleMeasurementTag_cat_create_str(B, rule->measurement_tag.add_measurement_tag_cat));
+          if (rule->measurement_tag.add_measurement_tag_val) {
+            noit_ns(FiltersetRuleMeasurementTag_val_create_str(B, rule->measurement_tag.add_measurement_tag_val));
+          }
+          noit_ns(FiltersetRule_measurement_tag_value_end(B));
+        }
         break;
       default:
         mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
@@ -708,7 +715,21 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
       }
     }
     else if (!strcmp(rule_type, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON)) {
-      // TODO: Need to handle this
+      rule->type = NOIT_FILTER_ADD_MEASUREMENT_TAG;
+      if (noit_ns(FiltersetRule_measurement_tag_value_is_present(fs_rule))) {
+        noit_ns(FiltersetRuleMeasurementTag_table_t) frmt = noit_ns(FiltersetRule_measurement_tag_value(fs_rule));
+        flatbuffers_string_t cat = noit_ns(FiltersetRuleMeasurementTag_cat(frmt));
+        flatbuffers_string_t val = noit_ns(FiltersetRuleMeasurementTag_val(frmt));
+        if (cat) {
+          rule->measurement_tag.add_measurement_tag_cat = strdup(cat);
+          if (val) {
+            rule->measurement_tag.add_measurement_tag_val = strdup(val);
+          }
+        }
+        else {
+          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: no measurement tag category providded\n");
+        }
+      }
     }
     else {
       mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: unknown type - %s - setting to deny\n", rule_type);

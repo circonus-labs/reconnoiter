@@ -29,6 +29,11 @@ table FiltersetRuleFlushPeriod {
   value: long (id: 1);
 }
 
+table FiltersetRuleMeasurementTag {
+  cat: string(id: 0);
+  val: string(id: 1);
+}
+
 table FiltersetRule {
   id: string (id: 0);
   filterset_flush_period: FiltersetRuleFlushPeriod (id: 1);
@@ -36,6 +41,7 @@ table FiltersetRule {
   skipto_value: string(id: 3);
   info: [FiltersetRuleInfo] (id: 4);
   tags: [FiltersetRuleTagInfo] (id: 5);
+  measurement_tag_value: FiltersetRuleMeasurementTag(id: 6);
 }
 
 root_type FiltersetRule;
