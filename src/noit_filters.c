@@ -819,6 +819,10 @@ noit_apply_filterset(const char *filterset,
           skipto_rule = r->skipto_rule;
           continue;
         }
+        else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
+          noit_add_measurement_tag(r, &mtset);
+          continue;
+        }
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
         break;
