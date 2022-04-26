@@ -685,6 +685,26 @@ noit_apply_filterrule_metric(filterrule_t *r,
   return mtev_true;
 }
 
+static int
+noit_add_measurement_tag(filterrule_t *r,
+                         noit_metric_tagset_t *mtset) {
+  if(r && mtset && mtset->tag_count < MAX_TAGS-1) {
+    char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
+    char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
+    snprintf(decoded_nametag, sizeof(decoded_nametag), "%s%c%s",
+      r->measurement_tag.add_measurement_tag_cat, NOIT_TAG_DECODED_SEPARATOR,
+      r->measurement_tag.add_measurement_tag_val);
+    size_t nlen = noit_metric_tagset_encode_tag(encoded_nametag, sizeof(encoded_nametag),
+                                                decoded_nametag, strlen(decoded_nametag));
+    mtset->tags[mtset->tag_count].category_size = strlen(r->measurement_tag.add_measurement_tag_cat + 1);
+    mtset->tags[mtset->tag_count].total_size = nlen;
+    mtset->tags[mtset->tag_count].tag = encoded_nametag;
+    mtset->tag_count++;
+    return 0;
+  }
+  return -1;
+}
+
 mtev_boolean
 noit_apply_filterset(const char *filterset,
                      noit_check_t *check,
@@ -745,6 +765,10 @@ noit_apply_filterset(const char *filterset,
       if(!need_target && !need_module && !need_name && !need_metric) {
         if(r->type == NOIT_FILTER_SKIPTO) {
           skipto_rule = r->skipto_rule;
+          continue;
+        }
+        else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
+          noit_add_measurement_tag(r, &mtset);
           continue;
         }
         ck_pr_inc_32(&r->matches);
