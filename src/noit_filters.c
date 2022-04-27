@@ -703,7 +703,7 @@ noit_add_measurement_tag(filterrule_t *r,
   for (int i = 0; i < mtset->tag_count; i++) {
     if (nlen == mtset->tags[i].total_size && !strncmp(encoded_nametag, mtset->tags[i].tag, nlen)) {
       /* tag is already there */
-      return 0;
+      return 1;
     }
   }
 
@@ -796,13 +796,14 @@ noit_apply_filterset(const char *filterset,
           continue;
         }
         else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
-          if (noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset)) {
+          int result = noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset);
+          if (result == 0) {
+            mt_modified = true;
+          }
+          else if (result < 0) {
             mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
               r->measurement_tag.add_measurement_tag_cat,
               r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
-          }
-          else {
-            mt_modified = true;
           }
           continue;
         }
@@ -855,13 +856,14 @@ noit_apply_filterset(const char *filterset,
           continue;
         }
         else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
-          if (noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset)) {
+          int result = noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset);
+          if (result == 0) {
+            mt_modified = true;
+          }
+          else if (result < 0) {
             mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
               r->measurement_tag.add_measurement_tag_cat,
               r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
-          }
-          else {
-            mt_modified = true;
           }
           continue;
         }
