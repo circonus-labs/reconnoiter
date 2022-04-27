@@ -688,8 +688,9 @@ noit_apply_filterrule_metric(filterrule_t *r,
 static int
 noit_add_measurement_tag(filterrule_t *r,
                          metric_t *metric,
+                         char **expanded_metric_name,
                          noit_metric_tagset_t *mtset) {
-  if (!r || !metric || !mtset || !r->measurement_tag.add_measurement_tag_cat || mtset->tag_count >= MAX_TAGS) {
+  if (!r || !metric || !expanded_metric_name || !mtset || !r->measurement_tag.add_measurement_tag_cat || mtset->tag_count >= MAX_TAGS) {
     return -1;
   }
   char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
@@ -707,16 +708,19 @@ noit_add_measurement_tag(filterrule_t *r,
   }
 
   /* Extend the metric name */
-  size_t old_size = strlen(metric->metric_name);
+  if (!(*expanded_metric_name)) {
+    *expanded_metric_name = strdup(metric->metric_name);
+  }
+  size_t old_size = strlen(*expanded_metric_name);
   size_t encoded_nametag_size = strlen(encoded_nametag);
   /* `+5` is for |MT{} */
   size_t new_size = old_size + encoded_nametag_size + 5 + 1;
-  metric->metric_name = realloc(metric->metric_name, new_size);
-  mtevAssert(metric->metric_name);
-  memcpy(metric->metric_name + old_size, "|MT{", 4);
-  memcpy(metric->metric_name + old_size + 4, encoded_nametag, encoded_nametag_size);
-  metric->metric_name[new_size - 2] = '}';
-  metric->metric_name[new_size - 1] = 0;
+  *expanded_metric_name = realloc(*expanded_metric_name, new_size);
+  mtevAssert(*expanded_metric_name);
+  memcpy(*expanded_metric_name + old_size, "|MT{", 4);
+  memcpy(*expanded_metric_name + old_size + 4, encoded_nametag, encoded_nametag_size);
+  (*expanded_metric_name)[new_size - 2] = '}';
+  (*expanded_metric_name)[new_size - 1] = 0;
 
   mtset->tags[mtset->tag_count].category_size = strlen(r->measurement_tag.add_measurement_tag_cat + 1);
   mtset->tags[mtset->tag_count].total_size = nlen;
@@ -762,6 +766,7 @@ noit_apply_filterset(const char *filterset,
   }
   bool mt_modified = false;
   int mt_tag_start = mtset.tag_count;
+  char *expanded_metric_name = NULL;
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
@@ -791,7 +796,7 @@ noit_apply_filterset(const char *filterset,
           continue;
         }
         else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
-          if (noit_add_measurement_tag(r, metric, &mtset)) {
+          if (noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset)) {
             mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
               r->measurement_tag.add_measurement_tag_cat,
               r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
@@ -850,7 +855,7 @@ noit_apply_filterset(const char *filterset,
           continue;
         }
         else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
-          if (noit_add_measurement_tag(r, metric, &mtset)) {
+          if (noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset)) {
             mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
               r->measurement_tag.add_measurement_tag_cat,
               r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
@@ -870,10 +875,14 @@ noit_apply_filterset(const char *filterset,
     if (mt_modified) {
       char buff[MAX_METRIC_TAGGED_NAME];
       char *old = metric->metric_name;
-      if (noit_metric_canonicalize(old, strlen(old), buff, sizeof(buff), mtev_true)) {
+      if (!expanded_metric_name) {
+        expanded_metric_name = strdup(old);
+      }
+      if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
         metric->metric_name = strdup(buff);
         free(old);
       }
+      free(expanded_metric_name);
       /* We allocate any new mttags; need to free them here */
       for (int i = mt_tag_start; i < mtset.tag_count; i++) {
         free((char *)mtset.tags[i].tag);
@@ -885,10 +894,14 @@ noit_apply_filterset(const char *filterset,
   if (mt_modified) {
     char buff[MAX_METRIC_TAGGED_NAME];
     char *old = metric->metric_name;
-    if (noit_metric_canonicalize(old, strlen(old), buff, sizeof(buff), mtev_true)) {
+    if (!expanded_metric_name) {
+      expanded_metric_name = strdup(old);
+    }
+    if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
       metric->metric_name = strdup(buff);
       free(old);
     }
+    free(expanded_metric_name);
     /* We allocate any new mttags; need to free them here */
     for (int i = mt_tag_start; i < mtset.tag_count; i++) {
       free((char *)mtset.tags[i].tag);
