@@ -999,6 +999,23 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
             xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
           }
         }
+        if (!strcmp(type, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON)) {
+          if (noit_ns(FiltersetRule_measurement_tag_value_is_present(fs_rule))) {
+            noit_ns(FiltersetRuleMeasurementTag_table_t) frmt = noit_ns(FiltersetRule_measurement_tag_value(fs_rule));
+            flatbuffers_string_t cat = noit_ns(FiltersetRuleMeasurementTag_cat(frmt));
+            flatbuffers_string_t val = noit_ns(FiltersetRuleMeasurementTag_val(frmt));
+            if (cat) {
+              snprintf(buffer, sizeof(buffer), "%s:%s:%s", type, cat, val ? val : "");
+              xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)buffer);
+            }
+            else {
+              xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
+            }
+          }
+          else {
+            xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
+          }
+        }
         else {
           xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
         }
