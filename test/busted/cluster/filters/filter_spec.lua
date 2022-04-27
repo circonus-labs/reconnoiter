@@ -25,6 +25,12 @@ describe("cluster", function()
     rule_data = {}
 
     rule = {}
+    rule.type = "add_measurement_tag:some_mt_cat:some_mt_val"
+    rule.metric = "^dummymetric$"
+    rule.target = "^www.github.com$"
+    rule.module = "^httptrap$"
+    table.insert(rule_data, rule)
+    rule = {}
     rule.type = "accept"
     rule.metric = "^dummymetric$"
     rule.target = "^www.github.com$"
