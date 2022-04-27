@@ -768,7 +768,11 @@ noit_apply_filterset(const char *filterset,
           continue;
         }
         else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
-          noit_add_measurement_tag(r, &mtset);
+          if (noit_add_measurement_tag(r, &mtset)) {
+            mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
+              r->measurement_tag.add_measurement_tag_cat,
+              r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
+          }
           continue;
         }
         ck_pr_inc_32(&r->matches);
@@ -820,7 +824,11 @@ noit_apply_filterset(const char *filterset,
           continue;
         }
         else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
-          noit_add_measurement_tag(r, &mtset);
+          if (noit_add_measurement_tag(r, &mtset)) {
+            mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
+              r->measurement_tag.add_measurement_tag_cat,
+              r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
+          }
           continue;
         }
         ck_pr_inc_32(&r->matches);
