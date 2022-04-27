@@ -688,7 +688,7 @@ noit_apply_filterrule_metric(filterrule_t *r,
 static int
 noit_add_measurement_tag(filterrule_t *r,
                          noit_metric_tagset_t *mtset) {
-  if(r && mtset && mtset->tag_count < MAX_TAGS-1) {
+  if(r && mtset && r->measurement_tag.add_measurement_tag_cat && mtset->tag_count < MAX_TAGS-1) {
     char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
     char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
     snprintf(decoded_nametag, sizeof(decoded_nametag), "%s%c%s",
