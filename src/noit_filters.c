@@ -691,9 +691,10 @@ noit_add_measurement_tag(filterrule_t *r,
   if(r && mtset && r->measurement_tag.add_measurement_tag_cat && mtset->tag_count < MAX_TAGS-1) {
     char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
     char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
+    const char *cat = r->measurement_tag.add_measurement_tag_cat;
+    const char *val = r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "";
     snprintf(decoded_nametag, sizeof(decoded_nametag), "%s%c%s",
-      r->measurement_tag.add_measurement_tag_cat, NOIT_TAG_DECODED_SEPARATOR,
-      r->measurement_tag.add_measurement_tag_val);
+      cat, NOIT_TAG_DECODED_SEPARATOR, val);
     size_t nlen = noit_metric_tagset_encode_tag(encoded_nametag, sizeof(encoded_nametag),
                                                 decoded_nametag, strlen(decoded_nametag));
     mtset->tags[mtset->tag_count].category_size = strlen(r->measurement_tag.add_measurement_tag_cat + 1);
