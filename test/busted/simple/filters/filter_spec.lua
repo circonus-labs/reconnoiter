@@ -121,6 +121,7 @@ describe("noit", function()
       local code, doc, raw = api:raw("PUT", "/filters/set/" .. filter_uuid,
         [=[<?xml version="1.0" encoding="utf8"?>
         <filterset filter_flush_period="1000">
+          <rule type="add_measurement_tag:some_random:measurement_tag"/>
           <rule type="allow" metric_auto_add="2"/>
           <rule type="deny"/>
         </filterset>]=])
