@@ -730,6 +730,31 @@ noit_add_measurement_tag(filterrule_t *r,
   return 0;
 }
 
+static void
+noit_update_metric_name(char *expanded_metric_name,
+                        noit_metric_tagset_t *mtset,
+                        int mtset_tag_start,
+                        metric_t *metric) {
+  char buff[MAX_METRIC_TAGGED_NAME];
+  char *old = metric->metric_name;
+  if (!expanded_metric_name) {
+    expanded_metric_name = strdup(old);
+  }
+  if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
+    metric->metric_name = strdup(buff);
+    free(old);
+  }
+  free(expanded_metric_name);
+  /* We allocate any new mttags; need to free them here */
+  if (mtset_tag_start) {
+    for (int i = mtset_tag_start; i < mtset->tag_count; i++) {
+      free((char *)mtset->tags[i].tag);
+      mtset->tags[i].tag = NULL;
+    }
+    mtset->tag_count = mtset_tag_start - 1;
+  }
+}
+
 mtev_boolean
 noit_apply_filterset(const char *filterset,
                      noit_check_t *check,
@@ -810,20 +835,7 @@ noit_apply_filterset(const char *filterset,
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
         if (mt_modified) {
-          char buff[MAX_METRIC_TAGGED_NAME];
-          char *old = metric->metric_name;
-          if (!expanded_metric_name) {
-            expanded_metric_name = strdup(old);
-          }
-          if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
-            metric->metric_name = strdup(buff);
-            free(old);
-          }
-          free(expanded_metric_name);
-          /* We allocate any new mttags; need to free them here */
-          for (int i = mt_tag_start; i < mtset.tag_count; i++) {
-            free((char *)mtset.tags[i].tag);
-          }
+          noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
           mt_modified = false;
         }
         break;
@@ -881,20 +893,7 @@ noit_apply_filterset(const char *filterset,
           continue;
         }
         if (mt_modified) {
-          char buff[MAX_METRIC_TAGGED_NAME];
-          char *old = metric->metric_name;
-          if (!expanded_metric_name) {
-            expanded_metric_name = strdup(old);
-          }
-          if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
-            metric->metric_name = strdup(buff);
-            free(old);
-          }
-          free(expanded_metric_name);
-          /* We allocate any new mttags; need to free them here */
-          for (int i = mt_tag_start; i < mtset.tag_count; i++) {
-            free((char *)mtset.tags[i].tag);
-          }
+          noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
           mt_modified = false;
         }
         if(need_target) UPDATE_FILTER_RULE(target, check->target);
@@ -913,20 +912,7 @@ noit_apply_filterset(const char *filterset,
   }
   UNLOCKFS();
   if (mt_modified) {
-    char buff[MAX_METRIC_TAGGED_NAME];
-    char *old = metric->metric_name;
-    if (!expanded_metric_name) {
-      expanded_metric_name = strdup(old);
-    }
-    if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
-      metric->metric_name = strdup(buff);
-      free(old);
-    }
-    free(expanded_metric_name);
-    /* We allocate any new mttags; need to free them here */
-    for (int i = mt_tag_start; i < mtset.tag_count; i++) {
-      free((char *)mtset.tags[i].tag);
-    }
+    noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
   }
   return mtev_false;
 }
