@@ -145,7 +145,9 @@ free_prometheus_upload(void *pul)
 {
   prometheus_upload_t *p = (prometheus_upload_t *)pul;
   mtev_dyn_buffer_destroy(&p->data);
+  mtev_memory_begin();
   mtev_hash_destroy(p->immediate_metrics, NULL, mtev_memory_safe_free);
+  mtev_memory_end();
   free(p->immediate_metrics);
   mtev_hash_destroy(p->hists, NULL, hist_in_progress_free);
   free(p->hists);
@@ -415,12 +417,14 @@ metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const ch
 
 static void
 metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
+  mtev_memory_begin();
   pthread_mutex_lock(&batch_flush_lock);
   if(mtev_hash_size(rxc->immediate_metrics)) {
     noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
     mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
   }
   pthread_mutex_unlock(&batch_flush_lock);
+  mtev_memory_end();
 }
 
 static void
