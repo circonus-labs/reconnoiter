@@ -454,8 +454,8 @@ nc_print_stat_metrics(mtev_console_closure_t ncct,
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     if(sorted_keys && mcount < cnt) sorted_keys[mcount++] = k;
     else {
-      noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
       filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
+      noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
       nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
     }
   }
@@ -467,8 +467,8 @@ nc_print_stat_metrics(mtev_console_closure_t ncct,
       if(mtev_hash_retrieve(metrics,
                             sorted_keys[j], strlen(sorted_keys[j]),
                             &data)) {
-        noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
         filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
+        noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
         nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
       }
     }

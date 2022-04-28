@@ -110,11 +110,12 @@ add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const c
       if(mtev_hash_retrieve(supp, k, klen, &unused)) continue;
       mtev_hash_store(supp, k, klen, NULL);
     }
+    bool filtered = !noit_apply_filterset(check->filterset, check, m);
     xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
     xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)m->metric_name);
     buff[0] = m->metric_type; buff[1] = '\0';
     xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
-    if(!noit_apply_filterset(check->filterset, check, m)) {
+    if(filtered) {
       xmlSetProp(tmp, (xmlChar *)"filtered", (xmlChar *)"true");
     }
     if(m->metric_value.s) {

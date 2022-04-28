@@ -82,6 +82,14 @@ static bool initialized = false;
 } while(0)
 
 static void
+measurement_tag_free(const _measurement_tag_t *mt) {
+  if (mt) {
+    free(mt->add_measurement_tag_cat);
+    free(mt->add_measurement_tag_val);
+  }
+}
+
+static void
 filterrule_free(void *vp) {
   filterrule_t *r = vp;
   FRF(r,target);
@@ -94,6 +102,7 @@ filterrule_free(void *vp) {
   noit_metric_tag_search_free(r->mtsearch);
   free(r->ruleid);
   free(r->skipto);
+  measurement_tag_free(&r->measurement_tag);
   pthread_mutex_destroy(&r->flush_lock);
   free(r);
 }
@@ -214,7 +223,8 @@ noit_filter_validate_filter(xmlDocPtr doc, char *name, int64_t *seq, const char 
     CHECK_N_SET(rule) {
       type = (char *)xmlGetProp(r, (xmlChar *)"type");
       if(!type || (strcmp(type, "deny") && strcmp(type, "accept") && strcmp(type, "allow") &&
-                   strncmp(type, "skipto:", strlen("skipto:")))) {
+                   strncmp(type, "skipto:", strlen("skipto:")) &&
+                   strncmp(type, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING)))) {
         if(type) xmlFree(type);
         *err = "unknown type";
         return NULL;
@@ -317,8 +327,9 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     char buffer[MAX_METRIC_TAGGED_NAME];
     if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
        (strcmp(buffer, FILTERSET_ACCEPT_STRING) && strcmp(buffer, FILTERSET_ALLOW_STRING) && strcmp(buffer, FILTERSET_DENY_STRING) &&
-        strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)))) {
-      mtevL(nf_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
+        strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)) &&
+        strncmp(buffer, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING)))) {
+      mtevL(nf_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:' or 'add_measurement_tag:'\n");
       continue;
     }
     mtevL(nf_debug, "Prepending %s into %s\n", buffer, set->name);
@@ -327,6 +338,25 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
       rule->type = NOIT_FILTER_SKIPTO;
       rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
+    }
+    else if (!strncasecmp(buffer, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING))) {
+      rule->type = NOIT_FILTER_ADD_MEASUREMENT_TAG;
+      rule->measurement_tag.add_measurement_tag_cat = NULL;
+      rule->measurement_tag.add_measurement_tag_val = NULL;
+      const char *mt = buffer+strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING);
+      const char *colon = strstr(mt, ":");
+      if (colon) {
+        size_t cat_len = colon - mt;
+        if (cat_len) {
+          rule->measurement_tag.add_measurement_tag_cat = (char *)calloc(1, cat_len + 1);
+          memcpy(rule->measurement_tag.add_measurement_tag_cat, mt, cat_len);
+          rule->measurement_tag.add_measurement_tag_val = strdup(colon + 1);
+        }
+      }
+      else {
+        rule->measurement_tag.add_measurement_tag_cat = strdup(mt);
+        /* no tag val */
+      }
     }
     else {
       rule->type = (!strcmp(buffer, FILTERSET_ACCEPT_STRING) || !strcmp(buffer, FILTERSET_ALLOW_STRING)) ?
@@ -655,6 +685,76 @@ noit_apply_filterrule_metric(filterrule_t *r,
   return mtev_true;
 }
 
+static int
+noit_add_measurement_tag(filterrule_t *r,
+                         metric_t *metric,
+                         char **expanded_metric_name,
+                         noit_metric_tagset_t *mtset) {
+  if (!r || !metric || !expanded_metric_name || !mtset || !r->measurement_tag.add_measurement_tag_cat || mtset->tag_count >= MAX_TAGS) {
+    return -1;
+  }
+  char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
+  char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
+  const char *cat = r->measurement_tag.add_measurement_tag_cat;
+  const char *val = r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "";
+  snprintf(decoded_nametag, sizeof(decoded_nametag), "%s%c%s", cat, NOIT_TAG_DECODED_SEPARATOR, val);
+  size_t nlen = noit_metric_tagset_encode_tag(encoded_nametag, sizeof(encoded_nametag),
+                                              decoded_nametag, strlen(decoded_nametag));
+  for (int i = 0; i < mtset->tag_count; i++) {
+    if (nlen == mtset->tags[i].total_size && !strncmp(encoded_nametag, mtset->tags[i].tag, nlen)) {
+      /* tag is already there */
+      return 1;
+    }
+  }
+
+  /* Extend the metric name */
+  if (!(*expanded_metric_name)) {
+    *expanded_metric_name = strdup(metric->metric_name);
+  }
+  size_t old_size = strlen(*expanded_metric_name);
+  size_t encoded_nametag_size = strlen(encoded_nametag);
+  /* `+5` is for |MT{} */
+  size_t new_size = old_size + encoded_nametag_size + 5 + 1;
+  *expanded_metric_name = realloc(*expanded_metric_name, new_size);
+  mtevAssert(*expanded_metric_name);
+  memcpy(*expanded_metric_name + old_size, "|MT{", 4);
+  memcpy(*expanded_metric_name + old_size + 4, encoded_nametag, encoded_nametag_size);
+  (*expanded_metric_name)[new_size - 2] = '}';
+  (*expanded_metric_name)[new_size - 1] = 0;
+
+  mtset->tags[mtset->tag_count].category_size = strlen(r->measurement_tag.add_measurement_tag_cat + 1);
+  mtset->tags[mtset->tag_count].total_size = nlen;
+  mtset->tags[mtset->tag_count].tag = strdup(encoded_nametag);
+  mtset->tag_count++;
+
+  return 0;
+}
+
+static void
+noit_update_metric_name(char *expanded_metric_name,
+                        noit_metric_tagset_t *mtset,
+                        int mtset_tag_start,
+                        metric_t *metric) {
+  char buff[MAX_METRIC_TAGGED_NAME];
+  char *old = metric->metric_name;
+  if (!expanded_metric_name) {
+    expanded_metric_name = strdup(old);
+  }
+  if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
+    metric->metric_name = strdup(buff);
+    free(old);
+  }
+  free(expanded_metric_name);
+  /* We allocate any new mttags; need to free them here */
+  if (mtset_tag_start) {
+    for (int i = mtset_tag_start; i < mtset->tag_count; i++) {
+      free((char *)mtset->tags[i].tag);
+      mtset->tags[i].tag = NULL;
+    }
+    mtset->tag_count = mtset_tag_start - 1;
+  }
+}
+
 mtev_boolean
 noit_apply_filterset(const char *filterset,
                      noit_check_t *check,
@@ -689,6 +789,9 @@ noit_apply_filterset(const char *filterset,
     stset.tags[stset.tag_count].tag = encoded_nametag;
     stset.tag_count++;
   }
+  bool mt_modified = false;
+  int mt_tag_start = mtset.tag_count;
+  char *expanded_metric_name = NULL;
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
@@ -717,8 +820,24 @@ noit_apply_filterset(const char *filterset,
           skipto_rule = r->skipto_rule;
           continue;
         }
+        else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
+          int result = noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset);
+          if (result == 0) {
+            mt_modified = true;
+          }
+          else if (result < 0) {
+            mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
+              r->measurement_tag.add_measurement_tag_cat,
+              r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
+          }
+          continue;
+        }
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
+        if (mt_modified) {
+          noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
+          mt_modified = false;
+        }
         break;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
@@ -757,14 +876,31 @@ noit_apply_filterset(const char *filterset,
       }
 
       if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
-        if(need_target) UPDATE_FILTER_RULE(target, check->target);
-        if(need_module) UPDATE_FILTER_RULE(module, check->module);
-        if(need_name) UPDATE_FILTER_RULE(name, check->name);
-        if(need_metric) UPDATE_FILTER_RULE(metric, metric->metric_name);
         if(r->type == NOIT_FILTER_SKIPTO) {
           skipto_rule = r->skipto_rule;
           continue;
         }
+        else if (r->type == NOIT_FILTER_ADD_MEASUREMENT_TAG) {
+          int result = noit_add_measurement_tag(r, metric, &expanded_metric_name, &mtset);
+          if (result == 0) {
+            mt_modified = true;
+          }
+          else if (result < 0) {
+            mtevL(nf_error, "could not apply measurement tag - <%s:%s>\n",
+              r->measurement_tag.add_measurement_tag_cat,
+              r->measurement_tag.add_measurement_tag_val ? r->measurement_tag.add_measurement_tag_val : "");
+          }
+          continue;
+        }
+        if (mt_modified) {
+          noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
+          mt_modified = false;
+        }
+        if(need_target) UPDATE_FILTER_RULE(target, check->target);
+        if(need_module) UPDATE_FILTER_RULE(module, check->module);
+        if(need_name) UPDATE_FILTER_RULE(name, check->name);
+        if(need_metric) UPDATE_FILTER_RULE(metric, metric->metric_name);
+
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
         break;
@@ -775,6 +911,9 @@ noit_apply_filterset(const char *filterset,
     return ret;
   }
   UNLOCKFS();
+  if (mt_modified) {
+    noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
+  }
   return mtev_false;
 }
 

@@ -168,6 +168,11 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000) + ms_cluster_jitter)
 
+  metric_t m_onstack = { .metric_name = (char *)metric_name,
+                         .metric_type = METRIC_GUESS,
+                         .metric_value = { .vp = NULL } };
+  bool filtered = !noit_apply_filterset(check->filterset, check, &m_onstack);
+
   if(live_feed && check->feeds) {
     mtev_skiplist_node *curr, *next;
     curr = next = mtev_skiplist_getlist(check->feeds);
@@ -186,10 +191,7 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
     }
   }
 
-  metric_t m_onstack = { .metric_name = (char *)metric_name,
-                         .metric_type = METRIC_GUESS,
-                         .metric_value = { .vp = NULL } };
-  if(!noit_apply_filterset(check->filterset, check, &m_onstack)) return;
+  if(filtered) return;
   if(!live_feed) {
     SETUP_LOG(metrics, return);
     mtev_log(metrics_log, whence, __FILE__, __LINE__,

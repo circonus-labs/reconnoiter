@@ -65,6 +65,7 @@ typedef struct noit_filter_lmdb_rule_filterset {
   char *metric_attribute;
   char *stream_tags_tag_str;
   char *measurement_tags_tag_str;
+  _measurement_tag_t measurement_tag;
 } noit_filter_lmdb_filterset_rule_t;
 
 typedef enum {
@@ -97,6 +98,8 @@ noit_filters_lmdb_free_filterset_rule(noit_filter_lmdb_filterset_rule_t *rule) {
   if (rule) {
     free(rule->skipto);
     free(rule->ruleid);
+    free(rule->measurement_tag.add_measurement_tag_cat);
+    free(rule->measurement_tag.add_measurement_tag_val);
     free(rule);
   }
 }
@@ -322,6 +325,17 @@ noit_filters_lmdb_write_flatbuffer_to_db(char *filterset_name,
           noit_ns(FiltersetRule_skipto_value_create_str(B, rule->skipto));
         }
         break;
+      case NOIT_FILTER_ADD_MEASUREMENT_TAG:
+        noit_ns(FiltersetRule_rule_type_create_str(B, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON));
+        if (rule->measurement_tag.add_measurement_tag_cat) {
+          noit_ns(FiltersetRule_measurement_tag_value_start(B));
+          noit_ns(FiltersetRuleMeasurementTag_cat_create_str(B, rule->measurement_tag.add_measurement_tag_cat));
+          if (rule->measurement_tag.add_measurement_tag_val) {
+            noit_ns(FiltersetRuleMeasurementTag_val_create_str(B, rule->measurement_tag.add_measurement_tag_val));
+          }
+          noit_ns(FiltersetRule_measurement_tag_value_end(B));
+        }
+        break;
       default:
         mtevFatal(mtev_error, "noit_filters_lmdb_write_flatbuffer_to_db: undefined type in db (%d) for %s\n", (int)rule->type, filterset_name);
         break;
@@ -413,14 +427,34 @@ noit_filters_lmdb_one_xml_rule_to_memory(mtev_conf_section_t rule_conf) {
 
   if(!mtev_conf_get_stringbuf(rule_conf, "@type", buffer, sizeof(buffer)) ||
     (strcmp(buffer, FILTERSET_ACCEPT_STRING) && strcmp(buffer, FILTERSET_ALLOW_STRING) && strcmp(buffer, FILTERSET_DENY_STRING) &&
-    strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)))) {
-    mtevL(mtev_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
+    strncmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING)) &&
+    strncmp(buffer, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING)))) {
+    mtevL(mtev_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:' or 'add_measurement_tag:'\n");
     free(rule);
     return NULL;
   }
   if(!strncasecmp(buffer, FILTERSET_SKIPTO_STRING, strlen(FILTERSET_SKIPTO_STRING))) {
     rule->type = NOIT_FILTER_SKIPTO;
     rule->skipto = strdup(buffer+strlen(FILTERSET_SKIPTO_STRING));
+  }
+  else if (!strncasecmp(buffer, FILTERSET_ADD_MEASUREMENT_TAG_STRING, strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING))) {
+    rule->type = NOIT_FILTER_ADD_MEASUREMENT_TAG;
+    rule->measurement_tag.add_measurement_tag_cat = NULL;
+    rule->measurement_tag.add_measurement_tag_val = NULL;
+    const char *mt = buffer+strlen(FILTERSET_ADD_MEASUREMENT_TAG_STRING);
+    const char *colon = strstr(mt, ":");
+    if (colon) {
+      size_t cat_len = colon - mt;
+      if (cat_len) {
+        rule->measurement_tag.add_measurement_tag_cat = (char *)calloc(1, cat_len + 1);
+        memcpy(rule->measurement_tag.add_measurement_tag_cat, mt, cat_len);
+        rule->measurement_tag.add_measurement_tag_val = strdup(colon + 1);
+      }
+    }
+    else {
+      rule->measurement_tag.add_measurement_tag_cat = strdup(mt);
+      /* no tag val */
+    }
   }
   else {
     /* NOTE: With XML filtersets, "accept" and "allow" were both accepted and did the same thing. With
@@ -679,6 +713,23 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
       }
       else {
         mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: skipto type with no value\n");
+      }
+    }
+    else if (!strcmp(rule_type, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON)) {
+      rule->type = NOIT_FILTER_ADD_MEASUREMENT_TAG;
+      if (noit_ns(FiltersetRule_measurement_tag_value_is_present(fs_rule))) {
+        noit_ns(FiltersetRuleMeasurementTag_table_t) frmt = noit_ns(FiltersetRule_measurement_tag_value(fs_rule));
+        flatbuffers_string_t cat = noit_ns(FiltersetRuleMeasurementTag_cat(frmt));
+        flatbuffers_string_t val = noit_ns(FiltersetRuleMeasurementTag_val(frmt));
+        if (cat) {
+          rule->measurement_tag.add_measurement_tag_cat = strdup(cat);
+          if (val) {
+            rule->measurement_tag.add_measurement_tag_val = strdup(val);
+          }
+        }
+        else {
+          mtevL(mtev_error, "noit_filters_lmdb_load_one_from_db: no measurement tag category providded\n");
+        }
       }
     }
     else {
@@ -944,6 +995,23 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
           if (skipto) {
             snprintf(buffer, sizeof(buffer), "%s:%s", type, skipto);
             xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)buffer);
+          }
+          else {
+            xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
+          }
+        }
+        else if (!strcmp(type, FILTERSET_ADD_MEASUREMENT_TAG_STRING_NO_COLON)) {
+          if (noit_ns(FiltersetRule_measurement_tag_value_is_present(fs_rule))) {
+            noit_ns(FiltersetRuleMeasurementTag_table_t) frmt = noit_ns(FiltersetRule_measurement_tag_value(fs_rule));
+            flatbuffers_string_t cat = noit_ns(FiltersetRuleMeasurementTag_cat(frmt));
+            flatbuffers_string_t val = noit_ns(FiltersetRuleMeasurementTag_val(frmt));
+            if (cat) {
+              snprintf(buffer, sizeof(buffer), "%s:%s:%s", type, cat, val ? val : "");
+              xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)buffer);
+            }
+            else {
+              xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
+            }
           }
           else {
             xmlSetProp(rule, (xmlChar *)"type", (xmlChar *)type);
