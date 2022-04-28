@@ -804,11 +804,8 @@ noit_metric_canonicalize_ex(const char *input, size_t input_len, char *output, s
     *out++ = '}';
   }
   mtev_dyn_buffer_destroy(&tag_scratch);
-  if((out-buff) > MAX_METRIC_TAGGED_NAME) {
-    if (output_len > 0) output[0] = 0;
-    return -8;
-  }
   memcpy(output, buff, (out-buff));
   if(null_term) output[out-buff] = '\0';
+  if((out-buff) > MAX_METRIC_TAGGED_NAME) return -8;
   return (out - buff);
 }
