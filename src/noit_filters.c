@@ -809,6 +809,23 @@ noit_apply_filterset(const char *filterset,
         }
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
+        if (mt_modified) {
+          char buff[MAX_METRIC_TAGGED_NAME];
+          char *old = metric->metric_name;
+          if (!expanded_metric_name) {
+            expanded_metric_name = strdup(old);
+          }
+          if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
+            metric->metric_name = strdup(buff);
+            free(old);
+          }
+          free(expanded_metric_name);
+          /* We allocate any new mttags; need to free them here */
+          for (int i = mt_tag_start; i < mtset.tag_count; i++) {
+            free((char *)mtset.tags[i].tag);
+          }
+          mt_modified = false;
+        }
         break;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
@@ -847,10 +864,6 @@ noit_apply_filterset(const char *filterset,
       }
 
       if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
-        if(need_target) UPDATE_FILTER_RULE(target, check->target);
-        if(need_module) UPDATE_FILTER_RULE(module, check->module);
-        if(need_name) UPDATE_FILTER_RULE(name, check->name);
-        if(need_metric) UPDATE_FILTER_RULE(metric, metric->metric_name);
         if(r->type == NOIT_FILTER_SKIPTO) {
           skipto_rule = r->skipto_rule;
           continue;
@@ -867,6 +880,28 @@ noit_apply_filterset(const char *filterset,
           }
           continue;
         }
+        if (mt_modified) {
+          char buff[MAX_METRIC_TAGGED_NAME];
+          char *old = metric->metric_name;
+          if (!expanded_metric_name) {
+            expanded_metric_name = strdup(old);
+          }
+          if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
+            metric->metric_name = strdup(buff);
+            free(old);
+          }
+          free(expanded_metric_name);
+          /* We allocate any new mttags; need to free them here */
+          for (int i = mt_tag_start; i < mtset.tag_count; i++) {
+            free((char *)mtset.tags[i].tag);
+          }
+          mt_modified = false;
+        }
+        if(need_target) UPDATE_FILTER_RULE(target, check->target);
+        if(need_module) UPDATE_FILTER_RULE(module, check->module);
+        if(need_name) UPDATE_FILTER_RULE(name, check->name);
+        if(need_metric) UPDATE_FILTER_RULE(metric, metric->metric_name);
+
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
         break;
@@ -874,22 +909,6 @@ noit_apply_filterset(const char *filterset,
     }
     noit_filter_filterset_free(fs);
     if(!ret) ck_pr_inc_32(&fs->denies);
-    if (mt_modified) {
-      char buff[MAX_METRIC_TAGGED_NAME];
-      char *old = metric->metric_name;
-      if (!expanded_metric_name) {
-        expanded_metric_name = strdup(old);
-      }
-      if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
-        metric->metric_name = strdup(buff);
-        free(old);
-      }
-      free(expanded_metric_name);
-      /* We allocate any new mttags; need to free them here */
-      for (int i = mt_tag_start; i < mtset.tag_count; i++) {
-        free((char *)mtset.tags[i].tag);
-      }
-    }
     return ret;
   }
   UNLOCKFS();

@@ -121,7 +121,10 @@ describe("noit", function()
       local code, doc, raw = api:raw("PUT", "/filters/set/" .. filter_uuid,
         [=[<?xml version="1.0" encoding="utf8"?>
         <filterset filter_flush_period="1000">
-          <rule type="add_measurement_tag:some_random:measurement_tag"/>
+          <rule type="add_measurement_tag:first_mt_tag:first_mt_val"/>
+          <rule type="add_measurement_tag:second_mt_tag:second_mt_val"/>
+          <rule type="add_measurement_tag:third_mt_tag:third_mt_val"/>
+          <rule type="add_measurement_tag:fourth_mt_tag:fourth_mt_val"/>
           <rule type="allow" metric_auto_add="2"/>
           <rule type="deny"/>
         </filterset>]=])
@@ -151,7 +154,7 @@ describe("noit", function()
       local runs = {}
       local run_count = 0
       for i=1,10 do
-        local code, doc = api:json("GET", "/checks/show/" .. check_uuid .. ".json") 
+        local code, doc = api:json("GET", "/checks/show/" .. check_uuid .. ".json")
         assert.message("show check").is.equal(200, code)
         if runs[tostring(doc.last_run)] == nil then
           run_count = run_count + 1
