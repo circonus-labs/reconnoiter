@@ -693,6 +693,10 @@ noit_add_measurement_tag(filterrule_t *r,
   if (!r || !metric || !expanded_metric_name || !mtset || !r->measurement_tag.add_measurement_tag_cat || mtset->tag_count >= MAX_TAGS) {
     return -1;
   }
+  // TODO: Make tagging histograms and METRIC_GUESS metrics work
+  if ((metric->metric_type == METRIC_HISTOGRAM) || (metric->metric_type == METRIC_HISTOGRAM_CUMULATIVE) || (metric->metric_type == METRIC_GUESS)) {
+    return 1;
+  }
   char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
   char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
   const char *cat = r->measurement_tag.add_measurement_tag_cat;
