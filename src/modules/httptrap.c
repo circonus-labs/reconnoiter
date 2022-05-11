@@ -139,10 +139,14 @@ struct rest_json_payload {
 };
 
 static void
-track_filtered(struct rest_json_payload *json, const char *name) {
-  metric_t m = { .metric_name = (char *)name };
+track_filtered(struct rest_json_payload *json, char **name) {
+  metric_t m = { .metric_name = *name };
+  char *before = m.metric_name;
   if(!noit_apply_filterset(json->check->filterset, json->check, &m)) {
     json->filtered_cnt++;
+  }
+  if (before != m.metric_name) {
+    *name = m.metric_name;
   }
 }
 
@@ -314,7 +318,7 @@ httptrap_yajl_cb_null(void *ctx) {
   if(rv) return 1;
   if(json->keys[json->depth]) {
     _YD("[%3d] cb_null\n", json->depth);
-    track_filtered(json, json->keys[json->depth]);
+    track_filtered(json, &json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, NULL);
     if(json->immediate || json->got_timestamp)
@@ -342,7 +346,7 @@ httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
   if(json->keys[json->depth]) {
     ival = boolVal ? 1 : 0;
     _YD("[%3d] cb_boolean -> %s\n", json->depth, boolVal ? "true" : "false");
-    track_filtered(json, json->keys[json->depth]);
+    track_filtered(json, &json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, &ival);
     if(json->immediate || json->got_timestamp)
@@ -394,7 +398,7 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     memcpy(val, numberVal, numberLen);
     val[numberLen] = '\0';
     _YD("[%3d] cb_number %s\n", json->depth, val);
-    track_filtered(json, json->keys[json->depth]);
+    track_filtered(json, &json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
     if(json->immediate || json->got_timestamp)
@@ -472,7 +476,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     memcpy(val, stringVal, stringLen);
     val[stringLen] = '\0';
     _YD("[%3d] cb_string %s\n", json->depth, val);
-    track_filtered(json, json->keys[json->depth]);
+    track_filtered(json, &json->keys[json->depth]);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
     if(json->immediate || json->got_timestamp)
@@ -494,7 +498,7 @@ static int
 httptrap_yajl_cb_end_map(void *ctx) {
   struct value_list *p, *last_p = NULL;
   struct rest_json_payload *json = ctx;
-  const char *metric_name;
+  char *metric_name = NULL;
 
   _YD("[%3d]%-.*s cb_end_map\n", json->depth, json->depth, "");
   json->depth--;
@@ -505,7 +509,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
        (json->saw_complex_type & HT_EX_TS)
      )) {
     long double total = 0, cnt = 0, accum = 1;
-    double newval;
+    double newval = 0.0;
     mtev_boolean use_computed_value = mtev_false;
     metric_t *m;
 
@@ -533,7 +537,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
        * in progress metrics only (get_metric) not (get_last_metric)
        * and we also much fetch a count...
        */
-      track_filtered(json, metric_name);
+      track_filtered(json, &metric_name);
       m = noit_stats_get_metric(json->check, NULL, metric_name);
       double old_value;
       if(noit_metric_as_double(m, &old_value)) {
@@ -549,7 +553,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
        */
       cnt = 1;
       accum = 0;
-      track_filtered(json, metric_name);
+      track_filtered(json, &metric_name);
       m = noit_stats_get_last_metric(json->check, metric_name);
       double old_total = 0.0;
       noit_metric_as_double(m, &old_total);
@@ -563,25 +567,25 @@ httptrap_yajl_cb_end_map(void *ctx) {
         if(json->saw_complex_type & HT_EX_TS) {
           if(p == json->last_value && p->next == NULL) {
             /* There can be exactly one, it should be base64 encoded */
-            track_filtered(json, metric_name);
+            track_filtered(json, &metric_name);
             noit_stats_log_immediate_histo_tv(json->check, metric_name, p->v, strlen(p->v),
                                               hist_type == METRIC_HISTOGRAM_CUMULATIVE, json->last_timestamp);
           }
         } else {
-          track_filtered(json, metric_name);
+          track_filtered(json, &metric_name);
           noit_stats_set_metric_histogram(json->check, metric_name,
                                           hist_type == METRIC_HISTOGRAM_CUMULATIVE, METRIC_GUESS, p->v, 1);
         }
       } else {
         if(json->got_timestamp) {
-          track_filtered(json, metric_name);
+          track_filtered(json, &metric_name);
           noit_stats_set_metric_coerce_with_timestamp(json->check,
               metric_name,
               (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
               p->v,
               &json->last_timestamp);
         } else {
-          track_filtered(json, metric_name);
+          track_filtered(json, &metric_name);
           noit_stats_set_metric_coerce_with_timestamp(json->check,
               metric_name,
               (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
@@ -599,7 +603,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
     if(use_computed_value) {
       newval = (double)(total / (long double)cnt);
       /* Perform and in-place update of the metric value correcting it */
-      track_filtered(json, metric_name);
+      track_filtered(json, &metric_name);
       m = noit_stats_get_metric(json->check, NULL, metric_name);
       if(m && IS_METRIC_TYPE_NUMERIC(m->metric_type)) {
         if(m->metric_value.vp == NULL) {
