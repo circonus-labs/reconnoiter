@@ -1626,6 +1626,7 @@ void cd_object_free(struct cd_object *o) {
   if(o->metrics) {
     for(i=0; i<MAX(o->nvalues,o->nnames); i++) {
       if(o->metrics[i].metric_name) free(o->metrics[i].metric_name);
+      if(o->metrics[i].expanded_metric_name) free(o->metrics[i].expanded_metric_name);
       if(o->metrics[i].metric_value.i) free(o->metrics[i].metric_value.i);
     }
     free(o->metrics);
@@ -1717,12 +1718,12 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
 
   for(i=0; i<json->o->nnames; i++) {
     metric_t *m = &json->o->metrics[i];
-    mtevL(nldeb, "collectd(%s) -> %s\n", check->name, m->metric_name);
-    noit_stats_set_metric(check, m->metric_name,
+    mtevL(nldeb, "collectd(%s) -> %s\n", check->name, noit_metric_get_full_metric_name(m));
+    noit_stats_set_metric(check, noit_metric_get_full_metric_name(m),
                           m->metric_type, m->metric_value.vp);
     if(immediate) {
       needs_immediate = mtev_true;
-      noit_stats_log_immediate_metric(check, m->metric_name,
+      noit_stats_log_immediate_metric(check, noit_metric_get_full_metric_name(m),
                                       m->metric_type, m->metric_value.vp);
     }
     ccl->stats_count++;
@@ -1896,6 +1897,8 @@ collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
       EXTEND_METRICS_FOR(json->o, json->metric_idx+1);
       if(json->o->metrics[json->metric_idx].metric_name)
 	free(json->o->metrics[json->metric_idx].metric_name);
+      if(json->o->metrics[json->metric_idx].expanded_metric_name)
+	free(json->o->metrics[json->metric_idx].expanded_metric_name);
       json->o->metrics[json->metric_idx].metric_name =
 	mtev_strndup(stringVal, stringLen);
       json->metric_idx++;

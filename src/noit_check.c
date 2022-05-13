@@ -185,6 +185,7 @@ noit_check_build_tag_extended_name(char *tgt, size_t tgtlen, const char *name, c
 void
 free_metric(metric_t *m) {
   if(m->metric_name) free(m->metric_name);
+  if(m->expanded_metric_name) free(m->expanded_metric_name);
   if(m->metric_value.i) free(m->metric_value.i);
 }
 
@@ -2613,7 +2614,7 @@ noit_stats_populate_metric_with_tagset(metric_t *m, const char *name, metric_typ
   else if(value) {
     size_t len;
     len = noit_metric_sizes(type, value);
-    m->metric_value.vp = malloc(len);
+    m->metric_value.vp = malloc(MAX(len,8));;
     memcpy(m->metric_value.vp, value, len);
     if (type == METRIC_STRING) {
       m->metric_value.s[len-1] = 0;
