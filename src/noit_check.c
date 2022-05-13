@@ -2614,7 +2614,7 @@ noit_stats_populate_metric_with_tagset(metric_t *m, const char *name, metric_typ
   else if(value) {
     size_t len;
     len = noit_metric_sizes(type, value);
-    m->metric_value.vp = malloc(MAX(len,8));;
+    m->metric_value.vp = malloc(len);
     memcpy(m->metric_value.vp, value, len);
     if (type == METRIC_STRING) {
       m->metric_value.s[len-1] = 0;
