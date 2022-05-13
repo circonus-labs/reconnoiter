@@ -185,7 +185,7 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
            "H%d\t%lu.%03lu\t%s\t%s\t%.*s\n",
            cumulative ? 2 : 1,
            SECPART(whence), MSECPART(whence),
-           uuid_str, metric_name, (int)hist_encode_len, hist_encode))
+           uuid_str, noit_metric_get_full_metric_name(&m_onstack), (int)hist_encode_len, hist_encode))
         noit_check_transient_remove_feed(check, feed_name);
       curr = next;
     }
@@ -198,7 +198,7 @@ noit_log_histo_encoded_function_validate(noit_check_t *check, struct timeval *wh
              "H%d\t%lu.%03lu\t%s\t%s\t%.*s\n",
              cumulative ? 2 : 1,
              SECPART(whence), MSECPART(whence),
-             uuid_str, metric_name, (int)hist_encode_len, hist_encode);
+             uuid_str, noit_metric_get_full_metric_name(&m_onstack), (int)hist_encode_len, hist_encode);
   }
 }
 
@@ -247,8 +247,6 @@ log_histo(noit_check_t *check, uint64_t whence_s,
     mtevL(noit_error, "base64 histogram encoding failure\n");
     goto cleanup;
   }
-
-
 
   noit_log_histo_encoded_function_validate(check, &whence, mtev_false, metric_name, hist_encode, enc_est, cumulative, live_feed, mtev_false);
 
@@ -401,7 +399,7 @@ histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, me
 
   pthread_mutex_lock(&ht->lock);
   if(m->metric_value.vp != NULL) {
-#define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, *m->metric_value.a, count, NULL)
+#define UPDATE_HISTOTIER(a) update_histotier(ht, cumulative, time(NULL), conf, check, noit_metric_get_full_metric_name(m), *m->metric_value.a, count, NULL)
     switch(m->metric_type) {
       case METRIC_UINT64:
         UPDATE_HISTOTIER(L); break;
@@ -417,11 +415,11 @@ histogram_metric(void *closure, noit_check_t *check, mtev_boolean cumulative, me
         uint64_t cnt;
         double bucket;
         if(extract_Hformat_metric(m->metric_value.s, &cnt, &bucket) == 0 && cnt > 0) {
-          update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, bucket, cnt, NULL);
+          update_histotier(ht, cumulative, time(NULL), conf, check, noit_metric_get_full_metric_name(m), bucket, cnt, NULL);
         } else {
           histogram_t *hist = hist_alloc();
           if(hist_deserialize_b64(hist, m->metric_value.s, strlen(m->metric_value.s)) > 0) {
-            update_histotier(ht, cumulative, time(NULL), conf, check, m->metric_name, 0, 0, hist);
+            update_histotier(ht, cumulative, time(NULL), conf, check, noit_metric_get_full_metric_name(m), 0, 0, hist);
           }
           hist_free(hist);
         }
