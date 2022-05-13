@@ -668,7 +668,7 @@ metric_local_batch(otlphttp_upload_t *rxc, const char *name, double *val, int64_
 static int
 rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 {
-  int mask, complete = 0, cnt;
+  int mask, complete = 0, cnt = 0;
   otlphttp_upload_t *rxc = NULL;
   const char *error = "internal error", *secret = NULL;
   mtev_http_session_ctx *ctx = restc->http_ctx;
