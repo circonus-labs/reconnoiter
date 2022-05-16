@@ -76,7 +76,6 @@ typedef enum {
 
 typedef struct {
   char *metric_name;
-  metric_type_t metric_type;
   union {
     double *n;
     int32_t *i;
@@ -86,10 +85,11 @@ typedef struct {
     char *s;
     void *vp; /* used for clever assignments */
   } metric_value;
-  mtev_boolean logged;
   unsigned long accumulator; /* used to track divisor of averages */
   struct timeval whence; /* if non-zero, specifies a time */
   char *expanded_metric_name;
+  metric_type_t metric_type;
+  mtev_boolean logged;
 } metric_t;
 
 typedef enum {
