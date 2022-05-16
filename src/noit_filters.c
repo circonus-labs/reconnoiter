@@ -693,10 +693,6 @@ noit_add_measurement_tag(filterrule_t *r,
   if (!r || !metric || !expanded_metric_name || !mtset || !r->measurement_tag.add_measurement_tag_cat || mtset->tag_count >= MAX_TAGS) {
     return -1;
   }
-  // TODO: Make tagging histograms and METRIC_GUESS metrics work
-  if ((metric->metric_type == METRIC_HISTOGRAM) || (metric->metric_type == METRIC_HISTOGRAM_CUMULATIVE) || (metric->metric_type == METRIC_GUESS)) {
-    return 1;
-  }
   char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
   char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
   const char *cat = r->measurement_tag.add_measurement_tag_cat;
@@ -713,7 +709,7 @@ noit_add_measurement_tag(filterrule_t *r,
 
   /* Extend the metric name */
   if (!(*expanded_metric_name)) {
-    *expanded_metric_name = strdup(metric->metric_name);
+    *expanded_metric_name = strdup(noit_metric_get_full_metric_name(metric));
   }
   size_t old_size = strlen(*expanded_metric_name);
   size_t encoded_nametag_size = strlen(encoded_nametag);
@@ -740,12 +736,12 @@ noit_update_metric_name(char *expanded_metric_name,
                         int mtset_tag_start,
                         metric_t *metric) {
   char buff[MAX_METRIC_TAGGED_NAME];
-  char *old = metric->metric_name;
+  char *old = metric->expanded_metric_name;
   if (!expanded_metric_name) {
     expanded_metric_name = strdup(old);
   }
   if (noit_metric_canonicalize(expanded_metric_name, strlen(expanded_metric_name), buff, sizeof(buff), mtev_true)) {
-    metric->metric_name = strdup(buff);
+    metric->expanded_metric_name = strdup(buff);
     free(old);
   }
   free(expanded_metric_name);
@@ -770,6 +766,7 @@ noit_apply_filterset(const char *filterset,
   if(!filterset) return mtev_true;   /* No filter */
   if(!filtersets) return mtev_false; /* Couldn't possibly match */
   struct timeval now;
+  const char *local_metric_name = noit_metric_get_full_metric_name(metric);
   mtev_gettimeofday(&now, NULL);
 
   char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
@@ -777,15 +774,15 @@ noit_apply_filterset(const char *filterset,
   noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
   noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
   noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
-  int mlen = noit_metric_parse_tags(metric->metric_name, strlen(metric->metric_name), &stset, &mtset);
+  int mlen = noit_metric_parse_tags(local_metric_name, strlen(metric->metric_name), &stset, &mtset);
   if(mlen < 0) {
     stset.tag_count = mtset.tag_count = 0;
-    mlen = strlen(metric->metric_name);
+    mlen = strlen(local_metric_name);
   }
   if(stset.tag_count < MAX_TAGS-1) {
     /* add __name */
     snprintf(decoded_nametag, sizeof(decoded_nametag), "__name%c%.*s",
-             NOIT_TAG_DECODED_SEPARATOR, mlen, metric->metric_name);
+             NOIT_TAG_DECODED_SEPARATOR, mlen, local_metric_name);
     size_t nlen = noit_metric_tagset_encode_tag(encoded_nametag, sizeof(encoded_nametag),
                                                 decoded_nametag, strlen(decoded_nametag));
     stset.tags[stset.tag_count].category_size = 7;

@@ -101,6 +101,7 @@ static void metric_local_free(void *vm) {
   if(vm) {
     metric_t *m = vm;
     free(m->metric_name);
+    free(m->expanded_metric_name);
     free(m->metric_value.vp);
   }
   free(vm);
@@ -141,12 +142,12 @@ struct rest_json_payload {
 static void
 track_filtered(struct rest_json_payload *json, char **name) {
   metric_t m = { .metric_name = *name };
-  char *before = m.metric_name;
   if(!noit_apply_filterset(json->check->filterset, json->check, &m)) {
     json->filtered_cnt++;
   }
-  if (before != m.metric_name) {
-    *name = m.metric_name;
+  if (m.expanded_metric_name) {
+    free(m.metric_name);
+    *name = m.expanded_metric_name;
   }
 }
 
@@ -576,16 +577,17 @@ httptrap_yajl_cb_end_map(void *ctx) {
           noit_stats_set_metric_histogram(json->check, metric_name,
                                           hist_type == METRIC_HISTOGRAM_CUMULATIVE, METRIC_GUESS, p->v, 1);
         }
-      } else {
+      }
+      else {
+        track_filtered(json, &metric_name);
         if(json->got_timestamp) {
-          track_filtered(json, &metric_name);
           noit_stats_set_metric_coerce_with_timestamp(json->check,
               metric_name,
               (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
               p->v,
               &json->last_timestamp);
-        } else {
-          track_filtered(json, &metric_name);
+        }
+        else {
           noit_stats_set_metric_coerce_with_timestamp(json->check,
               metric_name,
               (json->saw_complex_type & HT_EX_TYPE) ? json->last_type : METRIC_GUESS,
@@ -1161,7 +1163,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       {
         char buff[NOIT_DEFAULT_TEXT_METRIC_SIZE_LIMIT], type_str[2];
         metric_t *tmp=(metric_t *)data;
-        char *metric_name=tmp->metric_name;
+        const char *metric_name = noit_metric_get_full_metric_name(tmp);
         metric_type_t metric_type=tmp->metric_type;
         noit_stats_snprint_metric_value(buff, sizeof(buff), tmp);
         json_object *value_obj = json_object_new_object();

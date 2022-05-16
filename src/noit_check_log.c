@@ -350,7 +350,7 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
     char buff[MAX_METRIC_TAGGED_NAME];
     noit_stats_snprint_metric(buff, sizeof(buff), m);
     NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
-                      m->metric_name, m->metric_type, buff);
+                      noit_metric_get_full_metric_name(m), m->metric_type, buff);
   }
 
   size = bundle__get_packed_size(&bundle);
@@ -426,7 +426,7 @@ _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
     srv = mtev_log(ls, whence, __FILE__, __LINE__,
                    "M\t%lu.%03lu\t%s\t%s\t%c\t[[null]]\n",
                    SECPART(whence), MSECPART(whence), uuid_str,
-                   m->metric_name, m->metric_type);
+                   noit_metric_get_full_metric_name(m), m->metric_type);
   }
   else {
     switch(m->metric_type) {
@@ -434,39 +434,39 @@ _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
         srv = mtev_log(ls, whence, __FILE__, __LINE__,
                        "M\t%lu.%03lu\t%s\t%s\t%c\t%d\n",
                        SECPART(whence), MSECPART(whence), uuid_str,
-                       m->metric_name, m->metric_type, *(m->metric_value.i));
+                       noit_metric_get_full_metric_name(m), m->metric_type, *(m->metric_value.i));
         break;
       case METRIC_UINT32:
         srv = mtev_log(ls, whence, __FILE__, __LINE__,
                        "M\t%lu.%03lu\t%s\t%s\t%c\t%u\n",
                        SECPART(whence), MSECPART(whence), uuid_str,
-                       m->metric_name, m->metric_type, *(m->metric_value.I));
+                       noit_metric_get_full_metric_name(m), m->metric_type, *(m->metric_value.I));
         break;
       case METRIC_INT64:
         srv = mtev_log(ls, whence, __FILE__, __LINE__,
                        "M\t%lu.%03lu\t%s\t%s\t%c\t%lld\n",
                        SECPART(whence), MSECPART(whence), uuid_str,
-                       m->metric_name, m->metric_type,
+                       noit_metric_get_full_metric_name(m), m->metric_type,
                        (long long int)*(m->metric_value.l));
         break;
       case METRIC_UINT64:
         srv = mtev_log(ls, whence, __FILE__, __LINE__,
                        "M\t%lu.%03lu\t%s\t%s\t%c\t%llu\n",
                        SECPART(whence), MSECPART(whence), uuid_str,
-                       m->metric_name, m->metric_type,
+                       noit_metric_get_full_metric_name(m), m->metric_type,
                        (long long unsigned int)*(m->metric_value.L));
         break;
       case METRIC_DOUBLE:
         srv = mtev_log(ls, whence, __FILE__, __LINE__,
                        "M\t%lu.%03lu\t%s\t%s\t%c\t%.12e\n",
                        SECPART(whence), MSECPART(whence), uuid_str,
-                       m->metric_name, m->metric_type, *(m->metric_value.n));
+                       noit_metric_get_full_metric_name(m), m->metric_type, *(m->metric_value.n));
         break;
       case METRIC_STRING:
         srv = mtev_log(ls, whence, __FILE__, __LINE__,
                        "M\t%lu.%03lu\t%s\t%s\t%c\t%s\n",
                        SECPART(whence), MSECPART(whence), uuid_str,
-                       m->metric_name, m->metric_type, m->metric_value.s);
+                       noit_metric_get_full_metric_name(m), m->metric_type, m->metric_value.s);
         break;
       default:
         mtevL(noit_error, "Unknown metric type '%c' 0x%x\n",
@@ -514,7 +514,7 @@ static int
 _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m) {
   metric->metrictype = (int)m->metric_type;
 
-  metric->name = m->metric_name;
+  metric->name = (char *)noit_metric_get_full_metric_name(m);
   metric->whence_ms = m->whence.tv_sec * 1000ULL + m->whence.tv_usec / 1000;
   if(metric->whence_ms) metric->has_whence_ms = mtev_true;
   if(m->metric_value.vp != NULL) {
@@ -872,7 +872,7 @@ noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
       char buff[MAX_METRIC_TAGGED_NAME];
       noit_stats_snprint_metric(buff, sizeof(buff), m);
       NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
-                        m->metric_name, m->metric_type, buff);
+                        noit_metric_get_full_metric_name(m), m->metric_type, buff);
     }
   }
 }
@@ -880,7 +880,7 @@ noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
 int
 noit_stats_snprint_metric(char *b, int l, metric_t *m) {
   int rv, nl;
-  nl = snprintf(b, l, "%s[%c] = ", m->metric_name, m->metric_type);
+  nl = snprintf(b, l, "%s[%c] = ", noit_metric_get_full_metric_name(m), m->metric_type);
   if(nl >= l || nl <= 0) return nl;
   rv = noit_stats_snprint_metric_value(b+nl, l-nl, m);
   if(rv == -1)

@@ -185,6 +185,7 @@ noit_check_build_tag_extended_name(char *tgt, size_t tgtlen, const char *name, c
 void
 free_metric(metric_t *m) {
   if(m->metric_name) free(m->metric_name);
+  if(m->expanded_metric_name) free(m->expanded_metric_name);
   if(m->metric_value.i) free(m->metric_value.i);
 }
 

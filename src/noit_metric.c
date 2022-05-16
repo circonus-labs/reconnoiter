@@ -812,3 +812,7 @@ noit_metric_canonicalize_ex(const char *input, size_t input_len, char *output, s
   if(null_term) output[out-buff] = '\0';
   return (out - buff);
 }
+const char *
+noit_metric_get_full_metric_name(metric_t *m) {
+  return m->expanded_metric_name ? m->expanded_metric_name : m->metric_name;
+}

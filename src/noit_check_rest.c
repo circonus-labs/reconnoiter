@@ -112,7 +112,7 @@ add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const c
     }
     bool filtered = !noit_apply_filterset(check->filterset, check, m);
     xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
-    xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)m->metric_name);
+    xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)noit_metric_get_full_metric_name(m));
     buff[0] = m->metric_type; buff[1] = '\0';
     xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
     if(filtered) {
@@ -241,7 +241,7 @@ stats_to_json(noit_check_t *check, stats_t *c, const char *name, mtev_hash_table
     if(!noit_apply_filterset(check->filterset, check, m)) {
       json_object_object_add(metric, "_filtered", json_object_new_boolean(1));
     }
-    json_object_object_add(doc, m->metric_name, metric);
+    json_object_object_add(doc, noit_metric_get_full_metric_name(m), metric);
   }
   mtev_memory_end();
   return doc;

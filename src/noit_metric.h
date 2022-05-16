@@ -76,6 +76,7 @@ typedef enum {
 
 typedef struct {
   char *metric_name;
+  char *expanded_metric_name;
   metric_type_t metric_type;
   union {
     double *n;
@@ -265,6 +266,9 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
 API_EXPORT(const char *)
   noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                              noit_metric_tag_t *output, mtev_boolean *toolong);
+
+API_EXPORT(const char *)
+  noit_metric_get_full_metric_name(metric_t *m);
 
 static inline int
 noit_metric_tags_compare(const void *v_l, const void *v_r) {
