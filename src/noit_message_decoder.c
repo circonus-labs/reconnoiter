@@ -87,7 +87,13 @@ relative_tags_adjust(noit_metric_tagset_t *tags, const char *oldbase, const char
    * and rewrites them pointing into newbase.  This is useful when you've memcpyd the underlying
    * string and need to smudge all the pointers. */
   for(int i=0; i<tags->tag_count; i++) {
-    mtevAssert(tags->tags[i].tag >= oldbase && tags->tags[i].tag - oldbase < MAX_METRIC_TAGGED_NAME);
+    if (tags->tags[i].tag < oldbase) {
+      mtevFatal(mtev_error, "tag index %d of %d - tag %s (%p) < oldbase (%p)\n", i, tags->tag_count - 1, tags->tags[i].tag, tags->tags[i].tag, oldbase);
+    }
+    if (tags->tags[i].tag - oldbase >= MAX_METRIC_TAGGED_NAME) {
+      mtevFatal(mtev_error, "tag index %d of %d - tag %s (%p) - oldbase (%p) (offset %zd) >= MAX_METRIC_TAGGED_NAME (%d)\n", i, tags->tag_count - 1,
+        tags->tags[i].tag, tags->tags[i].tag, oldbase, (size_t)(tags->tags[i].tag - oldbase), MAX_METRIC_TAGGED_NAME);
+    }
     size_t offset = tags->tags[i].tag - oldbase;
     tags->tags[i].tag = newbase + offset;
   }
