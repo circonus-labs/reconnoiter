@@ -42,7 +42,7 @@ flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t genera
   char uuid_str[256*3+37];
   int len = sizeof(uuid_str);
 
-  noit_ns(MetricValue_name_create_str(B, m->metric_name));
+  noit_ns(MetricValue_name_create_str(B, noit_metric_get_full_metric_name(m)));
   noit_ns(MetricValue_samples_start(B));
   noit_ns(MetricValue_samples_push_start(B));
   noit_ns(MetricSample_generation_add(B, generation));
