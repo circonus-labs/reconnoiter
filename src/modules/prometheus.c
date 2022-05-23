@@ -121,6 +121,7 @@ static void metric_local_free(void *vm) {
   metric_t *m = vm;
   if(vm) {
     free(m->metric_name);
+    free(m->expanded_metric_name);
     free(m->metric_value.vp);
   }
 }
@@ -782,7 +783,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
       char buff[256], type_str[2];
       metric_t *tmp=(metric_t *)data;
-      char *metric_name=tmp->metric_name;
+      const char *metric_name=noit_metric_get_full_metric_name(tmp);
       metric_type_t metric_type=tmp->metric_type;
       noit_stats_snprint_metric_value(buff, sizeof(buff), tmp);
       json_object *value_obj = json_object_new_object();
