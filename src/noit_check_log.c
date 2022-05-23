@@ -755,7 +755,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
         char buff[MAX_METRIC_TAGGED_NAME];
         noit_stats_snprint_metric(buff, sizeof(buff), m);
         NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
-                          m->metric_name, m->metric_type, buff);
+                          noit_metric_get_full_metric_name(m), m->metric_type, buff);
       }
       i++;
       bundle->n_metrics = b_i + 1;
