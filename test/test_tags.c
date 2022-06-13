@@ -689,6 +689,7 @@ void query_argument_swapping(void) {
     unparse = noit_metric_tag_search_unparse(ast);
     test_assert(strcmp("and([exact]a:[exact]b,[exact]g:[exact]h,[exact]e:[exact]f,[exact]c:[exact]d,[exact]i:[exact]j)", unparse) == 0);
     free(unparse);
+    noit_metric_tag_search_free(ast);
   } else {
     test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
   }
