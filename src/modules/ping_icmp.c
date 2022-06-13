@@ -352,6 +352,10 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
     data = (struct check_info *)check->closure;
 
+    if(!data) {
+      noit_check_deref(check);
+      continue;
+    }
     /* If there is no timeout_event, the check must have completed.
      * We have nothing to do. */
     if(!data->timeout_event) {
