@@ -37,7 +37,7 @@ dns.lo: dns.c  \
   dns.xmlh
 
 external.lo: external.c  \
-  ../noit_module.h \
+  ../noit_module.h  \
   ../noit_check.h \
   ../noit_metric.h ../noit_lmdb_tools.h \
   ../noit_check.h ../noit_check_tools.h  \
@@ -106,7 +106,8 @@ libstomp.lo: libstomp.c  \
   libstomp.h \
 
 lua_check.lo: lua_check.c  \
-  ../noit_config.h ../noit_module.h ../noit_check.h \
+  ../noit_config.h ../noit_module.h \
+  ../noit_check.h  \
   ../noit_metric.h ../noit_lmdb_tools.h \
   ../noit_check.h ../noit_check_tools.h  \
   ../noit_module.h ../noit_clustering.h \
@@ -150,14 +151,23 @@ ping_icmp.lo: ping_icmp.c  \
   ../noit_check_tools_shared.h \
   check_test.h ping_icmp.xmlh
 
+postgres_ingestor.lo: postgres_ingestor.c \
+  ../noit_mtev_bridge.h \
+  ../noit_module.h  ../noit_check.h \
+  ../noit_metric.h ../noit_lmdb_tools.h  \
+  ../stratcon_datastore.h \
+  ../stratcon_realtime_http.h ../stratcon_ingest.h \
+  ../stratcon_realtime_http.h ../stratcon_iep.h ../stratcon_datastore.h \
+  ../stratcon_jlog_streamer.h  \
+  ../noit_check.h ../noit_check_log_helpers.h ../bundle.pb-c.h \
+  postgres_ingestor.xmlh
+
 prometheus.lo: prometheus.c  \
-  ../noit_metric.h ../noit_module.h  \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_lmdb_tools.h  \
-  ../noit_check.h ../noit_check_tools.h \
-  ../noit_module.h ../noit_clustering.h \
-  ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h prometheus.pb-c.h \
+  ../noit_metric.h ../noit_module.h \
+  ../noit_check.h ../noit_metric.h ../noit_lmdb_tools.h \
+  ../noit_check.h ../noit_check_tools.h ../noit_module.h \
+  ../noit_clustering.h  \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h prometheus.pb-c.h \
   types.pb-c.h \
   prometheus.xmlh
 

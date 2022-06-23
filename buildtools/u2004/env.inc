@@ -1,5 +1,6 @@
 export PATH="\
 /opt/circonus/perl/bin\
+:/opt/circonus/java/bin\
 :/opt/circonus/bin\
 :/usr/local/sbin\
 :/usr/local/bin\
@@ -10,14 +11,19 @@ export PATH="\
 export CPPFLAGS="\
  -I/opt/circonus/include\
  -I/opt/circonus/include/luajit\
+ -I/opt/circonus/include/mysql\
  -DGTEST_HAS_PTHREAD=1"
 export CFLAGS="\
+ -ggdb3\
+ -O2\
  -Wall\
  -Werror\
  -Wno-deprecated-declarations\
  -Wno-unused-variable\
  -Wno-format-truncation"
 export CXXFLAGS="\
+ -ggdb3\
+ -O2\
  -Wall\
  -Werror"
 export LDFLAGS="\

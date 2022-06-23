@@ -39,7 +39,6 @@ DEPS_BUILD="
     circonus-platform-library-udns
     circonus-platform-library-uuid
     circonus-platform-library-yajl
-    circonus-platform-library-yajl
     circonus-platform-runtime-luajit
     circonus-platform-library-picklingtools
     lapack-devel

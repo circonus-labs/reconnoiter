@@ -205,7 +205,7 @@ noit_websocket_handler.o noit_websocket_handler.lo: noit_websocket_handler.c \
   noit_check.h \
   noit_metric.h noit_lmdb_tools.h \
   noit_check_log_helpers.h noit_message_decoder.h noit_metric.h \
-  noit_mtev_bridge.h noit_websocket_handler.h
+  noit_mtev_bridge.h noit_websocket_handler.h \
 
 noitd.o noitd.lo: noitd.c noit_config.h noit_version.h \
   noit_clustering.h noit_check.h \
