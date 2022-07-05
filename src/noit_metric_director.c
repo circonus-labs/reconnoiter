@@ -1219,9 +1219,9 @@ void noit_metric_director_init() {
 
   queues = calloc(sizeof(*queues),nthreads);
 
-  mtev_conf_get_uint32(MTEV_CONF_ROOT, "/*/metric_director/@miss_cache_size", &miss_cache_size);
+  mtev_conf_get_uint32(MTEV_CONF_ROOT, "//metric_director/@miss_cache_size", &miss_cache_size);
   double miss_cache_replacement_probability = 0.1;
-  mtev_conf_get_double(MTEV_CONF_ROOT, "/*/metric_director/@replacement_rate", &miss_cache_replacement_probability);
+  mtev_conf_get_double(MTEV_CONF_ROOT, "//metric_director/@replacement_rate", &miss_cache_replacement_probability);
   if(miss_cache_replacement_probability < 0) miss_cache_replacement_probability = 0;
   if(miss_cache_replacement_probability > 0.999) miss_cache_replacement_probability = 0.999;
   if(miss_cache_size) {
