@@ -374,7 +374,6 @@ static void consul_stop(void *cn) {
       mtev_consul_service_register_deregister(sr);
     }
   }
-  free(cn);
 }
 static mtev_hook_return_t
 consul_proxy_hook(void *closure, const char *id, int family, struct sockaddr *addr, bool up) {
