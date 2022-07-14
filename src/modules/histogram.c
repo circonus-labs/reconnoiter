@@ -291,6 +291,7 @@ static void
 update_histotier(histotier *ht, mtev_boolean cumulative, uint64_t s,
                  struct histogram_config *conf, noit_check_t *check,
                  const char *name, double val, uint64_t cnt, const histogram_t *hist) {
+  if (ht->cadence == 0) return;
   uint64_t this_period = s/ht->cadence;
   uint8_t sec_off = s%ht->cadence;
   noit_check_metric_count_add(cnt);
