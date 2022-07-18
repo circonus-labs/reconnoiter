@@ -97,16 +97,6 @@ typedef enum {
   HTTPTRAP_VOP_ACCUMULATE
 } httptrap_vop_t;
 
-static void metric_local_free(void *vm) {
-  if(vm) {
-    metric_t *m = vm;
-    free(m->metric_name);
-    free(m->expanded_metric_name);
-    free(m->metric_value.vp);
-  }
-  free(vm);
-}
-
 struct value_list {
   char *v;
   struct value_list *next;
@@ -154,7 +144,7 @@ track_filtered(struct rest_json_payload *json, char **name) {
 static void
 rest_json_flush_immediate(struct rest_json_payload *rxc) {
   noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
-  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, NULL);
 }
 
 static void 
@@ -171,8 +161,7 @@ metric_local_track_or_log(void *vrxc, const char *name,
     /* collision, just log it out */
     rest_json_flush_immediate(rxc);
   }
-  metric_t *m = malloc(sizeof(*m));
-  memset(m, 0, sizeof(*m));
+  metric_t *m = noit_metric_alloc();
   m->metric_name = strdup(name);
   m->metric_type = t;
   if(rxc->got_timestamp) {
@@ -740,7 +729,7 @@ rest_json_payload_free(void *f) {
   if(json->immediate_metrics) {
     rest_json_flush_immediate(json);
   }
-  mtev_hash_destroy(json->immediate_metrics, NULL, metric_local_free);
+  mtev_hash_destroy(json->immediate_metrics, NULL, NULL);
   free(json->immediate_metrics);
   if(json->parser) yajl_free(json->parser);
   if(json->error) free(json->error);

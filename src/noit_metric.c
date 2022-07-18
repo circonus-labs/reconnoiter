@@ -36,6 +36,7 @@
 
 #include <mtev_b64.h>
 #include <mtev_json_object.h>
+#include <mtev_memory.h>
 #include <mtev_str.h>
 #include <mtev_log.h>
 #include <mtev_maybe_alloc.h>
@@ -811,6 +812,25 @@ noit_metric_canonicalize_ex(const char *input, size_t input_len, char *output, s
   memcpy(output, buff, (out-buff));
   if(null_term) output[out-buff] = '\0';
   return (out - buff);
+}
+static void
+noit_metric_free(void *vm)
+{
+  if (vm) {
+    metric_t *m = vm;
+    free(m->metric_name);
+    free(m->expanded_metric_name);
+    free(m->metric_value.vp);
+  }
+}
+metric_t *
+ noit_metric_alloc(void)
+{
+  metric_t *m = (metric_t*) mtev_memory_safe_malloc_cleanup(sizeof(*m),
+      noit_metric_free);
+
+  memset(m, 0, sizeof(*m));
+  return m;
 }
 const char *
 noit_metric_get_full_metric_name(metric_t *m) {

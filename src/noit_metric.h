@@ -267,6 +267,8 @@ API_EXPORT(const char *)
   noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                              noit_metric_tag_t *output, mtev_boolean *toolong);
 
+API_EXPORT(metric_t *)
+  noit_metric_alloc(void);
 API_EXPORT(const char *)
   noit_metric_get_full_metric_name(metric_t *m);
 

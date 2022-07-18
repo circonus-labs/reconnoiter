@@ -182,13 +182,6 @@ noit_check_build_tag_extended_name(char *tgt, size_t tgtlen, const char *name, c
   return mtev_true;
 }
 
-void
-free_metric(metric_t *m) {
-  if(m->metric_name) free(m->metric_name);
-  if(m->expanded_metric_name) free(m->expanded_metric_name);
-  if(m->metric_value.i) free(m->metric_value.i);
-}
-
 #define stats_inprogress(c) ((stats_t **)(c->statistics))[STATS_INPROGRESS]
 #define stats_current(c) ((stats_t **)(c->statistics))[STATS_CURRENT]
 #define stats_previous(c) ((stats_t **)(c->statistics))[STATS_PREVIOUS]
@@ -288,16 +281,9 @@ noit_stats_set_available(noit_check_t *c, int8_t t) {
   (void)noit_check_stats_available(noit_check_get_stats_inprogress(c), &t);
 }
 static void
-noit_check_safe_free_metric(void *vs) {
-  metric_t *m = vs;
-  if (m) {
-    free_metric(m);
-  }
-}
-static void
 noit_check_safe_free_stats(void *vs) {
   stats_t *s = vs;
-  mtev_hash_destroy(&s->name_to_metric, NULL, (void (*)(void *))mtev_memory_safe_free);
+  mtev_hash_destroy(&s->name_to_metric, NULL, mtev_memory_safe_free);
 }
 static stats_t *
 noit_check_stats_alloc() {
@@ -2428,7 +2414,7 @@ static void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
   mtevAssert(mtev_memory_in_cs());
   mtev_hash_replace(&newstate->name_to_metric, m->metric_name, strlen(m->metric_name),
-                    m, NULL, (void (*)(void *))mtev_memory_safe_free);
+                    m, NULL, mtev_memory_safe_free);
 }
 
 mtev_boolean
@@ -2442,7 +2428,7 @@ noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean creat
   } else if(create) {
     m->logged = mtev_true;
     mtev_hash_replace(&newstate->name_to_metric, m->metric_name, strlen(m->metric_name),
-                        m, NULL, (void (*)(void *))mtev_memory_safe_free);
+                        m, NULL, mtev_memory_safe_free);
     return mtev_true;
   }
   return mtev_false;
@@ -2468,6 +2454,7 @@ noit_metric_sizes(metric_type_t type, const void *value) {
     case METRIC_HISTOGRAM_CUMULATIVE:
     case METRIC_ABSENT:
     case METRIC_GUESS:
+    default:
       break;
   }
   mtevAssert(type != type);
@@ -2669,8 +2656,7 @@ noit_stats_set_metric_with_timestamp(noit_check_t *check,
 
   mtevAssert(mtev_memory_in_cs());
 
-  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
-  memset(m, 0, sizeof(*m));
+  metric_t *m = noit_metric_alloc();
 
   if(noit_stats_populate_metric_with_tagset(m, tagged_name, type, value)) {
     mtev_memory_safe_free(m);
@@ -2842,6 +2828,7 @@ noit_metric_coerce_ex_with_timestamp(noit_check_t *check,
     case METRIC_HISTOGRAM:
     case METRIC_HISTOGRAM_CUMULATIVE:
     case METRIC_ABSENT:
+    default:
       mtevAssert(0 && "bad metric type passed to noit_stats_set_metric_coerce");
   }
   if(stats) check_stats_set_metric_coerce_hook_invoke(check, stats, tagged_name, t, safe_v, mtev_true);
@@ -2872,8 +2859,7 @@ record_immediate_metric_with_tagset(noit_check_t *check,
                                 const void *value, mtev_boolean do_log, const struct timeval *time) {
   struct timeval now;
   stats_t *c;
-  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
-  memset(m, 0, sizeof(*m));
+  metric_t *m = noit_metric_alloc();
 
   mtevAssert(mtev_memory_in_cs());
 

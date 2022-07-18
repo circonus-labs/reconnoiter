@@ -521,7 +521,6 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
   mtev_hash_table *metrics;
   double *out_q = NULL;
 
-  noit_check_get_stats_current(check);
   /* Only need to do work if it's asked for */
   if(!conf->mean && !conf->sum && conf->n_quantiles < 1) return;
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
