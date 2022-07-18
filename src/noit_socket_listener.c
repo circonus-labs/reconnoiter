@@ -60,15 +60,6 @@
 static mtev_log_stream_t nldeb = NULL;
 static mtev_log_stream_t nlerr = NULL;
 
-static void metric_local_free(void *vm) {
-  if(vm) {
-    metric_t *m = vm;
-    free(m->metric_name);
-    free(m->metric_value.vp);
-  }
-  free(vm);
-}
-
 /* Count endlines to determine how many full records we
  * have */
 static inline int
@@ -134,7 +125,7 @@ listener_closure_deref(listener_closure_t *lc)
   if(!zero) return;
 
   pthread_mutex_lock(&lc->flushlock);
-  mtev_hash_delete_all(lc->immediate_metrics, NULL, metric_local_free);
+  mtev_hash_delete_all(lc->immediate_metrics, NULL, NULL);
   pthread_mutex_unlock(&lc->flushlock);
   pthread_mutex_destroy(&lc->flushlock);
   /* no need to free `lc` here as the noit cleanup code will
@@ -196,7 +187,7 @@ listener_flush_immediate(listener_closure_t *rxc) {
   struct timeval now;
   mtev_gettimeofday(&now, NULL);
   noit_check_log_bundle_metrics(rxc->check, &now, rxc->immediate_metrics);
-  mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, NULL);
 }
 
 void 
@@ -219,7 +210,7 @@ retry:
     listener_flush_immediate(rxc);
   }
   pthread_mutex_unlock(&rxc->flushlock);
-  m = calloc(1, sizeof(*m));
+  m = noit_metric_alloc();
   m->metric_name = strdup(name);
   m->metric_type = t;
   if(w) {
@@ -254,12 +245,16 @@ retry:
       }
     }
   }
-  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
-  pthread_mutex_lock(&rxc->flushlock);
-  mtev_boolean inserted = mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m);
-  pthread_mutex_unlock(&rxc->flushlock);
-  if(!inserted) {
-    metric_local_free(m);
+
+  if (noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check),
+      m, mtev_false) == mtev_true) {
+    pthread_mutex_lock(&rxc->flushlock);
+    mtev_hash_store(rxc->immediate_metrics, m->metric_name,
+        strlen(m->metric_name), m);
+    pthread_mutex_unlock(&rxc->flushlock);
+  }
+  else {
+    mtev_memory_safe_free(m);
     goto retry;
   }
 }

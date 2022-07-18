@@ -117,15 +117,6 @@ static ProtobufCAllocator __c_allocator = {
 };
 #define protobuf_c_system_allocator __c_allocator
 
-static void metric_local_free(void *vm) {
-  metric_t *m = vm;
-  if(vm) {
-    free(m->metric_name);
-    free(m->expanded_metric_name);
-    free(m->metric_value.vp);
-  }
-}
-
 struct hist_in_progress {
   histogram_adhoc_bin_t *bins;
   int nbins;
@@ -147,7 +138,7 @@ free_prometheus_upload(void *pul)
   prometheus_upload_t *p = (prometheus_upload_t *)pul;
   mtev_dyn_buffer_destroy(&p->data);
   mtev_memory_begin();
-  mtev_hash_destroy(p->immediate_metrics, NULL, mtev_memory_safe_free);
+  mtev_hash_destroy(p->immediate_metrics, NULL, NULL);
   mtev_memory_end();
   free(p->immediate_metrics);
   mtev_hash_destroy(p->hists, NULL, hist_in_progress_free);
@@ -422,7 +413,7 @@ metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
   pthread_mutex_lock(&batch_flush_lock);
   if(mtev_hash_size(rxc->immediate_metrics)) {
     noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
-    mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
+    mtev_hash_delete_all(rxc->immediate_metrics, NULL, NULL);
   }
   pthread_mutex_unlock(&batch_flush_lock);
   mtev_memory_end();
@@ -537,8 +528,7 @@ metric_local_batch(prometheus_upload_t *rxc, const char *name, double val, struc
     return;
   }
   mtev_memory_begin();
-  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), metric_local_free);
-  memset(m, 0, sizeof(*m));
+  metric_t *m = noit_metric_alloc();
   m->metric_name = malloc(cmetric_len);
   memcpy(m->metric_name, cmetric, cmetric_len);
   m->metric_type = METRIC_DOUBLE;
