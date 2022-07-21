@@ -1,0 +1,101 @@
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocavlhasht.h PicklingTools170Release/C++/opencontainers_1_8_5/include/ocavlhasht.h
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocavlhasht.h	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocavlhasht.h	2021-04-27 14:45:44.014181737 +0000
+@@ -422,7 +422,7 @@
+ 	return false;
+       if (!parentage_(root_))
+ 	return false;
+-      if (!recursiveElements_(root_->right())==entries_)
++      if (!(recursiveElements_(root_->right())==entries_))
+ 	return false;
+       return threadedOK_();
+     }
+@@ -919,6 +919,8 @@
+     // Return node
+     void deleteAVLNode_ (N* node)
+     {
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wuninitialized"
+       // Destruct
+       // deleteMyValue_(node->value);
+       node->N::~AVLNode_<K,V>();
+@@ -960,6 +962,7 @@
+ 	freelist_->right_->left_ = node;
+ 	freelist_->right_ = node;
+       }
++#pragma GCC diagnostic pop
+       
+     }
+     
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocavltreet.h PicklingTools170Release/C++/opencontainers_1_8_5/include/ocavltreet.h
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocavltreet.h	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocavltreet.h	2021-04-27 14:46:13.061150000 +0000
+@@ -342,7 +342,7 @@
+ 	return false;
+       if (!parentage_(root_))
+ 	return false;
+-      if (!recursiveElements_(root_->right())==entries_)
++      if (!(recursiveElements_(root_->right())==entries_))
+ 	return false;
+       return threadedOK_();
+     }
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ochashfunction.h PicklingTools170Release/C++/opencontainers_1_8_5/include/ochashfunction.h
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ochashfunction.h	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ochashfunction.h	2021-04-27 14:43:26.999022372 +0000
+@@ -7,7 +7,7 @@
+ inline unsigned long OCStringHashFunction (const char* c_data, int length)
+ {
+   int len = length;
+-  register long x = *c_data<<7;
++  long x = *c_data<<7;
+   while (--len >=0) 
+     x =  (1000003*x) ^ *c_data++;
+   x ^= length;
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocmove.h PicklingTools170Release/C++/opencontainers_1_8_5/include/ocmove.h
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocmove.h	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocmove.h	2021-04-27 14:43:26.999022372 +0000
+@@ -148,7 +148,7 @@
+ 
+ #define MOVEARRAYPOD(TT) \
+   template <> inline bool MoveArray<TT> (TT* from, TT* to, int len) { \
+-  memcpy(to, from, sizeof(TT)*len); return false; }
++  memcpy(static_cast<void *>(to), from, sizeof(TT)*len); return false; }
+ 
+ MOVEARRAYPOD(char);
+ MOVEARRAYPOD(int_1);
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocordavlhasht.h PicklingTools170Release/C++/opencontainers_1_8_5/include/ocordavlhasht.h
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocordavlhasht.h	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocordavlhasht.h	2021-04-27 14:47:04.427321390 +0000
+@@ -454,7 +454,7 @@
+ 	return false;
+       if (!parentage_(root_))
+ 	return false;
+-      if (!recursiveElements_(root_->right())==entries_)
++      if (!(recursiveElements_(root_->right())==entries_))
+ 	return false;
+       return threadedOK_();
+     }
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocval.cc PicklingTools170Release/C++/opencontainers_1_8_5/include/ocval.cc
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocval.cc	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocval.cc	2021-04-27 14:43:27.003022231 +0000
+@@ -346,7 +346,7 @@
+ }
+ 
+ #define VALDESTR(T) { Array<T>*ap=(Array<T>*)&u.n;ap->~Array<T>(); }
+-OC_INLINE Val::~Val ()
++OC_INLINE Val::~Val () noexcept(false)
+ {
+   if (isproxy) { Proxy* pp = (Proxy*)&u.P; pp->~Proxy(); return; }
+   switch(tag) { 
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocval.h PicklingTools170Release/C++/opencontainers_1_8_5/include/ocval.h
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocval.h	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocval.h	2021-04-27 14:43:27.003022231 +0000
+@@ -285,7 +285,7 @@
+     OC_INLINE Val& operator= (const Val& v); 
+ 
+     // Destructor: Have to write for string, table, array classes
+-    OC_INLINE ~Val ();
++    OC_INLINE ~Val () noexcept(false);
+ 
+     // Useful for cascading lookups s["key"][2], etc.  Like python,
+     // you can only use integer types for indices to arrays, but Tabs

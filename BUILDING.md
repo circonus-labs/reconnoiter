@@ -1,22 +1,45 @@
-#Building Reconnoiter
+# Building Reconnoiter
 
 ## Requirements
 
- * PostgreSQL 8.4+ is required.
+Compiler:
+ * Support for C17 and C++20 standards is required. GCC 11 or later, Clang/LLVM
+   is less tested but recent versions should work.
+
+### Third-party Libraries
+
+[Important build notes](THIRDPARTY-LIBS.md)
+
+Required Libraries:
+ * [Concurrency Kit](https://github.com/concurrencykit/ck) (libck), version 0.7.1 or later
+ * [flatcc](https://github.com/dvidelabs/flatcc), version 0.6.0.
+ * libcurl 7.49.0 or later (for `CURLOPT_CONNECT_TO` support)
+ * [libmtev](https://github.com/circonus-labs/libmtev)
+ * [LMDB](https://www.symas.com/lmdb)
+ * [LuaJIT](https://luajit.org/luajit.html) version 2.1.
  * NetSNMP 5.7+
- 	
- 	NetSNMP is required for the lua-snmp bindings that power OID lookups.  The standard SNMP querying implementation is in Java and shipped with the repo.  There pure-C SNMP check requires patches to NetSNMP (producing libnetsnmp-c) and patches are provided in the reconnoiter tree for the bold
- * Fq is required if you want FQ drivers
- * apr is required if you want to build STOMP drivers.
- * libssh2 is required for the ssh2 check.
- * pickletools for the graphite check.
+   * NetSNMP is required for the lua-snmp bindings that power OID lookups. The
+     standard SNMP querying implementation is in Java and shipped with the
+     repo.  A pure-C SNMP check implementation exists, but requires
+     [patches](THIRDPARTY-LIBS.md#netsnmp) (producing libnetsnmp-c).
+ * [Picklingtools](http://www.picklingtools.com) ([Patch required](THIRDPARTY-LIBS.md#picklingtools))
+ * PostgreSQL 8.4+
+ * Protobuf 3+
+ * Protobuf-C 1.4+
+ * [snappy-c](https://github.com/andikleen/snappy-c.git)
+ * [wslay](https://github.com/tatsuhiro-t/wslay) for WebSockets support.
+
+Optional Libraries:
+ * [Apache Portable Runtime](https://apr.apache.org) (libapr) is required
+   if you want to build STOMP drivers.
+ * [FQ](https://github.com/circonus-labs/fq) is required if you want FQ drivers.
+ * [Java JDK](https://openjdk.org/projects/jdk/) to build the Jezebel sidecar
+   for certain SQL database checks, as well as the standard SNMP check support.
+
 
 ## Platforms
 
 ### FreeBSD
-
-[Original Message](https://labs.omniti.com/lists/reconnoiter-users/2009-March/000028.html)
-
 
     #!/bin/sh
     # portmaster -g /usr/ports/misc/e2fsprogs-libuuid
@@ -36,13 +59,11 @@
     # git clone https://github.com/circonus-labs/reconnoiter
     # cd reconnoiter
     # aclocal
-    # autoconf
+    # autoreconf -i
     # ./configure LDFLAGS="-L/usr/local/lib"
     # make
 
 ### Linux (Debian)
-
-[Original Message](https://labs.omniti.com/lists/reconnoiter-users/2009-March/000027.html)
 
     #!/bin/sh
     # apt-get install autoconf build-essential \
@@ -53,13 +74,11 @@
 		# apt-get libdbi-perl libdbd-pg-perl libwww-curl-perl # if you want to run the tests
 		# git clone https://github.com/circonus-labs/reconnoiter
 		# cd reconnoiter
-		# autoconf
+		# autoreconf -i
 		# LDFLAGS="-ldl -lm" ./configure
 		# make
 
-### Linux (CentOS 6.3)
-
-[Original Message](https://labs.omniti.com/lists/reconnoiter-users/2009-September/000184.html)
+### Linux (CentOS 7)
 
     #!/bin/sh
     # yum install autoconf subversion \
@@ -69,19 +88,6 @@
     	libuuid-devel protobuf-c-devel hwloc-devel ck
     # git clone https://github.com/circonus-labs/reconnoiter
     # cd reconnoiter
-    # autoconf
+    # autoreconf -i
     # ./configure
     # make
-
-### OmniOS
-
-	# pkg set-publisher -g http://pkg.omniti.com/omniti-ms/ ms.omniti.com
-	# pkg install developer/git developer/build/autoconf system/header \
-		developer/gcc48 omniti/library/protobuf-c omniti/library/libpq5 \
-		developer/build/gnu-make omniti/library/apr omniti/library/libssh2 \
-    omniti/library/hwloc omniti/library/ck
-	# git clone git@github.com:circonus-labs/reconnoiter.git
-	# cd reconnoiter
-	# autoconf
-	# ./configure LDFLAGS="-L/opt/omni/lib/" CPPFLAGS="-I/opt/omni/include"
-	# make
