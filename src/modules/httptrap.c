@@ -144,7 +144,7 @@ track_filtered(struct rest_json_payload *json, char **name) {
 static void
 rest_json_flush_immediate(struct rest_json_payload *rxc) {
   noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
-  mtev_hash_delete_all(rxc->immediate_metrics, NULL, NULL);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
 }
 
 static void 
@@ -729,7 +729,7 @@ rest_json_payload_free(void *f) {
   if(json->immediate_metrics) {
     rest_json_flush_immediate(json);
   }
-  mtev_hash_destroy(json->immediate_metrics, NULL, NULL);
+  mtev_hash_destroy(json->immediate_metrics, NULL, mtev_memory_safe_free);
   free(json->immediate_metrics);
   if(json->parser) yajl_free(json->parser);
   if(json->error) free(json->error);
