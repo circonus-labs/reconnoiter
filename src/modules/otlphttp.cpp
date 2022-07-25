@@ -538,11 +538,7 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
     auto rm = msg.resource_metrics(i);
     for(int li=0; li<rm.instrumentation_library_metrics_size(); li++) {
       auto lm = rm.instrumentation_library_metrics(li);
-      if(lm.has_instrumentation_library()) {
-        if(lm.instrumentation_library().name().size() > 0) {
-          const char *lname = lm.instrumentation_library().name().c_str();
-        }
-      }
+
       for(int mi=0; mi<lm.metrics_size(); mi++) {
         auto m = lm.metrics(mi);
         auto name = m.name();
