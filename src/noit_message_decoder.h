@@ -42,9 +42,10 @@ extern "C"  {
 #endif
 
 MTEV_HOOK_PROTO(noit_message_decoder_compact_validate_tag,
-                (const noit_metric_tag_t *tag),
+                (const char *cat, const size_t cat_len, const char *val, const size_t val_len, bool *allow_tag),
                 void *, closure,
-                (void *closure, const noit_metric_tag_t *tag))
+                (void *closure, const char *cat, const size_t cat_len, const char *val, const size_t val_len,
+                 bool *allow_tag))
 
 API_EXPORT(int)
   noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit);

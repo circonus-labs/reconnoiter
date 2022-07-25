@@ -51,10 +51,12 @@
 } while(0)
 
 MTEV_HOOK_IMPL(noit_message_decoder_compact_validate_tag,
-              (const noit_metric_tag_t *tag),
+              (const char* cat, const size_t cat_len, const char *val, const size_t val_len,
+               bool *allow_tag),
               void *, closure,
-              (void *closure, const noit_metric_tag_t *tag),
-              (closure, tag))
+              (void *closure, const char* cat, const size_t cat_len, const char *val, const size_t val_len,
+               bool *allow_tag),
+              (closure, cat, cat_len, val, val_len, allow_tag))
 
 mtev_boolean
 noit_metric_extract_tags(const char *in, int *inlen,
@@ -483,7 +485,15 @@ noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
     return tag_count;
   }
   else if(tag_count == 1) {
-    if (noit_message_decoder_compact_validate_tag_hook_invoke(&tags[0]) == MTEV_HOOK_ABORT) {
+    bool allow_tag = true;
+    if (noit_message_decoder_compact_validate_tag_hook_invoke(tags[0].tag, tags[0].category_size,
+          tags[0].tag + tags[0].category_size,
+          tags[0].total_size - tags[0].category_size, &allow_tag) == MTEV_HOOK_ABORT) {
+      *canonical_size_out = 0;
+      return -1;
+    }
+    else if (allow_tag == false) {
+      // the hook says to ditch the tag, so ditch it... no tags left
       *canonical_size_out = 0;
       return 0;
     }
@@ -497,7 +507,14 @@ noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
    * that the hook returns are invalid */
   size_t counter = 0;
   while (counter < tag_count) {
-    if (noit_message_decoder_compact_validate_tag_hook_invoke(&tags[counter]) == MTEV_HOOK_ABORT) {
+    bool allow_tag = true;
+    if (noit_message_decoder_compact_validate_tag_hook_invoke(tags[counter].tag, tags[counter].category_size,
+          tags[counter].tag + tags[counter].category_size,
+          tags[counter].total_size - tags[counter].category_size, &allow_tag) == MTEV_HOOK_ABORT) {
+      *canonical_size_out = 0;
+      return -1;
+    }
+    else if (allow_tag == false) {
       if (counter+1 != tag_count) {
         size_t rest_of_tags_count = tag_count - counter - 1;
         memmove(&tags[counter], &tags[counter+1], sizeof(noit_metric_tag_t) * rest_of_tags_count);
