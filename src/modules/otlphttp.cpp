@@ -75,14 +75,6 @@ struct value_list {
   struct value_list *next;
 };
 
-static void metric_local_free(void *vm) {
-  metric_t *m = static_cast<metric_t *>(vm);
-  if(vm) {
-    free(m->metric_name);
-    free(m->metric_value.vp);
-  }
-}
-
 class otlphttp_upload_t
 {
   public:
@@ -103,7 +95,7 @@ class otlphttp_upload_t
   }
   ~otlphttp_upload_t() {
     mtev_dyn_buffer_destroy(&data);
-    mtev_hash_destroy(immediate_metrics, NULL, metric_local_free);
+    mtev_hash_destroy(immediate_metrics, NULL, mtev_memory_safe_free);
     free(immediate_metrics);
   }
 };
@@ -281,7 +273,7 @@ static void
 metric_local_batch_flush_immediate(otlphttp_upload_t *rxc) {
   if(mtev_hash_size(rxc->immediate_metrics)) {
     noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
-    mtev_hash_delete_all(rxc->immediate_metrics, NULL, metric_local_free);
+    mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
   }
 }
 
@@ -643,8 +635,7 @@ metric_local_batch(otlphttp_upload_t *rxc, const char *name, double *val, int64_
     metric_local_batch_flush_immediate(rxc);
     return;
   }
-  metric_t *m = static_cast<metric_t *>(malloc(sizeof(*m)));
-  memset(m, 0, sizeof(*m));
+  metric_t *m = noit_metric_alloc();
   m->metric_name = mtev_strndup(cmetric, cmetric_len);
   if(val) {
     m->metric_type = METRIC_DOUBLE;

@@ -2417,6 +2417,27 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
                     m, NULL, mtev_memory_safe_free);
 }
 
+static metric_t *
+ noit_metric_dup(metric_t *m)
+{
+  metric_t *d = noit_metric_alloc();
+
+  memcpy(d, m, sizeof(*m));
+
+  if (d->metric_name) {
+    d->metric_name = strdup(d->metric_name);
+  }
+
+  if (d->expanded_metric_name) {
+    d->expanded_metric_name = strdup(d->expanded_metric_name);
+  }
+
+  d->metric_value.vp = m->metric_value.vp;
+  // don't need the value
+  m->metric_value.vp = NULL;
+  return d;
+}
+
 mtev_boolean
 noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean create) {
   void *vm;
@@ -2427,6 +2448,7 @@ noit_stats_mark_metric_logged(stats_t *newstate, metric_t *m, mtev_boolean creat
     return mtev_false;
   } else if(create) {
     m->logged = mtev_true;
+    m = noit_metric_dup(m);
     mtev_hash_replace(&newstate->name_to_metric, m->metric_name, strlen(m->metric_name),
                         m, NULL, mtev_memory_safe_free);
     return mtev_true;
