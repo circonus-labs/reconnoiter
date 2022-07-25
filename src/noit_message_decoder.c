@@ -50,6 +50,12 @@
     } \
 } while(0)
 
+MTEV_HOOK_IMPL(noit_message_decoder_compact_validate_tag,
+              (const noit_metric_tag_t *tag),
+              void *, closure,
+              (void *closure, const noit_metric_tag_t *tag),
+              (closure, tag))
+
 mtev_boolean
 noit_metric_extract_tags(const char *in, int *inlen,
                          const char *start_marker, char end_marker,
@@ -477,13 +483,39 @@ noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
     return tag_count;
   }
   else if(tag_count == 1) {
+    if (noit_message_decoder_compact_validate_tag_hook_invoke(&tags[0]) == MTEV_HOOK_ABORT) {
+      *canonical_size_out = 0;
+      return 0;
+    }
     *canonical_size_out = tag_canonical_size(&tags[0]);
     return tag_count;
   }
   /* output should be in lexically-sorted form */
   qsort((void *) tags, tag_count, sizeof(noit_metric_tag_t), noit_metric_tags_compare);
 
-  /* and no tags should repeat */
+  /* loop through the tags and run any hooks the users have defined... remove any tags
+   * that the hook returns are invalid */
+  size_t counter = 0;
+  while (counter < tag_count) {
+    if (noit_message_decoder_compact_validate_tag_hook_invoke(&tags[counter]) == MTEV_HOOK_ABORT) {
+      if (counter+1 != tag_count) {
+        size_t rest_of_tags_count = tag_count - counter - 1;
+        memmove(&tags[counter], &tags[counter+1], sizeof(noit_metric_tag_t) * rest_of_tags_count);
+      }
+      tag_count--;
+    }
+    else {
+      counter++;
+    }
+  }
+
+  /* Go ahead and bail out here if we ended up removing every tag */
+  if (tag_count == 0) {
+    *canonical_size_out = 0;
+    return tag_count;
+  }
+
+  /* no tags should repeat */
   size_t squash_index_left = 0;
   size_t squash_index_right = 1;
   size_t sum_tags_len = 0;

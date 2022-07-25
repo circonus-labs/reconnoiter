@@ -41,6 +41,11 @@
 extern "C"  {
 #endif
 
+MTEV_HOOK_PROTO(noit_message_decoder_compact_validate_tag,
+                (const noit_metric_tag_t *tag),
+                void *, closure,
+                (void *closure, const noit_metric_tag_t *tag))
+
 API_EXPORT(int)
   noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit);
 
