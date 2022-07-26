@@ -52,6 +52,12 @@ MTEV_HOOK_IMPL(noit_metric_tagset_fixup,
                (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset),
                (closure,cls,tagset))
 
+typedef struct noit_metric_tagset_context_t {
+  uint32_t refcnt;
+  bool (*validate_function)(const char *cat, const size_t cat_len,
+                            const char *val, const size_t val_len);
+} noit_metric_tagset_context_t;
+
 mtev_boolean
 noit_metric_as_double(metric_t *metric, double *out) {
   if(metric == NULL || metric->metric_value.vp == NULL) return mtev_false;
@@ -836,3 +842,48 @@ const char *
 noit_metric_get_full_metric_name(metric_t *m) {
   return m->expanded_metric_name ? m->expanded_metric_name : m->metric_name;
 }
+
+noit_metric_tagset_context_t *
+noit_metric_tagset_context_alloc(void) {
+  noit_metric_tagset_context_t *ctx = (noit_metric_tagset_context_t *)malloc(sizeof(*ctx));
+  ctx->refcnt = 1;
+  ctx->validate_function = NULL;
+  return ctx;
+}
+
+void
+noit_metric_tagset_context_free(noit_metric_tagset_context_t *ctx) {
+  if (ck_pr_dec_32_is_zero(&ctx->refcnt)) {
+    free(ctx);
+  }
+}
+
+void
+noit_metric_tagset_context_ref(noit_metric_tagset_context_t *ctx) {
+  if (ctx) {
+    ck_pr_inc_32(&ctx->refcnt);
+  }
+}
+
+void
+noit_metric_tagset_context_set_validate_function(noit_metric_tagset_context_t *ctx,
+                                                 bool (*f)(const char * cat,
+                                                           const size_t cat_len,
+                                                           const char * val,
+                                                           const size_t val_len)) {
+  ctx->validate_function = f;
+}
+
+bool
+noit_metric_tagset_context_execute_validate_function(const noit_metric_tagset_context_t *ctx,
+                                                     const char *cat,
+                                                     const size_t cat_len,
+                                                     const char *val,
+                                                     const size_t val_len) {
+  if (ctx && ctx->validate_function) {
+    return ctx->validate_function(cat, cat_len, val, val_len);
+  }
+  /* If no validation function is provided, the metric is fine */
+  return true;
+}
+

@@ -468,20 +468,51 @@ tag_canonical_size(noit_metric_tag_t *tag) {
   if(len < 0) return 0;
   return len;
 }
+
 size_t
-noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
-                         size_t *canonical_size_out) {
+noit_metric_tags_compact_with_context(noit_metric_tag_t *tags, size_t tag_count,
+                                      size_t *canonical_size_out,
+                                      noit_metric_tagset_context_t *ctx) {
   if(tag_count <= 0) {
     /* no compaction necessary */
     *canonical_size_out = 0;
     return tag_count;
   }
   else if(tag_count == 1) {
+    if (noit_metric_tagset_context_execute_validate_function(ctx, tags[0].tag, tags[0].category_size,
+          tags[0].tag + tags[0].category_size,
+          tags[0].total_size - tags[0].category_size) == false) {
+      *canonical_size_out = 0;
+      return 0;
+    }
     *canonical_size_out = tag_canonical_size(&tags[0]);
     return tag_count;
   }
   /* output should be in lexically-sorted form */
   qsort((void *) tags, tag_count, sizeof(noit_metric_tag_t), noit_metric_tags_compare);
+
+  /* remove any tags that are rejected by the validation function in the ctx, if provided */
+  size_t counter = 0;
+  while (counter < tag_count) {
+    if (noit_metric_tagset_context_execute_validate_function(ctx, tags[counter].tag, tags[counter].category_size,
+          tags[counter].tag + tags[counter].category_size,
+          tags[counter].total_size - tags[counter].category_size) == false) {
+      if (counter+1 != tag_count) {
+        size_t rest_of_tags_count = tag_count - counter - 1;
+        memmove(&tags[counter], &tags[counter+1], sizeof(noit_metric_tag_t) * rest_of_tags_count);
+      }
+      tag_count--;
+    }
+    else {
+      counter++;
+    }
+  }
+
+  /* Go ahead and bail out here if we ended up removing every tag */
+  if (tag_count == 0) {
+    *canonical_size_out = 0;
+    return tag_count;
+  }
 
   /* and no tags should repeat */
   size_t squash_index_left = 0;
@@ -507,10 +538,17 @@ noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
   return squash_index_left + 1;
 }
 
+size_t
+noit_metric_tags_compact(noit_metric_tag_t *tags, size_t tag_count,
+                         size_t *canonical_size_out) {
+  return noit_metric_tags_compact_with_context(tags, tag_count, canonical_size_out, NULL);
+}
+
 ssize_t
-noit_metric_tags_parse(const char *tagnm, size_t tagnmlen,
-                       noit_metric_tag_t *tags, size_t tag_count,
-                       size_t *canonical_size_out) {
+noit_metric_tags_parse_with_context(const char *tagnm, size_t tagnmlen,
+                                    noit_metric_tag_t *tags, size_t tag_count,
+                                    size_t *canonical_size_out,
+                                    noit_metric_tagset_context_t *ctx) {
   if(tagnmlen == 0) return 0;
 
   size_t rval = 0;
@@ -530,7 +568,14 @@ noit_metric_tags_parse(const char *tagnm, size_t tagnmlen,
     }
   }
 
-  return (ssize_t) noit_metric_tags_compact(tags, rval, canonical_size_out);
+  return (ssize_t) noit_metric_tags_compact_with_context(tags, rval, canonical_size_out, ctx);
+}
+
+ssize_t
+noit_metric_tags_parse(const char *tagnm, size_t tagnmlen,
+                       noit_metric_tag_t *tags, size_t tag_count,
+                       size_t *canonical_size_out) {
+  return noit_metric_tags_parse_with_context(tagnm, tagnmlen, tags, tag_count, canonical_size_out, NULL);
 }
 
 ssize_t
@@ -588,8 +633,10 @@ noit_metric_tagset_from_tags(noit_metric_tagset_t *lookup,
 }
 
 int
-noit_metric_tagset_init(noit_metric_tagset_t *lookup,
-                        const char *tagsetstr, size_t tagsetstrlen) {
+noit_metric_tagset_init_with_context(noit_metric_tagset_t *lookup,
+                                     const char *tagsetstr,
+                                     size_t tagsetstrlen,
+                                     noit_metric_tagset_context_t *ctx) {
   memset((void *) lookup, '\0', sizeof(*lookup));
   size_t tag_count = noit_metric_tags_count(tagsetstr, tagsetstrlen);
   if(tag_count == 0) {
@@ -600,7 +647,7 @@ noit_metric_tagset_init(noit_metric_tagset_t *lookup,
   }
   noit_metric_tag_t *tags = (noit_metric_tag_t *) calloc(tag_count, sizeof(noit_metric_tag_t));
   size_t canonical_size;
-  ssize_t parsed_tag_count = noit_metric_tags_parse(tagsetstr, tagsetstrlen, tags, tag_count, &canonical_size);
+  ssize_t parsed_tag_count = noit_metric_tags_parse_with_context(tagsetstr, tagsetstrlen, tags, tag_count, &canonical_size, ctx);
   if(parsed_tag_count <= 0) {
     free((void *) tags);
     return -1;
@@ -609,6 +656,12 @@ noit_metric_tagset_init(noit_metric_tagset_t *lookup,
   lookup->tag_count = tag_count;
   lookup->canonical_size = canonical_size;
   return 0;
+}
+
+int
+noit_metric_tagset_init(noit_metric_tagset_t *lookup,
+                        const char *tagsetstr, size_t tagsetstrlen) {
+  return noit_metric_tagset_init_with_context(lookup, tagsetstr, tagsetstrlen, NULL);
 }
 
 void

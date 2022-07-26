@@ -117,6 +117,10 @@ typedef struct noit_metric_tagset_t {
   int canonical_size;
 } noit_metric_tagset_t;
 
+// Forward declaration - should only be accessed via accessor functions -
+// struct is defined in the .c file
+typedef struct noit_metric_tagset_context_t noit_metric_tagset_context_t;
+
 typedef struct {
   uuid_t id;
   const char *name;
@@ -213,6 +217,9 @@ API_EXPORT(ssize_t)
   noit_metric_tagset_decode_tag(char *decoded_tag, size_t max_len, 
                                 const char *encoded_tag, size_t encoded_size);
 API_EXPORT(int)
+  noit_metric_tagset_init_with_context(noit_metric_tagset_t *lookup, const char *tagstr,
+                                      size_t tagstr_len, noit_metric_tagset_context_t *ctx);
+API_EXPORT(int)
   noit_metric_tagset_init(noit_metric_tagset_t *lookup, const char *tagstr, size_t tagstr_len);
 API_EXPORT(void)
   noit_metric_tagset_cleanup(noit_metric_tagset_t *lookup);
@@ -271,6 +278,29 @@ API_EXPORT(metric_t *)
   noit_metric_alloc(void);
 API_EXPORT(const char *)
   noit_metric_get_full_metric_name(metric_t *m);
+
+API_EXPORT(noit_metric_tagset_context_t *)
+  noit_metric_tagset_context_alloc(void);
+
+API_EXPORT(void)
+  noit_metric_tagset_context_free(noit_metric_tagset_context_t *ctx);
+
+API_EXPORT(void)
+  noit_metric_tagset_context_ref(noit_metric_tagset_context_t *ctx);
+
+API_EXPORT(void)
+  noit_metric_tagset_context_set_validate_function(noit_metric_tagset_context_t *ctx,
+                                                   bool (*f)(const char * cat,
+                                                             const size_t cat_len,
+                                                             const char * val,
+                                                             const size_t val_len));
+
+API_EXPORT(bool)
+  noit_metric_tagset_context_execute_validate_function(const noit_metric_tagset_context_t *ctx,
+                                                       const char *cat,
+                                                       const size_t cat_len,
+                                                       const char *val,
+                                                       const size_t val_len);
 
 static inline int
 noit_metric_tags_compare(const void *v_l, const void *v_r) {
