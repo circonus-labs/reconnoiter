@@ -286,6 +286,9 @@ API_EXPORT(void)
   noit_metric_tagset_context_free(noit_metric_tagset_context_t *ctx);
 
 API_EXPORT(void)
+  noit_metric_tagset_context_ref(noit_metric_tagset_context_t *ctx);
+
+API_EXPORT(void)
   noit_metric_tagset_context_set_validate_function(noit_metric_tagset_context_t *ctx,
                                                    bool (*f)(const char * cat,
                                                              const size_t cat_len,

@@ -859,6 +859,13 @@ noit_metric_tagset_context_free(noit_metric_tagset_context_t *ctx) {
 }
 
 void
+noit_metric_tagset_context_ref(noit_metric_tagset_context_t *ctx) {
+  if (ctx) {
+    ck_pr_inc_32(&ctx->refcnt);
+  }
+}
+
+void
 noit_metric_tagset_context_set_validate_function(noit_metric_tagset_context_t *ctx,
                                                  bool (*f)(const char * cat,
                                                            const size_t cat_len,
