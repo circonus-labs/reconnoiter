@@ -64,8 +64,6 @@ typedef struct tls_state {
 static mtev_boolean noit_match_str(const char *subj, int subj_len, const struct noit_var_match_t *m);
 static tls_state_t *tls_state_alloc(void);
 static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg);
-
-static bool tls_state_key_init = false;
 static pthread_key_t tls_state_key;
 
 static re_matcher_t *
@@ -94,11 +92,10 @@ re_matcher_free(void *v_rem)
 
   if (rem) {
     if (rem->re_e) {
-
 #ifdef PCRE_STUDY_JIT_COMPILE
       pcre_free_study(rem->re_e);
 #else
-      pcre_free(g->results[i].re_e);
+      pcre_free(rem->re_e);
 #endif
     }
 
@@ -162,6 +159,7 @@ void
 __attribute__((constructor))
 noit_tag_search_init(void) {
   static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+  static bool tls_state_key_init = false;
 
   pthread_mutex_lock(&lock);
 
@@ -451,7 +449,7 @@ static int var_graphite_afp(void *impl_data, const char *pattern, char *out, siz
 }
 
 static void *var_re_compile(const char *in, int *erroffset) {
-  re_matcher_t *impl_data = re_matcher_alloc(strdup(in));
+  re_matcher_t *impl_data = tls_state_get_pattern(strdup(in));
 
   if (!impl_data->re) {
     if(erroffset) *erroffset = impl_data->error_offset;
@@ -487,7 +485,7 @@ build_regex_from_expansion(const char *expansion) {
 }
 
 static void *var_default_compile(const char *in, int *erroffset) {
-  re_matcher_t *rem = re_matcher_alloc(build_regex_from_expansion(in));
+  re_matcher_t *rem = tls_state_get_pattern(build_regex_from_expansion(in));
 
   if (!rem->re) {
     if(erroffset) *erroffset = 0;
