@@ -145,7 +145,10 @@ tls_state_get_matcher(char *pattern)
   mtev_lfu_entry_token token = mtev_lfu_get(lfu, pattern, pattern_len,
       (void**) &rem);
 
-  if (!rem) {
+  if (rem) {
+    free(pattern);
+  }
+  else {
     rem = re_matcher_alloc(pattern);
     mtev_lfu_put(lfu, pattern, pattern_len, rem);
   }
