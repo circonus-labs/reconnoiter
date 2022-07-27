@@ -121,7 +121,7 @@ tls_state_alloc(void)
   tls_state_t *st = pthread_getspecific(tls_state_key);
 
   if (st == NULL) {
-    st = malloc(sizeof(tls_state_t));
+    st = malloc(sizeof(*st));
     st->jit_stack = pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
     st->pattern_to_re_matcher = mtev_lfu_create(100000, re_matcher_free);
     pthread_setspecific(tls_state_key, st);
@@ -137,7 +137,7 @@ static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg)
 }
 
 static re_matcher_t *
-tls_state_get_pattern(char *pattern)
+tls_state_get_matcher(char *pattern)
 {
   tls_state_t *const st = tls_state_alloc();
   mtev_lfu_t *const lfu = st->pattern_to_re_matcher;
@@ -347,7 +347,7 @@ graphite_add_expansion(const char *s, struct graphite_impl *g) {
   g->results[g->count].str_len = strlen(s);
   if(g->has_wildcards) {
     if(graphite_has_wildcards(s, NULL)) {
-      re_matcher_t *rem = tls_state_get_pattern(build_regex_from_graphite(g->results[g->count].str));
+      re_matcher_t *rem = tls_state_get_matcher(build_regex_from_graphite(g->results[g->count].str));
       g->results[g->count].re_str = rem->re_str;
       g->results[g->count].re = rem->re;
       g->results[g->count].re_e = rem->re_e;
@@ -449,7 +449,7 @@ static int var_graphite_afp(void *impl_data, const char *pattern, char *out, siz
 }
 
 static void *var_re_compile(const char *in, int *erroffset) {
-  re_matcher_t *impl_data = tls_state_get_pattern(strdup(in));
+  re_matcher_t *impl_data = tls_state_get_matcher(strdup(in));
 
   if (!impl_data->re) {
     if(erroffset) *erroffset = impl_data->error_offset;
@@ -485,10 +485,14 @@ build_regex_from_expansion(const char *expansion) {
 }
 
 static void *var_default_compile(const char *in, int *erroffset) {
-  re_matcher_t *rem = tls_state_get_pattern(build_regex_from_expansion(in));
+  re_matcher_t *rem = tls_state_get_matcher(build_regex_from_expansion(in));
 
   if (!rem->re) {
-    if(erroffset) *erroffset = 0;
+    if (erroffset) {
+      // translation means no offset.
+      *erroffset = 0;
+    }
+
     return NULL;
   }
 
