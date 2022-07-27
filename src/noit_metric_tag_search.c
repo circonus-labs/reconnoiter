@@ -41,7 +41,6 @@
 #include <stdio.h>
 #include <ck_pr.h>
 #include <ctype.h>
-#include <threads.h>
 
 typedef struct noit_var_match_t {
   char *str;
