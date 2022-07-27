@@ -35,6 +35,7 @@
 #include <mtev_dyn_buffer.h>
 #include <mtev_memory.h>
 #include <mtev_maybe_alloc.h>
+#include <mtev_lfu.h>
 #include "noit_metric_tag_search.h"
 
 #include <stdio.h>
@@ -47,41 +48,129 @@ typedef struct noit_var_match_t {
   const noit_var_match_impl_t *impl;
 } noit_var_match_t;
 
-static mtev_boolean noit_match_str(const char *subj, int subj_len, const struct noit_var_match_t *m);
+typedef struct re_matcher {
+  char *re_str;
+  pcre *re;
+  pcre_extra *re_e;
+  int error_offset;
+} re_matcher_t;
 
-static pthread_mutex_t noit_tags_search_tls_jit_init_lock = PTHREAD_MUTEX_INITIALIZER;
-static __thread pcre_jit_stack *noit_tag_search_tls_jit_stack;
-static bool noit_tags_search_tls_jit_init = false;
-static pthread_key_t noit_tag_search_tls_jit_stack_key;
+typedef struct tls_state {
+  pcre_jit_stack *jit_stack;
+  mtev_lfu_t *pattern_to_re_matcher;
+} tls_state_t;
+
+static mtev_boolean noit_match_str(const char *subj, int subj_len, const struct noit_var_match_t *m);
+static tls_state_t *tls_state_alloc(void);
+static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg);
+static pthread_key_t tls_state_key;
+
+static re_matcher_t *
+re_matcher_alloc(char *pattern)
+{
+  const char *error;
+  re_matcher_t *rem = malloc(sizeof(*rem));
+
+  rem->re_str = pattern;
+  rem->re = pcre_compile(pattern, 0, &error, &rem->error_offset, NULL);
+
+#ifdef PCRE_STUDY_JIT_COMPILE
+  rem->re_e = pcre_study(rem->re, PCRE_STUDY_JIT_COMPILE, &error);
+  pcre_assign_jit_stack(rem->re_e, tls_state_get_pcre_jit_stack, NULL);
+#else
+  rem->re_e = pcre_study(rem->re, 0, &error);
+#endif
+
+  return rem;
+}
 
 static void
-noit_tag_search_free_tls_pcre_jit_stack(void *stack)
+re_matcher_free(void *v_rem)
 {
-  pcre_jit_stack_free((pcre_jit_stack *)stack);
+  re_matcher_t *rem = v_rem;
+
+  if (rem) {
+    if (rem->re_e) {
+#ifdef PCRE_STUDY_JIT_COMPILE
+      pcre_free_study(rem->re_e);
+#else
+      pcre_free(rem->re_e);
+#endif
+    }
+
+    pcre_free(rem->re);
+    free(rem->re_str);
+    free(rem);
+  }
 }
-static pcre_jit_stack *
-noit_tag_search_get_tls_pcre_jit_stack(void *arg)
+
+static void
+tls_state_free(void *v)
+{
+  tls_state_t *st = v;
+
+  pcre_jit_stack_free(st->jit_stack);
+  mtev_lfu_destroy(st->pattern_to_re_matcher);
+  free(st);
+}
+
+static tls_state_t *
+tls_state_alloc(void)
+{
+  tls_state_t *st = pthread_getspecific(tls_state_key);
+
+  if (st == NULL) {
+    st = malloc(sizeof(*st));
+    st->jit_stack = pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
+    st->pattern_to_re_matcher = mtev_lfu_create(100000, re_matcher_free);
+    pthread_setspecific(tls_state_key, st);
+  }
+
+  return st;
+}
+
+static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg)
 {
   (void)arg;
-  if (noit_tags_search_tls_jit_init && noit_tag_search_tls_jit_stack == NULL) {
-    noit_tag_search_tls_jit_stack = (pcre_jit_stack *)pthread_getspecific(noit_tag_search_tls_jit_stack_key);
-    if (noit_tag_search_tls_jit_stack == NULL) {
-      noit_tag_search_tls_jit_stack = (pcre_jit_stack *)pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
-      pthread_setspecific(noit_tag_search_tls_jit_stack_key, noit_tag_search_tls_jit_stack);
-    }
+  return tls_state_alloc()->jit_stack;
+}
+
+static re_matcher_t *
+tls_state_get_matcher(char *pattern)
+{
+  tls_state_t *const st = tls_state_alloc();
+  mtev_lfu_t *const lfu = st->pattern_to_re_matcher;
+  re_matcher_t *rem = NULL;
+  const size_t pattern_len = strlen(pattern);
+  mtev_lfu_entry_token token = mtev_lfu_get(lfu, pattern, pattern_len,
+      (void**) &rem);
+
+  if (rem) {
+    free(pattern);
   }
-  return noit_tag_search_tls_jit_stack;
+  else {
+    rem = re_matcher_alloc(pattern);
+    mtev_lfu_put(lfu, pattern, pattern_len, rem);
+  }
+
+  mtev_lfu_release(lfu, token);
+  return rem;
 }
 
 void
 __attribute__((constructor))
 noit_tag_search_init(void) {
-  pthread_mutex_lock(&noit_tags_search_tls_jit_init_lock);
-  if(!noit_tags_search_tls_jit_init) {
-    pthread_key_create(&noit_tag_search_tls_jit_stack_key, noit_tag_search_free_tls_pcre_jit_stack);
-    noit_tags_search_tls_jit_init = true;
+  static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+  static bool tls_state_key_init = false;
+
+  pthread_mutex_lock(&lock);
+
+  if (!tls_state_key_init) {
+    pthread_key_create(&tls_state_key, tls_state_free);
+    tls_state_key_init = true;
   }
-  pthread_mutex_unlock(&noit_tags_search_tls_jit_init_lock);
+
+  pthread_mutex_unlock(&lock);
 }
 
 struct graphite_impl {
@@ -126,15 +215,6 @@ void var_graphite_free(void *vi) {
   if(g == NULL) return;
   for(int i=0; i<g->count; i++) {
     free(g->results[i].str);
-    free(g->results[i].re_str);
-    if(g->results[i].re) pcre_free(g->results[i].re);
-    if(g->results[i].re_e) {
-#ifdef PCRE_STUDY_JIT_COMPILE
-      pcre_free_study(g->results[i].re_e);
-#else
-      pcre_free(g->results[i].re_e);
-#endif
-    }
   }
   free(g->results);
   free(g);
@@ -269,21 +349,10 @@ graphite_add_expansion(const char *s, struct graphite_impl *g) {
   g->results[g->count].str_len = strlen(s);
   if(g->has_wildcards) {
     if(graphite_has_wildcards(s, NULL)) {
-      const char *error;
-      int eoff;
-      char *tmpstr = build_regex_from_graphite(g->results[g->count].str);
-      g->results[g->count].re_str = tmpstr;
-      g->results[g->count].re = pcre_compile(tmpstr, 0, &error, &eoff, NULL);
-      if(g->results[g->count].re) {
-#ifdef PCRE_STUDY_JIT_COMPILE
-        g->results[g->count].re_e = pcre_study(g->results[g->count].re, PCRE_STUDY_JIT_COMPILE, &error);
-        if(g->results[g->count].re_e) {
-          pcre_assign_jit_stack(g->results[g->count].re_e, noit_tag_search_get_tls_pcre_jit_stack, NULL);
-        }
-#else
-        g->results[g->count].re_e = pcre_study(g->results[g->count].re, 0, &error);
-#endif
-      }
+      re_matcher_t *rem = tls_state_get_matcher(build_regex_from_graphite(g->results[g->count].str));
+      g->results[g->count].re_str = rem->re_str;
+      g->results[g->count].re = rem->re;
+      g->results[g->count].re_e = rem->re_e;
     }
   }
   g->count++;
@@ -381,33 +450,14 @@ static int var_graphite_afp(void *impl_data, const char *pattern, char *out, siz
   return strlen(out);
 }
 
-struct re_matcher {
-  char *re_str;
-  pcre *re;
-  pcre_extra *re_e;
-};
-
 static void *var_re_compile(const char *in, int *erroffset) {
-  int eoff;
-  const char *error;
-  pcre *re = pcre_compile(in, 0, &error, &eoff, NULL);
-  if(!re) {
-    if(erroffset) *erroffset = eoff;
+  re_matcher_t *impl_data = tls_state_get_matcher(strdup(in));
+
+  if (!impl_data->re) {
+    if(erroffset) *erroffset = impl_data->error_offset;
     return NULL;
   }
-  struct re_matcher *impl_data = calloc(1, sizeof(*impl_data));
-  impl_data->re_str = strdup(in);
-  impl_data->re = re;
-  if(re) {
-#ifdef PCRE_STUDY_JIT_COMPILE
-    impl_data->re_e = pcre_study(re, PCRE_STUDY_JIT_COMPILE, &error);
-    if(impl_data->re_e) {
-      pcre_assign_jit_stack(impl_data->re_e, noit_tag_search_get_tls_pcre_jit_stack, NULL);
-    }
-#else
-    impl_data->re_e = pcre_study(re, 0, &error);
-#endif
-  }
+
   return impl_data;
 }
 
@@ -437,31 +487,18 @@ build_regex_from_expansion(const char *expansion) {
 }
 
 static void *var_default_compile(const char *in, int *erroffset) {
-  int eoff;
-  const char *error;
-  char *tmpstr;
-  tmpstr = build_regex_from_expansion(in);
-  pcre *re = pcre_compile(tmpstr, 0, &error, &eoff, NULL);
-  if(!re) {
-    // translation means no offset.
-    if(erroffset) *erroffset = 0;
-    free(tmpstr);
+  re_matcher_t *rem = tls_state_get_matcher(build_regex_from_expansion(in));
+
+  if (!rem->re) {
+    if (erroffset) {
+      // translation means no offset.
+      *erroffset = 0;
+    }
+
     return NULL;
   }
-  struct re_matcher *impl_data = calloc(1, sizeof(*impl_data));
-  impl_data->re = re;
-  if(re) {
-#ifdef PCRE_STUDY_JIT_COMPILE
-    impl_data->re_e = pcre_study(re, PCRE_STUDY_JIT_COMPILE, &error);
-    if(impl_data->re_e) {
-      pcre_assign_jit_stack(impl_data->re_e, noit_tag_search_get_tls_pcre_jit_stack, NULL);
-    }
-#else
-    impl_data->re_e = pcre_study(re, 0, &error);
-#endif
-  }
-  impl_data->re_str = tmpstr;
-  return impl_data;
+
+  return rem;
 }
 
 static mtev_boolean var_re_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
@@ -474,19 +511,8 @@ static mtev_boolean var_re_match(void *impl_data, const char *pattern, const cha
   return mtev_false;
 }
 
-static void var_re_free(void *impl_data) {
-  struct re_matcher *m = (struct re_matcher *)impl_data;
-  if(m == NULL) return;
-  free(m->re_str);
-  if(m->re) pcre_free(m->re);
-  if(m->re_e) {
-#ifdef PCRE_STUDY_JIT_COMPILE
-    pcre_free_study(m->re_e);
-#else
-    pcre_free(m->re_e);
-#endif
-  }
-  free(m);
+static void no_op_re_free(void *impl_data) {
+  // no-op, resides in LFU cache
 }
 
 static int var_re_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
@@ -510,14 +536,14 @@ static const noit_var_match_impl_t var_re_matcher = {
   .impl_name = "re",
   .compile = var_re_compile,
   .match = var_re_match,
-  .free = var_re_free,
+  .free = no_op_re_free,
   .append_fixed_prefix = var_re_afp
 };
 static const noit_var_match_impl_t var_re_expansion_matcher = {
   .impl_name = "default",
   .compile = var_default_compile,
   .match = var_re_match,
-  .free = var_re_free,
+  .free = no_op_re_free,
   .append_fixed_prefix = var_re_afp
 };
 static const noit_var_match_impl_t var_graphite_matcher = {
@@ -1119,6 +1145,8 @@ noit_metric_tag_search_evaluate_against_tags_multi(const noit_metric_tag_search_
         }
       }
       return mtev_false;
+    default:
+      break;
   }
   return mtev_false;
 }
@@ -1242,6 +1270,8 @@ noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, 
         if (i != search->contents.args.cnt - 1) mtev_dyn_buffer_add_printf(buf, ",");
       }
       mtev_dyn_buffer_add_printf(buf, ")");
+      break;
+    default:
       break;
   }
 }
