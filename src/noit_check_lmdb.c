@@ -1255,7 +1255,7 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   char delstr[8] = "";
   uuid_t checkid;
   int64_t config_seq = 0;
-  mtev_boolean deleted = mtev_false;//, disabled = mtev_false;
+  mtev_boolean deleted = mtev_false, disabled = mtev_false;
   int minimum_period = 1000, maximum_period = 300000, period = 0, timeout = 0;
   int transient_min_period = 0, transient_period_granularity = 0;
   int no_period = 0, no_oncheck = 0;
