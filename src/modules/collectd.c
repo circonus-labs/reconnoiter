@@ -526,7 +526,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
   {
     mtevL(nldeb, "collectd: parse_part_values: "
         "Length and number of values "
-        "in the packet don't match.\n");
+        "in the packet don't match: %zu != %zu.\n", (size_t)pkg_length, exp_size);
     return (-1);
   }
 
@@ -585,7 +585,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
   return (0);
 } /* int parse_part_values */
 
-static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
+static int parse_part_number (const char *part, void **ret_buffer, size_t *ret_buffer_len,
     uint64_t *value)
 {
   char *buffer = *ret_buffer;
@@ -599,11 +599,11 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
 
   if ((size_t) buffer_len < exp_size)
   {
-    mtevL(nlerr, "collectd: parse_part_number: "
+    mtevL(nlerr, "collectd: parse_part_number(%s): "
         "Packet too short: "
         "Chunk of size %zu expected, "
         "but buffer has only %zu bytes left.\n",
-        exp_size, buffer_len);
+        part, exp_size, buffer_len);
     return (-1);
   }
 
@@ -624,7 +624,7 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
   return (0);
 } /* int parse_part_number */
 
-static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
+static int parse_part_string (const char *part, void **ret_buffer, size_t *ret_buffer_len,
     char *output, int output_len)
 {
   char *buffer = *ret_buffer;
@@ -637,11 +637,11 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 
   if (buffer_len < header_size)
   {
-    mtevL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string(%s): "
         "Packet too short: "
         "Chunk of at least size %zu expected, "
         "but buffer has only %zu bytes left.\n",
-        header_size, buffer_len);
+        part, header_size, buffer_len);
     return (-1);
   }
 
@@ -655,21 +655,21 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   /* Check that packet fits in the input buffer */
   if (pkg_length > buffer_len)
   {
-    mtevL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string(%s): "
         "Packet too big: "
         "Chunk of size %"PRIu16" received, "
         "but buffer has only %zu bytes left.\n",
-        pkg_length, buffer_len);
+        part, pkg_length, buffer_len);
     return (-1);
   }
 
   /* Check that pkg_length is in the valid range */
   if (pkg_length <= header_size)
   {
-    mtevL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string(%s): "
         "Packet too short: "
-        "Header claims this packet is only %hu "
-        "bytes long.\n", pkg_length);
+        "Header sized %zu claims this packet is only %hu "
+        "bytes long.\n", part, header_size, pkg_length);
     return (-1);
   }
 
@@ -679,8 +679,9 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   if ((output_len < 0)
       || ((size_t) output_len < ((size_t) pkg_length - header_size)))
   {
-    mtevL(nlerr, "collectd: parse_part_string: "
-        "Output buffer too small.\n");
+    mtevL(nlerr, "collectd: parse_part_string(%s): "
+        "Output buffer %zu too small for %zu.\n",
+        part, (size_t) output_len, (size_t) pkg_length - header_size);
     return (-1);
   }
 
@@ -693,9 +694,9 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
    * this statement. */
   if (output[output_len - 1] != 0)
   {
-    mtevL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string(%s): "
         "Received string does not end "
-        "with a NULL-byte.\n");
+        "with a NULL-byte.\n", part);
     return (-1);
   }
 
@@ -1092,7 +1093,7 @@ static int parse_packet (/* {{{ */
     else if (pkg_type == TYPE_TIME)
     {
       uint64_t tmp = 0;
-      status = parse_part_number (&buffer, &buffer_size, &tmp);
+      status = parse_part_number ("time", &buffer, &buffer_size, &tmp);
       if (status == 0)
       {
         vl.time.tv_sec = (time_t) tmp;
@@ -1102,7 +1103,7 @@ static int parse_packet (/* {{{ */
     else if (pkg_type == TYPE_TIME_HR)
     {
       uint64_t tmp = 0;
-      status = parse_part_number (&buffer, &buffer_size, &tmp);
+      status = parse_part_number ("time_hr", &buffer, &buffer_size, &tmp);
       if (status == 0)
       {
         CONVERT_CDTIME_TO_TIMEVAL(tmp, &vl.time);
@@ -1112,7 +1113,7 @@ static int parse_packet (/* {{{ */
     else if (pkg_type == TYPE_INTERVAL)
     {
       uint64_t tmp = 0;
-      status = parse_part_number (&buffer, &buffer_size,
+      status = parse_part_number ("interval", &buffer, &buffer_size,
           &tmp);
       if (status == 0)
         vl.interval = (int) tmp;
@@ -1120,21 +1121,21 @@ static int parse_packet (/* {{{ */
     else if (pkg_type == TYPE_INTERVAL_HR)
     {
       uint64_t tmp = 0;
-      status = parse_part_number (&buffer, &buffer_size,
+      status = parse_part_number ("interval_hr", &buffer, &buffer_size,
           &tmp);
       if (status == 0)
         vl.interval = CONVERT_CDTIME_TO_TIME_T(tmp);
     }
     else if (pkg_type == TYPE_HOST)
     {
-      status = parse_part_string (&buffer, &buffer_size,
+      status = parse_part_string ("host", &buffer, &buffer_size,
           vl.host, MIN(HOST_DATA_MAX_NAME_LEN, sizeof (vl.host)));
       if (status == 0)
         sstrncpy (n.host, vl.host, MIN(HOST_DATA_MAX_NAME_LEN, sizeof (n.host)));
     }
     else if (pkg_type == TYPE_PLUGIN)
     {
-      status = parse_part_string (&buffer, &buffer_size,
+      status = parse_part_string ("plugin", &buffer, &buffer_size,
           vl.plugin, MIN(PLUGIN_DATA_MAX_NAME_LEN, sizeof (vl.plugin)));
       if (status == 0)
         sstrncpy (n.plugin, vl.plugin,
@@ -1142,7 +1143,7 @@ static int parse_packet (/* {{{ */
     }
     else if (pkg_type == TYPE_PLUGIN_INSTANCE)
     {
-      status = parse_part_string (&buffer, &buffer_size,
+      status = parse_part_string ("plugin_instance", &buffer, &buffer_size,
           vl.plugin_instance,
           MIN(PLUGIN_INSTANCE_DATA_MAX_NAME_LEN, sizeof (vl.plugin_instance)));
       if (status == 0)
@@ -1152,14 +1153,14 @@ static int parse_packet (/* {{{ */
     }
     else if (pkg_type == TYPE_TYPE)
     {
-      status = parse_part_string (&buffer, &buffer_size,
+      status = parse_part_string ("type", &buffer, &buffer_size,
           vl.type, MIN(TYPE_DATA_MAX_NAME_LEN, sizeof (vl.type)));
       if (status == 0)
         sstrncpy (n.type, vl.type, MIN(TYPE_DATA_MAX_NAME_LEN, sizeof (n.type)));
     }
     else if (pkg_type == TYPE_TYPE_INSTANCE)
     {
-      status = parse_part_string (&buffer, &buffer_size,
+      status = parse_part_string ("type_instance", &buffer, &buffer_size,
           vl.type_instance,
           MIN(TYPE_INSTANCE_DATA_MAX_NAME_LEN, sizeof (vl.type_instance)));
       if (status == 0)
@@ -1168,7 +1169,7 @@ static int parse_packet (/* {{{ */
     }
     else if (pkg_type == TYPE_MESSAGE)
     {
-      status = parse_part_string (&buffer, &buffer_size,
+      status = parse_part_string ("message", &buffer, &buffer_size,
           n.message, sizeof (n.message));
 
       if (status != 0)
@@ -1208,7 +1209,7 @@ static int parse_packet (/* {{{ */
     else if (pkg_type == TYPE_SEVERITY)
     {
       uint64_t tmp = 0;
-      status = parse_part_number (&buffer, &buffer_size,
+      status = parse_part_number ("severity", &buffer, &buffer_size,
           &tmp);
       if (status == 0)
         n.severity = (int) tmp;
