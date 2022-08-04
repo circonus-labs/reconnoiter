@@ -334,7 +334,7 @@ void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance)
   free(instance);
 }
 
-#define NOIT_LMDB_RESIZE_FACTOR 1.5
+#define NOIT_LMDB_RESIZE_FACTOR 4
 void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
 {
   MDB_envinfo mei;
