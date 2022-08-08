@@ -138,9 +138,10 @@ noit_filters_lmdb_write_finalized_fb_to_lmdb(char *filterset_name, void *buffer,
       mdb_cursor_close(cursor);
       mdb_txn_abort(txn);
       free(key);
+      const uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
       pthread_rwlock_unlock(&instance->lock);
       if (rc == MDB_MAP_FULL) {
-        noit_lmdb_resize_instance(instance);
+        noit_lmdb_resize_instance(instance, initial_generation);
         continue;
       }
       else {
@@ -151,9 +152,10 @@ noit_filters_lmdb_write_finalized_fb_to_lmdb(char *filterset_name, void *buffer,
     rc = mdb_txn_commit(txn);
     if (rc) {
       free(key);
+      const uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
       pthread_rwlock_unlock(&instance->lock);
       if (rc == MDB_MAP_FULL) {
-        noit_lmdb_resize_instance(instance);
+        noit_lmdb_resize_instance(instance, initial_generation);
         continue;
       }
       else {
