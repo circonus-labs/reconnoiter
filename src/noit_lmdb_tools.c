@@ -319,6 +319,7 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
   instance->dbi = dbi;
   pthread_rwlock_init(&instance->lock, NULL);
   instance->path = strdup(path);
+  instance->generation = 0;
 
   return instance;
 }
@@ -342,16 +343,16 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
   uint64_t new_mapsize;
 
   /* prevent new transactions on the write side */
+
+  uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
   pthread_rwlock_wrlock(&instance->lock);
 
-  /* check if resize is necessary.. another thread may have already resized. */
   mdb_env_info(instance->env, &mei);
   mdb_env_stat(instance->env, &mst);
 
-  uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
-
-  /* resize on 80% full */
-  if ((double)size_used / mei.me_mapsize < 0.8) {
+  /* If the generation has changed, another thread already did the resize, so
+   * we don't need to do it again */
+  if (initial_generation != noit_lmdb_get_instance_generation(instance)) {
     pthread_rwlock_unlock(&instance->lock);
     return;
   }
@@ -364,6 +365,18 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
   mtevL(mtev_error, "lmdb checks db: mapsize increased. old: %" PRIu64 " MiB, new: %" PRIu64 " MiB\n",
         mei.me_mapsize / (1024 * 1024), new_mapsize / (1024 * 1024));
 
+  noit_lmdb_increment_instance_generation(instance);
+
   pthread_rwlock_unlock(&instance->lock);
+}
+
+uint64_t noit_lmdb_get_instance_generation(noit_lmdb_instance_t *instance)
+{
+  return ck_pr_load_64(&instance->generation);
+}
+
+void noit_lmdb_increment_instance_generation(noit_lmdb_instance_t *instance)
+{
+  ck_pr_inc_64(&instance->generation);
 }
 
