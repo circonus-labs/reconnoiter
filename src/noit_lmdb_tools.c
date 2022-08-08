@@ -335,16 +335,24 @@ void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance)
   free(instance);
 }
 
+uint64_t noit_lmdb_get_instance_generation(noit_lmdb_instance_t *instance)
+{
+  return ck_pr_load_64(&instance->generation);
+}
+
+static void noit_lmdb_increment_instance_generation(noit_lmdb_instance_t *instance)
+{
+  ck_pr_inc_64(&instance->generation);
+}
+
 #define NOIT_LMDB_RESIZE_FACTOR 1.5
-void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
+void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance, uint64_t initial_generation)
 {
   MDB_envinfo mei;
   MDB_stat mst;
   uint64_t new_mapsize;
 
   /* prevent new transactions on the write side */
-
-  uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
   pthread_rwlock_wrlock(&instance->lock);
 
   mdb_env_info(instance->env, &mei);
@@ -368,15 +376,5 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance)
   noit_lmdb_increment_instance_generation(instance);
 
   pthread_rwlock_unlock(&instance->lock);
-}
-
-uint64_t noit_lmdb_get_instance_generation(noit_lmdb_instance_t *instance)
-{
-  return ck_pr_load_64(&instance->generation);
-}
-
-void noit_lmdb_increment_instance_generation(noit_lmdb_instance_t *instance)
-{
-  ck_pr_inc_64(&instance->generation);
 }
 

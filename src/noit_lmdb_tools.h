@@ -71,9 +71,8 @@ noit_lmdb_filterset_rule_data_t *noit_lmdb_filterset_data_from_key(char *key);
 void noit_lmdb_free_filterset_data(noit_lmdb_filterset_rule_data_t *data);
 noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path);
 void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance);
-void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance);
 uint64_t noit_lmdb_get_instance_generation(noit_lmdb_instance_t *instance);
-void noit_lmdb_increment_instance_generation(noit_lmdb_instance_t *instance);
+void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance, uint64_t initial_generation);
 
 #ifdef __cplusplus
 }

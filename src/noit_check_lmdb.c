@@ -467,8 +467,9 @@ put_retry:
         mtev_hash_destroy(&conf_table, free, NULL); \
         free(key); \
         xmlFree(val); \
+        uint64_t initial_generation = noit_lmdb_get_instance_generation(instance); \
         pthread_rwlock_unlock(&instance->lock); \
-        noit_lmdb_resize_instance(instance); \
+        noit_lmdb_resize_instance(instance, initial_generation); \
         goto put_retry; \
       } \
       else if (rc != 0) { \
@@ -546,8 +547,9 @@ put_retry:
           mtev_hash_destroy(&conf_table, free, NULL);
           free(key);
           xmlFree(val);
+          uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
           pthread_rwlock_unlock(&instance->lock);
-          noit_lmdb_resize_instance(instance);
+          noit_lmdb_resize_instance(instance, initial_generation);
           goto put_retry;
         }
         else if (rc != 0) {
@@ -571,8 +573,9 @@ put_retry:
         mdb_cursor_close(cursor);
         mdb_txn_abort(txn);
         mtev_hash_destroy(&conf_table, free, NULL);
+        uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
         pthread_rwlock_unlock(&instance->lock);
-        noit_lmdb_resize_instance(instance);
+        noit_lmdb_resize_instance(instance, initial_generation);
         goto put_retry;
       }
       else if (rc != MDB_NOTFOUND) {
@@ -584,8 +587,9 @@ put_retry:
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
     mtev_hash_destroy(&conf_table, free, NULL);
+    uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
     pthread_rwlock_unlock(&instance->lock);
-    noit_lmdb_resize_instance(instance);
+    noit_lmdb_resize_instance(instance, initial_generation);
     goto put_retry;
   }
   else if (rc != 0) {
@@ -886,8 +890,9 @@ put_retry:
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     free(key);
+    uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
     pthread_rwlock_unlock(&instance->lock);
-    noit_lmdb_resize_instance(instance);
+    noit_lmdb_resize_instance(instance, initial_generation);
     goto put_retry;
   }
   else if (rc != 0) {
@@ -943,8 +948,9 @@ put_retry:
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
     free(key);
+    uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
     pthread_rwlock_unlock(&instance->lock);
-    noit_lmdb_resize_instance(instance);
+    noit_lmdb_resize_instance(instance, initial_generation);
     goto put_retry;
   }
   else if (rc != 0) {
@@ -954,8 +960,9 @@ put_retry:
   mdb_cursor_close(cursor);
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
+    uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
     pthread_rwlock_unlock(&instance->lock);
-    noit_lmdb_resize_instance(instance);
+    noit_lmdb_resize_instance(instance, initial_generation);
     goto put_retry;
   }
   else if (rc != 0) {
@@ -1487,8 +1494,9 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
         free(name); \
       } \
       mtev_hash_destroy(&conf_table, free, NULL); \
+      uint64_t initial_generation = noit_lmdb_get_instance_generation(instance); \
       pthread_rwlock_unlock(&instance->lock); \
-      noit_lmdb_resize_instance(instance); \
+      noit_lmdb_resize_instance(instance, initial_generation); \
       goto put_retry; \
     } \
     else if (rc != 0) { \
@@ -1575,8 +1583,9 @@ put_retry:
         mdb_cursor_close(cursor);
         mdb_txn_abort(txn);
         mtev_hash_destroy(&conf_table, free, NULL);
+        uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
         pthread_rwlock_unlock(&instance->lock);
-        noit_lmdb_resize_instance(instance);
+        noit_lmdb_resize_instance(instance, initial_generation);
         goto put_retry;
       }
       else if (rc != MDB_NOTFOUND) {
@@ -1589,8 +1598,9 @@ put_retry:
   rc = mdb_txn_commit(txn);
   if (rc == MDB_MAP_FULL) {
     mtev_hash_destroy(&conf_table, free, NULL);
+    uint64_t initial_generation = noit_lmdb_get_instance_generation(instance);
     pthread_rwlock_unlock(&instance->lock);
-    noit_lmdb_resize_instance(instance);
+    noit_lmdb_resize_instance(instance, initial_generation);
     goto put_retry;
   }
   else if (rc != 0) {
