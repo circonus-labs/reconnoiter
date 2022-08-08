@@ -346,7 +346,7 @@ static void noit_lmdb_increment_instance_generation(noit_lmdb_instance_t *instan
 }
 
 #define NOIT_LMDB_RESIZE_FACTOR 1.5
-void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance, uint64_t initial_generation)
+void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance, const uint64_t initial_generation)
 {
   MDB_envinfo mei;
   MDB_stat mst;
