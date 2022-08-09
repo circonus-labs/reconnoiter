@@ -89,6 +89,9 @@
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
 
 static eventer_jobq_t *set_check_jobq = NULL;
+static eventer_jobq_t *check_updates_jobq = NULL;
+
+#define FLUSH_BUFFER_SIZE 1024*1024 /* 1 MB */
 
 static void
 add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
@@ -1259,13 +1262,69 @@ rest_set_check(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+typedef struct rest_check_updates_closure {
+  mtev_http_rest_closure_t *restc;
+  int64_t prev;
+  int64_t end;
+  uuid_t peerid;
+  xmlDocPtr doc;
+} rest_check_updates_closure_t;
+
+static void rest_show_check_updates_free_closure(void *v_rcu) {
+  rest_check_updates_closure_t *rcu = (rest_check_updates_closure_t *)v_rcu;
+  if(rcu->doc) xmlFreeDoc(rcu->doc);
+  free(rcu);
+}
+
+int rest_show_check_updates_complete(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  if (ctx) {
+    mtev_http_response_end(ctx);
+  }
+  return 0;
+}
+
+static int
+rest_show_check_updates_asynch(eventer_t e, int mask, void *closure, struct timeval *now) {
+  rest_check_updates_closure_t *rcu = (rest_check_updates_closure_t *)closure;
+  if(mask == EVENTER_ASYNCH_WORK) {
+    mtev_http_session_ctx *ctx = rcu->restc->http_ctx;
+    xmlNodePtr root;
+
+    rcu->doc = xmlNewDoc((xmlChar *)"1.0");
+    root = xmlNewNode(NULL, (xmlChar *)"checks");
+    xmlDocSetRootElement(rcu->doc, root);
+    noit_cluster_xml_check_changes(rcu->peerid, rcu->restc->remote_cn, rcu->prev, rcu->end, root);
+    noit_check_set_db_source_header(ctx);
+    mtev_http_response_ok(ctx, "text/xml");
+    mtev_http_response_xml(ctx, rcu->doc);
+
+    /* This can be *really* large depending on the amount of data
+     * requested. We want to flush out as much as possible from within
+     * the jobq thread before going back */
+    if (mtev_http_response_flush(ctx, mtev_false) <= 0) {
+      return 0;
+    }
+    while (mtev_http_response_buffered(ctx) >= FLUSH_BUFFER_SIZE) {
+      if (mtev_http_response_flush(ctx, mtev_false) <= 0) {
+        return 0;
+      }
+      usleep(100);
+    }
+  }
+  if(mask == EVENTER_ASYNCH) {
+    if (rcu) {
+      mtev_http_session_resume_after_float(rcu->restc->http_ctx);
+    }
+  }
+  return 0;
+}
+
 static int
 rest_show_check_updates(mtev_http_rest_closure_t *restc,
                         int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_http_request *req = mtev_http_session_request(ctx);
-  xmlDocPtr doc = NULL;
-  xmlNodePtr root;
   int64_t prev = 0, end = 0;
 
   const char *prev_str = mtev_http_request_querystring(req, "prev"); 
@@ -1281,16 +1340,29 @@ rest_show_check_updates(mtev_http_rest_closure_t *restc,
     return 0;
   }
 
-  doc = xmlNewDoc((xmlChar *)"1.0");
-  root = xmlNewNode(NULL, (xmlChar *)"checks");
-  xmlDocSetRootElement(doc, root);
-  noit_cluster_xml_check_changes(peerid, restc->remote_cn, prev, end, root);
-  noit_check_set_db_source_header(restc->http_ctx);
-  mtev_http_response_ok(ctx, "text/xml");
-  mtev_http_response_xml(ctx, doc);
-  mtev_http_response_end(ctx);
+  rest_check_updates_closure_t *closure = (rest_check_updates_closure_t*)calloc(1, sizeof(*closure));
+  mtevAssert(closure);
 
-  if(doc) xmlFreeDoc(doc);
+  closure->restc = restc;
+  closure->prev = prev;
+  closure->end = end;
+  mtev_uuid_copy(closure->peerid, peerid);
+  closure->doc = NULL;
+
+  restc->call_closure = (void *)closure;
+  restc->call_closure_free = rest_show_check_updates_free_closure;
+  restc->fastpath = rest_show_check_updates_complete;
+
+  mtev_http_connection *connection = mtev_http_session_connection(ctx);
+  mtevAssert(connection);
+
+  eventer_t conne = mtev_http_connection_event_float(connection);
+  if(conne) eventer_remove_fde(conne);
+
+  eventer_t e = eventer_alloc_asynch(rest_show_check_updates_asynch, closure);
+  if(conne) eventer_set_owner(e, eventer_get_owner(conne));
+
+  eventer_add_asynch(check_updates_jobq, e);
 
   return 0;
 }
@@ -1333,6 +1405,8 @@ void
 noit_check_rest_init() {
   set_check_jobq = eventer_jobq_retrieve("set_check");
   mtevAssert(set_check_jobq);
+  check_updates_jobq = eventer_jobq_retrieve("check_updates");
+  mtevAssert(check_updates_jobq);
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
     noit_rest_show_config, mtev_http_rest_client_cert_auth
