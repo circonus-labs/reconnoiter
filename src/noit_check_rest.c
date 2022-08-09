@@ -1302,11 +1302,11 @@ rest_show_check_updates_asynch(eventer_t e, int mask, void *closure, struct time
     /* This can be *really* large depending on the amount of data
      * requested. We want to flush out as much as possible from within
      * the jobq thread before going back */
-    if (mtev_http_response_flush(ctx, mtev_false) <= 0) {
+    if (mtev_http_response_flush(ctx, mtev_false) == mtev_false) {
       return 0;
     }
     while (mtev_http_response_buffered(ctx) >= FLUSH_BUFFER_SIZE) {
-      if (mtev_http_response_flush(ctx, mtev_false) <= 0) {
+      if (mtev_http_response_flush(ctx, mtev_false) == mtev_false) {
         return 0;
       }
       usleep(100);
