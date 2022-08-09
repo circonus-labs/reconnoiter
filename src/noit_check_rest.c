@@ -91,8 +91,6 @@
 static eventer_jobq_t *set_check_jobq = NULL;
 static eventer_jobq_t *check_updates_jobq = NULL;
 
-#define FLUSH_BUFFER_SIZE 1024*1024 /* 1 MB */
-
 static void
 add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
                     int include_time, mtev_hash_table *supp) {
@@ -1298,19 +1296,7 @@ rest_show_check_updates_asynch(eventer_t e, int mask, void *closure, struct time
     noit_check_set_db_source_header(ctx);
     mtev_http_response_ok(ctx, "text/xml");
     mtev_http_response_xml(ctx, rcu->doc);
-
-    /* This can be *really* large depending on the amount of data
-     * requested. We want to flush out as much as possible from within
-     * the jobq thread before going back */
-    if (mtev_http_response_flush(ctx, mtev_false) == mtev_false) {
-      return 0;
-    }
-    while (mtev_http_response_buffered(ctx) >= FLUSH_BUFFER_SIZE) {
-      if (mtev_http_response_flush(ctx, mtev_false) == mtev_false) {
-        return 0;
-      }
-      usleep(100);
-    }
+    mtev_http_response_flush(ctx, mtev_true);
   }
   if(mask == EVENTER_ASYNCH) {
     if (rcu) {
