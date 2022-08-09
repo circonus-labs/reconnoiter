@@ -322,6 +322,7 @@ noitd_init_globals(void) {
 static void 
 noitd_jobqs_init(void) {
   mtev_main_eventer_config("jobq_set_check", "10,1,50,gc");
+  mtev_main_eventer_config("jobq_check_updates", "1,1,50,gc");
 }
 
 int main(int argc, char **argv) {
