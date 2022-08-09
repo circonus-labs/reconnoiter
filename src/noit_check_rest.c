@@ -1276,7 +1276,9 @@ static void rest_show_check_updates_free_closure(void *v_rcu) {
 
 int rest_show_check_updates_complete(mtev_http_rest_closure_t *restc, int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
+  rest_check_updates_closure_t *rcu = (rest_check_updates_closure_t *) restc->call_closure;
   if (ctx) {
+    mtev_http_response_xml(ctx, rcu->doc);
     mtev_http_response_end(ctx);
   }
   return 0;
@@ -1295,8 +1297,6 @@ rest_show_check_updates_asynch(eventer_t e, int mask, void *closure, struct time
     noit_cluster_xml_check_changes(rcu->peerid, rcu->restc->remote_cn, rcu->prev, rcu->end, root);
     noit_check_set_db_source_header(ctx);
     mtev_http_response_ok(ctx, "text/xml");
-    mtev_http_response_xml(ctx, rcu->doc);
-    mtev_http_response_flush(ctx, mtev_true);
   }
   if(mask == EVENTER_ASYNCH) {
     if (rcu) {
