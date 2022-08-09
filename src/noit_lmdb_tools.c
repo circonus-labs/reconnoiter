@@ -360,7 +360,7 @@ static void noit_lmdb_increment_instance_generation(noit_lmdb_instance_t *instan
   ck_pr_inc_64(&instance->generation);
 }
 
-#define NOIT_LMDB_RESIZE_FACTOR 4
+#define NOIT_LMDB_RESIZE_FACTOR 2
 void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance, const uint64_t initial_generation)
 {
   MDB_envinfo mei;
