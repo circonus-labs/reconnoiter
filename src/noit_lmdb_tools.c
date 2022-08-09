@@ -284,7 +284,7 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     return NULL;
   }
 
-  /* Set initial pagesize to 64 MiB */
+  /* Set initial mapsize to 64 MiB */
   rc = mdb_env_set_mapsize(env, 1024*1024*64);
   if (rc != 0) {
     errno = rc;
