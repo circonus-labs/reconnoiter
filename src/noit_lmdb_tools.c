@@ -284,6 +284,14 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     return NULL;
   }
 
+  /* Set initial mapsize to 64 MiB */
+  rc = mdb_env_set_mapsize(env, 1024*1024*64);
+  if (rc != 0) {
+    errno = rc;
+    mdb_env_close(env);
+    return NULL;
+  }
+
   rc = mdb_env_open(env, path, 0, 0640);
   if (rc != 0) {
     errno = rc;
@@ -345,7 +353,7 @@ static void noit_lmdb_increment_instance_generation(noit_lmdb_instance_t *instan
   ck_pr_inc_64(&instance->generation);
 }
 
-#define NOIT_LMDB_RESIZE_FACTOR 1.5
+#define NOIT_LMDB_RESIZE_FACTOR 2
 void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance, const uint64_t initial_generation)
 {
   MDB_envinfo mei;
@@ -370,8 +378,8 @@ void noit_lmdb_resize_instance(noit_lmdb_instance_t *instance, const uint64_t in
 
   mdb_env_set_mapsize(instance->env, new_mapsize);
 
-  mtevL(mtev_error, "lmdb checks db: mapsize increased. old: %" PRIu64 " MiB, new: %" PRIu64 " MiB\n",
-        mei.me_mapsize / (1024 * 1024), new_mapsize / (1024 * 1024));
+  mtevL(mtev_error, "lmdb db (%s): mapsize increased. old: %" PRIu64 " MiB, new: %" PRIu64 " MiB\n",
+        instance->path, mei.me_mapsize / (1024 * 1024), new_mapsize / (1024 * 1024));
 
   noit_lmdb_increment_instance_generation(instance);
 
