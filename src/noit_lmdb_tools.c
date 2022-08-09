@@ -284,15 +284,8 @@ noit_lmdb_instance_t *noit_lmdb_tools_open_instance(char *path)
     return NULL;
   }
 
-  /* Align mapsize to pagesize, use enough pages to reach
-   * 64 MB */
-  size_t page_size = getpagesize();
-  size_t map_size = page_size;
-  static const size_t map_size_target = (1024*1024*64);
-  while (map_size < map_size_target) {
-    map_size += page_size;
-  }
-  rc = mdb_env_set_mapsize(env, map_size);
+  /* Set initial pagesize to 64 MiB */
+  rc = mdb_env_set_mapsize(env, 1024*1024*64);
   if (rc != 0) {
     errno = rc;
     mdb_env_close(env);
