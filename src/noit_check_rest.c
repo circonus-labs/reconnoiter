@@ -1279,7 +1279,6 @@ int rest_show_check_updates_complete(mtev_http_rest_closure_t *restc, int npats,
   rest_check_updates_closure_t *rcu = (rest_check_updates_closure_t *) restc->call_closure;
   if (ctx) {
     mtev_http_response_xml(ctx, rcu->doc);
-    mtev_http_response_end(ctx);
   }
   return 0;
 }
