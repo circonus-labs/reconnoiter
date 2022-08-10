@@ -445,6 +445,7 @@ static CURL *get_curl_handle() {
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "gzip");
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 120000);
     curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 131072);
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
     ctls = calloc(1, sizeof(*ctls));
     ctls->curl = curl;
     pthread_setspecific(curl_tls, ctls);
