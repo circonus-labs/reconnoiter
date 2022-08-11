@@ -343,7 +343,6 @@ void noit_lmdb_tools_close_instance(noit_lmdb_instance_t *instance)
   free(instance);
 }
 
-
 uint64_t noit_lmdb_get_instance_generation(noit_lmdb_instance_t *instance)
 {
   return ck_pr_load_64(&instance->generation);
