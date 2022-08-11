@@ -37,6 +37,8 @@
 
 #include <errno.h>
 
+mtev_boolean lmdb_checks_support_inheritence = mtev_false;
+
 static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc, 
                                            uuid_t checkid) {
   return rest_show_check_json(restc, checkid);
@@ -1308,14 +1310,49 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   mtev_watchdog_child_heartbeat();
 
 #define MYATTR(type,a,...) mtev_conf_get_##type(section, "@" #a, __VA_ARGS__)
-#define INHERIT(type,a,...) \
-  mtev_conf_get_##type(section, "ancestor::node()/@" #a, __VA_ARGS__)
+#define INHERIT(type,a,...) (lmdb_checks_support_inheritence ? \
+    mtev_conf_get_##type(section, "ancestor::node()/@" #a, __VA_ARGS__) : false)
 
   if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
     *error = strdup("check has no uuid");
     return -1;
   }
   MYATTR(int64, seq, &config_seq);
+
+  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", &key_size);
+  mtevAssert(key);
+
+  /* Check to see the sequence is larger -- if it is not, we don't care. */
+  int64_t old_seq = -1;
+  rc = mdb_txn_begin(instance->env, NULL, 0, &txn);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on txn begin - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  rc = mdb_cursor_open(txn, instance->dbi, &cursor);
+  if (rc != 0) {
+    mtevFatal(mtev_error, "failure on cursor open - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  mdb_key.mv_data = key;
+  mdb_key.mv_size = key_size;
+  rc = mdb_cursor_get(cursor, &mdb_key, &mdb_data, MDB_SET_KEY);
+  if (rc != 0 && rc != MDB_NOTFOUND) {
+    mtevFatal(mtev_error, "failure on cursor get - %d (%s)\n", rc, mdb_strerror(rc));
+  }
+  else if (rc == 0) {
+    char *val_string = (char *)calloc(1, mdb_data.mv_size + 1);
+    memcpy(val_string, mdb_data.mv_data, mdb_data.mv_size);
+    val_string[mdb_data.mv_size] = 0;
+    old_seq = strtoll(val_string, NULL, 10);
+    free(val_string);
+  }
+  free(key);
+  mdb_cursor_close(cursor);
+  mdb_txn_abort(txn);
+  if (old_seq > config_seq) {
+    /* noop.. or close to it */
+    return 0;
+  }
+
 
   if(mtev_uuid_parse(uuid_str, checkid)) {
     if(asprintf(error, "check uuid '%s' is invalid", uuid_str) < 0)
