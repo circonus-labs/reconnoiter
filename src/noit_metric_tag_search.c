@@ -1076,6 +1076,7 @@ noit_metric_tag_match_init(struct noit_var_match_t *m, const char **endq, int pa
 }
 
 static bool noit_metric_tag_search_compile(noit_metric_tag_search_ast_t *ast, int *error_offset) {
+  if(ast == NULL) return false;
   switch(ast->operation) {
     case OP_MATCH:
       if(!noit_metric_tag_match_compile(&ast->contents.spec.cat, 1)) {
