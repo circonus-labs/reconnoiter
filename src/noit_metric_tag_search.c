@@ -799,7 +799,7 @@ noit_metric_tag_search_add_arg(noit_metric_tag_search_ast_t *node, noit_metric_t
 
 noit_metric_tag_search_ast_t *
 noit_metric_tag_search_alloc(noit_metric_tag_search_op_t op) {
-  noit_metric_tag_search_ast_t *node = calloc(sizeof(*node), 1);
+  noit_metric_tag_search_ast_t *node = calloc(1, sizeof(*node));
   node->operation = op;
   node->refcnt = 1;
   return node;
