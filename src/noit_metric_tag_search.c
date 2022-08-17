@@ -66,14 +66,13 @@ typedef struct re_impl {
 } re_impl_t;
 
 typedef struct tls_state {
-  pcre_jit_stack *jit_stack;
   mtev_lfu_t *pattern_to_re_matcher;
 } tls_state_t;
 
 static mtev_boolean noit_match_str(const char *subj, int subj_len, const struct noit_var_match_t *m);
 static tls_state_t *tls_state_alloc(void);
 static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg);
-static pthread_key_t tls_state_key;
+static pthread_key_t tls_state_key, jit_stack_key;
 
 static bool re_matcher_compile(re_matcher_t *rem)
 {
@@ -160,7 +159,6 @@ tls_state_free(void *v)
 {
   tls_state_t *st = v;
 
-  pcre_jit_stack_free(st->jit_stack);
   mtev_lfu_destroy(st->pattern_to_re_matcher);
   free(st);
 }
@@ -172,7 +170,6 @@ tls_state_alloc(void)
 
   if (st == NULL) {
     st = calloc(1, sizeof(*st));
-    st->jit_stack = pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
     st->pattern_to_re_matcher = mtev_lfu_create(100000, re_matcher_free);
     pthread_setspecific(tls_state_key, st);
   }
@@ -180,10 +177,22 @@ tls_state_alloc(void)
   return st;
 }
 
+static void tls_state_free_pcre_jit_stack(void *arg)
+{
+  if (arg != NULL) {
+    pcre_jit_stack_free((pcre_jit_stack *)arg);
+  }
+}
+
 static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg)
 {
   (void)arg;
-  return tls_state_alloc()->jit_stack;
+  pcre_jit_stack *jit_stack = pthread_getspecific(jit_stack_key);
+  if (jit_stack == NULL) {
+    jit_stack = pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
+    pthread_setspecific(jit_stack_key, jit_stack);
+  }
+  return jit_stack;
 }
 
 static re_matcher_t *
@@ -215,6 +224,7 @@ noit_tag_search_init(void) {
 
   if (!tls_state_key_init) {
     pthread_key_create(&tls_state_key, tls_state_free);
+    pthread_key_create(&jit_stack_key, tls_state_free_pcre_jit_stack);
     tls_state_key_init = true;
   }
 
@@ -251,7 +261,10 @@ var_graphite_match(void *impl_data, const char *pattern, const char *in, size_t 
       re_matcher_compile(g->results[i].rem);
     }
     if(g->results[i].rem && g->results[i].rem->re) {
-      ck_pr_faa_64(&g->results[i].rem->execution_counter, 1);
+      ck_pr_fence_load();
+      if(g->results[i].rem->execution_counter < STUDY_EXECUTION_THRESHOLD) {
+        ck_pr_faa_64(&g->results[i].rem->execution_counter, 1);
+      }
       re_matcher_possibly_study(g->results[i].rem);
       rv = pcre_exec(g->results[i].rem->re, g->results[i].rem->re_e, in, in_len, 0, 0, ovector, 30);
       if(rv >= 0) return mtev_true;
