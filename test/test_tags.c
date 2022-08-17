@@ -442,7 +442,7 @@ void test_tag_match()
     test_assert_namef(tagset_add && tagset_end, "'%s' is valid tagset", testmatches[i].tagstring);
 
     for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
-      ast = noit_metric_tag_search_parse(testmatches[i].queries[j].query, &erroroffset);
+      ast = noit_metric_tag_search_parse_lazy(testmatches[i].queries[j].query, &erroroffset);
       if(ast) {
         if(benchmark) {
           mtev_perftimer_t btimer;

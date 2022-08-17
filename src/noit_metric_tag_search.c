@@ -42,44 +42,94 @@
 #include <ck_pr.h>
 #include <ctype.h>
 
+int STUDY_EXECUTION_THRESHOLD = 50;
+
 typedef struct noit_var_match_t {
   char *str;
   void *impl_data;
   const noit_var_match_impl_t *impl;
+  int query_offset;
 } noit_var_match_t;
 
 typedef struct re_matcher {
   char *re_str;
   pcre *re;
   pcre_extra *re_e;
+  uint64_t execution_counter;
   int error_offset;
+  bool studied;
 } re_matcher_t;
 
+typedef struct re_impl {
+  re_matcher_t *rem;
+  mtev_lfu_entry_token tok;
+} re_impl_t;
+
 typedef struct tls_state {
-  pcre_jit_stack *jit_stack;
   mtev_lfu_t *pattern_to_re_matcher;
 } tls_state_t;
 
 static mtev_boolean noit_match_str(const char *subj, int subj_len, const struct noit_var_match_t *m);
 static tls_state_t *tls_state_alloc(void);
 static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg);
-static pthread_key_t tls_state_key;
+static pthread_key_t tls_state_key, jit_stack_key;
+
+static bool re_matcher_compile(re_matcher_t *rem)
+{
+  ck_pr_fence_load();
+  if(rem->re || rem->error_offset >= 0) return true;
+  pcre *re = NULL;
+  if((re = ck_pr_load_ptr(&rem->re)) == NULL && rem->error_offset < 0) {
+    const char *error;
+    re = pcre_compile(rem->re_str, 0, &error, &rem->error_offset, NULL);
+    if(!ck_pr_cas_ptr(&rem->re, NULL, re)) {
+      pcre_free(re);
+      re = ck_pr_load_ptr(&rem->re);
+    }
+  }
+  return re != NULL;
+}
+static inline bool re_matcher_study(re_matcher_t *rem)
+{
+  ck_pr_fence_load();
+  if(rem->re_e || rem->studied) return true;
+  pcre_extra *re_e = ck_pr_load_ptr(&rem->re_e);
+  if(!rem->studied && re_e == NULL && rem->re != NULL) {
+    const char *error;
+    rem->studied = true;
+#ifdef PCRE_STUDY_JIT_COMPILE
+    re_e = pcre_study(rem->re, PCRE_STUDY_JIT_COMPILE, &error);
+    pcre_assign_jit_stack(re_e, tls_state_get_pcre_jit_stack, NULL);
+#else
+    re_e = pcre_study(rem->re, 0, &error);
+#endif
+    if(!ck_pr_cas_ptr(&rem->re_e, NULL, re_e)) {
+#ifdef PCRE_STUDY_JIT_COMPILE
+      pcre_free_study(re_e);
+#else
+      pcre_free(re_e);
+#endif
+      re_e = ck_pr_load_ptr(&rem->re_e);
+    }
+  }
+  return re_e != NULL;
+}
+
+static inline bool re_matcher_possibly_study(re_matcher_t *rem)
+{
+  if(!rem->studied && rem->execution_counter > STUDY_EXECUTION_THRESHOLD) {
+    re_matcher_study(rem);
+  }
+  return true;
+}
 
 static re_matcher_t *
-re_matcher_alloc(char *pattern)
+re_matcher_alloc(const char *pattern)
 {
-  const char *error;
-  re_matcher_t *rem = malloc(sizeof(*rem));
+  re_matcher_t *rem = calloc(1, sizeof(*rem));
 
-  rem->re_str = pattern;
-  rem->re = pcre_compile(pattern, 0, &error, &rem->error_offset, NULL);
-
-#ifdef PCRE_STUDY_JIT_COMPILE
-  rem->re_e = pcre_study(rem->re, PCRE_STUDY_JIT_COMPILE, &error);
-  pcre_assign_jit_stack(rem->re_e, tls_state_get_pcre_jit_stack, NULL);
-#else
-  rem->re_e = pcre_study(rem->re, 0, &error);
-#endif
+  rem->error_offset = -1;
+  rem->re_str = strdup(pattern);
 
   return rem;
 }
@@ -109,7 +159,6 @@ tls_state_free(void *v)
 {
   tls_state_t *st = v;
 
-  pcre_jit_stack_free(st->jit_stack);
   mtev_lfu_destroy(st->pattern_to_re_matcher);
   free(st);
 }
@@ -120,8 +169,7 @@ tls_state_alloc(void)
   tls_state_t *st = pthread_getspecific(tls_state_key);
 
   if (st == NULL) {
-    st = malloc(sizeof(*st));
-    st->jit_stack = pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
+    st = calloc(1, sizeof(*st));
     st->pattern_to_re_matcher = mtev_lfu_create(100000, re_matcher_free);
     pthread_setspecific(tls_state_key, st);
   }
@@ -129,31 +177,40 @@ tls_state_alloc(void)
   return st;
 }
 
+static void tls_state_free_pcre_jit_stack(void *arg)
+{
+  if (arg != NULL) {
+    pcre_jit_stack_free((pcre_jit_stack *)arg);
+  }
+}
+
 static pcre_jit_stack *tls_state_get_pcre_jit_stack(void *arg)
 {
   (void)arg;
-  return tls_state_alloc()->jit_stack;
+  pcre_jit_stack *jit_stack = pthread_getspecific(jit_stack_key);
+  if (jit_stack == NULL) {
+    jit_stack = pcre_jit_stack_alloc(1024 * 32, 512 * 1024);
+    pthread_setspecific(jit_stack_key, jit_stack);
+  }
+  return jit_stack;
 }
 
 static re_matcher_t *
-tls_state_get_matcher(char *pattern)
+tls_state_get_matcher(const char *pattern, mtev_lfu_entry_token *token)
 {
   tls_state_t *const st = tls_state_alloc();
   mtev_lfu_t *const lfu = st->pattern_to_re_matcher;
   re_matcher_t *rem = NULL;
   const size_t pattern_len = strlen(pattern);
-  mtev_lfu_entry_token token = mtev_lfu_get(lfu, pattern, pattern_len,
-      (void**) &rem);
+  *token = mtev_lfu_get(lfu, pattern, pattern_len,
+                        (void**) &rem);
 
-  if (rem) {
-    free(pattern);
-  }
-  else {
+  if (!rem) {
     rem = re_matcher_alloc(pattern);
     mtev_lfu_put(lfu, pattern, pattern_len, rem);
+    *token = mtev_lfu_get(lfu, pattern, pattern_len, (void **) &rem);
   }
-
-  mtev_lfu_release(lfu, token);
+  mtevAssert(rem);
   return rem;
 }
 
@@ -167,6 +224,7 @@ noit_tag_search_init(void) {
 
   if (!tls_state_key_init) {
     pthread_key_create(&tls_state_key, tls_state_free);
+    pthread_key_create(&jit_stack_key, tls_state_free_pcre_jit_stack);
     tls_state_key_init = true;
   }
 
@@ -181,9 +239,8 @@ struct graphite_impl {
   struct {
     char *str;
     size_t str_len;
-    char *re_str;
-    pcre *re;
-    pcre_extra *re_e;
+    re_matcher_t *rem;
+    mtev_lfu_entry_token tok;
   } *results;
 };
 
@@ -200,8 +257,16 @@ var_graphite_match(void *impl_data, const char *pattern, const char *in, size_t 
   /* If the fixed_prefix len is the subject len, we know we have an exact match */
   if(g->fixed_prefix_len == in_len) return mtev_true;
   for(int i=0; i<g->count; i++) {
-    if(g->results[i].re) {
-      rv = pcre_exec(g->results[i].re, g->results[i].re_e, in, in_len, 0, 0, ovector, 30);
+    if(g->results[i].rem && g->results[i].rem->re == NULL) {
+      re_matcher_compile(g->results[i].rem);
+    }
+    if(g->results[i].rem && g->results[i].rem->re) {
+      ck_pr_fence_load();
+      if(g->results[i].rem->execution_counter < STUDY_EXECUTION_THRESHOLD) {
+        ck_pr_faa_64(&g->results[i].rem->execution_counter, 1);
+      }
+      re_matcher_possibly_study(g->results[i].rem);
+      rv = pcre_exec(g->results[i].rem->re, g->results[i].rem->re_e, in, in_len, 0, 0, ovector, 30);
       if(rv >= 0) return mtev_true;
     } else {
       if(in_len == g->results[i].str_len && 0 == memcmp(in, g->results[i].str, in_len)) return mtev_true;
@@ -214,6 +279,7 @@ void var_graphite_free(void *vi) {
   struct graphite_impl *g = vi;
   if(g == NULL) return;
   for(int i=0; i<g->count; i++) {
+    mtev_lfu_release_f(re_matcher_free, g->results[i].tok);
     free(g->results[i].str);
   }
   free(g->results);
@@ -338,6 +404,14 @@ graphite_has_wildcards(const char *s, size_t *fixed_prefix_len) {
   if(fixed_prefix_len) *fixed_prefix_len = fplen;
   return false;
 }
+static bool
+graphite_compile(struct graphite_impl *g) {
+  bool success = true;
+  for(int i=0; i<g->count; i++) {
+    if(g->results[i].rem && !re_matcher_compile(g->results[i].rem)) success = false;
+  }
+  return success;
+}
 static void
 graphite_add_expansion(const char *s, struct graphite_impl *g) {
   if(g->count + 1 > g->allocd) {
@@ -349,10 +423,9 @@ graphite_add_expansion(const char *s, struct graphite_impl *g) {
   g->results[g->count].str_len = strlen(s);
   if(g->has_wildcards) {
     if(graphite_has_wildcards(s, NULL)) {
-      re_matcher_t *rem = tls_state_get_matcher(build_regex_from_graphite(g->results[g->count].str));
-      g->results[g->count].re_str = rem->re_str;
-      g->results[g->count].re = rem->re;
-      g->results[g->count].re_e = rem->re_e;
+      char *re_str = build_regex_from_graphite(g->results[g->count].str);
+      g->results[g->count].rem = tls_state_get_matcher(re_str, &g->results[g->count].tok);
+      free(re_str);
     }
   }
   g->count++;
@@ -430,16 +503,21 @@ graphite_expand(const char *s, struct graphite_impl *g) {
   graphite_expand_braces("", s, "", g);
 }
 
-static void *var_graphite_compile(const char *in, int *erroffset) {
-  if(erroffset) *erroffset = 0;
+static void *var_graphite_init(const char *in) {
   struct graphite_impl *impl_data = calloc(1, sizeof(*impl_data));
   graphite_expand(in, impl_data);
+  return impl_data;
+}
+static bool var_graphite_compile(void *c, int *erroffset) {
+  struct graphite_impl *impl_data = (struct graphite_impl *)c;
+  if(erroffset) *erroffset = 0;
+  graphite_compile(impl_data);
   return impl_data;
 }
 
 static int var_graphite_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
   struct graphite_impl *g = (struct graphite_impl *)impl_data;
-  if(g->count == 1) return append_prefix(out, out_len, g->results[0].re_str, g->results[0].re, all);
+  if(g->count == 1) return append_prefix(out, out_len, g->results[0].rem->re_str, g->results[0].rem->re, all);
   int pattern_len = strlen(pattern);
   int out_has = strlen(out);
   int fpl = g->fixed_prefix_len;
@@ -450,15 +528,22 @@ static int var_graphite_afp(void *impl_data, const char *pattern, char *out, siz
   return strlen(out);
 }
 
-static void *var_re_compile(const char *in, int *erroffset) {
-  re_matcher_t *impl_data = tls_state_get_matcher(strdup(in));
+static void *var_re_init(const char *in) {
+  re_impl_t *impl_data = calloc(1, sizeof(*impl_data));
+  impl_data->rem = tls_state_get_matcher(in, &impl_data->tok);
+  return impl_data;
+}
+static bool var_re_compile(void *c, int *erroffset) {
+  re_impl_t *impl_data = (re_impl_t *)c;
 
-  if (!impl_data->re) {
-    if(erroffset) *erroffset = impl_data->error_offset;
-    return NULL;
+  if(impl_data->rem->error_offset < 0) {
+    if(!re_matcher_compile(impl_data->rem)) {
+      if(erroffset) *erroffset = impl_data->rem->error_offset;
+      return false;
+    }
   }
 
-  return impl_data;
+  return true;
 }
 
 static char *
@@ -486,38 +571,51 @@ build_regex_from_expansion(const char *expansion) {
   return regex;
 }
 
-static void *var_default_compile(const char *in, int *erroffset) {
-  re_matcher_t *rem = tls_state_get_matcher(build_regex_from_expansion(in));
+static void *var_default_init(const char *in) {
+  char *re_str = build_regex_from_expansion(in);
+  re_impl_t *impl_data = var_re_init(re_str);
+  free(re_str);
+  return impl_data;
+}
+static bool var_default_compile(void *c, int *erroffset) {
+  re_impl_t *impl_data = (re_impl_t *)c;
+  int unused;
 
-  if (!rem->re) {
+  if(!var_re_compile(impl_data, &unused)) {
     if (erroffset) {
       // translation means no offset.
       *erroffset = 0;
     }
-
-    return NULL;
+    return false;
   }
 
-  return rem;
+  return true;
 }
 
 static mtev_boolean var_re_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
   (void)pattern;
-  struct re_matcher *m = (struct re_matcher *)impl_data;
+  re_impl_t *m = (re_impl_t *)impl_data;
   if(m == NULL) return mtev_false;
   int ovector[30], rv;
-  rv = pcre_exec(m->re, m->re_e, in, in_len, 0, 0, ovector, 30);
+  if(m->rem->re == NULL) {
+    re_matcher_compile(m->rem);
+  }
+  ck_pr_faa_64(&m->rem->execution_counter, 1);
+  re_matcher_possibly_study(m->rem);
+  rv = pcre_exec(m->rem->re, m->rem->re_e, in, in_len, 0, 0, ovector, 30);
   if(rv >= 0) return mtev_true;
   return mtev_false;
 }
 
-static void no_op_re_free(void *impl_data) {
-  // no-op, resides in LFU cache
+static void var_re_free(void *impl_data) {
+  re_impl_t *m = (re_impl_t *)impl_data;
+  mtev_lfu_release_f(re_matcher_free, m->tok);
+  free(m);
 }
 
 static int var_re_afp(void *impl_data, const char *pattern, char *out, size_t out_len, mtev_boolean *all) {
-  struct re_matcher *m = (struct re_matcher *)impl_data;
-  return append_prefix(out, out_len, m ? m->re_str : "", m ? m->re : NULL, all);
+  re_impl_t *m = (re_impl_t *)impl_data;
+  return append_prefix(out, out_len, m && m->rem ? m->rem->re_str : "", m && m->rem ? m->rem->re : NULL, all);
 }
 
 static mtev_boolean var_exact_match(void *impl_data, const char *pattern, const char *in, size_t in_len) {
@@ -534,20 +632,23 @@ static int var_exact_afp(void *impl_data, const char *pattern, char *out, size_t
 
 static const noit_var_match_impl_t var_re_matcher = {
   .impl_name = "re",
+  .init = var_re_init,
   .compile = var_re_compile,
   .match = var_re_match,
-  .free = no_op_re_free,
+  .free = var_re_free,
   .append_fixed_prefix = var_re_afp
 };
 static const noit_var_match_impl_t var_re_expansion_matcher = {
   .impl_name = "default",
+  .init = var_default_init,
   .compile = var_default_compile,
   .match = var_re_match,
-  .free = no_op_re_free,
+  .free = var_re_free,
   .append_fixed_prefix = var_re_afp
 };
 static const noit_var_match_impl_t var_graphite_matcher = {
   .impl_name = "graphite",
+  .init = var_graphite_init,
   .compile = var_graphite_compile,
   .match = var_graphite_match,
   .free = var_graphite_free,
@@ -555,6 +656,7 @@ static const noit_var_match_impl_t var_graphite_matcher = {
 };
 static const noit_var_match_impl_t var_exact_matcher = {
   .impl_name = "exact",
+  .init = NULL,
   .compile = NULL,
   .match = var_exact_match,
   .free = NULL,
@@ -726,12 +828,12 @@ noit_metric_tag_search_alloc_match(const char *cat_impl, const char *cat_pat,
   noit_metric_tag_search_ast_t *node = noit_metric_tag_search_alloc(OP_MATCH);
   node->contents.spec.cat.impl = noit_var_matcher_impl(cat_impl, strlen(cat_impl));
   node->contents.spec.cat.str = cat_pat ? strdup(cat_pat) : NULL;
-  if(node->contents.spec.cat.impl->compile)
-    node->contents.spec.cat.impl_data = node->contents.spec.cat.impl->compile(cat_pat, NULL);
+  if(node->contents.spec.cat.impl->init)
+    node->contents.spec.cat.impl_data = node->contents.spec.cat.impl->init(cat_pat);
   node->contents.spec.name.impl = noit_var_matcher_impl(name_impl, strlen(name_impl));
   node->contents.spec.name.str = name_pat ? strdup(name_pat) : NULL;
-  if(node->contents.spec.name.impl->compile)
-    node->contents.spec.name.impl_data = node->contents.spec.name.impl->compile(name_pat, NULL);
+  if(node->contents.spec.name.impl->init)
+    node->contents.spec.name.impl_data = node->contents.spec.name.impl->init(name_pat);
   return node;
 }
 
@@ -802,7 +904,19 @@ static inline void unescape_tag_string(char *inout) {
 }
 
 static mtev_boolean
-noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int part) {
+noit_metric_tag_match_compile(struct noit_var_match_t *m, int part) {
+  if(m->impl == NULL) return mtev_true;
+  if(m->impl->compile) {
+    if(m->impl->compile(m->impl_data, NULL)) {
+      return mtev_true;
+    } else {
+      return mtev_false;
+    }
+  }
+  return mtev_true;
+}
+static mtev_boolean
+noit_metric_tag_match_init(struct noit_var_match_t *m, const char **endq, int part) {
   const char *query = *endq;
   int is_escaped = mtev_false;
   int is_encoded_match = memcmp(query, "b!", 2) == 0;
@@ -818,7 +932,7 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     if(**endq != ']') {
       *endq = query+1;
       return mtev_false;
-    }
+    } 
     m->impl = noit_var_matcher_impl(query+1+is_encoded, *endq - query - 1 - is_encoded);
     if(!m->impl) {
       *endq = query + 2;
@@ -869,8 +983,8 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
     }
     if(m->impl) {
       int erroffset = 0;
-      if(m->impl->compile) {
-        m->impl_data = m->impl->compile(m->str, &erroffset);
+      if(m->impl->init) {
+        m->impl_data = m->impl->init(m->str);
         if(!m->impl_data) {
           if (!is_encoded) *endq = query+1+erroffset;
           else *endq = query+1; // we can't easily know where in the encoded query the problem lies, so best to point to beginning of query
@@ -946,9 +1060,9 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
       }
     }
     if(m->impl) {
-      int erroffset;
-      if(m->impl->compile) {
-        m->impl_data = m->impl->compile(m->str, &erroffset);
+      int erroffset = 0;
+      if(m->impl->init) {
+        m->impl_data = m->impl->init(m->str);
         if(!m->impl_data) {
           if (!is_encoded) *endq = query+1+erroffset;
           else *endq = query+1; // we can't easily know where in the encoded query the problem lies, so best to point to beginning of query
@@ -961,8 +1075,35 @@ noit_metric_tag_match_compile(struct noit_var_match_t *m, const char **endq, int
   return mtev_true;
 }
 
+static bool noit_metric_tag_search_compile(noit_metric_tag_search_ast_t *ast, int *error_offset) {
+  if(ast == NULL) return false;
+  switch(ast->operation) {
+    case OP_MATCH:
+      if(!noit_metric_tag_match_compile(&ast->contents.spec.cat, 1)) {
+        if(error_offset) *error_offset = ast->contents.spec.cat.query_offset;
+        return false;
+      }
+      if(!noit_metric_tag_match_compile(&ast->contents.spec.name, 2)) {
+        if(error_offset) *error_offset = ast->contents.spec.name.query_offset;
+        return false;
+      }
+      return true;
+    case OP_NOT_ARGS:
+      return noit_metric_tag_search_compile(ast->contents.args.node[0], error_offset);
+    case OP_AND_ARGS:
+    case OP_OR_ARGS:
+    case OP_HINT_ARGS:
+      for(int i=0; i<ast->contents.args.cnt; i++) {
+        if(!noit_metric_tag_search_compile(ast->contents.args.node[i], error_offset)) {
+          return false;
+        }
+      }
+      return true;
+  }
+  return false;
+}
 static noit_metric_tag_search_ast_t *
-noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean allow_match) {
+noit_metric_tag_part_parse(const char *orig_query, const char *query, const char **endq, mtev_boolean allow_match) {
   noit_metric_tag_search_ast_t *node = NULL;
   *endq = query;
   while(*query && isspace(*query)) query++;
@@ -976,7 +1117,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     do {
       (*endq)++;
       while(**endq && isspace(**endq)) (*endq)++;
-      arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+      arg = noit_metric_tag_part_parse(orig_query, *endq, endq, mtev_true);
       while(**endq && isspace(**endq)) (*endq)++;
       if((**endq != ',' && **endq != ')') || !arg) goto error;
       noit_metric_tag_search_add_arg(node, arg);
@@ -992,7 +1133,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     do {
       (*endq)++;
       while(**endq && isspace(**endq)) (*endq)++;
-      arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+      arg = noit_metric_tag_part_parse(orig_query, *endq, endq, mtev_true);
       while(**endq && isspace(**endq)) (*endq)++;
       if((**endq != ',' && **endq != ')') || !arg) goto error;
       noit_metric_tag_search_add_arg(node, arg);
@@ -1004,7 +1145,7 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
     while(**endq && isspace(**endq)) (*endq)++;
     node = calloc(1, sizeof(*node));
     node->operation = OP_NOT_ARGS;
-    noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(*endq, endq, mtev_true);
+    noit_metric_tag_search_ast_t *arg = noit_metric_tag_part_parse(orig_query, *endq, endq, mtev_true);
     if(**endq != ')' || !arg) goto error;
     noit_metric_tag_search_add_arg(node, arg);
     (*endq)++;
@@ -1012,10 +1153,12 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
   else if(allow_match) {
     node = calloc(1, sizeof(*node));
     node->operation = OP_MATCH;
-    if(!noit_metric_tag_match_compile(&node->contents.spec.cat, endq, 1)) goto error;
+    node->contents.spec.cat.query_offset = *endq - orig_query;
+    if(!noit_metric_tag_match_init(&node->contents.spec.cat, endq, 1)) goto error;
     if(**endq == ':') {
       (*endq)++;
-      if(!noit_metric_tag_match_compile(&node->contents.spec.name, endq, 2)) goto error;
+      node->contents.spec.name.query_offset = *endq - orig_query;
+      if(!noit_metric_tag_match_init(&node->contents.spec.name, endq, 2)) goto error;
     }
   }
   if(node) node->refcnt = 1;
@@ -1026,19 +1169,19 @@ noit_metric_tag_part_parse(const char *query, const char **endq, mtev_boolean al
 }
 
 noit_metric_tag_search_ast_t *
-noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
+noit_metric_tag_search_clone_lazy(const noit_metric_tag_search_ast_t *in) {
   if(!in) return NULL;
   noit_metric_tag_search_ast_t *out = malloc(sizeof(*out));
   memcpy(out, in, sizeof(*out));
   if(out->operation == OP_MATCH) {
     if(out->contents.spec.cat.str)
       out->contents.spec.cat.str = strdup(out->contents.spec.cat.str);
-    if(out->contents.spec.cat.impl && out->contents.spec.cat.impl->compile)
-      out->contents.spec.cat.impl_data = out->contents.spec.cat.impl->compile(out->contents.spec.cat.str, NULL);
+    if(out->contents.spec.cat.impl && out->contents.spec.cat.impl->init)
+      out->contents.spec.cat.impl_data = out->contents.spec.cat.impl->init(out->contents.spec.cat.str);
     if(out->contents.spec.name.str)
       out->contents.spec.name.str = strdup(out->contents.spec.name.str);
-    if(out->contents.spec.name.impl && out->contents.spec.name.impl->compile)
-      out->contents.spec.name.impl_data = out->contents.spec.name.impl->compile(out->contents.spec.name.str, NULL);
+    if(out->contents.spec.name.impl && out->contents.spec.name.impl->init)
+      out->contents.spec.name.impl_data = out->contents.spec.name.impl->init(out->contents.spec.name.str);
   }
   else {
     noit_metric_tag_search_ast_t **nodes = calloc(out->contents.args.cnt, sizeof(*nodes));
@@ -1054,16 +1197,36 @@ noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
   return out;
 }
 noit_metric_tag_search_ast_t *
-noit_metric_tag_search_parse(const char *query, int *erroff) {
+noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *in) {
+  noit_metric_tag_search_ast_t *clone = noit_metric_tag_search_clone_lazy(in);
+  if(clone) {
+    noit_metric_tag_search_compile(clone, NULL);
+  }
+  return clone;
+}
+noit_metric_tag_search_ast_t *
+noit_metric_tag_search_parse_lazy(const char *query, int *erroff) {
   noit_metric_tag_search_ast_t *tree;
   const char *eop;
-  if(NULL == (tree = noit_metric_tag_part_parse(query, &eop, mtev_false))) {
+  if(NULL == (tree = noit_metric_tag_part_parse(query, query, &eop, mtev_false))) {
     *erroff = eop - query;
     return NULL;
   }
   if(*eop != '\0') {
     noit_metric_tag_search_free(tree);
     *erroff = eop - query;
+    return NULL;
+  }
+  *erroff = -1;
+  return tree;
+}
+noit_metric_tag_search_ast_t *
+noit_metric_tag_search_parse(const char *query, int *erroff) {
+  noit_metric_tag_search_ast_t *tree = noit_metric_tag_search_parse_lazy(query, erroff);
+  int error_offset = 0;
+  if(!noit_metric_tag_search_compile(tree, &error_offset)) {
+    noit_metric_tag_search_free(tree);
+    *erroff = query + (error_offset < strlen(query)) ? error_offset : 0;
     return NULL;
   }
   *erroff = -1;
