@@ -81,7 +81,8 @@ typedef struct noit_var_match_t noit_var_match_t;
 
 typedef struct noit_var_match_impl_t {
   char *impl_name;
-  void *(*compile)(const char *in, int *errpos);
+  void *(*init)(const char *in);
+  bool (*compile)(void *impl_data, int *errpos);
   mtev_boolean (*match)(void *impl_data, const char *pattern, const char *in, size_t in_len);
   void (*free)(void *impl_data);
   int (*append_fixed_prefix)(void *impl_data, const char *pattern, char *prefix, size_t len, mtev_boolean *all);
@@ -89,6 +90,9 @@ typedef struct noit_var_match_impl_t {
 
 API_EXPORT(noit_metric_tag_search_ast_t *)
   noit_metric_tag_search_clone(const noit_metric_tag_search_ast_t *);
+
+API_EXPORT(noit_metric_tag_search_ast_t *)
+  noit_metric_tag_search_clone_lazy(const noit_metric_tag_search_ast_t *);
 
 API_EXPORT(noit_metric_tag_search_ast_t *)
   noit_metric_tag_search_ref(noit_metric_tag_search_ast_t *);
@@ -129,6 +133,9 @@ API_EXPORT(void)
 
 API_EXPORT(noit_metric_tag_search_ast_t *)
   noit_metric_tag_search_parse(const char *query, int *erroff);
+
+API_EXPORT(noit_metric_tag_search_ast_t *)
+  noit_metric_tag_search_parse_lazy(const char *query, int *erroff);
 
 API_EXPORT(void)
   noit_metric_tag_search_set_op(noit_metric_tag_search_ast_t *node, noit_metric_tag_search_op_t);
