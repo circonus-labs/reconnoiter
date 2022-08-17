@@ -77,6 +77,8 @@ static pthread_key_t tls_state_key;
 
 static bool re_matcher_compile(re_matcher_t *rem)
 {
+  ck_pr_fence_load();
+  if(rem->re || rem->error_offset >= 0) return true;
   pcre *re = NULL;
   if((re = ck_pr_load_ptr(&rem->re)) == NULL && rem->error_offset < 0) {
     const char *error;
@@ -90,6 +92,8 @@ static bool re_matcher_compile(re_matcher_t *rem)
 }
 static inline bool re_matcher_study(re_matcher_t *rem)
 {
+  ck_pr_fence_load();
+  if(rem->re_e || rem->studied) return true;
   pcre_extra *re_e = ck_pr_load_ptr(&rem->re_e);
   if(!rem->studied && re_e == NULL && rem->re != NULL) {
     const char *error;
