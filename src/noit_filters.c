@@ -765,6 +765,7 @@ noit_apply_filterset(const char *filterset,
   void *vfs;
   if(!filterset) return mtev_true;   /* No filter */
   if(!filtersets) return mtev_false; /* Couldn't possibly match */
+  if(!metric) return mtev_false;     /* Can't match a null metric */
   struct timeval now;
   const char *local_metric_name = noit_metric_get_full_metric_name(metric);
   mtev_gettimeofday(&now, NULL);

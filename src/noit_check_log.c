@@ -738,6 +738,10 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
       /* make sure we don't go past our allocation for some reason*/
       if((i / metrics_per_bundle) >= n_bundles) break;
 
+      /* Make sure nobody added a null metric to the hash table...
+       * if they did, just move on */
+      if (!vm) continue;
+
       int b_idx = i / metrics_per_bundle;
       Bundle *bundle = &bundles[b_idx];
       int b_i = i % metrics_per_bundle;
