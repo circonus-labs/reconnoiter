@@ -601,6 +601,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
+    if(!m) continue;
     if(!noit_apply_filterset(check->filterset, check, m)) continue;
     if(m->logged) continue;
 
