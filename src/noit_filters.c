@@ -994,8 +994,8 @@ noit_console_filter_show(mtev_console_closure_t ncct,
     DUMP_ATTR(id);
     DUMP_ATTR(skipto);
   }
-  mtev_conf_release_sections_write(rules, rulecnt);
-  mtev_conf_release_section_write(fsnode);
+  mtev_conf_release_sections_read(rules, rulecnt);
+  mtev_conf_release_section_read(fsnode);
   return 0;
 }
 static int

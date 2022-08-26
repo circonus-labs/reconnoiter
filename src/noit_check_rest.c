@@ -808,8 +808,10 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
     *error = "invalid namespace provided";
     goto out;
   }
-      
-  if(strcmp((char *)root->name, "check")) return 0;
+  if(strcmp((char *)root->name, "check")) {
+    *error = "root name is not check";
+    goto out;
+  }
   for(tl = root->children; tl; tl = tl->next) {
     if(tl->type != XML_ELEMENT_NODE) continue;
     if(!strcmp((char *)tl->name, "attributes")) {
