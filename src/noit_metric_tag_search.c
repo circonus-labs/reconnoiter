@@ -1226,7 +1226,7 @@ noit_metric_tag_search_parse(const char *query, int *erroff) {
   int error_offset = 0;
   if(!noit_metric_tag_search_compile(tree, &error_offset)) {
     noit_metric_tag_search_free(tree);
-    *erroff = query + (error_offset < strlen(query)) ? error_offset : 0;
+    *erroff = error_offset < strlen(query) ? error_offset : 0;
     return NULL;
   }
   *erroff = -1;
