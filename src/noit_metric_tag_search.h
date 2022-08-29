@@ -68,6 +68,8 @@
 extern "C" {
 #endif
 
+#define NOIT_METRIC_TAG_SEARCH_UNPARSE_NO_SIZE_LIMIT -1
+
 typedef enum {
   OP_AND_ARGS,
   OP_OR_ARGS,
@@ -178,6 +180,8 @@ API_EXPORT(mtev_boolean)
 
 API_EXPORT(char *)
   noit_metric_tag_search_unparse(const noit_metric_tag_search_ast_t *);
+API_EXPORT(char *)
+  noit_metric_tag_search_unparse_limit_size(const noit_metric_tag_search_ast_t *search, int64_t limit);
 
 API_EXPORT(int)
   noit_metric_tag_search_swap(noit_metric_tag_search_ast_t *, int, int);
