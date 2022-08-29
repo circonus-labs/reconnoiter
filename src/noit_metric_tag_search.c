@@ -43,6 +43,7 @@
 #include <ctype.h>
 
 int STUDY_EXECUTION_THRESHOLD = 50;
+int64_t NOIT_METRIC_TAG_SEARCH_UNPARSE_RECURSION_LIMIT = 1000;
 
 typedef struct noit_var_match_t {
   char *str;
@@ -1398,7 +1399,13 @@ noit_metric_tag_search_has_hint(const noit_metric_tag_search_ast_t *search, cons
 /* NOTE: This function makes no guarantees about the state of buf if the unparsing fails and the function returns false.
  * The caller should check the return value and not use the data in the buffer if the return value was false */
 static bool
-noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, mtev_dyn_buffer_t *buf, int64_t limit) {
+noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search,
+                                    mtev_dyn_buffer_t *buf,
+                                    int64_t limit,
+                                    int64_t recursion_level) {
+  if (recursion_level >= NOIT_METRIC_TAG_SEARCH_UNPARSE_RECURSION_LIMIT) {
+    return false;
+  }
   if ((limit != NOIT_METRIC_TAG_SEARCH_UNPARSE_NO_SIZE_LIMIT) && (mtev_dyn_buffer_used(buf) >= limit)) {
     return false;
   }
@@ -1414,7 +1421,7 @@ noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, 
     case OP_NOT_ARGS:
       mtevAssert(search->contents.args.cnt == 1);
       mtev_dyn_buffer_add_printf(buf, "not(");
-      if (!noit_metric_tag_search_unparse_part(search->contents.args.node[0], buf, limit)) {
+      if (!noit_metric_tag_search_unparse_part(search->contents.args.node[0], buf, limit, recursion_level+1)) {
         return false;
       }
       mtev_dyn_buffer_add_printf(buf, ")");
@@ -1422,7 +1429,7 @@ noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, 
     case OP_AND_ARGS:
       mtev_dyn_buffer_add_printf(buf, "and(");
       for(int i=0; i<search->contents.args.cnt; i++) {
-        if (!noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf, limit)) {
+        if (!noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf, limit, recursion_level+1)) {
           return false;
         }
         if (i != search->contents.args.cnt - 1) {
@@ -1434,7 +1441,7 @@ noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, 
     case OP_HINT_ARGS:
       mtev_dyn_buffer_add_printf(buf, "hint(");
       for(int i=0; i<search->contents.args.cnt; i++) {
-        if (!noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf, limit)) {
+        if (!noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf, limit, recursion_level+1)) {
           return false;
         }
         if (i != search->contents.args.cnt - 1) {
@@ -1446,7 +1453,7 @@ noit_metric_tag_search_unparse_part(const noit_metric_tag_search_ast_t *search, 
     case OP_OR_ARGS:
       mtev_dyn_buffer_add_printf(buf, "or(");
       for(int i=0; i<search->contents.args.cnt; i++) {
-        if (!noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf, limit)) {
+        if (!noit_metric_tag_search_unparse_part(search->contents.args.node[i], buf, limit, recursion_level+1)) {
           return false;
         }
         if (i != search->contents.args.cnt - 1) {
@@ -1469,7 +1476,7 @@ noit_metric_tag_search_unparse_limit_size(const noit_metric_tag_search_ast_t *se
   char *res;
   mtev_dyn_buffer_t buf;
   mtev_dyn_buffer_init(&buf);
-  if (noit_metric_tag_search_unparse_part(search, &buf, limit)) {
+  if (noit_metric_tag_search_unparse_part(search, &buf, limit, 0)) {
     res = strdup((const char *)mtev_dyn_buffer_data(&buf));
   }
   else {
