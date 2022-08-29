@@ -43,7 +43,7 @@
 #include <ctype.h>
 
 int STUDY_EXECUTION_THRESHOLD = 50;
-int64_t NOIT_METRIC_TAG_SEARCH_UNPARSE_RECURSION_LIMIT = 1000;
+const int64_t NOIT_METRIC_TAG_SEARCH_UNPARSE_RECURSION_LIMIT = 1000;
 
 typedef struct noit_var_match_t {
   char *str;
