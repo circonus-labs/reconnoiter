@@ -109,6 +109,9 @@ static const char *units_convert(const char *in, double *mult) {
   } \
 } while(0)
   switch(*in) {
+    case '1':
+      UCC("1", 1, nullptr);
+      break;
     case 'b':
       UCC("bit", 1, "bits");
       UCC("bits", 1, "bits");
@@ -427,6 +430,7 @@ void handle_dp(otlphttp_upload_t *rxc, name_builder &metric,
     break;
     }
   default:
+    mtevL(nldeb, "unsupported type: %d\n", dp.value_case());
     break;
   }
 }
@@ -526,8 +530,10 @@ void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
 
 static void
 handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest &msg) {
+  mtevL(nldeb, "otlp resource metrics: %d\n", msg.resource_metrics_size());
   for(int i=0; i<msg.resource_metrics_size(); i++) {
     auto rm = msg.resource_metrics(i);
+    mtevL(nldeb, "otlp resource metrics[%d] ilm: %d\n", i, rm.instrumentation_library_metrics_size());
     for(int li=0; li<rm.instrumentation_library_metrics_size(); li++) {
       auto lm = rm.instrumentation_library_metrics(li);
 
@@ -536,6 +542,7 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
         auto name = m.name();
         auto unit = m.unit();
 
+        mtevL(nldeb, "otlp resource metrics[%d][%d][%d]: type %d, name: %s\n", i, li, mi, m.data_case(), name.c_str());
         switch(m.data_case()) {
         case opentelemetry::proto::metrics::v1::Metric::kGauge:
         {
@@ -544,7 +551,7 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
             double mult = 1;
             if(unit.size() > 0) {
               const char *unit_c = units_convert(unit.c_str(), &mult);
-              metric.add("units", unit_c);
+              if(unit_c) metric.add("units", unit_c);
             }
             handle_dp(rxc, metric, dp, mult);
           }
@@ -559,7 +566,7 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
             double mult = 1;
             if(unit.size() > 0) {
               const char *unit_c = units_convert(unit.c_str(), &mult);
-              metric.add("units", unit_c);
+              if(unit_c) metric.add("units", unit_c);
             }
             if(!cumulative && sum.is_monotonic()) {
               // use histograms?
@@ -578,7 +585,7 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
             double mult = 1;
             if(unit.size() > 0) {
               const char *unit_c = units_convert(unit.c_str(), &mult);
-              metric.add("units", unit_c);
+              if(unit_c) metric.add("units", unit_c);
             }
             handle_hist(rxc, metric, dp, cumulative, mult);
           }
@@ -593,14 +600,12 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
             double mult = 1;
             if(unit.size() > 0) {
               const char *unit_c = units_convert(unit.c_str(), &mult);
-              metric.add("units", unit_c);
+              if(unit_c) metric.add("units", unit_c);
             }
             handle_hist(rxc, metric, dp, cumulative, mult);
           }
           break;
         }
-        default:
-          break;
         }
       }
     }
@@ -698,6 +703,7 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       goto error;
     }
 
+    mtevL(nldeb, "otlphttp new payload for %s\n", pats[0]);
     rxc = new otlphttp_upload_t(check);
     if(const char *mode_str = mtev_hash_dict_get(check->config, "hist_approx_mode")) {
       if(!strcmp(mode_str, "low")) rxc->mode = HIST_APPROX_LOW;
@@ -736,6 +742,7 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
      msg.ParseFromArray(mtev_dyn_buffer_data(&rxc->data),
                         static_cast<int>(mtev_dyn_buffer_used(&rxc->data)))) {
     mtev_memory_begin();
+    mtevL(nldeb, "otlphttp payload %zu bytes\n", mtev_dyn_buffer_used(&rxc->data));
     handle_message(rxc, msg);
     metric_local_batch_flush_immediate(rxc);
     mtev_memory_end();
