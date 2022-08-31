@@ -863,8 +863,8 @@ static int noit_otlphttp_init(noit_module_t *self) {
 
   /* register rest handler */
   mtev_rest_mountpoint_t *rule;
-  rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/v1/",
-                                 "^(" UUID_REGEX ")/([^/]*)$",
+  rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/",
+                                 "^(" UUID_REGEX ")/([^/]*)",
                                  rest_otlphttp_handler);
   if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
   return 0;
