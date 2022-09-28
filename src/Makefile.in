@@ -224,9 +224,12 @@ noit_version.h:
 	$(Q)$(top_srcdir)/buildtools/mkversion.sh noit_version.h
 
 noit.env:	noit_version.h noit_config.h
-	awk '/^#define[ 	]+NOIT_BRANCH/{print $$2"="$$3;}' < noit_version.h > $@
-	cat noit_version.h | tr '[".]' ' ' | awk '/^#define[ 	]+NOIT_VERSION/{print $$2"=\""$$3"\""; print $$2"_TSTAMP=\""$$4"\"";}' >> $@
-	awk '/^#define[ 	]+NOIT_UNAME_[^V]/{print "BUILD_"$$2"="$$3;}' < noit_config.h >> $@
+	$(Q)awk '/^#define[ 	]+NOIT_BRANCH/{print $$2"="$$3;}' < noit_version.h > $@
+	$(Q)cat noit_version.h | tr '[".]' ' ' | awk '/^#define[ 	]+NOIT_VERSION/{print $$2"=\""$$3"\""; print $$2"_TSTAMP=\""$$4"\"";}' >> $@
+	$(Q)awk '/^#define[ 	]+NOIT_UNAME_[^V]/{print "BUILD_"$$2"="$$3;}' < noit_config.h >> $@
+	$(Q)echo '#include <mtev_version.h>' | $(CC) -E $(CFLAGS) $(CPPFLAGS) - | \
+		grep mtev_version.h | cut -f2 -d'"' | head -1 | \
+		xargs awk '{if($$1=="#define"){print $$2"="$$3;}}' >> $@
 
 man/noitd.usage.h:	make-man
 
