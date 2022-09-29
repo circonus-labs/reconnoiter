@@ -75,6 +75,18 @@ diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocordavlh
  	return false;
        return threadedOK_();
      }
+diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocproxy.h PicklingTools170Release/C++/opencontainers_1_8_5/include/ocproxy.h
+--- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocproxy.h    2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocproxy.h 2022-07-14 17:24:04.944537281 +0000
+@@ -162,7 +162,7 @@
+   // its pieces: call destructor then delete memory)
+   OC_INLINE void RCdeleteThis_ ();
+
+-  volatile int        refCount_;
++  int        refCount_;
+   bool       adopted_;
+   bool       sharedAcrossProcesses_; // also means a ProtectedRefCount!
+   Allocator* allocator_; // allocator_ is just referenced, not adopted
 diff -ru PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocval.cc PicklingTools170Release/C++/opencontainers_1_8_5/include/ocval.cc
 --- PicklingTools170Release.orig/C++/opencontainers_1_8_5/include/ocval.cc	2016-12-22 17:52:02.000000000 +0000
 +++ PicklingTools170Release/C++/opencontainers_1_8_5/include/ocval.cc	2021-04-27 14:43:27.003022231 +0000
