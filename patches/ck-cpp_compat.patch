@@ -1,0 +1,70 @@
+diff --git a/include/spinlock/clh.h b/include/spinlock/clh.h
+index 1133806..a11db76 100644
+--- a/include/spinlock/clh.h
++++ b/include/spinlock/clh.h
+@@ -78,7 +78,7 @@ ck_spinlock_clh_lock(struct ck_spinlock_clh **queue, struct ck_spinlock_clh *thr
+ 	 * Mark current request as last request. Save reference to previous
+ 	 * request.
+ 	 */
+-	previous = ck_pr_fas_ptr(queue, thread);
++	previous = CK_CPP_CAST(struct ck_spinlock_clh *, ck_pr_fas_ptr(queue, thread));
+ 	thread->previous = previous;
+ 
+ 	/* Wait until previous thread is done with lock. */
+diff --git a/include/spinlock/hclh.h b/include/spinlock/hclh.h
+index ece56c6..887391a 100644
+--- a/include/spinlock/hclh.h
++++ b/include/spinlock/hclh.h
+@@ -88,7 +88,7 @@ ck_spinlock_hclh_lock(struct ck_spinlock_hclh **glob_queue,
+ 	ck_pr_fence_store_atomic();
+ 
+ 	/* Mark current request as last request. Save reference to previous request. */
+-	previous = ck_pr_fas_ptr(local_queue, thread);
++	previous = CK_CPP_CAST(struct ck_spinlock_hclh *, ck_pr_fas_ptr(local_queue, thread));
+ 	thread->previous = previous;
+ 
+ 	/* Wait until previous thread from the local queue is done with lock. */
+@@ -107,7 +107,7 @@ ck_spinlock_hclh_lock(struct ck_spinlock_hclh **glob_queue,
+ 
+ 	/* Now we need to splice the local queue into the global queue. */
+ 	local_tail = ck_pr_load_ptr(local_queue);
+-	previous = ck_pr_fas_ptr(glob_queue, local_tail);
++	previous = CK_CPP_CAST(struct ck_spinlock_hclh *, ck_pr_fas_ptr(glob_queue, local_tail));
+ 
+ 	ck_pr_store_uint(&local_tail->splice, true);
+ 
+diff --git a/include/spinlock/mcs.h b/include/spinlock/mcs.h
+index 262c720..dd0694f 100644
+--- a/include/spinlock/mcs.h
++++ b/include/spinlock/mcs.h
+@@ -97,7 +97,7 @@ ck_spinlock_mcs_lock(struct ck_spinlock_mcs **queue,
+ 	 * returns NULL, it means the queue was empty. If the queue was empty,
+ 	 * then the operation is complete.
+ 	 */
+-	previous = ck_pr_fas_ptr(queue, node);
++	previous = CK_CPP_CAST(struct ck_spinlock_mcs *, ck_pr_fas_ptr(queue, node));
+ 	if (previous != NULL) {
+ 		/*
+ 		 * Let the previous lock holder know that we are waiting on
+diff --git a/include/ck_stack.h b/include/ck_stack.h
+index eb2b685..ab2ff75 100644
+--- a/include/ck_stack.h
++++ b/include/ck_stack.h
+@@ -152,7 +152,7 @@ ck_stack_batch_pop_upmc(struct ck_stack *target)
+ {
+ 	struct ck_stack_entry *entry;
+ 
+-	entry = ck_pr_fas_ptr(&target->head, NULL);
++	entry = CK_CPP_CAST(struct ck_stack_entry *, ck_pr_fas_ptr(&target->head, NULL));
+ 	ck_pr_fence_load();
+ 	return entry;
+ }
+@@ -276,7 +276,7 @@ ck_stack_push_mpnc(struct ck_stack *target, struct ck_stack_entry *entry)
+ 
+ 	entry->next = NULL;
+ 	ck_pr_fence_store_atomic();
+-	stack = ck_pr_fas_ptr(&target->head, entry);
++	stack = CK_CPP_CAST(struct ck_stack_entry *, ck_pr_fas_ptr(&target->head, entry));
+ 	ck_pr_store_ptr(&entry->next, stack);
+ 	ck_pr_fence_store();
+ 
