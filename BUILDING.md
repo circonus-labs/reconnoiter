@@ -3,8 +3,8 @@
 ## Requirements
 
 Compiler:
- * Support for C17 and C++20 standards is required. GCC 11 or later, Clang/LLVM
-   is less tested but recent versions should work.
+ * Support for C17 and C++20 standards is required. This means GCC 11 or later;
+   Clang/LLVM is less tested but recent versions should work.
 
 ### Third-party Libraries
 
@@ -80,14 +80,15 @@ Optional Libraries:
 
 ### Linux (CentOS 7)
 
-    #!/bin/sh
-    # yum install autoconf subversion \
-    	apr-devel apr-util-devel java-devel libssh2-devel libtermcap-devel \
-    	libxslt-devel ncurses-devel net-snmp-devel openssl-devel \
-    	pcre-devel postgresql-devel udns-devel uuid-devel zlib-devel \
-    	libuuid-devel protobuf-c-devel hwloc-devel ck
-    # git clone https://github.com/circonus-labs/reconnoiter
-    # cd reconnoiter
-    # autoreconf -i
-    # ./configure
-    # make
+    sudo yum groupinstall "Development Tools"
+    sudo yum --enablerepo=extras install centos-release-scl
+    sudo yum install devtoolset-11
+    sudo yum install autoconf apr-devel apr-util-devel hwloc-devel java-devel \
+      libtermcap-devel libuuid-devel libxslt-devel ncurses-devel \
+      openssl openssl-devel pcre-devel postgresql-devel udns-devel zlib-devel
+    scl enable devtoolset-11 bash
+    git clone https://github.com/circonus-labs/reconnoiter
+    cd reconnoiter
+    autoreconf -i
+    CPPFLAGS="-I/usr/local/include/luajit-2.1" ./configure
+    make
