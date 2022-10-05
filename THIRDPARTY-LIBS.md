@@ -8,6 +8,17 @@ following instuctions accordingly.
 The following are listed in alphabetical order. There is no particular order of
 installation.
 
+## ConcurrencyKit (libck)
+
+```
+git clone https://github.com/concurrencykit/ck.git
+cd ck
+patch -p1 < [reconnoiter source]/patches/ck-cpp_compat.patch
+./configure
+make
+sudo make install
+```
+
 ## cURL
 
 Obtain source for version 7.49.0 or later from the [download
@@ -32,6 +43,7 @@ Requires CMake.
 git clone https://github.com/dvidelabs/flatcc.git
 cd flatcc
 git checkout tags/v0.6.0
+patch -p1 < [reconnoiter source]/patches/flatcc.patch
 ./scripts/initbuild.sh make
 mkdir -p build/install
 cd build/install
