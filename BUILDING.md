@@ -72,7 +72,9 @@ Optional Libraries:
 
 ### Linux (Ubuntu)
 
-Install dependencies that are available as packages
+Tested on 20.04 LTS
+
+Install dependencies that are available as packages:
 
     sudo apt-get install autoconf build-essential cmake \
       libapr1-dev libaprutil1-dev libcurl4-openssl-dev libhwloc-dev \
@@ -93,6 +95,8 @@ are not available as packages.
 
 ### Linux (CentOS 7)
 
+Install dependencies that are available as packages:
+
     sudo yum groupinstall "Development Tools"
     sudo yum --enablerepo=extras install centos-release-scl
     sudo yum install devtoolset-9
@@ -100,6 +104,10 @@ are not available as packages.
       libtermcap-devel libuuid-devel libxslt-devel ncurses-devel \
       openssl openssl-devel pcre-devel postgresql-devel udns-devel zlib-devel
     scl enable devtoolset-9 bash
+
+Follow [build instructions for third-party libraries](THIRDPARTY-LIBS.md) that
+are not available as packages.
+
     git clone https://github.com/circonus-labs/reconnoiter
     cd reconnoiter
     autoreconf -i
