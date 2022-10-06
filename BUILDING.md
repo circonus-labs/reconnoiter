@@ -100,14 +100,16 @@ Install dependencies that are available as packages:
     sudo yum groupinstall "Development Tools"
     sudo yum --enablerepo=extras install centos-release-scl
     sudo yum install devtoolset-9
-    sudo yum install autoconf apr-devel apr-util-devel hwloc-devel java-devel \
-      libtermcap-devel libuuid-devel libxslt-devel ncurses-devel \
-      openssl openssl-devel pcre-devel postgresql-devel udns-devel zlib-devel
-    scl enable devtoolset-9 bash
+    sudo yum install autoconf apr-devel apr-util-devel cmake hwloc-devel \
+      java-1.8.0-openjdk-devel libnghttp2-devel librabbitmq-devel \
+      libtermcap-devel libuuid-devel libxslt-devel lz4-devel ncurses-devel \
+      openssl openssl-devel pcre-devel pkgconfig postgresql-devel \
+      sqlite-devel udns-devel yajl-devel zlib-devel
 
 Follow [build instructions for third-party libraries](THIRDPARTY-LIBS.md) that
 are not available as packages.
 
+    scl enable devtoolset-9 bash
     git clone https://github.com/circonus-labs/reconnoiter
     cd reconnoiter
     autoreconf -i
