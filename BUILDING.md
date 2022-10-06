@@ -105,11 +105,11 @@ Install dependencies that are available as packages:
       libtermcap-devel libuuid-devel libxslt-devel lz4-devel ncurses-devel \
       openssl openssl-devel pcre-devel pkgconfig postgresql-devel \
       sqlite-devel udns-devel yajl-devel zlib-devel
+    scl enable devtoolset-9 bash
 
 Follow [build instructions for third-party libraries](THIRDPARTY-LIBS.md) that
 are not available as packages.
 
-    scl enable devtoolset-9 bash
     git clone https://github.com/circonus-labs/reconnoiter
     cd reconnoiter
     autoreconf -i
