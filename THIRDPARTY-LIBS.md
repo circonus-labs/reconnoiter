@@ -222,20 +222,6 @@ sudo make install
 ```
 
 
-## udns
-
-Obtain version 0.4 or later from the [download
-page](https://www.corpit.ru/mjt/udns.html#download) and extract it.
-
-```
-patch -p1 < [reconnoiter source]/patches/udns.patch
-./configure
-make
-make shared
-sudo make install
-```
-
-
 ## libmtev
 
 Reconnoiter shares many dependencies with libmtev so you should finish

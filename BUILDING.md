@@ -79,9 +79,9 @@ Install dependencies that are available as packages:
     sudo apt-get install autoconf build-essential cmake \
       libapr1-dev libaprutil1-dev libcurl4-openssl-dev libhwloc-dev \
       liblz4-dev libncurses-dev libnghttp2-dev libpcre3-dev \
-      libpq-dev librabbitmq-dev libsqlite3-dev libssl-dev libwslay-dev \
-      libxslt1-dev libyajl-dev openjdk-8-jdk-headless pkg-config uuid-dev \
-      xsltproc zlib1g-dev
+      libpq-dev librabbitmq-dev libsqlite3-dev libssl-dev libudns-dev \
+      libwslay-dev libxslt1-dev libyajl-dev openjdk-8-jdk-headless pkg-config \
+      uuid-dev xsltproc zlib1g-dev
 
 Follow [build instructions for third-party libraries](THIRDPARTY-LIBS.md) that
 are not available as packages.
