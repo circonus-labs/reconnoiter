@@ -222,6 +222,18 @@ sudo make install
 ```
 
 
+## wslay
+
+Obtain source for 1.0.0 or later from the [download
+page](https://github.com/tatsuhiro-t/wslay/releases) and extract it.
+
+```
+./configure
+make
+sudo make install
+```
+
+
 ## libmtev
 
 Reconnoiter shares many dependencies with libmtev so you should finish
