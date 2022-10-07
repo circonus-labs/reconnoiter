@@ -46,30 +46,6 @@ Optional Libraries:
 
 ## Platforms
 
-### FreeBSD
-
-    #!/bin/sh
-    # portmaster -g /usr/ports/misc/e2fsprogs-libuuid
-    # portmaster -g /usr/ports/devel/pcre
-    # portmaster -g /usr/ports/devel/concurrencykit
-    # portmaster -g /usr/ports/devel/hwloc
-    # portmaster -g /usr/ports/databases/postgresql-libpqxx
-    # portmaster -g /usr/ports/net-mgmt/net-snmp
-    # portmaster -g /usr/ports/devel/re2c
-    # portmaster -g /usr/ports/security/libssh2
-    # portmaster -g /usr/ports/textproc/libxml2
-    # portmaster -g /usr/ports/textproc/libxslt
-    # portmaster -g /usr/ports/www/apache22
-    # portmaster -g /usr/ports/lang/php5
-    # portmaster -g /usr/ports/devel/protobuf-c
-    # cd /usr/local/src
-    # git clone https://github.com/circonus-labs/reconnoiter
-    # cd reconnoiter
-    # aclocal
-    # autoreconf -i
-    # ./configure LDFLAGS="-L/usr/local/lib"
-    # make
-
 ### Linux (Ubuntu)
 
 Tested on 20.04 LTS
