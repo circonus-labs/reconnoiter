@@ -1,0 +1,29 @@
+--- PicklingTools170Release.orig/C++/Makefile.Linux.factored	2016-12-22 17:52:02.000000000 +0000
++++ PicklingTools170Release/C++/Makefile.Linux.factored	2021-04-23 17:42:03.508000000 +0000
+@@ -17,7 +17,7 @@
+ OC = ./opencontainers_1_8_5
+ OCINC = $(OC)/include
+ 
+-CFLAGS = -Wall -fpic -O -fno-strict-aliasing -DLINUX_ -DOC_FACTOR_INTO_H_AND_CC -DOC_NEW_STYLE_INCLUDES -Wno-deprecated -I$(OCINC) -pthread -D_REENTRANT
++CFLAGS = -std=c++17 -Wall -fpic -O -fno-strict-aliasing -DLINUX_ -DOC_FACTOR_INTO_H_AND_CC -DOC_NEW_STYLE_INCLUDES -Wno-deprecated -Wno-placement-new -I$(OCINC) -pthread -D_REENTRANT
+ 
+ ## How to build with OCString
+ ##CFLAGS = -Wall -O4 -DLINUX_ -DOC_USE_OC_STRING -DOC_USE_OC_EXCEPTIONS -DOC_ONLY_NEEDED_STL -DOC_NEW_STYLE_INCLUDES -Wno-deprecated -I$(OCINC)
+@@ -39,7 +39,7 @@
+ 
+ 
+ libptools.so : $(COM_OBJS) 
+-	$(CC) $(CCFLAGS) $(COM_OBJS) -shared -o libptools.so
++	$(CC) $(CCFLAGS) $(LDFLAGS) $(COM_OBJS) -shared -o libptools.so
+ 
+ # Needed so less code-bloat by factoring into .o files
+ ocproxy.o: $(OCINC)/ocproxy.cc 
+@@ -83,7 +83,7 @@
+ midastalker_ex2 :$(COM_OBJS) midastalker_ex2.o 
+ 	$(CC) $(CCFLAGS) $(COM_OBJS) midastalker_ex2.o -o midastalker_ex2
+ 
+-load : $(COM_OBJS) load.o 
++load: $(COM_OBJS) load.o 
+ 	$(CC) $(CCFLAGS) $(COM_OBJS) load.o -o load
+ 
+ serverside_ex : $(COM_OBJS) serverside_ex.o shmboot.o sharedmem.o

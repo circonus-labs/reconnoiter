@@ -1,87 +1,94 @@
-#Building Reconnoiter
+# Building Reconnoiter
 
 ## Requirements
 
- * PostgreSQL 8.4+ is required.
+Compiler:
+ * Support for C11 and C++17 standards is required. This means GCC 9 or later;
+   Clang/LLVM is less tested but recent versions should work.
+
+### Third-party Libraries
+
+[Important build notes](THIRDPARTY-LIBS.md)
+
+Required Libraries:
+ * [Concurrency Kit](https://github.com/concurrencykit/ck) (libck), version 0.7.1 or later ([Patch required](THIRDPARTY-LIBS.md#concurrencykit-libck))
+ * [flatcc](https://github.com/dvidelabs/flatcc), version 0.6.0. ([Patch required](THIRDPARTY-LIBS.md#flatcc))
+ * [libcircllhist](https://github.com/openhistogram/libcircllhist)
+ * [libcircmetrics](https://github.com/circonus-labs/libcircmetrics)
+ * libcurl 7.49.0 or later (for `CURLOPT_CONNECT_TO` support)
+ * [libmtev](https://github.com/circonus-labs/libmtev)
+ * [LMDB](https://www.symas.com/lmdb)
+ * [LuaJIT](https://luajit.org/luajit.html) version 2.1.
  * NetSNMP 5.7+
- 	
- 	NetSNMP is required for the lua-snmp bindings that power OID lookups.  The standard SNMP querying implementation is in Java and shipped with the repo.  There pure-C SNMP check requires patches to NetSNMP (producing libnetsnmp-c) and patches are provided in the reconnoiter tree for the bold
- * Fq is required if you want FQ drivers
- * apr is required if you want to build STOMP drivers.
- * libssh2 is required for the ssh2 check.
- * pickletools for the graphite check.
+   * NetSNMP is required for the lua-snmp bindings that power OID lookups. The
+     standard SNMP querying implementation is in Java and shipped with the
+     repo.  A pure-C SNMP check implementation exists, but requires
+     [patches](THIRDPARTY-LIBS.md#netsnmp) (producing libnetsnmp-c).
+ * lz4
+ * [JLog](https://github.com/omniti-labs/jlog)
+ * [Picklingtools](http://www.picklingtools.com) ([Patch required](THIRDPARTY-LIBS.md#picklingtools))
+ * PostgreSQL 8.4+
+ * Protobuf 3.19+
+ * Protobuf-C 1.4+
+ * [snappy-c](https://github.com/andikleen/snappy-c.git)
+ * [udns](https://www.corpit.ru/mjt/udns.html)
+ * [wslay](https://github.com/tatsuhiro-t/wslay) for WebSockets support.
+ * [yajl](https://github.com/lloyd/yajl)
+
+Optional Libraries:
+ * [Apache Portable Runtime](https://apr.apache.org) (libapr) is required
+   if you want to build STOMP drivers.
+ * [FQ](https://github.com/circonus-labs/fq) is required if you want FQ drivers.
+ * [Java JDK](https://openjdk.org/projects/jdk/) to build the Jezebel sidecar
+   for certain SQL database checks, as well as the standard SNMP check support.
+ * SQLite 3 (for FQ)
+
 
 ## Platforms
 
-### FreeBSD
+### Linux (Ubuntu)
 
-[Original Message](https://labs.omniti.com/lists/reconnoiter-users/2009-March/000028.html)
+Tested on 20.04 LTS
 
+Install dependencies that are available as packages:
 
-    #!/bin/sh
-    # portmaster -g /usr/ports/misc/e2fsprogs-libuuid
-    # portmaster -g /usr/ports/devel/pcre
-    # portmaster -g /usr/ports/devel/concurrencykit
-    # portmaster -g /usr/ports/devel/hwloc
-    # portmaster -g /usr/ports/databases/postgresql-libpqxx
-    # portmaster -g /usr/ports/net-mgmt/net-snmp
-    # portmaster -g /usr/ports/devel/re2c
-    # portmaster -g /usr/ports/security/libssh2
-    # portmaster -g /usr/ports/textproc/libxml2
-    # portmaster -g /usr/ports/textproc/libxslt
-    # portmaster -g /usr/ports/www/apache22
-    # portmaster -g /usr/ports/lang/php5
-    # portmaster -g /usr/ports/devel/protobuf-c
-    # cd /usr/local/src
-    # git clone https://github.com/circonus-labs/reconnoiter
-    # cd reconnoiter
-    # aclocal
-    # autoconf
-    # ./configure LDFLAGS="-L/usr/local/lib"
-    # make
+    sudo apt-get install autoconf build-essential cmake \
+      libapr1-dev libaprutil1-dev libcurl4-openssl-dev libhwloc-dev \
+      liblz4-dev libncurses-dev libnghttp2-dev libpcre3-dev \
+      libpq-dev librabbitmq-dev libsqlite3-dev libssl-dev libudns-dev \
+      libwslay-dev libxslt1-dev libyajl-dev openjdk-8-jdk-headless pkg-config \
+      uuid-dev xsltproc zlib1g-dev
 
-### Linux (Debian)
+Follow [build instructions for third-party libraries](THIRDPARTY-LIBS.md) that
+are not available as packages.
 
-[Original Message](https://labs.omniti.com/lists/reconnoiter-users/2009-March/000027.html)
+    git clone https://github.com/circonus-labs/reconnoiter
+    cd reconnoiter
+    autoreconf -i
+    CPPFLAGS="-I/usr/local/include/luajit-2.1" ./configure
+    make
+    sudo make install
 
-    #!/bin/sh
-    # apt-get install autoconf build-essential \
-		zlib1g-dev uuid-dev libpcre3-dev libssl-dev libpq-dev \
-		libxslt-dev libapr1-dev libaprutil1-dev xsltproc \
-		libncurses5-dev python libssh2-1-dev libsnmp-dev \
-		sun-java6-jdk libprotobuf-c0-dev hwloc-nox-dev libck0-dev
-		# apt-get libdbi-perl libdbd-pg-perl libwww-curl-perl # if you want to run the tests
-		# git clone https://github.com/circonus-labs/reconnoiter
-		# cd reconnoiter
-		# autoconf
-		# LDFLAGS="-ldl -lm" ./configure
-		# make
+### Linux (CentOS 7)
 
-### Linux (CentOS 6.3)
+Install dependencies that are available as packages:
 
-[Original Message](https://labs.omniti.com/lists/reconnoiter-users/2009-September/000184.html)
+    sudo yum groupinstall "Development Tools"
+    sudo yum --enablerepo=extras install centos-release-scl
+    sudo yum install devtoolset-9
+    sudo yum install autoconf apr-devel apr-util-devel cmake hwloc-devel \
+      java-1.8.0-openjdk-devel libnghttp2-devel librabbitmq-devel \
+      libtermcap-devel libuuid-devel libxslt-devel lz4-devel ncurses-devel \
+      openssl openssl-devel pcre-devel pkgconfig postgresql-devel \
+      sqlite-devel udns-devel yajl-devel zlib-devel
+    scl enable devtoolset-9 bash
 
-    #!/bin/sh
-    # yum install autoconf subversion \
-    	apr-devel apr-util-devel java-devel libssh2-devel libtermcap-devel \
-    	libxslt-devel ncurses-devel net-snmp-devel openssl-devel \
-    	pcre-devel postgresql-devel udns-devel uuid-devel zlib-devel \
-    	libuuid-devel protobuf-c-devel hwloc-devel ck
-    # git clone https://github.com/circonus-labs/reconnoiter
-    # cd reconnoiter
-    # autoconf
-    # ./configure
-    # make
+Follow [build instructions for third-party libraries](THIRDPARTY-LIBS.md) that
+are not available as packages.
 
-### OmniOS
-
-	# pkg set-publisher -g http://pkg.omniti.com/omniti-ms/ ms.omniti.com
-	# pkg install developer/git developer/build/autoconf system/header \
-		developer/gcc48 omniti/library/protobuf-c omniti/library/libpq5 \
-		developer/build/gnu-make omniti/library/apr omniti/library/libssh2 \
-    omniti/library/hwloc omniti/library/ck
-	# git clone git@github.com:circonus-labs/reconnoiter.git
-	# cd reconnoiter
-	# autoconf
-	# ./configure LDFLAGS="-L/opt/omni/lib/" CPPFLAGS="-I/opt/omni/include"
-	# make
+    git clone https://github.com/circonus-labs/reconnoiter
+    cd reconnoiter
+    autoreconf -i
+    CPPFLAGS="-I/usr/local/include/luajit-2.1" ./configure
+    make
+    sudo make install
