@@ -384,6 +384,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
       while(tablesize < hte_cnt) tablesize <<= 1; \
       mtev_hash_init_locks(rule->rname##_ht, tablesize, MTEV_HASH_LOCK_MODE_MUTEX); \
+      pthread_rwlock_init(&rule->rname##_ht_rw_lock, NULL); \
       for(hti=0; hti<hte_cnt; hti++) { \
         if(!mtev_conf_get_string(htentries[hti], "self::node()", &htstr)) \
           mtevL(nf_error, "Error fetching text content from filter match.\n"); \
@@ -651,9 +652,11 @@ noit_apply_filterrule_metric(filterrule_t *r,
   canonicalcheck[0] = '\0';
   mtev_boolean canonical = (subj[subj_len] == '|');
   if(r->metric_ht) {
+    pthread_rwlock_rdlock(&r->metric_ht_rw_lock);
     void *vptr;
     if(mtev_hash_retrieve(r->metric_ht, subj, subj_len, &vptr)) {
       mtevL(nf_debug, "HT_MATCH(%p) -> (%.*s) -> true\n", r->metric_ht, subj_len, subj);
+      pthread_rwlock_unlock(&r->metric_ht_rw_lock);
       return mtev_true;
     }
     /* it's not there, but if this wasn't a tagged metric, someone could have explicitly
@@ -665,6 +668,7 @@ noit_apply_filterrule_metric(filterrule_t *r,
     }
     mtev_boolean rv = mtev_hash_retrieve(r->metric_ht, subj, strlen(subj), &vptr);
     mtevL(nf_debug, "HT_MATCH(%p) -> (%s) -> %s\n", r->metric_ht, subj, rv ? "true" : "false");
+    pthread_rwlock_unlock(&r->metric_ht_rw_lock);
     return rv;
   }
   if(r->metric || r->metric_override) {
@@ -844,7 +848,9 @@ noit_apply_filterset(const char *filterset,
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
 #define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && mtev_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
-#define UPDATE_FILTER_RULE(rname, value) mtev_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL)
+#define UPDATE_FILTER_RULE(rname, value) pthread_rwlock_wrlock(&r->rname##_ht_rw_lock); \
+  mtev_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL); \
+  pthread_rwlock_unlock(&r->rname##_ht_rw_lock);
 
       /* flush if required */
       if(r->flush_interval.tv_sec || r->flush_interval.tv_usec) {
@@ -854,19 +860,27 @@ noit_apply_filterset(const char *filterset,
         if(compare_timeval(now, reset) >= 0) {
           mtev_boolean did_work = mtev_false;
           if(r->target_auto_hash_max) {
+            pthread_rwlock_wrlock(&r->target_ht_rw_lock);
             mtev_hash_delete_all(r->target_ht, free, NULL);
+            pthread_rwlock_unlock(&r->target_ht_rw_lock);
             did_work = mtev_true;
           }
           if(r->module_auto_hash_max) {
+            pthread_rwlock_wrlock(&r->module_ht_rw_lock);
             mtev_hash_delete_all(r->module_ht, free, NULL);
+            pthread_rwlock_unlock(&r->module_ht_rw_lock);
             did_work = mtev_true;
           }
           if(r->name_auto_hash_max) {
+            pthread_rwlock_wrlock(&r->name_ht_rw_lock);
             mtev_hash_delete_all(r->name_ht, free, NULL);
+            pthread_rwlock_unlock(&r->name_ht_rw_lock);
             did_work = mtev_true;
           }
           if(r->metric_auto_hash_max) {
+            pthread_rwlock_wrlock(&r->metric_ht_rw_lock);
             mtev_hash_delete_all(r->metric_ht, free, NULL);
+            pthread_rwlock_unlock(&r->metric_ht_rw_lock);
             did_work = mtev_true;
           }
           memcpy(&r->last_flush, &now, sizeof(now));
@@ -898,10 +912,10 @@ noit_apply_filterset(const char *filterset,
           noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
           mt_modified = false;
         }
-        if(need_target) UPDATE_FILTER_RULE(target, check->target);
-        if(need_module) UPDATE_FILTER_RULE(module, check->module);
-        if(need_name) UPDATE_FILTER_RULE(name, check->name);
-        if(need_metric) UPDATE_FILTER_RULE(metric, metric->metric_name);
+        if(need_target) { UPDATE_FILTER_RULE(target, check->target); }
+        if(need_module) { UPDATE_FILTER_RULE(module, check->module); }
+        if(need_name) { UPDATE_FILTER_RULE(name, check->name); }
+        if(need_metric) { UPDATE_FILTER_RULE(metric, metric->metric_name); }
 
         ck_pr_inc_32(&r->matches);
         ret = (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
