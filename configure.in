@@ -113,7 +113,11 @@ LDFLAGS="$LDFLAGS `$MTEV_CONFIG --ldflags`"
 
 DTRACEHDR=dtrace_probes.h
 DOTSO=.so
-LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
+if test "x$BUILD_ASAN" = "x" ; then
+  LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
+else
+  LD_LIBNOIT_VERSION='-Wl,-soname,libnoit-asan.so.$(LIBNOIT_VERSION)'
+fi
 
 MTEV_MODULES_DIR=`$MTEV_CONFIG --modules-dir 2>/dev/null`
 if test "$?" -ne "0" ; then
