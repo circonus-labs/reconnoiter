@@ -1,0 +1,40 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1bb620b..2b649f8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -196,7 +196,7 @@ elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+     else()
+         message(STATUS "Setting GNU C compiler options with c11 and Posix")
+         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -pedantic -Wall -Wextra")
+-        if (GCC_VERSION VERSION_GREATER_EQUAL 8.0)
++        if (NOT (GCC_VERSION VERSION_LESS 8.0))
+             # Disable some GCC checks:
+             # (warnings exist since 8.0, but are more aggressive in 9.0)
+             #
+@@ -208,8 +208,8 @@ elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+             # GCC 9 warns on mistakenly assumed NULL string when 
+             # printing from a required FlatBuffer string field.
+             #
+-            message(STATUS "Disabling GNU C compiler warnings: -Wstringop-truncation -Wno-format-overflow")
+-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-stringop-truncation -Wno-format-overflow")
++            message(STATUS "Disabling GNU C compiler warnings: -Wstringop-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-misleading-indentation")
++            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-stringop-truncation -Wno-format-overflow -Wno-stringop-overflow -Wno-misleading-indentation")
+         endif()
+         if (FLATCC_GNU_POSIX_MEMALIGN)
+             # -std=c11 prevents detection of posix_memalign and aligned_alloc might be missing
+diff --git a/src/compiler/codegen_c_reader.c b/src/compiler/codegen_c_reader.c
+index 70643d1..41de43b 100644
+--- a/src/compiler/codegen_c_reader.c
++++ b/src/compiler/codegen_c_reader.c
+@@ -38,9 +38,9 @@ static void print_type_identifier(fb_output_t *out, fb_compound_type_t *ct)
+ 
+     fprintf(out->fp,
+             "#ifndef %s_identifier\n"
+-            "#define %s_identifier %sidentifier\n"
++            "#define %s_identifier %s%.*s%s\n"
+             "#endif\n",
+-            name, name, nsc);
++            name, name, out->S->file_identifier.s.len ? "\"" : "", out->S->file_identifier.s.len ? out->S->file_identifier.s.len : 1, out->S->file_identifier.s.len ? out->S->file_identifier.s.s : "0", out->S->file_identifier.s.len ? "\"" : "");
+     fprintf(out->fp,
+         "#define %s_type_hash ((%sthash_t)0x%lx)\n",
+         name, nsc, (unsigned long)(type_hash));

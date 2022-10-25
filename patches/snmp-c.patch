@@ -372,7 +372,7 @@ index a35fd9c..d34fb01 100644
 +                        "  loop packet_len %" NETSNMP_PRIz "u, PDU length %"
 +                        NETSNMP_PRIz "u\n", isp->packet_len, pdulen));
 +
-+            if (pdulen > MAX_PACKET_LENGTH) {
++            if (pdulen > MAX_ENGINEID_LENGTH) {
 +                /*
 +                 * Illegal length, drop the connection.  
 +                 */
@@ -457,7 +457,7 @@ index a35fd9c..d34fb01 100644
 +
 +	SNMP_FREE(opaque);
 +
-+        if (isp->packet_len >= MAXIMUM_PACKET_SIZE) {
++        if (isp->packet_len >= SNMP_MAX_PACKET_LEN) {
 +            /*
 +             * Obviously this should never happen!  
 +             */
