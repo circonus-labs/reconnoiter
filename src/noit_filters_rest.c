@@ -54,6 +54,8 @@
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
+static eventer_jobq_t *filter_updates_jobq = NULL;
+
 static int
 rest_show_filters(mtev_http_rest_closure_t *restc,
                   int npats, char **pats) {
@@ -323,13 +325,58 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+typedef struct rest_filter_updates_closure {
+  mtev_http_rest_closure_t *restc;
+  int64_t prev;
+  int64_t end;
+  uuid_t peerid;
+  xmlDocPtr doc;
+} rest_filter_updates_closure_t;
+
+static void rest_show_filter_updates_free_closure(void *v_rfu) {
+  rest_filter_updates_closure_t *rfu = (rest_filter_updates_closure_t *)v_rfu;
+  if(rfu->doc) xmlFreeDoc(rfu->doc);
+  free(rfu);
+}
+
+int rest_show_filter_updates_complete(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  rest_filter_updates_closure_t *rfu = (rest_filter_updates_closure_t *) restc->call_closure;
+  if (ctx) {
+    mtev_http_response_xml(ctx, rfu->doc);
+  }
+  return 0;
+}
+
+static int
+rest_show_filter_updates_asynch(eventer_t e, int mask, void *closure, struct timeval *now) {
+  rest_filter_updates_closure_t *rfu = (rest_filter_updates_closure_t *)closure;
+  if(mask == EVENTER_ASYNCH_WORK) {
+    xmlNodePtr root = xmlNewNode(NULL, (xmlChar *)"filtersets");
+    rfu->doc = xmlNewDoc((xmlChar *)"1.0");
+    xmlDocSetRootElement(rfu->doc, root);
+    if (noit_filters_get_lmdb_instance()) {
+      noit_cluster_lmdb_filter_changes(rfu->peerid, rfu->restc->remote_cn, rfu->prev, rfu->end, root);
+    }
+    else {
+      noit_cluster_xml_filter_changes(rfu->peerid, rfu->restc->remote_cn, rfu->prev, rfu->end, root);
+    }
+    noit_filter_set_db_source_header(rfu->restc->http_ctx);
+    mtev_http_response_ok(rfu->restc->http_ctx, "text/xml");
+  }
+  if(mask == EVENTER_ASYNCH) {
+    if (rfu) {
+      mtev_http_session_resume_after_float(rfu->restc->http_ctx);
+    }
+  }
+  return 0;
+}
+
 static int
 rest_show_filter_updates(mtev_http_rest_closure_t *restc,
                          int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   mtev_http_request *req = mtev_http_session_request(ctx);
-  xmlDocPtr doc = NULL;
-  xmlNodePtr root;
   int64_t prev = 0, end = 0;
 
   const char *prev_str = mtev_http_request_querystring(req, "prev"); 
@@ -345,21 +392,29 @@ rest_show_filter_updates(mtev_http_rest_closure_t *restc,
     return 0;
   }
 
-  doc = xmlNewDoc((xmlChar *)"1.0");
-  root = xmlNewNode(NULL, (xmlChar *)"filtersets");
-  xmlDocSetRootElement(doc, root);
-  if (noit_filters_get_lmdb_instance()) {
-    noit_cluster_lmdb_filter_changes(peerid, restc->remote_cn, prev, end, root);
-  }
-  else {
-    noit_cluster_xml_filter_changes(peerid, restc->remote_cn, prev, end, root);
-  }
-  noit_filter_set_db_source_header(restc->http_ctx);
-  mtev_http_response_ok(ctx, "text/xml");
-  mtev_http_response_xml(ctx, doc);
-  mtev_http_response_end(ctx);
+  rest_filter_updates_closure_t *closure = (rest_filter_updates_closure_t*)calloc(1, sizeof(*closure));
+  mtevAssert(closure);
 
-  if(doc) xmlFreeDoc(doc);
+  closure->restc = restc;
+  closure->prev = prev;
+  closure->end = end;
+  mtev_uuid_copy(closure->peerid, peerid);
+  closure->doc = NULL;
+
+  restc->call_closure = (void *)closure;
+  restc->call_closure_free = rest_show_filter_updates_free_closure;
+  restc->fastpath = rest_show_filter_updates_complete;
+
+  mtev_http_connection *connection = mtev_http_session_connection(ctx);
+  mtevAssert(connection);
+
+  eventer_t conne = mtev_http_connection_event_float(connection);
+  if(conne) eventer_remove_fde(conne);
+
+  eventer_t e = eventer_alloc_asynch(rest_show_filter_updates_asynch, closure);
+  if(conne) eventer_set_owner(e, eventer_get_owner(conne));
+
+  eventer_add_asynch(filter_updates_jobq, e);
 
   return 0;
 }
@@ -367,6 +422,9 @@ rest_show_filter_updates(mtev_http_rest_closure_t *restc,
 
 void
 noit_filters_rest_init() {
+  filter_updates_jobq = eventer_jobq_retrieve("filter_updates");
+  mtevAssert(filter_updates_jobq);
+
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^updates$",
     rest_show_filter_updates, mtev_http_rest_client_cert_auth
