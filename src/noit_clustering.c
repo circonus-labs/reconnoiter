@@ -679,10 +679,22 @@ possibly_start_job(noit_peer_t *peer) {
 }
 
 mtev_boolean
-noit_cluster_checkid_replication_pending(uuid_t checkid) {
-  if(!my_cluster) return mtev_false;
+noit_cluster_checkid_replication_pending(uuid_t checkid, mtev_boolean bail_if_cant_lock) {
+  if(!my_cluster) {
+    return mtev_false;
+  }
 
-  pthread_mutex_lock(&noit_peer_lock);
+  if (bail_if_cant_lock) {
+    if (pthread_mutex_trylock(&noit_peer_lock)) {
+      /* Someone else has the lock.... we don't want to block
+       * here, so just return there we're pending  and handle
+       * things later */
+      return mtev_true;
+    }
+  }
+  else {
+    pthread_mutex_lock(&noit_peer_lock);
+  }
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   while(mtev_hash_adv(&peers, &iter)) {
     struct check_changes *n;
