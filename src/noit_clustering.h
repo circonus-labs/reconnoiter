@@ -59,7 +59,9 @@ void
                                   int64_t prev_end, int64_t limit, xmlNodePtr parent);
 
 mtev_boolean
-  noit_cluster_checkid_replication_pending(uuid_t);
+  noit_cluster_checkid_replication_pending(uuid_t checkid);
+mtev_boolean
+  noit_cluster_checkid_replication_pending_or_cant_acquire_lock(uuid_t checkid);
 
 int
   noit_cluster_self_index(void);

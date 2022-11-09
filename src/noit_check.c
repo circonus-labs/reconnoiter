@@ -1973,7 +1973,10 @@ check_recycle_bin_processor_internal() {
   pthread_mutex_lock(&polls_lock);
   while(mtev_hash_adv(&polls, &iter)) {
     noit_check_t *check = (noit_check_t *)iter.value.ptr;
-    if(NOIT_CHECK_DELETED(check) && !noit_cluster_checkid_replication_pending(check->checkid)) {
+    /* noit_cluster_checkid_replication_pending_or_cant_acquire_lock  will attempt to get a
+     * lock... if it can't get the lock, it will return true and we will skip the check for now */
+    if(NOIT_CHECK_DELETED(check) &&
+        !noit_cluster_checkid_replication_pending_or_cant_acquire_lock(check->checkid)) {
       char idstr[UUID_STR_LEN+1];
       mtev_uuid_unparse_lower(check->checkid, idstr);
 
