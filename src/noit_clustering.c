@@ -678,8 +678,8 @@ possibly_start_job(noit_peer_t *peer) {
   }
 }
 
-mtev_boolean
-noit_cluster_checkid_replication_pending(uuid_t checkid, mtev_boolean bail_if_cant_lock) {
+static mtev_boolean
+noit_cluster_checkid_replication_pending_internal(uuid_t checkid, mtev_boolean bail_if_cant_lock) {
   if(!my_cluster) {
     return mtev_false;
   }
@@ -708,6 +708,16 @@ noit_cluster_checkid_replication_pending(uuid_t checkid, mtev_boolean bail_if_ca
   }
   pthread_mutex_unlock(&noit_peer_lock);
   return mtev_false;
+}
+
+mtev_boolean
+noit_cluster_checkid_replication_pending(uuid_t checkid) {
+  return noit_cluster_checkid_replication_pending_internal(checkid, mtev_false);
+}
+
+mtev_boolean
+noit_cluster_checkid_replication_pending_or_cant_acquire_lock(uuid_t checkid) {
+  return noit_cluster_checkid_replication_pending_internal(checkid, mtev_true);
 }
 
 static void
