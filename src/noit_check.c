@@ -82,6 +82,8 @@ static mtev_log_stream_t check_debug;
 static int32_t global_minimum_period = 1000;
 static int32_t global_maximum_period = 300000;
 
+static eventer_jobq_t *check_recycler_jobq = NULL;
+
 #define CHECKS_XPATH_ROOT "/noit"
 #define CHECKS_XPATH_PARENT "checks"
 #define CHECKS_XPATH_BASE CHECKS_XPATH_ROOT "/" CHECKS_XPATH_PARENT
@@ -2035,10 +2037,22 @@ check_recycle_bin_processor_internal() {
 }
 
 static int
+check_recycle_bin_processor_asynch(eventer_t e, int mask, void *closure,
+                                   struct timeval *now) {
+  if (mask == EVENTER_ASYNCH_WORK) {
+    check_recycle_bin_processor_internal();
+  }
+  if (mask == EVENTER_ASYNCH) {
+    eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
+  }
+  return 0;
+}
+
+static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
-  check_recycle_bin_processor_internal();
-  eventer_add_in_s_us(check_recycle_bin_processor, NULL, check_recycle_period/1000, 1000*(check_recycle_period%1000));
+  eventer_t newe = eventer_alloc_asynch(check_recycle_bin_processor_asynch, NULL);
+  eventer_add_asynch(check_recycler_jobq, newe);
   return 0;
 }
 
@@ -3454,6 +3468,8 @@ void
 noit_check_init_globals(void) {
   mtev_hash_init(&polls);
   mtev_hash_init(&dns_ignore_list);
+  check_recycler_jobq = eventer_jobq_retrieve("check_recycler");
+  mtevAssert(check_recycler_jobq);
 }
 
 #define XMLSETPROP(node, name, part, fmt) do { \
