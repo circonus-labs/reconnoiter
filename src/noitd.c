@@ -208,6 +208,8 @@ static int child_main() {
   noit_mtev_bridge_init();
   mtev_override_console_stopword(noit_console_stopword);
 
+  noit_check_init_globals();
+
   /* Load our config...
    * to ensure it is current w.r.t. to this child starting */
   if(mtev_conf_load(NULL) == -1) {
@@ -310,7 +312,6 @@ static int child_main() {
 
 void
 noitd_init_globals(void) {
-  noit_check_init_globals();
   noit_check_tools_shared_init_globals();
   noit_conf_checks_init_globals();
   noit_filters_init_globals();
@@ -324,6 +325,7 @@ noitd_jobqs_init(void) {
   mtev_main_eventer_config("jobq_set_check", "10,1,50,gc");
   mtev_main_eventer_config("jobq_check_updates", "1,1,50,gc");
   mtev_main_eventer_config("jobq_filter_updates", "1,1,50,gc");
+  mtev_main_eventer_config("jobq_check_recycler", "1,1,1,gc");
 }
 
 int main(int argc, char **argv) {
@@ -332,8 +334,8 @@ int main(int argc, char **argv) {
   parse_clargs(argc, argv);
   if(!config_file) config_file = strdup(ETC_DIR "/" APPNAME ".conf");
   if (xpath) lock = MTEV_LOCK_OP_NONE;
-  noitd_init_globals();
   noitd_jobqs_init();
+  noitd_init_globals();
   return mtev_main(APPNAME, config_file, debug, foreground,
                    lock, glider, droptouser, droptogroup, 
                    child_main);
