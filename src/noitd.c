@@ -326,7 +326,10 @@ noitd_jobqs_init(void) {
   mtev_main_eventer_config("jobq_check_updates", "1,1,50,gc");
   mtev_main_eventer_config("jobq_filter_updates", "1,1,50,gc");
   mtev_main_eventer_config("jobq_check_recycler", "1,1,1,gc");
-  mtev_main_eventer_config("jobq_lmdb_set_filter", "10,1,50,gc");
+  /* lmdb_set_filter is currently unsafe to set above 1
+   * TODO: Fan out filters across multiple threads by name
+   * to run in parallel */
+  mtev_main_eventer_config("jobq_lmdb_set_filter", "1,1,1,gc");
 }
 
 int main(int argc, char **argv) {
