@@ -1557,6 +1557,7 @@ lmdb_set_filter_data_free(void *c) {
   if (lfsc) {
     lfsc->xml_data_free(lfsc->xml_data);
     free(lfsc->error_string);
+    free(lfsc->name);
     free(lfsc);
   }
 }
