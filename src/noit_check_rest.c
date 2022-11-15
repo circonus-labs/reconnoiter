@@ -90,6 +90,7 @@
 
 static eventer_jobq_t *set_check_jobq = NULL;
 static eventer_jobq_t *check_updates_jobq = NULL;
+static eventer_jobq_t *delete_lmdb_check_jobq = NULL;
 
 static void
 add_metrics_to_node(noit_check_t *check, stats_t *c, xmlNodePtr metrics, const char *type,
@@ -1037,7 +1038,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
   mtev_memory_begin();
 
   if(noit_check_get_lmdb_instance()) {
-    rv = noit_check_lmdb_delete_check(restc, npats, pats);
+    rv = noit_check_lmdb_delete_check(restc, npats, pats, delete_lmdb_check_jobq);
     mtev_memory_end();
     return rv;
   }
@@ -1394,6 +1395,9 @@ noit_check_rest_init() {
   mtevAssert(set_check_jobq);
   check_updates_jobq = eventer_jobq_retrieve("check_updates");
   mtevAssert(check_updates_jobq);
+  delete_lmdb_check_jobq = eventer_jobq_retrieve("lmdb_check_delete");
+  mtevAssert(delete_lmdb_check_jobq);
+
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
     noit_rest_show_config, mtev_http_rest_client_cert_auth

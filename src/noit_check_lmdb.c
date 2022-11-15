@@ -1069,67 +1069,126 @@ cleanup:
   return rc;
 }
 
+typedef struct lmdb_delete_check_closure {
+  mtev_http_rest_closure_t *restc;
+  uuid_t check_uuid;
+  int error_code;
+} lmdb_delete_check_closure_t;
+
+static void
+noit_check_lmdb_delete_check_free_closure(void *closure) {
+  lmdb_delete_check_closure_t *ldcc = (lmdb_delete_check_closure_t *)closure;
+  if (ldcc) {
+    free(ldcc);
+  }
+}
+
+static int
+noit_check_lmdb_delete_check_complete(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  lmdb_delete_check_closure_t *ldcc = (lmdb_delete_check_closure_t *)restc->call_closure;
+  mtev_http_session_ctx *ctx = ldcc->restc->http_ctx;
+  noit_check_set_db_source_header(ldcc->restc->http_ctx);
+  if (ldcc->error_code != 200 && ldcc->error_code != 0) {
+    mtev_http_response_standard(ctx, ldcc->error_code, "ERROR", "text/html");
+  }
+  else {
+    mtev_http_response_ok(ctx, "text/html");
+  }
+  mtev_http_response_end(ctx);
+  return 0;
+}
+
+static int
+noit_check_lmdb_delete_check_asynch(eventer_t e, int mask, void *closure,
+                                    struct timeval *now) {
+  lmdb_delete_check_closure_t *ldcc = (lmdb_delete_check_closure_t *)closure;
+  mtev_log_go_synch();
+  if(mask == EVENTER_ASYNCH_WORK) {
+    mtevL(mtev_error, "PHIL: ASYNCH 1\n");
+    mtev_memory_begin();
+    noit_check_t *check = noit_poller_lookup(ldcc->check_uuid);
+    mtev_boolean just_mark = mtev_false;
+    if(check) {
+      if(!noit_poller_deschedule(check->checkid, mtev_true, mtev_false)) {
+        just_mark = mtev_true;
+      }
+    }
+    if(just_mark) {
+      int new_seq = noit_check_lmdb_bump_seq_and_mark_deleted(ldcc->check_uuid);
+      if (new_seq <= 0) {
+        new_seq = 1;
+      }
+      if (check) {
+        check->config_seq = new_seq;
+        noit_cluster_mark_check_changed(check, NULL);
+      }
+    }
+    else {
+      int rc = noit_check_lmdb_remove_check_from_db(ldcc->check_uuid, mtev_true);
+      if (rc == MDB_NOTFOUND) {
+        ldcc->error_code = 404;
+      }
+      else if (rc) {
+        ldcc->error_code = 500;
+      }
+    }
+    if (check) {
+      noit_check_deref(check);
+    }
+    mtev_memory_end();
+  }
+  if(mask == EVENTER_ASYNCH) {
+    if (ldcc) {
+      mtev_http_session_resume_after_float(ldcc->restc->http_ctx);
+    }
+  }
+  return 0;
+}
+
 int
 noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc,
-                             int npats, char **pats) {
+                             int npats, char **pats,
+                             eventer_jobq_t *jobq) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   uuid_t checkid;
-  noit_check_t *check = NULL;
-  int rc, error_code = 500;
+  int error_code = 500;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance != NULL);
 
-  if(npats != 2) goto error;
-  if(mtev_uuid_parse(pats[1], checkid)) goto error;
-
-  check = noit_poller_lookup(checkid);
-
-  /* delete this here */
-  mtev_boolean just_mark = mtev_false;
-  if(check) {
-    if(!noit_poller_deschedule(check->checkid, mtev_true, mtev_false)) {
-      just_mark = mtev_true;
-    }
+  if(npats != 2) {
+    goto error;
   }
-  if(just_mark) {
-    int new_seq = noit_check_lmdb_bump_seq_and_mark_deleted(checkid);
-    if (new_seq <= 0) {
-      new_seq = 1;
-    }
-    if (check) {
-      check->config_seq = new_seq;
-      noit_cluster_mark_check_changed(check, NULL);
-    }
-  }
-  else {
-    rc = noit_check_lmdb_remove_check_from_db(checkid, mtev_true);
-    if (rc == MDB_NOTFOUND) {
-      goto not_found;
-    }
-    else if (rc) {
-      goto error;
-    }
+  if(mtev_uuid_parse(pats[1], checkid)) {
+    goto error;
   }
 
-  noit_check_set_db_source_header(restc->http_ctx);
-  mtev_http_response_ok(ctx, "text/html");
-  mtev_http_response_end(ctx);
-  goto cleanup;
+  mtev_http_connection *connection = mtev_http_session_connection(ctx);
+  mtevAssert(connection);
 
- not_found:
-  noit_check_set_db_source_header(restc->http_ctx);
-  mtev_http_response_not_found(ctx, "text/html");
-  mtev_http_response_end(ctx);
-  goto cleanup;
+  eventer_t conne = mtev_http_connection_event_float(connection);
+  if(conne) eventer_remove_fde(conne);
+
+  lmdb_delete_check_closure_t *ldcc =
+    (lmdb_delete_check_closure_t *)calloc(1, sizeof(*ldcc));
+
+  ldcc->restc = restc;
+  mtev_uuid_copy(ldcc->check_uuid, checkid);
+
+  restc->call_closure = ldcc;
+  restc->call_closure_free = noit_check_lmdb_delete_check_free_closure;
+  restc->fastpath = noit_check_lmdb_delete_check_complete;
+
+  eventer_t e = eventer_alloc_asynch(noit_check_lmdb_delete_check_asynch, ldcc);
+  if(conne) eventer_set_owner(e, eventer_get_owner(conne));
+
+  eventer_add_asynch(jobq, e);
+
+  return 0;
 
  error:
   noit_check_set_db_source_header(restc->http_ctx);
   mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   mtev_http_response_end(ctx);
-  goto cleanup;
-
- cleanup:
-  noit_check_deref(check);
   return 0;
 }
 
