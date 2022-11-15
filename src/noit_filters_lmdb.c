@@ -36,10 +36,13 @@
 #include "flatbuffers/filterset_rule_builder.h"
 #include "flatbuffers/filterset_rule_verifier.h"
 #include <mtev_conf.h>
+#include <mtev_memory.h>
 #include <mtev_watchdog.h>
 
 static int32_t global_default_filter_flush_period_ms = DEFAULT_FILTER_FLUSH_PERIOD_MS;
 static pcre *fallback_no_match = NULL;
+
+static eventer_jobq_t *set_lmdb_filter_jobq = NULL;
 
 typedef struct noit_filter_lmdb_rule_filterset {
   noit_ruletype_t type;
@@ -1535,20 +1538,111 @@ noit_filters_lmdb_cull_unused() {
   return removed;
 }
 
+typedef struct lmdb_filter_set_closure {
+  mtev_http_rest_closure_t *restc;
+  xmlNodePtr newfilter;
+  char *name;
+  char *error_string;
+  int error_code;
+  /* indoc does not need to be freed, it is part of xml_data*/
+  xmlDocPtr indoc;
+  /* Store off the data/free from rest_get_xml_upload here */
+  void *xml_data;
+  void (*xml_data_free)(void *);
+} lmdb_filter_set_closure_t;
+
+static void
+lmdb_set_filter_data_free(void *c) {
+  lmdb_filter_set_closure_t *lfsc = (lmdb_filter_set_closure_t *)c;
+  if (lfsc) {
+    lfsc->xml_data_free(lfsc->xml_data);
+    free(lfsc->error_string);
+    free(lfsc->name);
+    free(lfsc);
+  }
+}
+
+static int
+noit_filters_lmdb_rest_set_filter_complete(mtev_http_rest_closure_t *restc,
+                                           int npats, char **pats) {
+  lmdb_filter_set_closure_t *lfsc = (lmdb_filter_set_closure_t *)restc->call_closure;
+  if (lfsc->error_string) {
+    mtev_http_rest_closure_t *restc = lfsc->restc;
+    mtev_http_session_ctx *ctx = restc->http_ctx;
+    noit_filter_set_db_source_header(ctx);
+    mtev_http_response_standard(ctx, lfsc->error_code, "ERROR", "text/xml");
+    xmlDocPtr doc = xmlNewDoc((xmlChar *)"1.0");
+    xmlNodePtr root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+    xmlDocSetRootElement(doc, root);
+    xmlNodeAddContent(root, (xmlChar *)lfsc->error_string);
+    mtev_http_response_xml(ctx, doc);
+    mtev_http_response_end(ctx);
+    xmlFreeDoc(doc);
+    return 0;
+  }
+  else {
+    int rv;
+
+    mtev_memory_begin();
+    rv = noit_filters_lmdb_rest_show_filter(restc, npats, pats);
+    mtev_memory_end();
+    return rv;
+  }
+}
+
+static int
+noit_filters_lmdb_rest_set_filter_asynch(eventer_t e, int mask, void *closure,
+                                         struct timeval *now) {
+  lmdb_filter_set_closure_t *lfsc = (lmdb_filter_set_closure_t *)closure;
+  mtev_http_rest_closure_t *restc = lfsc->restc;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+
+  if (mask == EVENTER_ASYNCH_WORK) {
+#define SET_ERROR_CODE(code, str) do { \
+  lfsc->error_code = code; \
+  lfsc->error_string = strdup(str); \
+  return 0; \
+} while(0);
+    const char *error = "internal error";
+    int64_t old_seq = 0, seq = 0;
+    mtev_boolean exists = noit_filters_lmdb_already_in_db(lfsc->name);
+    if (exists) {
+      old_seq = noit_filters_lmdb_get_seq(lfsc->name);
+    }
+    if((lfsc->newfilter = noit_filter_validate_filter(lfsc->indoc, lfsc->name, &seq, &error)) == NULL) {
+      SET_ERROR_CODE(500, error);
+    }
+    if(exists && (old_seq >= seq && seq != 0)) {
+      SET_ERROR_CODE(409, "sequencing error");
+    }
+    /* noit_filters_lmdb_convert_one_xml_filterset_to_lmdb actually allocated an error string, so pass the final string in directly */
+    int rv = noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(lfsc->newfilter), &lfsc->error_string);
+    if (rv || lfsc->error_string) {
+      if (!lfsc->error_string) {
+        lfsc->error_string = strdup("(unknown error)");  
+      }
+      mtevL(mtev_error, "noit_filters_lmdb_process_repl: error converting filterset from xml to lmdb: %s\n", lfsc->error_string);
+      lfsc->error_code = 500;
+      return 0;
+    }
+    noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(lfsc->newfilter));
+  }
+  if (mask == EVENTER_ASYNCH) {
+    mtev_http_session_resume_after_float(ctx);
+  }
+  return 0;
+}
+
 int
 noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
                                   int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL, indoc = NULL;
-  xmlNodePtr parent, root, newfilter;
+  xmlNodePtr parent, root;
   char xpath[1024];
   int error_code = 500, complete = 0, mask = 0;
-  mtev_boolean exists;
-  int64_t seq = 0;
-  int64_t old_seq = 0;
   const char *error = "internal error";
   char *error_str = NULL;
-  mtev_boolean allocated_error = mtev_false;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
   int rv = 0;
 
@@ -1569,39 +1663,33 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
     error_code = 406;
     goto error;
   }
-  
-  exists = noit_filters_lmdb_already_in_db(pats[1]);
-  if (exists) {
-    old_seq = noit_filters_lmdb_get_seq(pats[1]);
-  }
 
-  if((newfilter = noit_filter_validate_filter(indoc, pats[1], &seq, &error)) == NULL) {
-    goto error;
-  }
+  mtev_http_connection *connection = mtev_http_session_connection(ctx);
+  mtevAssert(connection);
 
-  if(exists && (old_seq >= seq && seq != 0)) {
-    error = "sequencing error";
-    error_code = 409;
-    goto error;
-  }
-  error_str = NULL;
-  rv = noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(newfilter), &error_str);
-  if (rv || error_str) {
-    mtevL(mtev_error, "noit_filters_lmdb_process_repl: error converting filterset from xml to lmdb: %s\n", error_str ? error_str : "(unknown error)");
-    error_code = 500;
-    error = error_str;
-    allocated_error = mtev_true;
-    goto error;
-  }
-  noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(newfilter));
+  eventer_t conne = mtev_http_connection_event_float(connection);
+  if(conne) eventer_remove_fde(conne);
 
-  if(restc->call_closure_free) {
-    restc->call_closure_free(restc->call_closure);
-  }
-  restc->call_closure_free = NULL;
-  restc->call_closure = NULL;
-  restc->fastpath = noit_filters_lmdb_rest_show_filter;
-  return restc->fastpath(restc, restc->nparams, restc->params);
+  lmdb_filter_set_closure_t *lfsc = (lmdb_filter_set_closure_t *)calloc(1, sizeof(*lfsc));
+  lfsc->restc = restc;
+  lfsc->indoc = indoc;
+  lfsc->name = strdup(pats[1]);
+  /* rest_get_xml_upload sets a closure and free function... we need to set
+   * our own closure, though, so we need to save off what was there and call
+   * it when we clean up */
+  lfsc->xml_data = restc->call_closure;
+  lfsc->xml_data_free = restc->call_closure_free;
+
+  restc->call_closure = lfsc;
+  restc->call_closure_free = lmdb_set_filter_data_free;
+  restc->fastpath = noit_filters_lmdb_rest_set_filter_complete;
+
+  eventer_t e = eventer_alloc_asynch(noit_filters_lmdb_rest_set_filter_asynch, lfsc);
+  if(conne) eventer_set_owner(e, eventer_get_owner(conne));
+
+  eventer_add_asynch(set_lmdb_filter_jobq, e);
+
+  return 0;
 
  error:
   noit_filter_set_db_source_header(restc->http_ctx);
@@ -1612,9 +1700,6 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
   xmlNodeAddContent(root, (xmlChar *)error);
   mtev_http_response_xml(ctx, doc);
   mtev_http_response_end(ctx);
-  if (allocated_error) {
-    free((char *)error);
-  }
   goto cleanup;
 
  cleanup:
@@ -1626,6 +1711,8 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
 
 void
 noit_filters_lmdb_init() {
+  set_lmdb_filter_jobq = eventer_jobq_retrieve("lmdb_set_filter");
+  mtevAssert(set_lmdb_filter_jobq);
   const char *error;
   int erroffset;
   const char *xpath = "/noit/filtersets";
