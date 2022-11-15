@@ -621,7 +621,6 @@ lmdb_set_check_data_free(void *c) {
    * will be freed when we finish with the restc struct */
   if (lscd) {
     free(lscd->error_string);
-    free(lscd->name);
     if (lscd->xml_data_free) {
       lscd->xml_data_free(lscd->xml_data);
     }
