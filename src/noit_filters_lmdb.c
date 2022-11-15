@@ -1587,7 +1587,6 @@ noit_filters_lmdb_rest_set_filter_complete(mtev_http_rest_closure_t *restc,
     mtev_memory_end();
     return rv;
   }
-  /* Unreachable */
   return 0;
 }
 
