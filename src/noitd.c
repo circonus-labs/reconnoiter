@@ -330,6 +330,10 @@ noitd_jobqs_init(void) {
    * TODO: Fan out filters across multiple threads by name
    * to run in parallel */
   mtev_main_eventer_config("jobq_lmdb_set_filter", "1,1,1,gc");
+  /* lmdb_check_delete needs to be 1 in order to prevent races doing
+   * deletes in parallel.
+   * TODO: Fan out deletes across multiple threads so they can run in
+   * parallel */
   mtev_main_eventer_config("jobq_lmdb_check_delete", "1,1,1,gc");
 }
 
