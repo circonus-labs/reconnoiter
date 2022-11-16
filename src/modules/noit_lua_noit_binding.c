@@ -39,6 +39,8 @@
 #include "noit_filters_lmdb.h"
 #include "lua_check.h"
 
+static eventer_jobq_t *filterset_cull_jobq = NULL;
+
 typedef struct lua_callback_ref{
   lua_State *L;
   int callback_reference;
@@ -189,6 +191,10 @@ static const luaL_Reg noit_binding[] = {
 
 LUALIB_API int luaopen_noit_binding(lua_State *L)
 {
+  if (!filterset_cull_jobq) {
+    filterset_cull_jobq = eventer_jobq_retrieve("filterset_cull");
+    mtevAssert(filterset_cull_jobq);
+  }
   luaL_openlib(L, "noit_binding", noit_binding, 0);
   return 1;
 }
