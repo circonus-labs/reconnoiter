@@ -99,20 +99,46 @@ nl_register_dns_ignore_domain(lua_State *L) {
   return 1;
 }
 
+typedef struct filterset_cull_crutch {
+  mtev_lua_resume_info_t *ci;
+  lua_State *L;
+  int count;
+} filterset_cull_crutch_t;
+
 static int
-lua_general_filtersets_cull(lua_State *L) {
-  int rv;
-  if (noit_filters_get_lmdb_instance()) {
-    rv = noit_filters_lmdb_cull_unused();
-  }
-  else {
-    rv = noit_filtersets_cull_unused();
-    if(rv > 0) {
-      mtev_conf_mark_changed();
+lua_general_filtersets_cull_asynch(eventer_t e, int mask, void *closure,
+                                   struct timeval *now) {
+  filterset_cull_crutch_t *fcc = (filterset_cull_crutch_t *)closure;
+  if(mask == EVENTER_ASYNCH_WORK) {
+    if (noit_filters_get_lmdb_instance()) {
+      fcc->count = noit_filters_lmdb_cull_unused();
+    }
+    else {
+      fcc->count = noit_filtersets_cull_unused();
+      if(fcc->count > 0) {
+        mtev_conf_mark_changed();
+      }
     }
   }
-  lua_pushinteger(L, rv);
-  return 1;
+  if(mask == EVENTER_ASYNCH) {
+    lua_pushinteger(fcc->L, fcc->count);
+    mtev_lua_lmc_resume(fcc->ci->lmc, fcc->ci, 1);
+  }
+  return 0;
+}
+
+static int
+lua_general_filtersets_cull(lua_State *L) {
+  mtev_lua_resume_info_t *ci = mtev_lua_find_resume_info(L, mtev_true);
+  mtevAssert(ci);
+
+  filterset_cull_crutch_t *closure = (filterset_cull_crutch_t *)calloc(1, sizeof(*closure));
+  closure->L = L;
+  closure->ci = ci;
+  closure->count = 0;
+  eventer_t e = eventer_alloc_asynch(lua_general_filtersets_cull_asynch, closure);
+  eventer_add_asynch(filterset_cull_jobq, e);
+  return mtev_lua_yield(ci, 0);
 }
 
 static int
