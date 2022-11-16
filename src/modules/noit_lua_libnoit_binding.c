@@ -43,6 +43,8 @@
 void noit_lua_libnoit_init();
 static ck_spinlock_t noit_lua_libnoit_init_lock = CK_SPINLOCK_INITIALIZER;
 
+static eventer_jobq_t *filterset_cull_jobq = NULL;
+
 // We need to hold-on to a reference to the metric name as long as we make use of the tagset
 // we also need to hold onto any dynamically constructed tag strings we add.
 typedef struct noit_lua_tagset_allocation {
@@ -714,6 +716,8 @@ noit_lua_libnoit_init() {
     mtev_hash_init(tmp);
     ck_pr_store_ptr(&account_set, tmp);
     metric_director_want_hook_register("metrics_select", hook_metric_subscribe_account, NULL);
+    filterset_cull_jobq = eventer_jobq_retrieve("filterset_cull");
+    mtevAssert(filterset_cull_jobq);
   }
   ck_spinlock_unlock(&noit_lua_libnoit_init_lock);
 }
