@@ -45,7 +45,7 @@ int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char
 int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
 int noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc, int npats, char **pats, eventer_jobq_t *jobq);
 int noit_check_lmdb_remove_check_from_db(uuid_t checkid, mtev_boolean force);
-int noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc, int npats, char **pats);
+int noit_check_lmdb_delete_check(mtev_http_rest_closure_t *restc, int npats, char **pats, eventer_jobq_t *jobq);
 void noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt);
 void noit_check_lmdb_migrate_xml_checks_to_lmdb();
 int noit_check_lmdb_process_repl(xmlDocPtr doc);

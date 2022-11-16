@@ -330,6 +330,7 @@ noitd_jobqs_init(void) {
    * TODO: Fan out filters across multiple threads by name
    * to run in parallel */
   mtev_main_eventer_config("jobq_lmdb_set_filter", "1,1,1,gc");
+  mtev_main_eventer_config("jobq_lmdb_check_delete", "1,1,1,gc");
 }
 
 int main(int argc, char **argv) {
