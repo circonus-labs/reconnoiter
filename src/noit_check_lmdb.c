@@ -1104,7 +1104,6 @@ noit_check_lmdb_delete_check_asynch(eventer_t e, int mask, void *closure,
   lmdb_delete_check_closure_t *ldcc = (lmdb_delete_check_closure_t *)closure;
   mtev_log_go_synch();
   if(mask == EVENTER_ASYNCH_WORK) {
-    mtevL(mtev_error, "PHIL: ASYNCH 1\n");
     mtev_memory_begin();
     noit_check_t *check = noit_poller_lookup(ldcc->check_uuid);
     mtev_boolean just_mark = mtev_false;
