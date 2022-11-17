@@ -1413,9 +1413,59 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+typedef struct lmdb_delete_filter_closure {
+  mtev_http_rest_closure_t *restc;
+  char *name;
+  int error_code;
+} lmdb_delete_filter_closure_t;
+
+static void noit_filters_lmdb_rest_delete_filter_free_closure(void *closure) {
+  lmdb_delete_filter_closure_t *ldfc = (lmdb_delete_filter_closure_t *)closure;
+  if (ldfc) {
+    free(ldfc->name);
+    free(ldfc);
+  }
+}
+
+int noit_filters_lmdb_rest_delete_filter_complete(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  lmdb_delete_filter_closure_t *ldfc = (lmdb_delete_filter_closure_t *) restc->call_closure;
+  noit_filter_set_db_source_header(ctx);
+  if (ldfc->error_code != 200 && ldfc->error_code != 0) {
+    mtev_http_response_standard(ctx, ldfc->error_code, "ERROR", "text/html");
+  }
+  else {
+    mtev_http_response_ok(ctx, "text/html");
+  }
+  mtev_http_response_end(ctx);
+  return 0;
+}
+
+static int
+noit_filters_lmdb_rest_delete_filter_asynch(eventer_t e, int mask, void *closure,
+                                            struct timeval *now) {
+  lmdb_delete_filter_closure_t *ldfc = (lmdb_delete_filter_closure_t *)closure;
+  if(mask == EVENTER_ASYNCH_WORK) {
+    int rc = noit_filters_lmdb_remove_from_db(ldfc->name);
+    if (rc == MDB_NOTFOUND) {
+      ldfc->error_code = 404;
+    }
+    else if (rc != MDB_SUCCESS) {
+      ldfc->error_code = 500;
+    }
+  }
+  if(mask == EVENTER_ASYNCH) {
+    if (ldfc) {
+      mtev_http_session_resume_after_float(ldfc->restc->http_ctx);
+    }
+  }
+  return 0;
+}
+
 int
 noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
-                                     int npats, char **pats) {
+                                     int npats, char **pats,
+                                     eventer_jobq_t *jobq) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   int rc = 0;
   MDB_txn *txn = NULL;
@@ -1430,32 +1480,33 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
     goto not_found;
   }
 
-  rc = noit_filters_lmdb_remove_from_db(pats[1]);
-  if (rc == MDB_NOTFOUND) {
-    goto not_found;
-  }
-  else if (rc != MDB_SUCCESS) {
-    goto error;
-  }
+  lmdb_delete_filter_closure_t *ldfc = (lmdb_delete_filter_closure_t*)calloc(1, sizeof(*ldfc));
+  mtevAssert(ldfc);
 
-  noit_filter_set_db_source_header(restc->http_ctx);
-  mtev_http_response_ok(ctx, "text/html");
-  mtev_http_response_end(ctx);
-  goto cleanup;
+  ldfc->restc = restc;
+  ldfc->name = strdup(pats[1]);
 
- error:
-  noit_filter_set_db_source_header(restc->http_ctx);
-  mtev_http_response_standard(ctx, 500, mdb_strerror(rc), "text/html");
-  mtev_http_response_end(ctx);
-  goto cleanup;
+  restc->call_closure = ldfc;
+  restc->call_closure_free = noit_filters_lmdb_rest_delete_filter_free_closure;
+  restc->fastpath = noit_filters_lmdb_rest_delete_filter_complete;
+
+  mtev_http_connection *connection = mtev_http_session_connection(ctx);
+  mtevAssert(connection);
+
+  eventer_t conne = mtev_http_connection_event_float(connection);
+  if(conne) eventer_remove_fde(conne);
+
+  eventer_t e = eventer_alloc_asynch(noit_filters_lmdb_rest_delete_filter_asynch, ldfc);
+  if(conne) eventer_set_owner(e, eventer_get_owner(conne));
+
+  eventer_add_asynch(jobq, e);
+
+  return 0;
 
  not_found:
   noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_not_found(ctx, "text/html");
   mtev_http_response_end(ctx);
-  goto cleanup;
-
- cleanup:
   return 0;
 }
 

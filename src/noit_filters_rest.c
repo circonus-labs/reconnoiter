@@ -56,6 +56,7 @@
 
 static eventer_jobq_t *filter_updates_jobq = NULL;
 static eventer_jobq_t *filterset_cull_jobq = NULL;
+static eventer_jobq_t *filterset_delete_jobq = NULL;
 
 static int
 rest_show_filters(mtev_http_rest_closure_t *restc,
@@ -176,7 +177,7 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
 
   char xpath[1024];
   if (noit_filters_get_lmdb_instance()) {
-    return noit_filters_lmdb_rest_delete_filter(restc, npats, pats);
+    return noit_filters_lmdb_rest_delete_filter(restc, npats, pats, filterset_delete_jobq);
   }
 
   if(npats != 2) goto not_found;
@@ -480,6 +481,8 @@ noit_filters_rest_init() {
   mtevAssert(filter_updates_jobq);
   filterset_cull_jobq = eventer_jobq_retrieve("filterset_cull");
   mtevAssert(filterset_cull_jobq);
+  filterset_delete_jobq = eventer_jobq_retrieve("delete_filter");
+  mtevAssert(filterset_delete_jobq);
 
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^updates$",
