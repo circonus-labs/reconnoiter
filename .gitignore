@@ -115,3 +115,5 @@ src/modules/types.pb-c.h
 .cproject
 .project
 .settings/
+.latest_buildtype
+Makefile.dep

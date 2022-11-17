@@ -606,6 +606,11 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
+        case opentelemetry::proto::metrics::v1::Metric::kSummary:
+        case opentelemetry::proto::metrics::v1::Metric::DATA_NOT_SET:
+        {
+          break;
+        }
         }
       }
     }

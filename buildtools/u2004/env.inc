@@ -36,3 +36,7 @@ export SHCFLAGS="-g"
 export MAKE="make"
 export CPPFLAGS
 export LIBS="-lm"
+export CC="gcc-11"
+export CXX="g++-11"
+export LD="gcc-11"
+export MODULECXX="g++-11"

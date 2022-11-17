@@ -39,10 +39,11 @@ if [[ "$BUILD_INCLUDE_ENV" == "asan" ]] ; then
   ASAN_BUILD=" with ASAN libs"
   export BUILD_ASAN=1
 fi
-echo "Performing $BUILD_INCLUDE_ENV build${ASAN_BUILD}..."
+echo "Performing $BUILD_INCLUDE_ENV tests${ASAN_BUILD}..."
 source $INCLUDE_ENV
 
-./buildtools/build.sh EXTRA_CFLAGS="-Wall -Werror" EXTRA_CXXFLAGS="-Wall -Werror" $@
+echo ${MAKE} check EXTRA_CFLAGS="-Wall -Werror" EXTRA_CXXFLAGS="-Wall -Werror" $@
+${MAKE} check EXTRA_CFLAGS="-Wall -Werror" EXTRA_CXXFLAGS="-Wall -Werror" $@
 EXIT_CODE="$?"
 
 echo
@@ -57,8 +58,8 @@ echo
 
 if [ "$EXIT_CODE" != "0" ] ; then
   echo "*********************"
-  echo "*** Build failed! ***"
+  echo "*** Tests failed! ***"
   echo "*********************"
 else
-  echo "Successfully completed $BUILD_INCLUDE_ENV build${ASAN_BUILD}."
+  echo "Successfully completed $BUILD_INCLUDE_ENV tests${ASAN_BUILD}."
 fi
