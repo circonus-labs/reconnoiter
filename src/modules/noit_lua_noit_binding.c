@@ -121,8 +121,12 @@ lua_general_filtersets_cull_asynch(eventer_t e, int mask, void *closure,
     }
   }
   if(mask == EVENTER_ASYNCH) {
-    lua_pushinteger(fcc->L, fcc->count);
-    mtev_lua_lmc_resume(fcc->ci->lmc, fcc->ci, 1);
+    mtev_lua_resume_info_t *ci = fcc->ci;
+    lua_State *L = fcc->L;
+    int count = fcc->count;
+    free(fcc);
+    lua_pushinteger(L, count);
+    mtev_lua_lmc_resume(ci->lmc, ci, 1);
   }
   return 0;
 }
