@@ -39,6 +39,8 @@
 #include "noit_filters_lmdb.h"
 #include "lua_check.h"
 
+static eventer_jobq_t *filterset_cull_jobq = NULL;
+
 typedef struct lua_callback_ref{
   lua_State *L;
   int callback_reference;
@@ -97,20 +99,50 @@ nl_register_dns_ignore_domain(lua_State *L) {
   return 1;
 }
 
+typedef struct filterset_cull_crutch {
+  mtev_lua_resume_info_t *ci;
+  lua_State *L;
+  int count;
+} filterset_cull_crutch_t;
+
 static int
-lua_general_filtersets_cull(lua_State *L) {
-  int rv;
-  if (noit_filters_get_lmdb_instance()) {
-    rv = noit_filters_lmdb_cull_unused();
-  }
-  else {
-    rv = noit_filtersets_cull_unused();
-    if(rv > 0) {
-      mtev_conf_mark_changed();
+lua_general_filtersets_cull_asynch(eventer_t e, int mask, void *closure,
+                                   struct timeval *now) {
+  filterset_cull_crutch_t *fcc = (filterset_cull_crutch_t *)closure;
+  if(mask == EVENTER_ASYNCH_WORK) {
+    if (noit_filters_get_lmdb_instance()) {
+      fcc->count = noit_filters_lmdb_cull_unused();
+    }
+    else {
+      fcc->count = noit_filtersets_cull_unused();
+      if(fcc->count > 0) {
+        mtev_conf_mark_changed();
+      }
     }
   }
-  lua_pushinteger(L, rv);
-  return 1;
+  if(mask == EVENTER_ASYNCH) {
+    mtev_lua_resume_info_t *ci = fcc->ci;
+    lua_State *L = fcc->L;
+    int count = fcc->count;
+    free(fcc);
+    lua_pushinteger(L, count);
+    mtev_lua_lmc_resume(ci->lmc, ci, 1);
+  }
+  return 0;
+}
+
+static int
+lua_general_filtersets_cull(lua_State *L) {
+  mtev_lua_resume_info_t *ci = mtev_lua_find_resume_info(L, mtev_true);
+  mtevAssert(ci);
+
+  filterset_cull_crutch_t *closure = (filterset_cull_crutch_t *)calloc(1, sizeof(*closure));
+  closure->L = L;
+  closure->ci = ci;
+  closure->count = 0;
+  eventer_t e = eventer_alloc_asynch(lua_general_filtersets_cull_asynch, closure);
+  eventer_add_asynch(filterset_cull_jobq, e);
+  return mtev_lua_yield(ci, 0);
 }
 
 static int
@@ -189,6 +221,10 @@ static const luaL_Reg noit_binding[] = {
 
 LUALIB_API int luaopen_noit_binding(lua_State *L)
 {
+  if (!filterset_cull_jobq) {
+    filterset_cull_jobq = eventer_jobq_retrieve("filterset_cull");
+    mtevAssert(filterset_cull_jobq);
+  }
   luaL_openlib(L, "noit_binding", noit_binding, 0);
   return 1;
 }

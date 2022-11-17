@@ -55,6 +55,7 @@
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
 static eventer_jobq_t *filter_updates_jobq = NULL;
+static eventer_jobq_t *filterset_cull_jobq = NULL;
 
 static int
 rest_show_filters(mtev_http_rest_closure_t *restc,
@@ -208,27 +209,80 @@ rest_delete_filter(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+typedef struct cull_filter_closure {
+  mtev_http_rest_closure_t *restc;
+  int count;
+} cull_filter_closure_t;
+
+static void
+rest_cull_filter_free_closure(void *closure) {
+  cull_filter_closure_t *cfc = (cull_filter_closure_t *)closure;
+  if (cfc) {
+    free(cfc);
+  }
+}
+
 static int
-rest_cull_filter(mtev_http_rest_closure_t *restc,
-                 int npats, char **pats) {
-  int rv;
-  char cnt_str[32];
+rest_cull_filter_complete(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  cull_filter_closure_t *cfc = (cull_filter_closure_t *)restc->call_closure;
   mtev_http_session_ctx *ctx = restc->http_ctx;
 
-  if (noit_filters_get_lmdb_instance()) {
-    rv = noit_filters_lmdb_cull_unused();
-  }
-  else {
-    rv = noit_filtersets_cull_unused();
-    if(rv > 0) {
-      mtev_conf_mark_changed();
-    }
-  }
-  snprintf(cnt_str, sizeof(cnt_str), "%d", rv);
+  char cnt_str[32];
+  snprintf(cnt_str, sizeof(cnt_str), "%d", cfc->count);
   noit_filter_set_db_source_header(restc->http_ctx);
   mtev_http_response_ok(ctx, "text/html");
   mtev_http_response_header_set(ctx, "X-Filters-Removed", cnt_str);
   mtev_http_response_end(ctx);
+  return 0;
+}
+
+static int
+rest_cull_filter_asynch(eventer_t e, int mask, void *closure,
+                        struct timeval *now) {
+  cull_filter_closure_t *cfc = (cull_filter_closure_t *)closure;
+  if(mask == EVENTER_ASYNCH_WORK) {
+    if (noit_filters_get_lmdb_instance()) {
+      cfc->count = noit_filters_lmdb_cull_unused();
+    }
+    else {
+      cfc->count = noit_filtersets_cull_unused();
+      if(cfc->count > 0) {
+        mtev_conf_mark_changed();
+      }
+    }
+  }
+  if(mask == EVENTER_ASYNCH) {
+    if (cfc) {
+      mtev_http_session_resume_after_float(cfc->restc->http_ctx);
+    }
+  }
+  return 0;
+}
+
+static int
+rest_cull_filter(mtev_http_rest_closure_t *restc,
+                 int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+
+  cull_filter_closure_t *cfc = (cull_filter_closure_t *)calloc(1, sizeof(*cfc));
+  cfc->restc = restc;
+  cfc->count = 0;
+
+  mtev_http_connection *connection = mtev_http_session_connection(ctx);
+  mtevAssert(connection);
+
+  eventer_t conne = mtev_http_connection_event_float(connection);
+  if(conne) eventer_remove_fde(conne);
+
+  restc->call_closure = cfc;
+  restc->call_closure_free = rest_cull_filter_free_closure;
+  restc->fastpath = rest_cull_filter_complete;
+
+  eventer_t e = eventer_alloc_asynch(rest_cull_filter_asynch, cfc);
+  if(conne) eventer_set_owner(e, eventer_get_owner(conne));
+
+  eventer_add_asynch(filterset_cull_jobq, e);
+
   return 0;
 }
 
@@ -424,6 +478,8 @@ void
 noit_filters_rest_init() {
   filter_updates_jobq = eventer_jobq_retrieve("filter_updates");
   mtevAssert(filter_updates_jobq);
+  filterset_cull_jobq = eventer_jobq_retrieve("filterset_cull");
+  mtevAssert(filterset_cull_jobq);
 
   mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^updates$",
