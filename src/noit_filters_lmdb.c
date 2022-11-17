@@ -1486,7 +1486,7 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
   ldfc->restc = restc;
   ldfc->name = strdup(pats[1]);
 
-  restc->call_closure = (void *)ldfc;
+  restc->call_closure = ldfc;
   restc->call_closure_free = noit_filters_lmdb_rest_delete_filter_free_closure;
   restc->fastpath = noit_filters_lmdb_rest_delete_filter_complete;
 
