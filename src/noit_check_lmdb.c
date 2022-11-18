@@ -603,8 +603,7 @@ put_retry:
 }
 
 typedef struct lmdb_set_check_data {
-  xmlNodePtr attr;
-  xmlNodePtr config;
+  xmlDocPtr indoc;
   uuid_t checkid;
   int error_code;
   char *error_string;
@@ -617,8 +616,6 @@ typedef struct lmdb_set_check_data {
 static void
 lmdb_set_check_data_free(void *c) {
   lmdb_set_check_data_t *lscd = (lmdb_set_check_data_t *)c;
-  /* We are explicitly not freeing lscd->attr and lscd->config - those
-   * will be freed when we finish with the restc struct */
   if (lscd) {
     free(lscd->error_string);
     if (lscd->xml_data_free) {
@@ -674,6 +671,13 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
   if(mask == EVENTER_ASYNCH_WORK) {
     int rc = 0;
     mtev_boolean exists = mtev_false;
+    xmlNodePtr attr, config;
+    const char *local_error = "internal error";
+
+    if(!noit_validate_check_rest_post(lscd->indoc, &attr, &config, &local_error)) {
+      SET_ERROR_CODE(500, "could not validate xml check");
+    }
+
     noit_check_t *outer_check = noit_poller_lookup(lscd->checkid);
     if(outer_check) {
       exists = mtev_true;
@@ -689,7 +693,7 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
       noit_module_t *m = NULL;
       noit_check_t *check = NULL;
       /* make sure this isn't a dup */
-      rest_check_get_attrs(lscd->attr, &target, &name, &module);
+      rest_check_get_attrs(attr, &target, &name, &module);
       exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
       if(check) {
         old_seq = check->config_seq;
@@ -708,7 +712,7 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
         noit_check_deref(outer_check);
         SET_ERROR_CODE(412, "module does not exist");
       }
-      rc = noit_check_lmdb_configure_check(lscd->checkid, lscd->attr, lscd->config, old_seq);
+      rc = noit_check_lmdb_configure_check(lscd->checkid, attr, config, old_seq);
       if (rc) {
         noit_check_deref(check);
         noit_check_deref(outer_check);
@@ -726,7 +730,7 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
       }
 
       /* make sure this isn't a dup */
-      rest_check_get_attrs(lscd->attr, &target, &name, &module);
+      rest_check_get_attrs(attr, &target, &name, &module);
 
       ocheck = noit_poller_lookup_by_name(target, name);
       module_change = strcmp(outer_check->module, module);
@@ -749,7 +753,7 @@ noit_check_lmdb_set_check_asynch(eventer_t e, int mask, void *closure,
         }
       }
       free(old_seq_string);
-      rc = noit_check_lmdb_configure_check(lscd->checkid, lscd->attr, lscd->config, old_seq);
+      rc = noit_check_lmdb_configure_check(lscd->checkid, attr, config, old_seq);
       if (rc) {
         noit_check_deref(outer_check);
         SET_ERROR_CODE(409, "sequencing error");
@@ -771,7 +775,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
                           eventer_jobq_t *jobq) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL, indoc = NULL;
-  xmlNodePtr root, attr, config;
+  xmlNodePtr root;
   uuid_t checkid;
   int error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
@@ -794,9 +798,6 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   if(indoc == NULL) {
     GOTO_ERROR(400, "xml parse error");
   }
-  if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) {
-    GOTO_ERROR(500, "could not validate xml check");
-  }
 
   if(mtev_uuid_parse(pats[1], checkid)) {
     GOTO_ERROR(500, "not a valid uuid");
@@ -806,8 +807,7 @@ noit_check_lmdb_set_check(mtev_http_rest_closure_t *restc,
   mtevAssert(lscd);
 
   lscd->error_code = 500;
-  lscd->attr = attr;
-  lscd->config = config;
+  lscd->indoc = indoc;
   /* rest_get_xml_upload sets a closure and free function... we need to set
    * our own closure, though, so we need to save off what was there and call
    * it when we clean up */
