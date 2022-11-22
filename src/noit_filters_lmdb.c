@@ -79,6 +79,11 @@ typedef enum {
   FILTERSET_RULE_METRIC_TYPE
 } noit_filter_lmdb_rule_type_e;
 
+typedef enum {
+  FILTERSET_SHOW_SOURCE_SHOW = 0,
+  FILTERSET_SHOW_SOURCE_SET
+} noit_filter_lmdb_show_source_e;
+
 static void *get_aligned_fb(mtev_dyn_buffer_t *aligned, void *d, uint32_t size)
 {
   mtev_dyn_buffer_init(aligned);
@@ -934,6 +939,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
     mdb_txn_abort(txn);
     pthread_rwlock_unlock(&instance->lock);
     free(key);
+    mtevL(mtev_error, "%s: failed to mdb_cursor_get for %s, returning error\n", __func__);
     return -1;
   }
 
@@ -941,7 +947,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
   void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
   int fb_ret = noit_ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
   if(fb_ret != 0) {
-    mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
+    mtevL(mtev_error, "%s: Corrupt filterset flatbuffer: %s\n", __func__, flatcc_verify_error_string(fb_ret));
     mtev_dyn_buffer_destroy(&aligned);
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
@@ -1034,11 +1040,11 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
           noit_ns(FiltersetRuleInfo_table_t) fs_rule_info = noit_ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
           flatbuffers_string_t type = noit_ns(FiltersetRuleInfo_type(fs_rule_info));
           if (type == NULL) {
-            mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_type missing\n");
+            mtevL(mtev_error, "%s: FiltersetRuleInfo_type missing\n", __func__);
             continue;
           }
           if (!noit_ns(FiltersetRuleInfo_data_is_present(fs_rule_info))) {
-            mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_data missing\n");
+            mtevL(mtev_error, "%s: noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_data missing\n", __func__);
             continue;
           }
           switch(noit_ns(FiltersetRuleInfo_data_type(fs_rule_info))) {
@@ -1075,7 +1081,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
             default:
             {
               /* Shouldn't happen */
-              mtevL(mtev_error, "noit_filters_lmdb_populate_filterset_xml_from_lmdb: Uknown FiltersetRuleInfo_data type\n");
+              mtevL(mtev_error, "%s: Uknown FiltersetRuleInfo_data type\n", __func__);
               break;
             }
           }
@@ -1174,7 +1180,7 @@ noit_filters_lmdb_get_seq(char *name) {
     void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
     int fb_ret = noit_ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
     if(fb_ret != 0) {
-      mtevL(mtev_error, "Corrupt filterset flatbuffer: %s\n", flatcc_verify_error_string(fb_ret));
+      mtevL(mtev_error, "%s: Corrupt filterset flatbuffer: %s\n", __func__, flatcc_verify_error_string(fb_ret));
     }
     else {
       noit_ns(Filterset_table_t) filterset = noit_ns(Filterset_as_root(aligned_fb_data));
@@ -1368,9 +1374,10 @@ noit_filters_lmdb_rest_show_filters(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
-int
-noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
-                                   int npats, char **pats) {
+static int
+__noit_filters_lmdb_rest_show_filter_internal(mtev_http_rest_closure_t *restc,
+                                              int npats, char **pats,
+                                              noit_filter_lmdb_show_source_e source) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
   xmlNodePtr root;
@@ -1379,10 +1386,18 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
   mtevAssert(instance != NULL);
 
   if(npats != 2) {
+    if (source == FILTERSET_SHOW_SOURCE_SET) {
+      mtevL(mtev_error, "%s: after set, npats changed from 2 to %d - returning 404\n",
+        __func__, npats);
+    }
     goto not_found;
   }
 
   if (!noit_filters_lmdb_already_in_db(pats[1])) {
+    if (source == FILTERSET_SHOW_SOURCE_SET) {
+      mtevL(mtev_error, "%s: after set, %s/%s not found in database - returning 404\n",
+         __func__, pats[0], pats[1]);
+    }
     goto not_found;
   }
 
@@ -1391,7 +1406,11 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
   xmlDocSetRootElement(doc, root);
 
   if (noit_filters_lmdb_populate_filterset_xml_from_lmdb(root, pats[1])) {
-    goto not_found;
+    if (source == FILTERSET_SHOW_SOURCE_SET) {
+      mtevL(mtev_error, "%s: after set, %s/%s failed to populate xml to return - returning 500\n",
+         __func__, pats[0], pats[1]);
+    }
+    goto error;
   }
 
   noit_filter_set_db_source_header(restc->http_ctx);
@@ -1406,11 +1425,24 @@ noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
   mtev_http_response_end(ctx);
   goto cleanup;
 
+ error:
+  noit_filter_set_db_source_header(restc->http_ctx);
+  mtev_http_response_server_error(ctx, "text/html");
+  mtev_http_response_end(ctx);
+  goto cleanup;
+
  cleanup:
   if(doc) {
     xmlFreeDoc(doc);
   }
   return 0;
+}
+
+int
+noit_filters_lmdb_rest_show_filter(mtev_http_rest_closure_t *restc,
+                                   int npats, char **pats) {
+  return __noit_filters_lmdb_rest_show_filter_internal(restc, npats, pats,
+    FILTERSET_SHOW_SOURCE_SHOW);
 }
 
 typedef struct lmdb_delete_filter_closure {
@@ -1635,7 +1667,7 @@ noit_filters_lmdb_rest_set_filter_complete(mtev_http_rest_closure_t *restc,
     int rv;
 
     mtev_memory_begin();
-    rv = noit_filters_lmdb_rest_show_filter(restc, npats, pats);
+    rv = __noit_filters_lmdb_rest_show_filter_internal(restc, npats, pats, FILTERSET_SHOW_SOURCE_SET);
     mtev_memory_end();
     return rv;
   }
