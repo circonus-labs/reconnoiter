@@ -939,7 +939,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
     mdb_txn_abort(txn);
     pthread_rwlock_unlock(&instance->lock);
     free(key);
-    mtevL(mtev_error, "%s: failed to mdb_cursor_get for %s, returning error\n", __func__);
+    mtevL(mtev_error, "%s: failed to mdb_cursor_get for %s, returning error\n", __func__, fs_name);
     return -1;
   }
 
@@ -947,7 +947,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
   void *aligned_fb_data = get_aligned_fb(&aligned, mdb_data.mv_data, mdb_data.mv_size);
   int fb_ret = noit_ns(Filterset_verify_as_root(aligned_fb_data, mdb_data.mv_size));
   if(fb_ret != 0) {
-    mtevL(mtev_error, "%s: Corrupt filterset flatbuffer: %s\n", __func__, flatcc_verify_error_string(fb_ret));
+    mtevL(mtev_error, "%s: Corrupt filterset flatbuffer in %s: %s\n", __func__, fs_name, flatcc_verify_error_string(fb_ret));
     mtev_dyn_buffer_destroy(&aligned);
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
@@ -1040,11 +1040,12 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
           noit_ns(FiltersetRuleInfo_table_t) fs_rule_info = noit_ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
           flatbuffers_string_t type = noit_ns(FiltersetRuleInfo_type(fs_rule_info));
           if (type == NULL) {
-            mtevL(mtev_error, "%s: FiltersetRuleInfo_type missing\n", __func__);
+            mtevL(mtev_error, "%s: FiltersetRuleInfo_type missing in %s\n", __func__, fs_name);
             continue;
           }
           if (!noit_ns(FiltersetRuleInfo_data_is_present(fs_rule_info))) {
-            mtevL(mtev_error, "%s: noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_data missing\n", __func__);
+            mtevL(mtev_error, "%s: noit_filters_lmdb_populate_filterset_xml_from_lmdb: FiltersetRuleInfo_data missing in %s\n",
+              __func__, fs_name);
             continue;
           }
           switch(noit_ns(FiltersetRuleInfo_data_type(fs_rule_info))) {
@@ -1081,7 +1082,7 @@ noit_filters_lmdb_populate_filterset_xml_from_lmdb(xmlNodePtr root, char *fs_nam
             default:
             {
               /* Shouldn't happen */
-              mtevL(mtev_error, "%s: Uknown FiltersetRuleInfo_data type\n", __func__);
+              mtevL(mtev_error, "%s: Uknown FiltersetRuleInfo_data type in %s\n", __func__, fs_name);
               break;
             }
           }
