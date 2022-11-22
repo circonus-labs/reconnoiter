@@ -39,6 +39,11 @@
 
 mtev_boolean lmdb_checks_support_inheritence = mtev_false;
 
+typedef enum {
+  CHECK_SHOW_SOURCE_SHOW = 0,
+  CHECK_SHOW_SOURCE_SET
+} noit_check_lmdb_show_source_e;
+
 static int noit_check_lmdb_show_check_json(mtev_http_rest_closure_t *restc, 
                                            uuid_t checkid) {
   return rest_show_check_json(restc, checkid);
@@ -307,7 +312,8 @@ int noit_check_lmdb_show_checks(mtev_http_rest_closure_t *restc, int npats, char
   return 0;
 }
 
-int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+int __noit_check_lmdb_show_check_internal(mtev_http_rest_closure_t *restc, int npats,
+                                          char **pats, noit_check_lmdb_show_source_e source) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
   xmlNodePtr root, state;
@@ -319,11 +325,21 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   mtevAssert(instance != NULL);
 
   if(npats != 2 && npats != 3) {
+    if (source == CHECK_SHOW_SOURCE_SET) {
+      mtevL(mtev_error, "%s: after set, npats changed to %d - returning %d\n",
+        __func__, npats, error_code);
+    }
     goto error;
   }
   /* pats[0] was an XML path in the XML-backed store.... we can no longer
    * respect that, so just ignore it */
-  if(mtev_uuid_parse(pats[1], checkid)) goto error;
+  if(mtev_uuid_parse(pats[1], checkid)) {
+    if (source == CHECK_SHOW_SOURCE_SET) {
+      mtevL(mtev_error, "%s: after set, failed to parse uuid %s - returning %d\n",
+        __func__, pats[1], error_code);
+    }
+    goto error;
+  }
 
   if(npats == 3 && !strcmp(pats[2], ".json")) {
     return noit_check_lmdb_show_check_json(restc, checkid);
@@ -336,9 +352,17 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   int rc = noit_check_lmdb_populate_check_xml_from_lmdb(root, checkid, true);
   if (rc != 0) {
     if (rc == MDB_NOTFOUND) {
+      if (source == CHECK_SHOW_SOURCE_SET) {
+        mtevL(mtev_error, "%s: after set, failed to find check with uuid %s - returning %d\n",
+          __func__, pats[1], error_code);
+      }
       goto not_found;
     }
     else {
+      if (source == CHECK_SHOW_SOURCE_SET) {
+        mtevL(mtev_error, "%s: after set, failed to populate xml for check with uuid %s - returning %d\n",
+          __func__, pats[1], error_code);
+      }
       goto error;
     }
   }
@@ -413,6 +437,12 @@ int noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char 
   noit_check_deref(check);
   return 0;
 }
+
+int
+noit_check_lmdb_show_check(mtev_http_rest_closure_t *restc, int npats, char **pats) {
+  return __noit_check_lmdb_show_check_internal(restc, npats, pats, CHECK_SHOW_SOURCE_SHOW);
+}
+
 
 static int
 noit_check_lmdb_configure_check(uuid_t checkid, xmlNodePtr a, xmlNodePtr c, int64_t old_seq) {
@@ -647,7 +677,7 @@ noit_check_lmdb_set_check_complete(mtev_http_rest_closure_t *restc,
     int rv;
 
     mtev_memory_begin();
-    rv = noit_check_lmdb_show_check(restc, npats, pats);
+    rv = __noit_check_lmdb_show_check_internal(restc, npats, pats, CHECK_SHOW_SOURCE_SET);
     mtev_memory_end();
     return rv;
   }
