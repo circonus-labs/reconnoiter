@@ -527,7 +527,7 @@ build_tags(const char *input, size_t len, noit_metric_tag_t *tags, int max_tags,
   MTEV_MAYBE_DECL(char, bigtag, 32768);
   while(len > 0 && *ntags < max_tags) {
     mtev_boolean toolong = mtev_false;
-    const char *next = noit_metric_tags_parse_one(input, len, &tags[*ntags], &toolong);
+    const char *next = noit_metric_tags_parse_one(input, len, &tags[*ntags], &toolong, NOIT_TAG_MAX_PAIR_LEN);
     if(!next) {
       MTEV_MAYBE_FREE(bigtag);
       return mtev_false;

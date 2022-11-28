@@ -237,6 +237,10 @@ API_EXPORT(mtev_boolean)
                                      const char *tagset,
                                      size_t tagstr_len);
 API_EXPORT(mtev_boolean)
+  noit_metric_tagset_builder_add_one_implicit(noit_metric_tagset_builder_t *builder,
+                                     const char *tagset,
+                                     size_t tagstr_len);
+API_EXPORT(mtev_boolean)
   noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder, noit_metric_tagset_t *out,
                                  char **canonical);
 
@@ -272,7 +276,7 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
 
 API_EXPORT(const char *)
   noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
-                             noit_metric_tag_t *output, mtev_boolean *toolong);
+                             noit_metric_tag_t *output, mtev_boolean *toolong, int max_tag_length);
 
 API_EXPORT(metric_t *)
   noit_metric_alloc(void);

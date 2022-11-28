@@ -750,7 +750,7 @@ void test_tag_at_limit(void) {
 
   assert(tag_name_len - 1 == NOIT_TAG_MAX_PAIR_LEN);
 
-  noit_metric_tags_parse_one(tag_name, tag_name_len - 1, &tag, &too_long);
+  noit_metric_tags_parse_one(tag_name, tag_name_len - 1, &tag, &too_long, NOIT_TAG_MAX_PAIR_LEN);
   assert(too_long == mtev_false);
 
   memset(dbuff, 0xff, NOIT_TAG_MAX_PAIR_LEN * 3);
