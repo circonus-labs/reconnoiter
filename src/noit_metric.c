@@ -349,7 +349,10 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
                                  noit_metric_encode_type_t left,
                                  noit_metric_encode_type_t right)
 {
-  char scratch[NOIT_TAG_MAX_PAIR_LEN+1];
+  // TODO: size of array has been increased to 4096+7+1 to accomidate __name tags,
+  // but that much memory is wasteful for the vast majority of calls to this
+  // function. We should consider a different approach.
+  char scratch[NOIT_NAME_MAX_PAIR_LEN + 1];
   if(max_len > sizeof(scratch)) return -1;
   int i = 0, sepcnt = -1;
   if(decoded_len < 1) return -2;

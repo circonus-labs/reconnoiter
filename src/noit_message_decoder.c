@@ -462,7 +462,10 @@ const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
 static int
 tag_canonical_size(noit_metric_tag_t *tag) {
   int len;
-  char dbuff[NOIT_TAG_MAX_PAIR_LEN];
+  // TODO: array increased from 256 to 4096+7 to allow for longer tag names.
+  // This wastes memory for most calls to this function. Suggestions for a
+  // better wat to do this?
+  char dbuff[NOIT_NAME_MAX_PAIR_LEN];
   len = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tag->tag, tag->total_size);
   if(len < 0) return 0;
   len = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, len);
@@ -756,14 +759,16 @@ add_tag_to_tagset_builder(noit_metric_tagset_builder_t *builder, const char *tag
 mtev_boolean
 noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder, const char *tagstr,
                                     size_t tagstr_len) {
+  // TODO: we already know if the tag is too long. should we return false here
+  // or are other necessary operations performed?
   return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_TAG_MAX_PAIR_LEN);
 }
 
-// TODO: add_many?
 mtev_boolean
-noit_metric_tagset_builder_add_one_implicit(noit_metric_tagset_builder_t *builder,
-                                            const char *tagstr, size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, MAX_METRIC_TAGGED_NAME);
+noit_metric_tagset_builder_add_one_name(noit_metric_tagset_builder_t *builder,
+                                        const char *tagstr, size_t tagstr_len) {
+  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len,
+                                   NOIT_NAME_MAX_PAIR_LEN);
 }
 
 mtev_boolean
