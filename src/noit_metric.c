@@ -46,6 +46,8 @@
 
 #include <stdio.h>
 
+inline const int32_t NOIT_NAME_MAX_PAIR_LEN = MAX_METRIC_TAGGED_NAME + sizeof("__name:");
+
 MTEV_HOOK_IMPL(noit_metric_tagset_fixup,
                (noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset),
                void *, closure,

@@ -413,10 +413,10 @@ noit_metric_tags_count(const char *str, size_t strlen) {
   return rval;
 }
 
-const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
+const char *noit_metric_tags_parse_one(const char *const tagnm, const size_t tagnmlen,
                                        noit_metric_tag_t *output,
                                        mtev_boolean *toolong,
-                                       int max_tag_length) {
+                                       const int32_t max_tag_length) {
   size_t colon_pos = 0;
   size_t cur_size = 0;
   *toolong = mtev_false;
@@ -735,7 +735,7 @@ noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
 
 mtev_boolean
 add_tag_to_tagset_builder(noit_metric_tagset_builder_t *builder, const char *tagstr,
-                          size_t tagstr_len, int max_tag_length) {
+                          size_t tagstr_len, const int32_t max_tag_length) {
   if(builder->tag_count < 0) return mtev_false;
   noit_metric_tag_t tag;
   mtev_boolean toolong = mtev_false;

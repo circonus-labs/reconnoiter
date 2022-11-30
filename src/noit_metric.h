@@ -101,7 +101,7 @@ typedef enum {
 } noit_message_type;
 
 #define NOIT_TAG_MAX_PAIR_LEN 256
-#define NOIT_NAME_MAX_PAIR_LEN MAX_METRIC_TAGGED_NAME + sizeof("__name:")
+extern inline const int32_t NOIT_NAME_MAX_PAIR_LEN;
 /* category_size is uint8_t (255), but includes the : */
 #define NOIT_TAG_MAX_CAT_LEN  254
 #define NOIT_TAG_DECODED_SEPARATOR 0x1f
@@ -276,7 +276,7 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
                 (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset))
 
 API_EXPORT(const char *)
-  noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
+  noit_metric_tags_parse_one(const char *const tagnm, const size_t tagnmlen,
                              noit_metric_tag_t *output, mtev_boolean *toolong, int max_tag_length);
 
 API_EXPORT(metric_t *)
