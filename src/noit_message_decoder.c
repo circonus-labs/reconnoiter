@@ -773,7 +773,7 @@ noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder, const 
 mtev_boolean
 noit_metric_tagset_builder_add_one_name(noit_metric_tagset_builder_t *builder,
                                         const char *tagstr, size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_NAME_MAX_PAIR_LEN);
+  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, MAX_METRIC_TAGGED_NAME + sizeof("__name:"));
 }
 
 mtev_boolean

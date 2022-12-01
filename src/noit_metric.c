@@ -46,8 +46,6 @@
 
 #include <stdio.h>
 
-inline const int32_t NOIT_NAME_MAX_PAIR_LEN = MAX_METRIC_TAGGED_NAME + sizeof("__name:");
-
 MTEV_HOOK_IMPL(noit_metric_tagset_fixup,
                (noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset),
                void *, closure,
@@ -351,10 +349,8 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
                                  noit_metric_encode_type_t left,
                                  noit_metric_encode_type_t right)
 {
-  // TODO: size of array has been increased to 4096+7+1 to accomidate __name tags,
-  // but that much memory is wasteful for the vast majority of calls to this
-  // function. We should consider a different approach.
-  char scratch[NOIT_NAME_MAX_PAIR_LEN + 1];
+  // TODO: convert to mtev_dyn_buffer_t
+  char scratch[NOIT_TAG_MAX_PAIR_LEN + 1];
   if(max_len > sizeof(scratch)) return -1;
   int i = 0, sepcnt = -1;
   if(decoded_len < 1) return -2;

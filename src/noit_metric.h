@@ -101,7 +101,6 @@ typedef enum {
 } noit_message_type;
 
 #define NOIT_TAG_MAX_PAIR_LEN 256
-extern inline const int32_t NOIT_NAME_MAX_PAIR_LEN;
 /* category_size is uint8_t (255), but includes the : */
 #define NOIT_TAG_MAX_CAT_LEN  254
 #define NOIT_TAG_DECODED_SEPARATOR 0x1f
