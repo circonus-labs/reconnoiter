@@ -466,16 +466,20 @@ const char *parse_metric_tag(const char *const tagnm, const size_t tagnmlen,
 
 static int
 tag_canonical_size(noit_metric_tag_t *tag) {
-  int len;
-  // TODO: array increased from 256 to 4096+7 to allow for longer tag names.
-  // This wastes memory for most calls to this function. Suggestions for a
-  // better wat to do this?
-  char dbuff[NOIT_NAME_MAX_PAIR_LEN];
-  len = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tag->tag, tag->total_size);
-  if(len < 0) return 0;
-  len = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, len);
-  if(len < 0) return 0;
+  mtev_dyn_buffer_t dbuff;
+  mtev_dyn_buffer_init(&dbuff);
+  size_t max_decode_len = mtev_b64_max_decode_len(tag->total_size);
+  mtev_dyn_buffer_ensure(&dbuff, mtev_b64_encode_len(max_decode_len));
+  int len = noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff), max_decode_len, tag->tag, tag->total_size);
+  if(len >= 0){
+    len = noit_metric_tagset_encode_tag((char *)mtev_dyn_buffer_data(&dbuff), mtev_dyn_buffer_size(&dbuff), (char *)mtev_dyn_buffer_data(&dbuff), len);
+    if(len >= 0){
+      mtev_dyn_buffer_destroy(&dbuff);
       return len;
+    }
+  }
+  mtev_dyn_buffer_destroy(&dbuff);
+  return 0;
 }
 
 size_t
