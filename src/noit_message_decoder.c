@@ -413,10 +413,15 @@ noit_metric_tags_count(const char *str, size_t strlen) {
   return rval;
 }
 
-const char *noit_metric_tags_parse_one(const char *const tagnm, const size_t tagnmlen,
+const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                                        noit_metric_tag_t *output,
-                                       mtev_boolean *toolong,
-                                       const int32_t max_tag_length) {
+                                       mtev_boolean *toolong) {
+  return parse_metric_tag(tagnm, tagnmlen, output, toolong,
+                          NOIT_TAG_MAX_PAIR_LEN);
+}
+const char *parse_metric_tag(const char *const tagnm, const size_t tagnmlen,
+                             noit_metric_tag_t *output, mtev_boolean *toolong,
+                             const int32_t max_tag_length) {
   size_t colon_pos = 0;
   size_t cur_size = 0;
   *toolong = mtev_false;
@@ -470,7 +475,7 @@ tag_canonical_size(noit_metric_tag_t *tag) {
   if(len < 0) return 0;
   len = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, len);
   if(len < 0) return 0;
-  return len;
+      return len;
 }
 
 size_t
@@ -558,8 +563,8 @@ noit_metric_tags_parse_with_context(const char *tagnm, size_t tagnmlen,
   size_t rval = 0;
   while(tagnmlen > 0 && rval < tag_count) {
     mtev_boolean toolong = mtev_false;
-    const char *next = noit_metric_tags_parse_one(
-        tagnm, tagnmlen, &tags[rval], &toolong, NOIT_TAG_MAX_PAIR_LEN);
+    const char *next =
+        noit_metric_tags_parse_one(tagnm, tagnmlen, &tags[rval], &toolong);
     if(!next) return -1;
 
     tagnmlen -= (next - tagnm);
@@ -706,8 +711,7 @@ noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
   noit_metric_tag_t tag;
   while(tagstr_len > 0) {
     mtev_boolean toolong = mtev_false;
-    const char *next = noit_metric_tags_parse_one(
-        tagstr, tagstr_len, &tag, &toolong, NOIT_TAG_MAX_PAIR_LEN);
+    const char *next = noit_metric_tags_parse_one(tagstr, tagstr_len, &tag, &toolong);
     if(toolong) {
       /* do nothing at all, the tag must be dropped */
     } else if(next && (tag.total_size == tagstr_len || *next == ',')) {
@@ -739,8 +743,8 @@ add_tag_to_tagset_builder(noit_metric_tagset_builder_t *builder, const char *tag
   if(builder->tag_count < 0) return mtev_false;
   noit_metric_tag_t tag;
   mtev_boolean toolong = mtev_false;
-  if(!noit_metric_tags_parse_one(tagstr, tagstr_len, &tag, &toolong, max_tag_length)
-      || tag.total_size != tagstr_len) {
+  if (!parse_metric_tag(tagstr, tagstr_len, &tag, &toolong, max_tag_length) ||
+      tag.total_size != tagstr_len) {
     noit_metric_tagset_builder_clean(builder);
     builder->tag_count = -1;
     return mtev_false;
@@ -759,16 +763,13 @@ add_tag_to_tagset_builder(noit_metric_tagset_builder_t *builder, const char *tag
 mtev_boolean
 noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder, const char *tagstr,
                                     size_t tagstr_len) {
-  // TODO: we already know if the tag is too long. should we return false here
-  // or are other necessary operations performed?
   return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_TAG_MAX_PAIR_LEN);
 }
 
 mtev_boolean
 noit_metric_tagset_builder_add_one_name(noit_metric_tagset_builder_t *builder,
                                         const char *tagstr, size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len,
-                                   NOIT_NAME_MAX_PAIR_LEN);
+  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_NAME_MAX_PAIR_LEN);
 }
 
 mtev_boolean
