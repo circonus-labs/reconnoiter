@@ -36,6 +36,7 @@
 #include <string.h>
 #include <mtev_uuid.h>
 #include <ctype.h>
+#include <mtev_b64.h>
 #include <mtev_log.h>
 #include <mtev_str.h>
 
@@ -413,12 +414,6 @@ noit_metric_tags_count(const char *str, size_t strlen) {
   return rval;
 }
 
-const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
-                                       noit_metric_tag_t *output,
-                                       mtev_boolean *toolong) {
-  return parse_metric_tag(tagnm, tagnmlen, output, toolong,
-                          NOIT_TAG_MAX_PAIR_LEN);
-}
 const char *parse_metric_tag(const char *const tagnm, const size_t tagnmlen,
                              noit_metric_tag_t *output, mtev_boolean *toolong,
                              const int32_t max_tag_length) {
@@ -462,6 +457,13 @@ const char *parse_metric_tag(const char *const tagnm, const size_t tagnmlen,
   output->category_size = colon_pos >= cur_size ? cur_size : colon_pos + 1;
   output->tag = tagnm;
   return tagnm + cur_size;
+}
+
+const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
+                                       noit_metric_tag_t *output,
+                                       mtev_boolean *toolong) {
+  return parse_metric_tag(tagnm, tagnmlen, output, toolong,
+                          NOIT_TAG_MAX_PAIR_LEN);
 }
 
 static int
