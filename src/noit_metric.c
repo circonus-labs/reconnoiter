@@ -381,7 +381,8 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
   }
 
-  if(first_part_len + second_part_len + 1 > max_len) return -4;
+  if (first_part_len + second_part_len + 1 > max_len)
+    return -4;
 
   mtev_dyn_buffer_t scratch;
   mtev_dyn_buffer_init(&scratch);
@@ -391,8 +392,8 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
   if(first_part_needs_b64) {
     *cp++ = 'b';
     *cp++ = left;
-    int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt,
-                              cp, max_len - (cp - scratch_front));
+    int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt, cp,
+                              max_len - (cp - scratch_front));
     if(len <= 0) {
       mtev_dyn_buffer_destroy(&scratch);
       return -5;
@@ -408,8 +409,9 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     *cp++ = 'b';
     *cp++ = right;
     int len = mtev_b64_encode((unsigned char *)decoded_tag + sepcnt + 1,
-                              decoded_len - sepcnt - 1, cp, max_len - (cp - scratch_front));
-    if(len <= 0) {
+                              decoded_len - sepcnt - 1, cp,
+                              max_len - (cp - scratch_front));
+    if (len <= 0) {
       mtev_dyn_buffer_destroy(&scratch);
       return -6;
     }
@@ -420,8 +422,8 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     cp += decoded_len - sepcnt - 1;
   }
   memcpy(encoded_tag, scratch_front, cp - scratch_front);
-  if(cp-scratch_front < max_len) {
-    encoded_tag[cp-scratch_front] = '\0';
+  if (cp - scratch_front < max_len) {
+    encoded_tag[cp - scratch_front] = '\0';
   }
   mtev_dyn_buffer_destroy(&scratch);
   return cp - scratch_front;
