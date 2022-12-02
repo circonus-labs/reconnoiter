@@ -349,17 +349,31 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
                                  noit_metric_encode_type_t left,
                                  noit_metric_encode_type_t right)
 {
-  // TODO: convert to mtev_dyn_buffer_t
-  char scratch[NOIT_TAG_MAX_PAIR_LEN + 1];
-  if(max_len > sizeof(scratch)) return -1;
+  mtev_dyn_buffer_t scratch;
+  mtev_dyn_buffer_init(&scratch);
+  mtev_dyn_buffer_ensure(&scratch, max_len);
+  if(max_len > mtev_dyn_buffer_size(&scratch)) {
+    //TODO: I am keeping this check only to confirm 'mtev_dyn_buffer_ensure' succeeded (since it
+    //has no return). if we trust `ensure` to always work, we can remove 'return -1` and move the
+    //creation of scratch after 'return -4'. this would keep us from having to destroy scratch
+    //before all returns and delay the creation of scratch until we need it.
+    mtev_dyn_buffer_destroy(&scratch);
+    return -1;
+  }
   int i = 0, sepcnt = -1;
-  if(decoded_len < 1) return -2;
+  if(decoded_len < 1) {
+    mtev_dyn_buffer_destroy(&scratch);
+    return -2;
+  }
   for(i=0; i<decoded_len; i++)
     if(decoded_tag[i] == 0x1f) {
       sepcnt = i;
       break;
     }
-  if(sepcnt == 0) return -3;
+  if(sepcnt == 0) {
+    mtev_dyn_buffer_destroy(&scratch);
+    return -3;
+  }
   if(sepcnt == -1) {
     sepcnt = decoded_len;
   }
@@ -385,15 +399,18 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
   }
 
   if(first_part_len + second_part_len + 1 > max_len) {
+    mtev_dyn_buffer_destroy(&scratch);
     return -4;
   }
-  char *cp = scratch;
+  char *scratch_front = (char *)mtev_dyn_buffer_data(&scratch);
+  char *cp = scratch_front;
   if(first_part_needs_b64) {
     *cp++ = 'b';
     *cp++ = left;
     int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt,
-                              cp, sizeof(scratch) - (cp - scratch));
+                              cp, max_len - (cp - scratch_front));
     if(len <= 0) {
+      mtev_dyn_buffer_destroy(&scratch);
       return -5;
     }
     cp += len;
@@ -407,8 +424,9 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     *cp++ = 'b';
     *cp++ = right;
     int len = mtev_b64_encode((unsigned char *)decoded_tag + sepcnt + 1,
-                              decoded_len - sepcnt - 1, cp, sizeof(scratch) - (cp - scratch));
+                              decoded_len - sepcnt - 1, cp, max_len - (cp - scratch_front));
     if(len <= 0) {
+      mtev_dyn_buffer_destroy(&scratch);
       return -6;
     }
     cp += len;
@@ -417,11 +435,12 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     memcpy(cp, decoded_tag + sepcnt + 1, decoded_len - sepcnt - 1);
     cp += decoded_len - sepcnt - 1;
   }
-  memcpy(encoded_tag, scratch, cp - scratch);
-  if(cp-scratch < max_len) {
-    encoded_tag[cp-scratch] = '\0';
+  memcpy(encoded_tag, scratch_front, cp - scratch_front);
+  if(cp-scratch_front < max_len) {
+    encoded_tag[cp-scratch_front] = '\0';
   }
-  return cp - scratch;
+  mtev_dyn_buffer_destroy(&scratch);
+  return cp - scratch_front;
 }
 ssize_t
 noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len)
