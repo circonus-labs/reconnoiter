@@ -237,7 +237,7 @@ API_EXPORT(mtev_boolean)
                                      const char *tagset,
                                      size_t tagstr_len);
 API_EXPORT(mtev_boolean)
-  noit_metric_tagset_builder_add_one_name(noit_metric_tagset_builder_t *builder,
+  noit_metric_tagset_builder_add_one_implicit(noit_metric_tagset_builder_t *builder,
                                      const char *tagset,
                                      size_t tagstr_len);
 API_EXPORT(mtev_boolean)

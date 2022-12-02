@@ -349,31 +349,14 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
                                  noit_metric_encode_type_t left,
                                  noit_metric_encode_type_t right)
 {
-  mtev_dyn_buffer_t scratch;
-  mtev_dyn_buffer_init(&scratch);
-  mtev_dyn_buffer_ensure(&scratch, max_len);
-  if(max_len > mtev_dyn_buffer_size(&scratch)) {
-    //TODO: I am keeping this check only to confirm 'mtev_dyn_buffer_ensure' succeeded (since it
-    //has no return). if we trust `ensure` to always work, we can remove 'return -1` and move the
-    //creation of scratch after 'return -4'. this would keep us from having to destroy scratch
-    //before all returns and delay the creation of scratch until we need it.
-    mtev_dyn_buffer_destroy(&scratch);
-    return -1;
-  }
   int i = 0, sepcnt = -1;
-  if(decoded_len < 1) {
-    mtev_dyn_buffer_destroy(&scratch);
-    return -2;
-  }
+  if(decoded_len < 1) return -2;
   for(i=0; i<decoded_len; i++)
     if(decoded_tag[i] == 0x1f) {
       sepcnt = i;
       break;
     }
-  if(sepcnt == 0) {
-    mtev_dyn_buffer_destroy(&scratch);
-    return -3;
-  }
+  if(sepcnt == 0) return -3;
   if(sepcnt == -1) {
     sepcnt = decoded_len;
   }
@@ -398,10 +381,11 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
   }
 
-  if(first_part_len + second_part_len + 1 > max_len) {
-    mtev_dyn_buffer_destroy(&scratch);
-    return -4;
-  }
+  if(first_part_len + second_part_len + 1 > max_len) return -4;
+
+  mtev_dyn_buffer_t scratch;
+  mtev_dyn_buffer_init(&scratch);
+  mtev_dyn_buffer_ensure(&scratch, max_len);
   char *scratch_front = (char *)mtev_dyn_buffer_data(&scratch);
   char *cp = scratch_front;
   if(first_part_needs_b64) {

@@ -470,7 +470,7 @@ static int
 tag_canonical_size(noit_metric_tag_t *tag) {
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
-  size_t max_decode_len = mtev_b64_max_decode_len(tag->total_size);
+  const size_t max_decode_len = mtev_b64_max_decode_len(tag->total_size);
   mtev_dyn_buffer_ensure(&dbuff, mtev_b64_encode_len(max_decode_len));
   int len = noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff), max_decode_len, tag->tag, tag->total_size);
   if(len >= 0){
@@ -744,7 +744,7 @@ noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
 
 mtev_boolean
 add_tag_to_tagset_builder(noit_metric_tagset_builder_t *builder, const char *tagstr,
-                          size_t tagstr_len, const int32_t max_tag_length) {
+                          const size_t tagstr_len, const int32_t max_tag_length) {
   if(builder->tag_count < 0) return mtev_false;
   noit_metric_tag_t tag;
   mtev_boolean toolong = mtev_false;
@@ -772,9 +772,9 @@ noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder, const 
 }
 
 mtev_boolean
-noit_metric_tagset_builder_add_one_name(noit_metric_tagset_builder_t *builder,
+noit_metric_tagset_builder_add_one_implicit(noit_metric_tagset_builder_t *builder,
                                         const char *tagstr, size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, MAX_METRIC_TAGGED_NAME + sizeof("__name:"));
+  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, MAX_METRIC_TAGGED_NAME + sizeof("__name:") - 1);
 }
 
 mtev_boolean
