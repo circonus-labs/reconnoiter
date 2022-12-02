@@ -569,8 +569,7 @@ noit_metric_tags_parse_with_context(const char *tagnm, size_t tagnmlen,
   size_t rval = 0;
   while(tagnmlen > 0 && rval < tag_count) {
     mtev_boolean toolong = mtev_false;
-    const char *next =
-        noit_metric_tags_parse_one(tagnm, tagnmlen, &tags[rval], &toolong);
+    const char *next = noit_metric_tags_parse_one(tagnm, tagnmlen, &tags[rval], &toolong);
     if(!next) return -1;
 
     tagnmlen -= (next - tagnm);
