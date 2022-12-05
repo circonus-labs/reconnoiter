@@ -466,6 +466,13 @@ const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                           NOIT_TAG_MAX_PAIR_LEN);
 }
 
+const char *noit_metric_tags_parse_one_implicit(const char *tagnm, size_t tagnmlen,
+                                       noit_metric_tag_t *output,
+                                       mtev_boolean *toolong) {
+  return parse_metric_tag(tagnm, tagnmlen, output, toolong,
+                          NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+}
+
 static int tag_canonical_size(noit_metric_tag_t *tag) {
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
@@ -772,16 +779,12 @@ mtev_boolean add_tag_to_tagset_builder(noit_metric_tagset_builder_t *builder,
 mtev_boolean
 noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder,
                                    const char *tagstr, size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len,
-                                   NOIT_TAG_MAX_PAIR_LEN);
+  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_TAG_MAX_PAIR_LEN);
 }
 
 mtev_boolean noit_metric_tagset_builder_add_one_implicit(
-    noit_metric_tagset_builder_t *builder, const char *tagstr,
-    size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len,
-                                   MAX_METRIC_TAGGED_NAME + sizeof("__name:") -
-                                       1);
+    noit_metric_tagset_builder_t *builder, const char *tagstr, size_t tagstr_len) {
+  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
 }
 
 mtev_boolean

@@ -104,6 +104,8 @@ typedef enum {
 /* category_size is uint8_t (255), but includes the : */
 #define NOIT_TAG_MAX_CAT_LEN  254
 #define NOIT_TAG_DECODED_SEPARATOR 0x1f
+//TODO: use inline instead of #define
+#define NOIT_IMPLICIT_TAG_MAX_PAIR_LEN MAX_METRIC_TAGGED_NAME + sizeof("__name:") - 1
 
 typedef struct {
   uint16_t total_size;
@@ -276,6 +278,10 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
 
 API_EXPORT(const char *)
 noit_metric_tags_parse_one(const char *const tagnm, const size_t tagnmlen,
+                           noit_metric_tag_t *output, mtev_boolean *toolong);
+
+API_EXPORT(const char *)
+noit_metric_tags_parse_one_implicit(const char *const tagnm, const size_t tagnmlen,
                            noit_metric_tag_t *output, mtev_boolean *toolong);
 
 API_EXPORT(metric_t *)
