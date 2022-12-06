@@ -104,8 +104,8 @@ typedef enum {
 /* category_size is uint8_t (255), but includes the : */
 #define NOIT_TAG_MAX_CAT_LEN  254
 #define NOIT_TAG_DECODED_SEPARATOR 0x1f
-//TODO: use inline instead of #define
-#define NOIT_IMPLICIT_TAG_MAX_PAIR_LEN MAX_METRIC_TAGGED_NAME + sizeof("__name:") - 1
+
+inline static const int32_t NOIT_IMPLICIT_TAG_MAX_PAIR_LEN = MAX_METRIC_TAGGED_NAME + sizeof("__name:") - 1;
 
 typedef struct {
   uint16_t total_size;
