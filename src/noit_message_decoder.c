@@ -42,8 +42,6 @@
 
 #include "noit_metric.h"
 
-inline const int32_t NOIT_IMPLICIT_TAG_MAX_PAIR_LEN = MAX_METRIC_TAGGED_NAME + sizeof("__name:") - 1;
-
 #define MOVE_TO_NEXT_TAB(message, cp, lvalue) do { \
   ssize_t adv = cp - (message)->original_message; \
   lvalue = memchr(cp, '\t', (message)->original_message_len - adv); \
