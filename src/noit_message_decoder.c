@@ -447,12 +447,12 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
   }
   /* make sure we covered everything */
   if(colon_pos == 0) return 0;
+  output->total_size = cur_size;
   /* tag category and name must combined be <= NOIT_TAG_MAX_PAIR_LEN */
   if(cur_size > NOIT_TAG_MAX_PAIR_LEN) {
     *toolong = mtev_true;
     return tagnm + cur_size;
   }
-  output->total_size = cur_size;
   output->category_size = colon_pos >= cur_size ? cur_size : colon_pos + 1;
   output->tag = tagnm;
   return tagnm + cur_size;
