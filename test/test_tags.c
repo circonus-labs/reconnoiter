@@ -107,15 +107,20 @@ const char *testtags[][2] = {
   { "category:value", "category\037value" }
 };
 
-struct {
+struct Matches {
   const char *tagstring;
+  mtev_boolean tagstring_is_valid;
   struct {
     const char *query;
     mtev_boolean match;
     uint64_t bench_ns;
   } queries[14];
-} testmatches[] = {
-  { "__name:f1.f2.f3.f4.f5.f6",
+};
+
+struct Matches testmatches[] = {
+  { 
+    "__name:f1.f2.f3.f4.f5.f6",
+    mtev_true,
     {
       // f1.{f2,foo}.f{3,4,5}.*.*.f6 (encoded on next line)
       { "and(__name:b[graphite]\"ZjEue2YyLGZvb30uZnszLDQsNX0uKi4qLmY2\")", mtev_true },
@@ -130,6 +135,7 @@ struct {
   },
   {
     "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":/value,empty:",
+    mtev_true,
     {
       { "and(foo:bar)", mtev_true },
       { "and(foo:/)", mtev_false },
@@ -149,6 +155,7 @@ struct {
   },
   {
     "b\"KGZvbyk=\":bar",
+    mtev_true,
     {
       { "and(*:*)", mtev_true },
       { "and(*:bar)", mtev_true },
@@ -161,6 +168,7 @@ struct {
   },
   {
     "b\"W2Jhcl0=\":b\"Kipmb28qKg==\"",
+    mtev_true,
     {
       { "and(b\"W2Jhcl0=\":*)", mtev_true },
       { "and(*:b!Kipmb28qKg==!)", mtev_true },
@@ -169,6 +177,7 @@ struct {
   },
   {
     "b\"Kipmb28qKg==\":b\"W2Jhcl0=\"",
+    mtev_true,
     {
       { "and(*:b\"W2Jhcl0=\")", mtev_true },
       { "and(b\"Kipmb28qKg==\":*)", mtev_true },
@@ -177,6 +186,7 @@ struct {
   },
   {
     "b\"P2Zvbz8=\":b\"W2Jhcl0=\"",
+    mtev_true,
     {
       { "and(*:b\"W2Jhcl0=\")", mtev_true },
       { "and(b\"P2Yq\":*)", mtev_true },
@@ -185,6 +195,7 @@ struct {
   },
   {
     "b\"Lz9oaXN0b2dyYW0vKC4rKSQp\":quux",
+    mtev_true,
     {
       { "and(*:*)", mtev_true },
       { "and(hint(*:*))", mtev_true },
@@ -195,10 +206,19 @@ struct {
   },
   {
     "b\"L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp\":bar",
+    mtev_true,
     {
       { "and(*:bar)", mtev_true },
       { "and(b\"L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp\":bar)", mtev_false },
       { "and(b!L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp!:bar)", mtev_true },
+      { NULL, 0 }
+    }
+  },
+  {
+    "tag:this_tag_pair_is_too_long_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    "0000000000000000000000000000000257",
+    mtev_false,
+    {
       { NULL, 0 }
     }
   }
@@ -439,6 +459,10 @@ void test_tag_match()
     mtev_boolean tagset_add = noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
     memset(&tagset, 0, sizeof(tagset));
     mtev_boolean tagset_end = noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
+    if (tagset.tag_count == 0){
+      assert(testmatches[i].tagstring_is_valid == mtev_false);
+      continue;
+    }
     test_assert_namef(tagset_add && tagset_end, "'%s' is valid tagset", testmatches[i].tagstring);
 
     for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
