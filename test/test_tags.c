@@ -540,14 +540,13 @@ void test_implicit_tag_match()
   noit_metric_tagset_builder_t builder;
   noit_metric_tag_search_ast_t *ast;
   mtev_boolean match;
-  // char *canonical;
+  char *canonical;
 
   for(int i = 0; i < sizeof(implicit_testmatches) / sizeof(*implicit_testmatches); i++) {
     noit_metric_tagset_builder_start(&builder);
     mtev_boolean tagset_add = noit_metric_tagset_builder_add_one_implicit(&builder, implicit_testmatches[i].tagstring, strlen(implicit_testmatches[i].tagstring));
     memset(&tagset, 0, sizeof(tagset));
-    //TODO: should we be able to pass `&canonical` instead of NULL when working with implicit tags? what is canonical used for?
-    mtev_boolean tagset_end = noit_metric_tagset_builder_end(&builder, &tagset, NULL);
+    mtev_boolean tagset_end = noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
     test_assert_namef(tagset_add && tagset_end, "'%s' is valid tagset", tagset.tag_count > 0 ? implicit_testmatches[i].tagstring : "");
 
     for(int j = 0; implicit_testmatches[i].queries[j].query != NULL; j++) {
@@ -572,7 +571,7 @@ void test_implicit_tag_match()
       }
     }
     free(tagset.tags);
-    // free(canonical);
+    free(canonical);
   }
 }
 

@@ -478,13 +478,12 @@ static int tag_canonical_size(noit_metric_tag_t *tag) {
   mtev_dyn_buffer_init(&dbuff);
   const size_t max_decode_len = mtev_b64_max_decode_len(tag->total_size);
   mtev_dyn_buffer_ensure(&dbuff, mtev_b64_encode_len(max_decode_len));
-  int len =
-      noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
-                                    max_decode_len, tag->tag, tag->total_size);
+  char *dbuff_data = (char *)mtev_dyn_buffer_data(&dbuff);
+  int len = noit_metric_tagset_decode_tag(dbuff_data, max_decode_len, tag->tag,
+                                          tag->total_size);
   if (len >= 0) {
     len = noit_metric_tagset_encode_tag(
-        (char *)mtev_dyn_buffer_data(&dbuff), mtev_dyn_buffer_size(&dbuff),
-        (char *)mtev_dyn_buffer_data(&dbuff), len);
+        dbuff_data, mtev_dyn_buffer_size(&dbuff), dbuff_data, len);
     if (len >= 0) {
       mtev_dyn_buffer_destroy(&dbuff);
       return len;
@@ -603,46 +602,58 @@ noit_metric_tags_parse(const char *tagnm, size_t tagnmlen,
   return noit_metric_tags_parse_with_context(tagnm, tagnmlen, tags, tag_count, canonical_size_out, NULL);
 }
 
-ssize_t
-noit_metric_tags_canonical(const noit_metric_tag_t *tags,
-                           size_t tag_count, char *tagnm, size_t tagnmlen,
-                           mtev_boolean already_decoded) {
-  char dbuff[NOIT_TAG_MAX_PAIR_LEN];
+ssize_t noit_metric_tags_canonical(const noit_metric_tag_t *tags,
+                                   size_t tag_count, char *tagnm,
+                                   size_t tagnmlen,
+                                   mtev_boolean already_decoded) {
   if(!tag_count) return 0;
+  mtev_dyn_buffer_t dbuff;
+  mtev_dyn_buffer_init(&dbuff);
+  const size_t max_decode_len =
+      already_decoded ? tagnmlen : mtev_b64_max_decode_len(tagnmlen);
+  const size_t max_encode_len = mtev_b64_encode_len(max_decode_len);
+  mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
+  char *dbuff_data = (char *)mtev_dyn_buffer_data(&dbuff);
   size_t rval = 0;
   while(tag_count > 0) {
     int dlen;
     if(already_decoded) {
-      dlen = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), tags->tag, tags->total_size);
-      if(dlen < 0) return -1;
+      dlen = noit_metric_tagset_encode_tag(dbuff_data, max_encode_len,
+                                           tags->tag, tags->total_size);
     } else {
-      dlen = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tags->tag, tags->total_size);
-      if(dlen < 0) return -1;
-      dlen = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, dlen);
-      if(dlen < 0) return -1;
+      dlen = noit_metric_tagset_decode_tag(dbuff_data, max_decode_len,
+                                           tags->tag, tags->total_size);
+      if (dlen >= 0) {
+        dlen = noit_metric_tagset_encode_tag(dbuff_data, max_encode_len,
+                                             dbuff_data, dlen);
+      }
     }
-    if(tagnmlen < dlen) return -1;
-    memcpy(tagnm, dbuff, dlen);
+    if (dlen < 0 || tagnmlen < dlen) {
+      mtev_dyn_buffer_destroy(&dbuff);
+      return -1;
+    }
+    memcpy(tagnm, dbuff_data, dlen);
     tagnm += dlen;
     tagnmlen -= dlen;
     rval += dlen;
     tags++;
     tag_count--;
     if(tag_count > 0) {
-      if (tagnmlen <= 0) return -1;
+      if (tagnmlen <= 0) {
+        mtev_dyn_buffer_destroy(&dbuff);
+        return -1;
+      }
       *tagnm++ = ',';
       rval++;
       tagnmlen--;
     }
   }
+  mtev_dyn_buffer_destroy(&dbuff);
   return rval;
 }
 
-char *
-noit_metric_tagset_from_tags(noit_metric_tagset_t *lookup,
-                             noit_metric_tag_t *tags,
-                             size_t tag_count,
-                             size_t canonical_size) {
+char *get_canonical_name(noit_metric_tag_t *tags, size_t tag_count,
+                         size_t canonical_size) {
   /* the canonical representation does not include a trailing NULL, but we make room for one
    * anyway... helps our display logic. */
   char *canonical = malloc(canonical_size + 1);
@@ -810,7 +821,7 @@ noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder,
     if(builder->tag_count != tag_index)
       out->tags = (noit_metric_tag_t *) realloc((void *)out->tags, out->tag_count * sizeof(noit_metric_tag_t));
     if(canon) {
-      *canon = noit_metric_tagset_from_tags(out, out->tags, out->tag_count, canonical_size);
+      *canon = get_canonical_name(out->tags, out->tag_count, canonical_size);
       if(*canon == NULL) success = mtev_false;
     }
   }
