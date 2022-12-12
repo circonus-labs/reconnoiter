@@ -466,7 +466,7 @@ const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                           NOIT_TAG_MAX_PAIR_LEN);
 }
 
-const char *noit_metric_tags_parse_one_implicit(const char *tagnm, size_t tagnmlen,
+const char *noit_metric_tags_parse_one_implicit(const char *const tagnm, const size_t tagnmlen,
                                        noit_metric_tag_t *output,
                                        mtev_boolean *toolong) {
   return parse_metric_tag(tagnm, tagnmlen, output, toolong,

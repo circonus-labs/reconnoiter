@@ -277,7 +277,7 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
                 (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset))
 
 API_EXPORT(const char *)
-noit_metric_tags_parse_one(const char *const tagnm, const size_t tagnmlen,
+noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                            noit_metric_tag_t *output, mtev_boolean *toolong);
 
 API_EXPORT(const char *)
