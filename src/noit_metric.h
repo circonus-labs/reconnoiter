@@ -289,7 +289,11 @@ API_EXPORT(metric_t *)
 API_EXPORT(const char *)
   noit_metric_get_full_metric_name(metric_t *m);
 
-API_EXPORT(noit_metric_tagset_context_t *)
+  API_EXPORT(bool)
+  noit_metric_get_implicit_tagset(const char *value, size_t length,
+                                  noit_metric_tagset_t *out);
+
+  API_EXPORT(noit_metric_tagset_context_t *)
   noit_metric_tagset_context_alloc(void);
 
 API_EXPORT(void)

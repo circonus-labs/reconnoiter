@@ -849,6 +849,21 @@ noit_metric_get_full_metric_name(metric_t *m) {
   return m->expanded_metric_name ? m->expanded_metric_name : m->metric_name;
 }
 
+bool noit_metric_get_implicit_tagset(const char *value, size_t length,
+                                     noit_metric_tagset_t *out) {
+  if (out->tag_count != 0) {
+    // builder functions can only be used to add tags to new tagsets
+    return false;
+  }
+  noit_metric_tagset_builder_t builder;
+  noit_metric_tagset_builder_start(&builder);
+  noit_metric_tagset_builder_add_one_implicit(&builder, value, length);
+  noit_metric_tagset_builder_end(&builder, out, NULL);
+  if (out->tag_count == 1)
+    return true;
+  return false;
+}
+
 noit_metric_tagset_context_t *
 noit_metric_tagset_context_alloc(void) {
   noit_metric_tagset_context_t *ctx = (noit_metric_tagset_context_t *)malloc(sizeof(*ctx));
