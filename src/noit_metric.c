@@ -859,9 +859,7 @@ bool noit_metric_get_implicit_tagset(const char *value, size_t length,
   noit_metric_tagset_builder_start(&builder);
   noit_metric_tagset_builder_add_one_implicit(&builder, value, length);
   noit_metric_tagset_builder_end(&builder, out, NULL);
-  if (out->tag_count == 1)
-    return true;
-  return false;
+  return out->tag_count == 1;
 }
 
 noit_metric_tagset_context_t *
