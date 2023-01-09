@@ -910,6 +910,8 @@ noit_should_run_check(noit_check_t *check, mtev_cluster_node_t **node) {
 
   if(!strcmp(check->module, "selfcheck")) return i_own;
 
+  if(check->config_seq == 0) return i_own;
+
   if(noit_should_run_check_hook_invoke(check, my_cluster, &i_own, node) == MTEV_HOOK_DONE) {
     return i_own;
   }
