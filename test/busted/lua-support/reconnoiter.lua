@@ -772,8 +772,31 @@ function TestProc:start(params, sloppy)
   if params.timeout == nil then params.timeout = 10 end
   if params.logname == nil then params.logname = self.name end
   if params.boot_match == nil then params.boot_match = params.argv[1] .. ' ready' end
-  if TEST_OPTIONS.debug then table.insert(argv, 2, '-d') end
-  self.proc = start_child(params)
+  if TEST_OPTIONS.debug then table.insert(params.argv, 2, '-d') end
+  if TEST_OPTIONS.norun then
+    if params.env then
+      for key, value in pairs(params.env) do
+        io.write("env[" .. key .. "]: " .. value .. "\n")
+      end
+    end
+    io.write("timeout: " .. params.timeout .. "\n")
+    io.write("logname: " .. params.logname .. "\n")
+    io.write("boot_match: " .. params.boot_match .. "\n")
+    io.write("startup dir: " .. params.dir .. "\n")
+    io.write("commandline: " .. params.path)
+    if params.argv then
+      for i, parm in ipairs(params.argv) do
+        if i > 1 then
+          io.write(" " .. parm .. " ")
+        end
+      end
+    end
+    io.write("\nPlease use the commandline above to start this instance\n")
+    io.write("Then press any key to continue the test...\n")
+    io.read()
+  else
+    self.proc = start_child(params)
+  end
   self.crash_counter = self:watchfor(mtev.pcre(" \\d+ has crashed"))
   self.crash_count = 0
   self.expect_crash = false
@@ -782,12 +805,18 @@ end
 function TestProc:pause() return self.proc:pause() end
 function TestProc:resume() return self.proc:resume() end
 function TestProc:watchfor(match, many)
+  if TEST_OPTIONS.norun then return true end
   return self.proc:watchfor(match, many)
 end
 function TestProc:watchfor_stop(key)
+  if TEST_OPTIONS.norun then return true end
   return self.proc:watchfor_stop(key)
 end
 function TestProc:waitfor(key,timeout)
+  if TEST_OPTIONS.norun then
+    mtev.sleep(15)
+    return true
+  end
   return self.proc:waitfor(key,timeout)
 end
 
@@ -803,6 +832,7 @@ function TestProc:API(cert)
   return api
 end
 function TestProc:is_booted()
+  if TEST_OPTIONS.norun then return true end
   return self.proc ~= nil and self.proc:pid() >= 0
 end
 function TestProc:crashes()
@@ -812,14 +842,16 @@ function TestProc:crashes()
   return self.crash_count
 end
 function TestProc:stop()
-  if self.expect_crash == false and self:crashes() > 0 then
-    error("process crashed")
+  if not TEST_OPTIONS.norun then
+    if self.expect_crash == false and self:crashes() > 0 then
+      error("process crashed")
+    end
+    if self.proc ~= nil then
+      kill_child(self.proc)
+    end
+    self.proc = nil
+    self.api:set_curl_log(nil, nil, nil)
   end
-  if self.proc ~= nil then
-    kill_child(self.proc)
-  end
-  self.proc = nil
-  self.api:set_curl_log(nil, nil, nil)
   return self
 end
 

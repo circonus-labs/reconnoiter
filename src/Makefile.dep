@@ -181,8 +181,7 @@ noit_metric_rollup.o noit_metric_rollup.lo: noit_metric_rollup.c noit_metric_rol
   noit_metric.h \
 
 noit_metric_tag_search.o noit_metric_tag_search.lo: noit_metric_tag_search.c \
-  noit_metric_tag_search.h \
-  noit_metric.h  \
+  noit_metric_tag_search.h noit_metric.h \
 
 noit_module.o noit_module.lo: noit_module.c  \
   noit_module.h \
