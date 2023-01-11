@@ -58,6 +58,7 @@
 #define MAX_RR 256
 #define DEFAULT_FAILED_TTL 60
 #define DEFAULT_PURGE_AGE  1200 /* 20 minutes */
+#define MAX_TTL 3600 /* an hour */
 
 static struct dns_ctx *dns_ctx;
 static pthread_mutex_t nc_dns_cache_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -408,6 +409,8 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
 
   if(ttl < 0)
     ttl = 0;
+  if(ttl > MAX_TTL)
+    ttl = MAX_TTL;
   n->ttl = ttl;
   if(rtype == DNS_T_A) {
     if(n->ip4) free(n->ip4);
@@ -802,6 +805,8 @@ void noit_check_resolver_init() {
           dns_cache_node_free(n);
           break; /* impossible */
         }
+
+        if(n->ttl > MAX_TTL || n->ttl < 0) n->ttl = DEFAULT_FAILED_TTL;
 
         n->last_needed = now.tv_sec;
         if(n->last_updated + n->ttl < now.tv_sec + 60) {

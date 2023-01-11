@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>
+#include <zlib.h>
 
 #include <mtev_hash.h>
 
@@ -79,8 +80,9 @@ static mtev_hook_return_t
 resolver_cache_store_impl(void *closure, const char *key, const void *b, int blen) {
   int fd, rv;
   ssize_t expected = 0;
-  struct iovec iov[4];
+  struct iovec iov[5];
   uint32_t keylen, vallen;
+  uLong checksum;
   fd = resolver_cache_getfd();
   if(fd < 0) return MTEV_HOOK_ABORT;
 
@@ -112,7 +114,11 @@ resolver_cache_store_impl(void *closure, const char *key, const void *b, int ble
   iov[3].iov_base = (void *)b;
   iov[3].iov_len = vallen;
   expected += iov[3].iov_len;
-  while((rv = writev(fd, iov, 4)) == -1 && errno == EINTR);
+  checksum = crc32(0, (const Bytef *)b, vallen);
+  iov[4].iov_base = (void *)&checksum;
+  iov[4].iov_len = sizeof(checksum);
+  expected += iov[4].iov_len;
+  while((rv = writev(fd, iov, 5)) == -1 && errno == EINTR);
   if(rv != expected) {
     if(rv >= 0)
       mtevL(noit_error, "failed to write to resolver cache (ret: %d != %d)\n", rv, (int)expected);
@@ -128,6 +134,7 @@ resolver_cache_load_impl(void *closure, char **key, void **b, int *blen) {
   int fd, rv;
   char *tmpkey = NULL, *tmpb = NULL;
   uint32_t lens[2];
+  uLong checksum[1];
 
   fd = resolver_cache_getfd();
   if(fd < 0) return MTEV_HOOK_ABORT;
@@ -150,6 +157,10 @@ resolver_cache_load_impl(void *closure, char **key, void **b, int *blen) {
   }
   if(read(fd, tmpb, lens[1]) != lens[1]) {
     mtevL(noit_error, "bad record read in resolver cache.\n"); goto bail;
+  }
+  if(read(fd, checksum, sizeof(*checksum)) != sizeof(*checksum) ||
+     crc32(0, (const Bytef *)tmpb, lens[1]) != *checksum) {
+    mtevL(noit_error, "DNS resolver cache checksum failed.\n"); goto bail;
   }
   if(tmpkey[lens[0]-1] != '\0') {
     mtevL(noit_error, "detected key corruption in resolver cache: %s.\n", tmpkey);
