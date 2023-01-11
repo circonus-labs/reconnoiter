@@ -610,7 +610,7 @@ ssize_t noit_metric_tags_canonical(const noit_metric_tag_t *tags,
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
   const size_t max_decode_len =
-      already_decoded ? tagnmlen : mtev_b64_max_decode_len(tagnmlen);
+      already_decoded ? tagnmlen : mtev_b64_max_decode_len(tagnmlen) + 1;
   const size_t max_encode_len = mtev_b64_encode_len(max_decode_len);
   mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
   char *dbuff_data = (char *)mtev_dyn_buffer_data(&dbuff);
