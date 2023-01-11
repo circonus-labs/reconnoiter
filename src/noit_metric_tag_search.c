@@ -473,7 +473,7 @@ graphite_expand_braces(const char *pre, const char *s, const char *suf, struct g
     MTEV_MAYBE_REALLOC(sub, len_s + 1);
     char *lasts;
     char *token;
-    memcpy(sub, copy + start_brace + 1, end_brace);
+    memcpy(sub, copy + start_brace + 1, end_brace - start_brace - 1);
     sub[end_brace - start_brace - 1] = '\0';
     if ((token = strtok_r(sub, ",", &lasts)) != NULL) {
       MTEV_MAYBE_DECL_VARS(char, x, 256);
