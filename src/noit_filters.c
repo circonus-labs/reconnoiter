@@ -797,7 +797,7 @@ noit_apply_filterset(const char *filterset,
            NOIT_TAG_DECODED_SEPARATOR, mlen, local_metric_name);
   size_t nlen = noit_metric_tagset_encode_tag(
       nametag, max_encode_len, nametag, strlen(nametag));
-  noit_metric_tagset_t name_tagset;
+  noit_metric_tagset_t name_tagset = {};
   noit_metric_get_implicit_tagset(nametag, nlen, &name_tagset);
 
   bool mt_modified = false;
