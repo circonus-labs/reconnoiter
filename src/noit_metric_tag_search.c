@@ -1379,7 +1379,7 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
   }
 
   const noit_metric_tagset_t *tagsets[5] = { &tagset_check_uuid, &tagset_check, &tagset_name, &tagset_stream, &tagset_measurement };
-  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 3);
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 5);
   mtev_memory_end();
   return ok;
 }
