@@ -349,6 +349,8 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
                                  noit_metric_encode_type_t left,
                                  noit_metric_encode_type_t right)
 {
+  char scratch[NOIT_TAG_MAX_PAIR_LEN+1];
+  if(max_len > sizeof(scratch)) return -1;
   int i = 0, sepcnt = -1;
   if(decoded_len < 1) return -2;
   for(i=0; i<decoded_len; i++)
@@ -381,21 +383,16 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     if(second_part_needs_b64) second_part_len = mtev_b64_encode_len(second_part_len) + 3;
   }
 
-  if (first_part_len + second_part_len + 1 > max_len)
+  if(first_part_len + second_part_len + 1 > max_len) {
     return -4;
-
-  mtev_dyn_buffer_t scratch;
-  mtev_dyn_buffer_init(&scratch);
-  mtev_dyn_buffer_ensure(&scratch, max_len);
-  char *scratch_front = (char *)mtev_dyn_buffer_data(&scratch);
-  char *cp = scratch_front;
+  }
+  char *cp = scratch;
   if(first_part_needs_b64) {
     *cp++ = 'b';
     *cp++ = left;
-    int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt, cp,
-                              max_len - (cp - scratch_front));
+    int len = mtev_b64_encode((unsigned char *)decoded_tag, sepcnt,
+                              cp, sizeof(scratch) - (cp - scratch));
     if(len <= 0) {
-      mtev_dyn_buffer_destroy(&scratch);
       return -5;
     }
     cp += len;
@@ -409,10 +406,8 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     *cp++ = 'b';
     *cp++ = right;
     int len = mtev_b64_encode((unsigned char *)decoded_tag + sepcnt + 1,
-                              decoded_len - sepcnt - 1, cp,
-                              max_len - (cp - scratch_front));
-    if (len <= 0) {
-      mtev_dyn_buffer_destroy(&scratch);
+                              decoded_len - sepcnt - 1, cp, sizeof(scratch) - (cp - scratch));
+    if(len <= 0) {
       return -6;
     }
     cp += len;
@@ -421,12 +416,11 @@ noit_metric_tagset_encode_tag_ex(char *encoded_tag, size_t max_len,
     memcpy(cp, decoded_tag + sepcnt + 1, decoded_len - sepcnt - 1);
     cp += decoded_len - sepcnt - 1;
   }
-  memcpy(encoded_tag, scratch_front, cp - scratch_front);
-  if (cp - scratch_front < max_len) {
-    encoded_tag[cp - scratch_front] = '\0';
+  memcpy(encoded_tag, scratch, cp - scratch);
+  if(cp-scratch < max_len) {
+    encoded_tag[cp-scratch] = '\0';
   }
-  mtev_dyn_buffer_destroy(&scratch);
-  return cp - scratch_front;
+  return cp - scratch;
 }
 ssize_t
 noit_metric_tagset_encode_tag(char *encoded_tag, size_t max_len, const char *decoded_tag, size_t decoded_len)
@@ -847,19 +841,6 @@ metric_t *
 const char *
 noit_metric_get_full_metric_name(metric_t *m) {
   return m->expanded_metric_name ? m->expanded_metric_name : m->metric_name;
-}
-
-bool noit_metric_get_implicit_tagset(const char *value, size_t length,
-                                     noit_metric_tagset_t *out) {
-  if (out->tag_count != 0) {
-    // builder functions can only be used to add tags to new tagsets
-    return false;
-  }
-  noit_metric_tagset_builder_t builder;
-  noit_metric_tagset_builder_start(&builder);
-  noit_metric_tagset_builder_add_one_implicit(&builder, value, length);
-  noit_metric_tagset_builder_end(&builder, out, NULL);
-  return out->tag_count == 1;
 }
 
 noit_metric_tagset_context_t *
