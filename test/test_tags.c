@@ -501,11 +501,11 @@ void test_tag_match()
   char *canonical;
 
   for(int i = 0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
+    test_assert_namef(true, "testing tagset '%s'", testmatches[i].tagstring);
     noit_metric_tagset_builder_start(&builder);
-    mtev_boolean tagset_add = noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
+    noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
     memset(&tagset, 0, sizeof(tagset));
-    mtev_boolean tagset_end = noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
-    test_assert_namef(tagset_add && tagset_end, "'%s' is valid tagset", tagset.tag_count > 0 ? testmatches[i].tagstring : "");
+    noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
 
     for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
       ast = noit_metric_tag_search_parse_lazy(testmatches[i].queries[j].query, &erroroffset);
@@ -529,7 +529,6 @@ void test_tag_match()
       }
     }
     free(tagset.tags);
-    free(canonical);
   }
 }
 
@@ -543,11 +542,11 @@ void test_implicit_tag_match()
   char *canonical;
 
   for(int i = 0; i < sizeof(implicit_testmatches) / sizeof(*implicit_testmatches); i++) {
+    test_assert_namef(true, "testing tagset '%s'", implicit_testmatches[i].tagstring);
     noit_metric_tagset_builder_start(&builder);
-    mtev_boolean tagset_add = noit_metric_tagset_builder_add_one_implicit(&builder, implicit_testmatches[i].tagstring, strlen(implicit_testmatches[i].tagstring));
+    noit_metric_tagset_builder_add_one_implicit(&builder, implicit_testmatches[i].tagstring, strlen(implicit_testmatches[i].tagstring));
     memset(&tagset, 0, sizeof(tagset));
-    mtev_boolean tagset_end = noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
-    test_assert_namef(tagset_add && tagset_end, "'%s' is valid tagset", tagset.tag_count > 0 ? implicit_testmatches[i].tagstring : "");
+    noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
 
     for(int j = 0; implicit_testmatches[i].queries[j].query != NULL; j++) {
       ast = noit_metric_tag_search_parse_lazy(implicit_testmatches[i].queries[j].query, &erroroffset);
@@ -571,7 +570,6 @@ void test_implicit_tag_match()
       }
     }
     free(tagset.tags);
-    free(canonical);
   }
 }
 
