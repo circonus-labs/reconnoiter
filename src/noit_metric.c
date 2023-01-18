@@ -853,13 +853,13 @@ noit_metric_get_full_metric_name(metric_t *m) {
   return m->expanded_metric_name ? m->expanded_metric_name : m->metric_name;
 }
 
-bool noit_metric_add_implicit_tag_to_tagset(const char *value, size_t length,
-                                            noit_metric_tagset_t *out) {
-  // TODO: allow passing of multiple values
+bool noit_metric_add_implicit_tags_to_tagset(const char *value, size_t length,
+                                             noit_metric_tagset_t *out,
+                                             char **canonical) {
   noit_metric_tagset_builder_t builder;
   noit_metric_tagset_builder_start(&builder);
-  noit_metric_tagset_builder_add_one_implicit(&builder, value, length);
-  return noit_metric_tagset_builder_end(&builder, out, NULL);
+  noit_metric_tagset_builder_add_many_implicit(&builder, value, length);
+  return noit_metric_tagset_builder_end(&builder, out, canonical);
 }
 
 noit_metric_tagset_context_t *

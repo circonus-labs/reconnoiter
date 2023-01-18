@@ -795,7 +795,7 @@ noit_apply_filterset(const char *filterset,
            mlen, local_metric_name);
   size_t nlen = noit_metric_tagset_encode_tag(nametag, max_encode_len, nametag,
                                               strlen(nametag));
-  noit_metric_add_implicit_tag_to_tagset(nametag, nlen, &stset);
+  noit_metric_add_implicit_tags_to_tagset(nametag, nlen, &stset, NULL);
 
   bool mt_modified = false;
   int mt_tag_start = mtset.tag_count;

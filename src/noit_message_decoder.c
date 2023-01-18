@@ -738,14 +738,14 @@ noit_metric_tagset_builder_clean(noit_metric_tagset_builder_t *builder) {
   builder->tag_count = 0;
 }
 
-mtev_boolean
-noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
-                                    const char *tagstr, size_t tagstr_len) {
+mtev_boolean add_tags_to_tagset_builder(noit_metric_tagset_builder_t *builder,
+                                        const char *tagstr, size_t tagstr_len,
+                                        const int32_t max_tag_length) {
   if(builder->tag_count < 0) return mtev_false;
   noit_metric_tag_t tag;
   while(tagstr_len > 0) {
     mtev_boolean toolong = mtev_false;
-    const char *next = noit_metric_tags_parse_one(tagstr, tagstr_len, &tag, &toolong);
+    const char *next = parse_metric_tag(tagstr, tagstr_len, &tag, &toolong, max_tag_length);
     if(toolong) {
       /* do nothing at all, the tag must be dropped */
     } else if(next && (tag.total_size == tagstr_len || *next == ',')) {
@@ -771,39 +771,33 @@ noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
   return mtev_true;
 }
 
-mtev_boolean add_tag_to_tagset_builder(noit_metric_tagset_builder_t *builder,
-                                       const char *tagstr,
-                                       const size_t tagstr_len,
-                                       const int32_t max_tag_length) {
-  if(builder->tag_count < 0) return mtev_false;
-  noit_metric_tag_t tag;
-  mtev_boolean toolong = mtev_false;
-  if (!parse_metric_tag(tagstr, tagstr_len, &tag, &toolong, max_tag_length) ||
-      tag.total_size != tagstr_len) {
-    noit_metric_tagset_builder_clean(builder);
-    builder->tag_count = -1;
-    return mtev_false;
-  }
-  if(toolong) return mtev_true;
-  noit_metric_tagset_builder_el_t *el =
-    (noit_metric_tagset_builder_el_t *) calloc(1, sizeof(noit_metric_tagset_builder_el_t));
-  el->tag = tag;
-  el->next = builder->list;
-  builder->list = el;
-  builder->sum_tag_size += tag.total_size;
-  builder->tag_count++;
-  return mtev_true;
+mtev_boolean
+noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
+                                    const char *tagstr, size_t tagstr_len) {
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_TAG_MAX_PAIR_LEN);
+}
+
+mtev_boolean
+noit_metric_tagset_builder_add_many_implicit(
+    noit_metric_tagset_builder_t *builder, const char *tagstr,
+    size_t tagstr_len) {
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
 }
 
 mtev_boolean
 noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder,
                                    const char *tagstr, size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_TAG_MAX_PAIR_LEN);
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_TAG_MAX_PAIR_LEN);
 }
 
-mtev_boolean noit_metric_tagset_builder_add_one_implicit(
+mtev_boolean
+noit_metric_tagset_builder_add_one_implicit(
     noit_metric_tagset_builder_t *builder, const char *tagstr, size_t tagstr_len) {
-  return add_tag_to_tagset_builder(builder, tagstr, tagstr_len, NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
 }
 
 mtev_boolean
