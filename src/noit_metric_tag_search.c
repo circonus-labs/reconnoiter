@@ -1357,18 +1357,15 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
   // setup implicit tags
   noit_metric_tagset_t tagset_implicit;
   MKTAGSETCOPY(tagset_implicit);
-  // `__check_uuid` tag
-  const size_t uuid_tag_length = sizeof("__check_uuid:") + UUID_PRINTABLE_STRING_LENGTH;
-  char uuid_str[uuid_tag_length];
-  strcpy(uuid_str, "__check_uuid:");
-  mtev_uuid_unparse_lower(id->id, uuid_str + 13);
-  noit_metric_add_implicit_tags_to_tagset(uuid_str, uuid_tag_length,
-                                          &tagset_implicit, NULL);
-  // `__name` tag
-  char name_str[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1];
-  snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);
+  char implicit_str[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1 +
+                    sizeof("__check_uuid:") + UUID_PRINTABLE_STRING_LENGTH];
+  size_t uuid_index =
+      snprintf(implicit_str, sizeof(implicit_str),
+               "__name:%.*s,__check_uuid:", id->name_len, id->name);
+  mtev_uuid_unparse_lower(id->id, implicit_str + uuid_index);
   noit_metric_add_implicit_tags_to_tagset(
-      name_str, sizeof("__name:") + id->name_len, &tagset_implicit, NULL);
+      implicit_str, uuid_index + UUID_PRINTABLE_STRING_LENGTH, &tagset_implicit,
+      NULL);
   // TODO: should the following use NOIT_METRIC_TAGSET_STREAM or NOIT_METRIC_TAGSET_CHECK?
   // I'm not sure what this is actually doing
   if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_implicit) == MTEV_HOOK_ABORT) {
