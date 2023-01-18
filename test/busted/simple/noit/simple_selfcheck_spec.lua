@@ -40,6 +40,7 @@ describe("noit", function()
     end)
     it("version", function()
       -- check version
+      io.write("version = '", capa.features.noit.version, "'\n") --[[ TODO remove ]]
       assert.is_true(mtev.pcre('[a-f0-9]{40}')(capa.features.noit.version))
     end)
     it("time", function()
