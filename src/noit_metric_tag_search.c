@@ -1332,17 +1332,7 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
 
   // setup check tags
   noit_metric_tagset_t tagset_check = id->check;
-  // Add in extra tags: __uuid
-  if (tagset_check.tag_count > MAX_TAGS - 1) {
-    mtev_memory_end();
-    return 0;
-  }
   MKTAGSETCOPY(tagset_check);
-  char uuid_str[13 + UUID_STR_LEN + 1];
-  strcpy(uuid_str, "__check_uuid:");
-  mtev_uuid_unparse_lower(id->id, uuid_str + 13);
-  noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 13 };
-  tagset_check.tags[tagset_check.tag_count++] = uuid_tag;
   if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_CHECK, &tagset_check) == MTEV_HOOK_ABORT) {
     mtev_memory_end();
     return mtev_false;
@@ -1350,16 +1340,7 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
 
   // setup stream tags
   noit_metric_tagset_t tagset_stream = id->stream;
-  // Add in extra tags: __name
-  if (tagset_stream.tag_count > MAX_TAGS - 1) {
-    mtev_memory_end();
-    return 0;
-  }
   MKTAGSETCOPY(tagset_stream);
-  char name_str[NOIT_TAG_MAX_PAIR_LEN + 1];
-  snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);
-  noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
-  tagset_stream.tags[tagset_stream.tag_count++] = name_tag;
   if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_stream) == MTEV_HOOK_ABORT) {
     mtev_memory_end();
     return mtev_false;
@@ -1373,8 +1354,28 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
     return mtev_false;
   }
 
-  const noit_metric_tagset_t *tagsets[3] = { &tagset_check, &tagset_stream, &tagset_measurement };
-  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 3);
+  // setup implicit tags
+  noit_metric_tagset_t tagset_implicit;
+  MKTAGSETCOPY(tagset_implicit);
+  // `__check_uuid` tag
+  const size_t uuid_tag_length = sizeof("__check_uuid:") + UUID_PRINTABLE_STRING_LENGTH;
+  char uuid_str[uuid_tag_length];
+  strcpy(uuid_str, "__check_uuid:");
+  mtev_uuid_unparse_lower(id->id, uuid_str + 13);
+  noit_metric_add_implicit_tag_to_tagset(uuid_str, uuid_tag_length, &tagset_implicit);
+  // `__name` tag
+  char name_str[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1];
+  snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);
+  noit_metric_add_implicit_tag_to_tagset(name_str, sizeof("__name:") + id->name_len, &tagset_implicit);
+  // TODO: should the following use NOIT_METRIC_TAGSET_STREAM or NOIT_METRIC_TAGSET_CHECK?
+  // I'm not sure what this is actually doing
+  if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_implicit) == MTEV_HOOK_ABORT) {
+    mtev_memory_end();
+    return mtev_false;
+  }
+
+  const noit_metric_tagset_t *tagsets[4] = { &tagset_check, &tagset_stream, &tagset_measurement, &tagset_implicit };
+  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 4);
   mtev_memory_end();
   return ok;
 }

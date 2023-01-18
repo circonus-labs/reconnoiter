@@ -39,11 +39,12 @@
 
 #include <mtev_defines.h>
 
-#include <mtev_log.h>
-#include <mtev_hash.h>
-#include <mtev_watchdog.h>
+#include <mtev_b64.h>
 #include <mtev_capabilities_listener.h>
 #include <mtev_conf.h>
+#include <mtev_hash.h>
+#include <mtev_log.h>
+#include <mtev_watchdog.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_check.h"
@@ -644,9 +645,9 @@ noit_apply_filterrule(mtev_hash_table *m,
   return mtev_false;
 }
 static mtev_boolean
-noit_apply_filterrule_metric(filterrule_t *r,
-                             const char *subj, int subj_len,
-                             noit_metric_tagset_t *stset, noit_metric_tagset_t *mtset) {
+noit_apply_filterrule_metric(filterrule_t *r, const char *subj, int subj_len,
+                             noit_metric_tagset_t *stset,
+                             noit_metric_tagset_t *mtset) {
   int rc, ovector[30];
   char canonicalcheck[MAX_METRIC_TAGGED_NAME];
   canonicalcheck[0] = '\0';
@@ -774,9 +775,7 @@ noit_apply_filterset(const char *filterset,
   const char *local_metric_name = noit_metric_get_full_metric_name(metric);
   mtev_gettimeofday(&now, NULL);
 
-  char encoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
-  char decoded_nametag[NOIT_TAG_MAX_PAIR_LEN+1];
-  noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
+  noit_metric_tag_t stags[MAX_TAGS + 1], mtags[MAX_TAGS];
   noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
   noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
   int mlen = noit_metric_parse_tags(local_metric_name, strlen(metric->metric_name), &stset, &mtset);
@@ -784,17 +783,20 @@ noit_apply_filterset(const char *filterset,
     stset.tag_count = mtset.tag_count = 0;
     mlen = strlen(local_metric_name);
   }
-  if(stset.tag_count < MAX_TAGS-1) {
-    /* add __name */
-    snprintf(decoded_nametag, sizeof(decoded_nametag), "__name%c%.*s",
-             NOIT_TAG_DECODED_SEPARATOR, mlen, local_metric_name);
-    size_t nlen = noit_metric_tagset_encode_tag(encoded_nametag, sizeof(encoded_nametag),
-                                                decoded_nametag, strlen(decoded_nametag));
-    stset.tags[stset.tag_count].category_size = 7;
-    stset.tags[stset.tag_count].total_size = nlen;
-    stset.tags[stset.tag_count].tag = encoded_nametag;
-    stset.tag_count++;
-  }
+
+  /* create __name tagset*/
+  mtev_dyn_buffer_t dbuff;
+  mtev_dyn_buffer_init(&dbuff);
+  const size_t max_encode_len =
+      mtev_b64_encode_len(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+  mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
+  char *nametag = (char *)mtev_dyn_buffer_data(&dbuff);
+  snprintf(nametag, max_encode_len, "__name%c%.*s", NOIT_TAG_DECODED_SEPARATOR,
+           mlen, local_metric_name);
+  size_t nlen = noit_metric_tagset_encode_tag(nametag, max_encode_len, nametag,
+                                              strlen(nametag));
+  noit_metric_add_implicit_tag_to_tagset(nametag, nlen, &stset);
+
   bool mt_modified = false;
   int mt_tag_start = mtset.tag_count;
   char *expanded_metric_name = NULL;
@@ -819,7 +821,8 @@ noit_apply_filterset(const char *filterset,
       need_target = !MATCHES(target, check->target);
       need_module = !MATCHES(module, check->module);
       need_name = !MATCHES(name, check->name);
-      need_metric = !noit_apply_filterrule_metric(r, metric->metric_name, mlen, &stset, &mtset);
+      need_metric = !noit_apply_filterrule_metric(r, metric->metric_name, mlen,
+                                                  &stset, &mtset);
 
       if(!need_target && !need_module && !need_name && !need_metric) {
         if(r->type == NOIT_FILTER_SKIPTO) {
@@ -922,6 +925,7 @@ noit_apply_filterset(const char *filterset,
         break;
       }
     }
+    mtev_dyn_buffer_destroy(&dbuff);
     noit_filter_filterset_free(fs);
     if(!ret) ck_pr_inc_32(&fs->denies);
     return ret;
@@ -930,6 +934,7 @@ noit_apply_filterset(const char *filterset,
   if (mt_modified) {
     noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
   }
+  mtev_dyn_buffer_destroy(&dbuff);
   return mtev_false;
 }
 
