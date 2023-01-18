@@ -775,8 +775,9 @@ noit_apply_filterset(const char *filterset,
   const char *local_metric_name = noit_metric_get_full_metric_name(metric);
   mtev_gettimeofday(&now, NULL);
 
-  noit_metric_tag_t stags[MAX_TAGS + 1], mtags[MAX_TAGS];
-  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tag_t *stags = malloc((MAX_TAGS + 1) * sizeof(noit_metric_tag_t));
+  noit_metric_tag_t *mtags = malloc(MAX_TAGS * sizeof(noit_metric_tag_t));
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS + 1};
   noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
   int mlen = noit_metric_parse_tags(local_metric_name, strlen(metric->metric_name), &stset, &mtset);
   if(mlen < 0) {
