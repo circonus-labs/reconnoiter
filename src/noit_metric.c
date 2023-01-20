@@ -345,7 +345,7 @@ noit_metric_tagset_is_taggable_value(const char *val, size_t len)
 }
 
 static inline ssize_t noit_metric_tagset_encode_tag_ex(
-    char *encoded_tag, size_t max_len, const char *decoded_tag,
+    char *encoded_tag, const size_t max_len, const char *decoded_tag,
     size_t decoded_len, mtev_boolean for_search, noit_metric_encode_type_t left,
     noit_metric_encode_type_t right) {
   int i = 0, sepcnt = -1;

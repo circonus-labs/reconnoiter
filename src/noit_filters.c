@@ -775,8 +775,8 @@ noit_apply_filterset(const char *filterset,
   const char *local_metric_name = noit_metric_get_full_metric_name(metric);
   mtev_gettimeofday(&now, NULL);
 
-  noit_metric_tag_t *stags = malloc((MAX_TAGS + 1) * sizeof(noit_metric_tag_t));
-  noit_metric_tag_t *mtags = malloc(MAX_TAGS * sizeof(noit_metric_tag_t));
+  noit_metric_tag_t *stags = calloc((MAX_TAGS + 1), sizeof(noit_metric_tag_t));
+  noit_metric_tag_t *mtags = calloc(MAX_TAGS, sizeof(noit_metric_tag_t));
   noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS + 1};
   noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
   int mlen = noit_metric_parse_tags(local_metric_name, strlen(metric->metric_name), &stset, &mtset);
@@ -785,18 +785,18 @@ noit_apply_filterset(const char *filterset,
     mlen = strlen(local_metric_name);
   }
 
-  /* create __name tagset*/
+  // create __name tagset
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
-  const size_t max_encode_len =
-      mtev_b64_encode_len(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
-  mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
-  char *nametag = (char *)mtev_dyn_buffer_data(&dbuff);
-  snprintf(nametag, max_encode_len, "__name%c%.*s", NOIT_TAG_DECODED_SEPARATOR,
-           mlen, local_metric_name);
-  size_t nlen = noit_metric_tagset_encode_tag(nametag, max_encode_len, nametag,
-                                              strlen(nametag));
-  noit_metric_add_implicit_tags_to_tagset(nametag, nlen, &stset, NULL);
+  size_t max_encoded_len = mtev_b64_encode_len(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+  mtev_dyn_buffer_ensure(&dbuff, max_encoded_len);
+  mtev_dyn_buffer_add_printf(&dbuff, "__name%c%.*s", NOIT_TAG_DECODED_SEPARATOR,
+                             mlen, local_metric_name);
+  const size_t nlen = noit_metric_tagset_encode_tag(
+      (char *)mtev_dyn_buffer_data(&dbuff), max_encoded_len,
+      (char *)mtev_dyn_buffer_data(&dbuff), mtev_dyn_buffer_used(&dbuff));
+  noit_metric_add_implicit_tags_to_tagset((char *)mtev_dyn_buffer_data(&dbuff),
+                                          nlen, &stset, NULL);
 
   bool mt_modified = false;
   int mt_tag_start = mtset.tag_count;
@@ -929,6 +929,8 @@ noit_apply_filterset(const char *filterset,
     mtev_dyn_buffer_destroy(&dbuff);
     noit_filter_filterset_free(fs);
     if(!ret) ck_pr_inc_32(&fs->denies);
+    free(stags);
+    free(mtags);
     return ret;
   }
   UNLOCKFS();
@@ -936,6 +938,8 @@ noit_apply_filterset(const char *filterset,
     noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
   }
   mtev_dyn_buffer_destroy(&dbuff);
+  free(stags);
+  free(mtags);
   return mtev_false;
 }
 

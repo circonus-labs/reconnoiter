@@ -105,7 +105,7 @@ typedef enum {
 #define NOIT_TAG_MAX_CAT_LEN  254
 #define NOIT_TAG_DECODED_SEPARATOR 0x1f
 
-static const int32_t NOIT_IMPLICIT_TAG_MAX_PAIR_LEN =
+static const size_t NOIT_IMPLICIT_TAG_MAX_PAIR_LEN =
     MAX_METRIC_TAGGED_NAME + sizeof("__name:") - 1;
 
 typedef struct {

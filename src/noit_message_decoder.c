@@ -424,7 +424,7 @@ noit_metric_tags_count(const char *str, size_t strlen) {
 
 const char *parse_metric_tag(const char *const tagnm, const size_t tagnmlen,
                              noit_metric_tag_t *output, mtev_boolean *toolong,
-                             const int32_t max_tag_length) {
+                             const size_t max_tag_length) {
   size_t colon_pos = 0;
   size_t cur_size = 0;
   *toolong = mtev_false;
@@ -484,14 +484,16 @@ const char *noit_metric_tags_parse_one_implicit(const char *const tagnm, const s
 static int tag_canonical_size(noit_metric_tag_t *tag) {
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
-  const size_t max_decode_len = mtev_b64_max_decode_len(tag->total_size);
-  mtev_dyn_buffer_ensure(&dbuff, mtev_b64_encode_len(max_decode_len));
-  char *dbuff_data = (char *)mtev_dyn_buffer_data(&dbuff);
-  int len = noit_metric_tagset_decode_tag(dbuff_data, max_decode_len, tag->tag,
-                                          tag->total_size);
+  const size_t max_encode_len =
+      mtev_b64_encode_len(mtev_b64_max_decode_len(tag->total_size));
+  mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
+  int len =
+      noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
+                                    max_encode_len, tag->tag, tag->total_size);
   if (len >= 0) {
     len = noit_metric_tagset_encode_tag(
-        dbuff_data, mtev_dyn_buffer_size(&dbuff), dbuff_data, len);
+        (char *)mtev_dyn_buffer_data(&dbuff), max_encode_len,
+        (char *)mtev_dyn_buffer_data(&dbuff), len);
     if (len >= 0) {
       mtev_dyn_buffer_destroy(&dbuff);
       return len;
@@ -621,26 +623,29 @@ ssize_t noit_metric_tags_canonical(const noit_metric_tag_t *tags,
       already_decoded ? tagnmlen : mtev_b64_max_decode_len(tagnmlen) + 1;
   const size_t max_encode_len = mtev_b64_encode_len(max_decode_len);
   mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
-  char *dbuff_data = (char *)mtev_dyn_buffer_data(&dbuff);
+
   size_t rval = 0;
   while(tag_count > 0) {
     int dlen;
     if(already_decoded) {
-      dlen = noit_metric_tagset_encode_tag(dbuff_data, max_encode_len,
-                                           tags->tag, tags->total_size);
+      dlen = noit_metric_tagset_encode_tag((char *)mtev_dyn_buffer_data(&dbuff),
+                                           max_encode_len, tags->tag,
+                                           tags->total_size);
     } else {
-      dlen = noit_metric_tagset_decode_tag(dbuff_data, max_decode_len,
-                                           tags->tag, tags->total_size);
+      dlen = noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
+                                           max_encode_len, tags->tag,
+                                           tags->total_size);
       if (dlen >= 0) {
-        dlen = noit_metric_tagset_encode_tag(dbuff_data, max_encode_len,
-                                             dbuff_data, dlen);
+        dlen = noit_metric_tagset_encode_tag(
+            (char *)mtev_dyn_buffer_data(&dbuff), max_encode_len,
+            (char *)mtev_dyn_buffer_data(&dbuff), dlen);
       }
     }
     if (dlen < 0 || tagnmlen < dlen) {
       mtev_dyn_buffer_destroy(&dbuff);
       return -1;
     }
-    memcpy(tagnm, dbuff_data, dlen);
+    memcpy(tagnm, (char *)mtev_dyn_buffer_data(&dbuff), dlen);
     tagnm += dlen;
     tagnmlen -= dlen;
     rval += dlen;
@@ -740,7 +745,7 @@ noit_metric_tagset_builder_clean(noit_metric_tagset_builder_t *builder) {
 
 mtev_boolean add_tags_to_tagset_builder(noit_metric_tagset_builder_t *builder,
                                         const char *tagstr, size_t tagstr_len,
-                                        const int32_t max_tag_length) {
+                                        const size_t max_tag_length) {
   if(builder->tag_count < 0) return mtev_false;
   noit_metric_tag_t tag;
   while(tagstr_len > 0) {
