@@ -484,15 +484,15 @@ const char *noit_metric_tags_parse_one_implicit(const char *const tagnm, const s
 static int tag_canonical_size(noit_metric_tag_t *tag) {
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
-  const size_t max_encode_len =
+  const size_t max_ensured_len =
       mtev_b64_encode_len(mtev_b64_max_decode_len(tag->total_size));
-  mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
+  mtev_dyn_buffer_ensure(&dbuff, max_ensured_len);
   int len =
       noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
-                                    max_encode_len, tag->tag, tag->total_size);
+                                    max_ensured_len, tag->tag, tag->total_size);
   if (len >= 0) {
     len = noit_metric_tagset_encode_tag(
-        (char *)mtev_dyn_buffer_data(&dbuff), max_encode_len,
+        (char *)mtev_dyn_buffer_data(&dbuff), max_ensured_len,
         (char *)mtev_dyn_buffer_data(&dbuff), len);
     if (len >= 0) {
       mtev_dyn_buffer_destroy(&dbuff);
@@ -621,23 +621,23 @@ ssize_t noit_metric_tags_canonical(const noit_metric_tag_t *tags,
   mtev_dyn_buffer_init(&dbuff);
   const size_t max_decode_len =
       already_decoded ? tagnmlen : mtev_b64_max_decode_len(tagnmlen) + 1;
-  const size_t max_encode_len = mtev_b64_encode_len(max_decode_len);
-  mtev_dyn_buffer_ensure(&dbuff, max_encode_len);
+  const size_t max_ensured_len = mtev_b64_encode_len(max_decode_len);
+  mtev_dyn_buffer_ensure(&dbuff, max_ensured_len);
 
   size_t rval = 0;
   while(tag_count > 0) {
     int dlen;
     if(already_decoded) {
       dlen = noit_metric_tagset_encode_tag((char *)mtev_dyn_buffer_data(&dbuff),
-                                           max_encode_len, tags->tag,
+                                           max_ensured_len, tags->tag,
                                            tags->total_size);
     } else {
       dlen = noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
-                                           max_encode_len, tags->tag,
+                                           max_ensured_len, tags->tag,
                                            tags->total_size);
       if (dlen >= 0) {
         dlen = noit_metric_tagset_encode_tag(
-            (char *)mtev_dyn_buffer_data(&dbuff), max_encode_len,
+            (char *)mtev_dyn_buffer_data(&dbuff), max_ensured_len,
             (char *)mtev_dyn_buffer_data(&dbuff), dlen);
       }
     }
