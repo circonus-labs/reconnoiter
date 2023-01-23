@@ -775,17 +775,20 @@ noit_apply_filterset(const char *filterset,
   const char *local_metric_name = noit_metric_get_full_metric_name(metric);
   mtev_gettimeofday(&now, NULL);
 
-  noit_metric_tag_t *stags = calloc((MAX_TAGS + 1), sizeof(noit_metric_tag_t));
-  noit_metric_tag_t *mtags = calloc(MAX_TAGS, sizeof(noit_metric_tag_t));
-  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS + 1};
-  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+  noit_metric_tagset_t stset, mtset;
+  noit_metric_tagset_init(&stset, 0, 0);
+  stset.tags = calloc((MAX_TAGS + 1), sizeof(noit_metric_tag_t));
+  stset.tag_count = MAX_TAGS + 1;
+  noit_metric_tagset_init(&mtset, 0, 0);
+  mtset.tags = calloc(MAX_TAGS, sizeof(noit_metric_tag_t));
+  mtset.tag_count = MAX_TAGS;
   int mlen = noit_metric_parse_tags(local_metric_name, strlen(metric->metric_name), &stset, &mtset);
   if(mlen < 0) {
     stset.tag_count = mtset.tag_count = 0;
     mlen = strlen(local_metric_name);
   }
 
-  // create __name tagset
+  // add __name tag to stream tags
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
   const size_t max_encoded_len = mtev_b64_encode_len(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
@@ -929,8 +932,8 @@ noit_apply_filterset(const char *filterset,
     mtev_dyn_buffer_destroy(&dbuff);
     noit_filter_filterset_free(fs);
     if(!ret) ck_pr_inc_32(&fs->denies);
-    noit_metric_tagset_cleanup(stags);
-    noit_metric_tagset_cleanup(mtags);
+    noit_metric_tagset_cleanup(&stset);
+    noit_metric_tagset_cleanup(&mtset);
     return ret;
   }
   UNLOCKFS();
@@ -938,8 +941,8 @@ noit_apply_filterset(const char *filterset,
     noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
   }
   mtev_dyn_buffer_destroy(&dbuff);
-  noit_metric_tagset_cleanup(stags);
-  noit_metric_tagset_cleanup(mtags);
+  noit_metric_tagset_cleanup(&stset);
+  noit_metric_tagset_cleanup(&mtset);
   return mtev_false;
 }
 
