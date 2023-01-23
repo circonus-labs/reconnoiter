@@ -358,6 +358,12 @@ int noit_message_decoder_parse_line(noit_metric_message_t *message, int has_noit
     while ((vstrlen > 1) && (value_str[vstrlen - 1] == '\n'))
       vstrlen--;
     message->value.type = METRIC_STRING;
+    if(message->original_message[1] == '1') {
+      message->value.type = METRIC_HISTOGRAM;
+    }
+    else if(message->original_message[1] == '2') {
+      message->value.type = METRIC_HISTOGRAM_CUMULATIVE;
+    }
     if(vstrlen == 0)
       message->value.value.v_string = NULL;
     else {
@@ -386,7 +392,9 @@ void noit_metric_id_clear(noit_metric_id_t *id) {
 
 void noit_metric_message_clear(noit_metric_message_t* message) {
   if(message->original_message) {
-    if(message->value.type == METRIC_STRING &&
+    if((message->value.type == METRIC_STRING ||
+        message->value.type == METRIC_HISTOGRAM ||
+        message->value.type == METRIC_HISTOGRAM_CUMULATIVE) &&
        !message->value.is_null && message->value.value.v_string) {
       free(message->value.value.v_string);
     }
