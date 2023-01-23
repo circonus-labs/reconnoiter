@@ -1366,9 +1366,7 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
   noit_metric_add_implicit_tags_to_tagset(
       implicit_str, uuid_index + UUID_PRINTABLE_STRING_LENGTH, &tagset_implicit,
       NULL);
-  // TODO: should the following use NOIT_METRIC_TAGSET_STREAM or NOIT_METRIC_TAGSET_CHECK?
-  // I'm not sure what this is actually doing
-  if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_implicit) == MTEV_HOOK_ABORT) {
+  if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_CHECK, &tagset_implicit) == MTEV_HOOK_ABORT) {
     mtev_memory_end();
     return mtev_false;
   }
