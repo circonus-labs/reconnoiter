@@ -254,10 +254,12 @@ std::string max_length_implicit_tag_pair = "__name:max_length" + std::string(NOI
 std::string too_long_implicit_tag_pair = "__name:too_long" + std::string((NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1) - (sizeof("__name:too_long") - 1), '0');
 std::string check_uuid_tag_pair = "__check_uuid:b946274b-183d-4553-814a-ada8130c560d";
 
+std::string implicit_testmatch = max_length_implicit_tag_pair + "," + too_long_implicit_tag_pair + "," + check_uuid_tag_pair;
+
 struct Matches implicit_testmatches[] = {
   
   { 
-    std::string(max_length_implicit_tag_pair+","+too_long_implicit_tag_pair+","+check_uuid_tag_pair).c_str(),
+    implicit_testmatch.c_str(),
     {
       { "and(__name:max_length*)", mtev_true },
       { "and(__name:*value_not_in_name*)", mtev_false },
