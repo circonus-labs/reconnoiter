@@ -788,7 +788,7 @@ noit_apply_filterset(const char *filterset,
   // create __name tagset
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
-  size_t max_encoded_len = mtev_b64_encode_len(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+  const size_t max_encoded_len = mtev_b64_encode_len(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
   mtev_dyn_buffer_ensure(&dbuff, max_encoded_len);
   mtev_dyn_buffer_add_printf(&dbuff, "__name%c%.*s", NOIT_TAG_DECODED_SEPARATOR,
                              mlen, local_metric_name);
