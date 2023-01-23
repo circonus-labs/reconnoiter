@@ -772,7 +772,7 @@ noit_metric_canonicalize_ex(const char *input, size_t input_len, char *output, s
   struct tag_replacements repl = { .used = 0 };
   noit_metric_tag_t stags[MAX_TAGS], mtags[MAX_TAGS];
   int n_stags = 0, n_mtags = 0;
-  char buff[MAX_METRIC_TAGGED_NAME];
+  char buff[MAX_METRIC_TAGGED_NAME] = {'\0'};
   if(output_len < input_len) return -1;
   if(input != output) memcpy(output, input, input_len);
 
