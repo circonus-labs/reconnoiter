@@ -929,8 +929,8 @@ noit_apply_filterset(const char *filterset,
     mtev_dyn_buffer_destroy(&dbuff);
     noit_filter_filterset_free(fs);
     if(!ret) ck_pr_inc_32(&fs->denies);
-    free(stags);
-    free(mtags);
+    noit_metric_tagset_cleanup(stags);
+    noit_metric_tagset_cleanup(mtags);
     return ret;
   }
   UNLOCKFS();
@@ -938,8 +938,8 @@ noit_apply_filterset(const char *filterset,
     noit_update_metric_name(expanded_metric_name, &mtset, mt_tag_start, metric);
   }
   mtev_dyn_buffer_destroy(&dbuff);
-  free(stags);
-  free(mtags);
+  noit_metric_tagset_cleanup(stags);
+  noit_metric_tagset_cleanup(mtags);
   return mtev_false;
 }
 
