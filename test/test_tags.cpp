@@ -498,9 +498,9 @@ void test_tag_match()
   noit_metric_tagset_builder_t builder;
   noit_metric_tag_search_ast_t *ast;
   mtev_boolean match;
-  char *canonical;
 
   for(size_t i = 0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
+    char *canonical = NULL;
     test_assert_namef(true, "testing tagset '%s'", testmatches[i].tagstring);
     noit_metric_tagset_builder_start(&builder);
     noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
@@ -528,7 +528,8 @@ void test_tag_match()
         test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, testmatches[i].queries[j].query);
       }
     }
-    free(tagset.tags);
+    noit_metric_tagset_cleanup(&tagset);
+    free(canonical);
   }
 }
 
@@ -537,7 +538,6 @@ void test_implicit_tag_match() {
   noit_metric_tagset_t tagset = {};
   noit_metric_tag_search_ast_t *ast;
   mtev_boolean match;
-  char *canonical;
 
   test_assert(max_length_implicit_tag_pair.length() == NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
   test_assert(too_long_implicit_tag_pair.length() > NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
@@ -545,6 +545,7 @@ void test_implicit_tag_match() {
 
   for (size_t i = 0;
        i < sizeof(implicit_testmatches) / sizeof(*implicit_testmatches); i++) {
+    char *canonical = NULL;
     test_assert_namef(true, "testing tagset '%s'",
                       implicit_testmatches[i].tagstring);
     memset(&tagset, 0, sizeof(tagset));
@@ -579,7 +580,8 @@ void test_implicit_tag_match() {
                           implicit_testmatches[i].queries[j].query);
       }
     }
-    free(tagset.tags);
+    noit_metric_tagset_cleanup(&tagset);
+    free(canonical);
   }
 }
 
