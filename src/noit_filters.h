@@ -148,7 +148,8 @@ API_EXPORT(noit_lmdb_instance_t *)
   noit_filters_get_lmdb_instance();
 
 API_EXPORT(void)
-  noit_refresh_filtersets();
+  noit_refresh_filtersets(mtev_console_closure_t ncct,
+                          mtev_conf_t_userdata_t *info);
 
 API_EXPORT(mtev_boolean)
   noit_apply_filterset(const char *filterset,

@@ -699,7 +699,6 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     goto error;
   }
 
-  int seen = 0;
   cnt = write->n_timeseries;
   for (size_t i = 0; i < write->n_timeseries; i++) {
     Prometheus__TimeSeries *ts = write->timeseries[i];
@@ -723,7 +722,6 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       } else {
         metric_local_batch(rxc, metric_name, sample->value, tv);
       }
-      seen++;
     }
     free(metric_name);
   }

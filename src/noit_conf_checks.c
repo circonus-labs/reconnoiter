@@ -1012,7 +1012,11 @@ static int
 replace_config(mtev_console_closure_t ncct,
                mtev_conf_t_userdata_t *info, const char *name,
                const char *value) {
-  int i, cnt, rv = -1, active = 0;
+  int i, cnt, rv = -1;
+
+#ifdef UNSAFE_RECONFIG
+  int active = 0;
+#endif
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlNodePtr node, confignode;
@@ -1040,9 +1044,11 @@ replace_config(mtev_console_closure_t ncct,
     if(mtev_conf_get_uuid(mtev_conf_section_from_xmlnodeptr(node), "@uuid", checkid)) {
       noit_check_t *check = noit_poller_lookup(checkid);
       if (check) {
+#ifdef UNSAFE_RECONFIG
         if (NOIT_CHECK_LIVE(check)) {
           active++;
         }
+#endif
         noit_check_deref(check);
       }
     }
