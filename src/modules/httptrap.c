@@ -151,15 +151,19 @@ static void
 metric_local_track_or_log(void *vrxc, const char *name, 
                           metric_type_t t, const void *vp, struct timeval *w) {
   struct rest_json_payload *rxc = vrxc;
-  if(t == METRIC_GUESS) return;
-  void *vm;
-  if(rxc->immediate_metrics == NULL) {
+  if(t == METRIC_GUESS) {
+    return;
+  }
+  if(!rxc->immediate_metrics) {
     rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
     mtev_hash_init(rxc->immediate_metrics);
   }
-  if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm)) {
-    /* collision, just log it out */
-    rest_json_flush_immediate(rxc);
+  else
+    void *vm;
+    if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm)) {
+      /* collision, just log it out */
+      rest_json_flush_immediate(rxc);
+    }
   }
   metric_t *m = noit_metric_alloc();
   m->metric_name = strdup(name);
