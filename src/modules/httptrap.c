@@ -158,7 +158,7 @@ metric_local_track_or_log(void *vrxc, const char *name,
     rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
     mtev_hash_init(rxc->immediate_metrics);
   }
-  else
+  else {
     void *vm;
     if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm)) {
       /* collision, just log it out */
