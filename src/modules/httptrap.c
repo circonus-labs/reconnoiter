@@ -35,6 +35,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <unistd.h>
 #include <errno.h>
 #include <math.h>
@@ -127,7 +128,52 @@ struct rest_json_payload {
   mtev_boolean immediate;
   uint64_t current_counter;
   mtev_hash_table *immediate_metrics;
+  atomic_uint_least16_t refcnt;
 };
+
+static void
+rest_json_flush_immediate(struct rest_json_payload *rxc) {
+  noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
+  mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
+}
+
+static void
+rest_json_payload_free(struct rest_json_payload *json) {
+  int i;
+  if(json->immediate_metrics) {
+    rest_json_flush_immediate(json);
+    mtev_hash_destroy(json->immediate_metrics, NULL, mtev_memory_safe_free);
+    free(json->immediate_metrics);
+  }
+  if(json->parser) {
+    yajl_free(json->parser);
+  }
+  free(json->error);
+  free(json->supp_err);
+  for(i=0;i<MAX_DEPTH;i++) {
+    if(json->keys[i]) {
+      free(json->keys[i]);
+    }
+  }
+  if(json->last_value) {
+    free(json->last_value);
+  }
+  free(json);
+}
+
+static void rest_json_payload_ref(struct rest_json_payload *rxc) {
+  atomic_fetch_add_explicit(&rxc->refcnt, 1, memory_order_relaxed);
+}
+
+static bool rest_json_payload_deref(struct rest_json_payload *rxc) {
+  // This returns the value from *before* the subtraction, so if the value
+  // is 1, that means we're good to free
+  if (atomic_fetch_sub_explicit(&rxc->refcnt, 1, memory_order_release) == 1) {
+    rest_json_payload_free(rxc);
+    return true;
+  }
+  return false;
+}
 
 static void
 track_filtered(struct rest_json_payload *json, char **name) {
@@ -139,12 +185,6 @@ track_filtered(struct rest_json_payload *json, char **name) {
     free(m.metric_name);
     *name = m.expanded_metric_name;
   }
-}
-
-static void
-rest_json_flush_immediate(struct rest_json_payload *rxc) {
-  noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
-  mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
 }
 
 static void 
@@ -726,24 +766,6 @@ static yajl_callbacks httptrap_yajl_callbacks = {
   .yajl_end_array = httptrap_yajl_cb_end_array
 };
 
-static void
-rest_json_payload_free(void *f) {
-  int i;
-  struct rest_json_payload *json = f;
-  if(json->immediate_metrics) {
-    rest_json_flush_immediate(json);
-  }
-  mtev_hash_destroy(json->immediate_metrics, NULL, mtev_memory_safe_free);
-  free(json->immediate_metrics);
-  if(json->parser) yajl_free(json->parser);
-  if(json->error) free(json->error);
-  if(json->supp_err) free(json->supp_err);
-  for(i=0;i<MAX_DEPTH;i++)
-    if(json->keys[i]) free(json->keys[i]);
-  if(json->last_value) free(json->last_value);
-  free(json);
-}
-
 static struct rest_json_payload *
 rest_get_json_upload(mtev_http_rest_closure_t *restc,
                     int *mask, int *complete) {
@@ -756,7 +778,9 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   mtevAssert(rxc);
   mtevAssert(rxc->check);
 
-  if(!strcmp(rxc->check->module, "httptrap")) ccl = rxc->check->closure;
+  if(!strcmp(rxc->check->module, "httptrap")) {
+    ccl = rxc->check->closure;
+  }
   rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : global_self, rxc->check);
   if(rxc->immediate && !rxc->immediate_metrics) {
     rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
@@ -780,7 +804,9 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       }
       rxc->len += len;
     }
-    if(len < 0 && errno == EAGAIN) return NULL;
+    if(len < 0 && errno == EAGAIN) {
+      return NULL;
+    }
     else if(len < 0) {
       rxc->error = strdup("Unable to read incoming payload");
       *complete = 1;
@@ -972,6 +998,11 @@ rest_httptrap_options_handler(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+static void
+rest_json_closure_connection_broken(void *f) {
+  rest_json_payload_deref((struct rest_json_payload *) f);
+}
+
 static int
 rest_httptrap_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
@@ -1047,12 +1078,13 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     mtev_uuid_copy(rxc->check_id, check_id);
     rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
     rxc->depth = -1;
+    rxc->refcnt = 1;
     yajl_config(rxc->parser, yajl_allow_comments, 1);
     yajl_config(rxc->parser, yajl_dont_validate_strings, 1);
     yajl_config(rxc->parser, yajl_allow_trailing_garbage, 1);
     yajl_config(rxc->parser, yajl_allow_multiple_values, 1);
     yajl_config(rxc->parser, yajl_allow_partial_values, 1);
-    restc->call_closure_free = rest_json_payload_free;
+    restc->call_closure_free = rest_json_closure_connection_broken;
 
     /* flip threads */
     mtev_http_connection *conn = mtev_http_session_connection(ctx);
@@ -1091,7 +1123,14 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
 
   mtevL(nldeb, "Processing JSON upload for %s (%" PRIu64 ")\n", pats[0], current_counter);
 
+  struct rest_json_payload *old_rxc = rxc;
+  rest_json_payload_ref(old_rxc);
   rxc = rest_get_json_upload(restc, &mask, &complete);
+  if (rest_json_payload_deref(old_rxc)) {
+    // This means we broke the connection at some point and cleaned up the closure...
+    // there's nothing else for us to do and nothing to return
+    goto connection_broken;
+  }
   if(rxc == NULL && !complete)
   {
     mtevL(nldeb, "Payload read abort with mask %d for %s (%" PRIu64 ")\n", mask, pats[0], current_counter);
@@ -1183,9 +1222,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   return 0;
 
  error:
-  if (rxc) {
-    noit_check_deref(rxc->check);
-  }
   mtev_http_response_standard(ctx, error_code, "ERROR", "application/json");
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if (rxc && rxc->error)
@@ -1194,6 +1230,10 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
+ connection_broken:
+  if (rxc) {
+    noit_check_deref(rxc->check);
+  }
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
   return 0;
