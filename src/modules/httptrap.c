@@ -594,7 +594,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
     /* If we only have a single value, we don't have any average to compute... to
      * avoid losing precision by converting to a double, just use the original
      * type */
-    if ((json->cnt <= 1) &&
+    if ((json->cnt == 1) &&
         (json->vop_flag == HTTPTRAP_VOP_REPLACE)) {
       use_computed_value = mtev_false;
     }
