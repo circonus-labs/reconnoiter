@@ -595,7 +595,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
      * avoid losing precision by converting to a double, just use the original
      * type */
     if ((json->cnt <= 1) &&
-        (json->vop_flag != HTTPTRAP_VOP_ACCUMULATE)) {
+        (json->vop_flag == HTTPTRAP_VOP_REPLACE)) {
       use_computed_value = mtev_false;
     }
     if(use_computed_value) {
