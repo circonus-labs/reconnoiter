@@ -618,7 +618,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
       char double_str[32];
       void *value = last_p->v;
       if(use_computed_value) {
-        snprintf(double_str, sizeof(double_str), "%g", newval);
+        snprintf(double_str, sizeof(double_str), "%.15e", newval);
         value = double_str;
       }
       /* metric_local_accrue will ultimately set the timestamp if one is set in `json` */
