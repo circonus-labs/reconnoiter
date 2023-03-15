@@ -550,7 +550,6 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
   char check_name[256 * 3] = {0};
   int len = sizeof(check_name);
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-  mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, i=0, j;
   unsigned int out_size;
