@@ -758,6 +758,9 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
     rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
     mtev_hash_init(rxc->immediate_metrics);
   }
+  int loop_count = 0;
+  struct timeval start;
+  mtev_gettimeofday(&start, NULL);
   while(!rxc->complete) {
     int len;
     len = mtev_http_session_req_consume(restc->http_ctx, buffer,
@@ -786,6 +789,21 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       rxc->complete = 1;
       _YD("no more data, finishing YAJL parse\n");
       yajl_complete_parse(rxc->parser);
+    }
+    if (++loop_count % 25 == 0 && !rxc->complete) {
+      // Every 25 reads, we should check to see if we're taking too long.
+      // If we are, we need to kick things back to the eventer. Don't be
+      // greedy.
+      struct timeval now, diff;
+      mtev_gettimeofday(&now, NULL);
+      sub_timeval(now, start, &diff);
+      // A quarter second is an eternity. If we've been looping for that long,
+      // we need to give control back to the eventer
+      if ((diff.tv_sec > 0) || (diff.tv_usec >= 250000)) {
+        *mask = EVENTER_READ;
+        *complete = 0;
+        return NULL;
+      }
     }
   }
 
