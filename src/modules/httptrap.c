@@ -187,8 +187,6 @@ metric_local_track_or_log(void *vrxc, const char *name,
       }
     }
   }
-  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
-
   if(!rxc->immediate_metrics) {
     rxc->immediate_metrics = malloc(sizeof(*rxc->immediate_metrics));
     mtev_hash_init(rxc->immediate_metrics);
@@ -198,6 +196,7 @@ metric_local_track_or_log(void *vrxc, const char *name,
     rest_json_flush_immediate(rxc);
     mtevAssert(mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m));
   }
+  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
 }
 
 static void
