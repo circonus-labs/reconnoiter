@@ -656,7 +656,6 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
   int rv = 0;
   static char *ip_str = "ip";
   char uuid_str[256*3+37];
-  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, i=0, size, j, n_metrics = 0;
   unsigned int out_size;
@@ -733,6 +732,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
   i = 0;
   if(n_metrics > 0) {
     // Now convert
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
       /* make sure we don't go past our allocation for some reason*/
       if((i / metrics_per_bundle) >= n_bundles) {
