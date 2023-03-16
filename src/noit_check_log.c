@@ -549,8 +549,6 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
   static char *ip_str = "ip";
   char check_name[256 * 3] = {0};
   int len = sizeof(check_name);
-  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-  mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, i=0, j;
   unsigned int out_size;
@@ -598,6 +596,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
  
   mtev_memory_begin(); 
 
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
@@ -657,8 +656,6 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
   int rv = 0;
   static char *ip_str = "ip";
   char uuid_str[256*3+37];
-  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-  mtev_hash_iter iter2 = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, i=0, size, j, n_metrics = 0;
   unsigned int out_size;
@@ -682,7 +679,9 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
 
   // Get a bundle
   c = noit_check_get_stats_current(check);
-  if(w) whence = w;
+  if(w) {
+    whence = w;
+  }
   else {
     whence = noit_check_stats_whence(c, NULL);
   }
@@ -691,9 +690,8 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
   metrics = in_metrics ? in_metrics : noit_check_stats_metrics(c);
 
   mtev_memory_begin();
-  while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
-    n_metrics++;
-  }
+
+  n_metrics = mtev_hash_size(metrics);
 
   int n_bundles = ((MAX(n_metrics,1) - 1) / metrics_per_bundle) + 1;
   Bundle *bundles = malloc(n_bundles * sizeof(*bundles));
@@ -734,25 +732,35 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
   i = 0;
   if(n_metrics > 0) {
     // Now convert
-    while(mtev_hash_next(metrics, &iter2, &key, &klen, &vm)) {
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
       /* make sure we don't go past our allocation for some reason*/
-      if((i / metrics_per_bundle) >= n_bundles) break;
+      if((i / metrics_per_bundle) >= n_bundles) {
+        break;
+      }
 
       /* Make sure nobody added a null metric to the hash table...
        * if they did, just move on */
-      if (!vm) continue;
+      if (!vm) {
+        continue;
+      }
 
       int b_idx = i / metrics_per_bundle;
       Bundle *bundle = &bundles[b_idx];
       int b_i = i % metrics_per_bundle;
       /* If we apply the filter set and it returns false, we don't log */
       metric_t *m = (metric_t *)vm;
-      if(!noit_apply_filterset(check->filterset, check, m)) continue;
-      if(m->logged) continue;
+      if(!noit_apply_filterset(check->filterset, check, m)) {
+        continue;
+      }
+      if(m->logged) {
+        continue;
+      }
       if(m->whence.tv_sec == 0)
         bundle_times[b_idx] = *whence;
-      else if(compare_timeval(m->whence, bundle_times[b_idx]) > 0)
+      else if(compare_timeval(m->whence, bundle_times[b_idx]) > 0) {
         bundle_times[b_idx] = m->whence;
+      }
       bundle->metrics[b_i] = malloc(sizeof(Metric));
       metric__init(bundle->metrics[b_i]);
       _noit_check_log_bundle_metric(ls, bundle->metrics[b_i], m);

@@ -152,15 +152,6 @@ metric_local_track_or_log(void *vrxc, const char *name,
                           metric_type_t t, const void *vp, struct timeval *w) {
   struct rest_json_payload *rxc = vrxc;
   if(t == METRIC_GUESS) return;
-  void *vm;
-  if(rxc->immediate_metrics == NULL) {
-    rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
-    mtev_hash_init(rxc->immediate_metrics);
-  }
-  if(mtev_hash_retrieve(rxc->immediate_metrics, name, strlen(name), &vm)) {
-    /* collision, just log it out */
-    rest_json_flush_immediate(rxc);
-  }
   metric_t *m = noit_metric_alloc();
   m->metric_name = strdup(name);
   m->metric_type = t;
@@ -196,8 +187,16 @@ metric_local_track_or_log(void *vrxc, const char *name,
       }
     }
   }
+  if(!rxc->immediate_metrics) {
+    rxc->immediate_metrics = malloc(sizeof(*rxc->immediate_metrics));
+    mtev_hash_init(rxc->immediate_metrics);
+  }
+  if(!mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m)) {
+    /* collision, just log it out */
+    rest_json_flush_immediate(rxc);
+    mtevAssert(mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m));
+  }
   noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
-  mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m);
 }
 
 static void
