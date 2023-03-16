@@ -549,7 +549,6 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
   static char *ip_str = "ip";
   char check_name[256 * 3] = {0};
   int len = sizeof(check_name);
-  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, i=0, j;
   unsigned int out_size;
@@ -597,6 +596,7 @@ noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, co
  
   mtev_memory_begin(); 
 
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
