@@ -144,9 +144,17 @@ track_filtered(struct rest_json_payload *json, char **name) {
 }
 
 static void
-rest_json_flush_immediate(struct rest_json_payload *rxc) {
+rest_json_flush_immediate(void *c) {
+  struct rest_json_payload *rxc = (struct rest_json_payload *)c;
   noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
   mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
+}
+
+static void
+rest_json_flush_immediate_aco(struct rest_json_payload *rxc) {
+  eventer_aco_gate_t gate = eventer_aco_gate();
+  eventer_aco_simple_asynch_queue_gated(gate, rest_json_flush_immediate, rxc, flush_jobq);
+  eventer_aco_gate_wait(gate);
 }
 
 static void 
@@ -195,7 +203,7 @@ metric_local_track_or_log(void *vrxc, const char *name,
   }
   if(!mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m)) {
     /* collision, just log it out */
-    rest_json_flush_immediate(rxc);
+    rest_json_flush_immediate_aco(rxc);
     mtevAssert(mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m));
   }
   noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
@@ -728,7 +736,7 @@ rest_json_payload_free(void *f) {
   int i;
   struct rest_json_payload *json = f;
   if(json->immediate_metrics) {
-    rest_json_flush_immediate(json);
+    rest_json_flush_immediate_aco(json);
   }
   mtev_hash_destroy(json->immediate_metrics, NULL, mtev_memory_safe_free);
   free(json->immediate_metrics);
