@@ -1253,7 +1253,7 @@ static int noit_httptrap_onload(mtev_image_t *self) {
 }
 
 #define HTTPTRAP_FLUSH_JOBQ      "httptrap_flush"
-static void http_jobqs_init() {
+static void httptrap_jobqs_init() {
 #define INIT_JOBQ(name,tgt,max) do { \
   eventer_jobq_t *j; \
   j = eventer_jobq_retrieve(name); \
@@ -1299,7 +1299,7 @@ static int noit_httptrap_init(noit_module_t *self) {
 
   noit_module_set_userdata(self, conf);
 
-  http_jobqs_init();
+  httptrap_jobqs_init();
 
   mtevAssert((flush_jobq = eventer_jobq_retrieve(HTTPTRAP_FLUSH_JOBQ)));
 
