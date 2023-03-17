@@ -1283,15 +1283,18 @@ static int noit_httptrap_init(noit_module_t *self) {
   noit_module_set_userdata(self, conf);
 
   /* register rest handler */
-  mtev_http_rest_register("OPTIONS", "/module/httptrap/",
+  mtev_http_rest_new_rule("OPTIONS", "/module/httptrap/",
                           "^(" UUID_REGEX ")/([^/]*).*$",
                           rest_httptrap_options_handler);
-  mtev_http_rest_register("PUT", "/module/httptrap/",
-                          "^(" UUID_REGEX ")/([^/]*).*$",
-                          rest_httptrap_handler);
-  mtev_http_rest_register("POST", "/module/httptrap/",
-                          "^(" UUID_REGEX ")/([^/]*).*$",
-                          rest_httptrap_handler);
+  mtev_rest_mountpoint_t *rule = mtev_http_rest_new_rule("PUT",
+                                 "/module/httptrap/",
+                                 "^(" UUID_REGEX ")/([^/]*).*$",
+                                 rest_httptrap_handler);
+  mtev_rest_mountpoint_set_aco(rule, mtev_true);
+  rule = mtev_http_rest_new_rule("POST", "/module/httptrap/",
+                                 "^(" UUID_REGEX ")/([^/]*).*$",
+                                 rest_httptrap_handler);
+  mtev_rest_mountpoint_set_aco(rule, mtev_true);
   return 0;
 }
 
