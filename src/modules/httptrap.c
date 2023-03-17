@@ -738,8 +738,8 @@ rest_json_payload_free(void *f) {
   if(json->immediate_metrics && mtev_hash_size(json->immediate_metrics) != 0) {
     // We should always have flushed this earlier in the process;
     // getting here is unexpected, but we should flush out. We can't use ACO
-    // here because we've left ACO at this point, so just use the vanilla
-    // function
+    // here because we might have left it depending on the http version used to
+    // submit data, so just use the vanilla function
     rest_json_flush_immediate(json);
   }
   mtev_hash_destroy(json->immediate_metrics, NULL, mtev_memory_safe_free);
