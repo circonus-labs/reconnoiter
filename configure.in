@@ -580,6 +580,12 @@ MODULESHCXXFLAGS=$(dedup_args $MODULESHCXXFLAGS)
 
 LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g; s#-mt##g; s#-errwarn=%all##g;"`
 
+if echo "$MODULECC" | grep -q '^gcc' ; then
+    MODULESHCFLAGS="$MODULESHCFLAGS -Wno-stringop-overflow -Wno-stringop-overread"
+fi
+if echo "$MODULECXX" | grep -q '^g\+\+' ; then
+    MODULESHCXXFLAGS="$MODULESHCXXFLAGS -Wno-stringop-overflow -Wno-stringop-overread"
+fi
 
 AC_SUBST(ENABLE_LUA)
 AC_SUBST(MAKE_CTESTS)
@@ -602,6 +608,7 @@ AC_SUBST(RLDFLAG)
 AC_SUBST(DEPFLAGS)
 AC_SUBST(MODULELD)
 AC_SUBST(MODULECC)
+AC_SUBST(MODULESHCFLAGS)
 AC_SUBST(MODULECXX)
 AC_SUBST(MODULEEXT)
 AC_SUBST(WHOLE_ARCHIVE)
