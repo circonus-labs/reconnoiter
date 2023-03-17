@@ -735,8 +735,12 @@ static void
 rest_json_payload_free(void *f) {
   int i;
   struct rest_json_payload *json = f;
-  if(json->immediate_metrics) {
-    rest_json_flush_immediate_aco(json);
+  if(json->immediate_metrics && mtev_hash_size(json->immediate_metrics) != 0) {
+    // We should always have flushed this earlier in the process;
+    // getting here is unexpected, but we should flush out. We can't use ACO
+    // here because we've left ACO at this point, so just use the vanilla
+    // function
+    rest_json_flush_immediate(json);
   }
   mtev_hash_destroy(json->immediate_metrics, NULL, mtev_memory_safe_free);
   free(json->immediate_metrics);
@@ -1203,6 +1207,10 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
+
+  if (rxc) {
+    rest_json_flush_immediate_aco(rxc);
+  }
   return 0;
 
  error:
@@ -1211,14 +1219,20 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
   mtev_http_response_standard(ctx, error_code, "ERROR", "application/json");
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
-  if (rxc && rxc->error)
+  if (rxc && rxc->error) {
     error = rxc->error;
+  }
   mtevL(nldeb, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
   yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
+  if (rxc) {
+    if (rxc->immediate_metrics && mtev_hash_size(rxc->immediate_metrics)) {
+      rest_json_flush_immediate_aco(rxc);
+    }
+  }
   return 0;
 }
 
