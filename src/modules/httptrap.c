@@ -81,6 +81,8 @@ static uint64_t httptrap_count = 0;
 static mtev_boolean httptrap_surrogate;
 static const char *TRUNCATE_ERROR = "at least one metric exceeded max name length";
 
+eventer_jobq_t *flush_jobq = NULL;
+
 typedef struct _mod_config {
   mtev_hash_table *options;
   mtev_boolean asynch_metrics;
@@ -1250,6 +1252,21 @@ static int noit_httptrap_onload(mtev_image_t *self) {
   return 0;
 }
 
+#define HTTPTRAP_FLUSH_JOBQ      "httptrap_flush"
+static void http_jobqs_init() {
+#define INIT_JOBQ(name,tgt,max) do { \
+  eventer_jobq_t *j; \
+  j = eventer_jobq_retrieve(name); \
+  if(!j) { \
+    j = eventer_jobq_create_ms(name, EVENTER_JOBQ_MS_GC); \
+    eventer_jobq_set_concurrency(j, tgt); \
+    eventer_jobq_set_min_max(j, 1, max); \
+  } \
+} while(0)
+
+  INIT_JOBQ(HTTPTRAP_FLUSH_JOBQ, 64, 512);
+}
+
 static int noit_httptrap_init(noit_module_t *self) {
   const char *config_val;
   httptrap_mod_config_t *conf;
@@ -1281,6 +1298,10 @@ static int noit_httptrap_init(noit_module_t *self) {
   }
 
   noit_module_set_userdata(self, conf);
+
+  http_jobqs_init();
+
+  mtevAssert((flush_jobq = eventer_jobq_retrieve(HTTPTRAP_FLUSH_JOBQ)));
 
   /* register rest handler */
   mtev_http_rest_new_rule("OPTIONS", "/module/httptrap/",
