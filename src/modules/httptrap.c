@@ -802,8 +802,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       rxc->complete = 1;
       _YD("no more data, finishing YAJL parse\n");
       yajl_complete_parse(rxc->parser);
-    }
-    if (++loop_count % 25 == 0 && !rxc->complete) {
+    } else if (++loop_count % 25 == 0 && !rxc->complete) {
       // Every 25 reads, we should check to see if we're taking too long.
       // If we are, we need to kick things back to the eventer. Don't be
       // greedy.
