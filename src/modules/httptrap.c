@@ -152,6 +152,17 @@ rest_json_flush_immediate(void *c) {
 
 static void
 rest_json_flush_immediate_aco(struct rest_json_payload *rxc) {
+  // If we don't have anything to flush, we shouldn't bother
+  // going asynch - just bail here
+  if (!rxc) {
+    return;
+  }
+  if (!rxc->immediate_metrics) {
+    return;
+  }
+  if (mtev_hash_size(rxc->immediate_metrics) == 0) {
+    return;
+  }
   eventer_aco_gate_t gate = eventer_aco_gate();
   eventer_aco_simple_asynch_queue_gated(gate, rest_json_flush_immediate, rxc, flush_jobq);
   eventer_aco_gate_wait(gate);
@@ -1206,10 +1217,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
-
-  if (rxc) {
-    rest_json_flush_immediate_aco(rxc);
-  }
+  rest_json_flush_immediate_aco(rxc);
   return 0;
 
  error:
@@ -1227,11 +1235,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_response_end(ctx);
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
-  if (rxc) {
-    if(rxc->immediate_metrics && mtev_hash_size(rxc->immediate_metrics) != 0) {
-      rest_json_flush_immediate_aco(rxc);
-    }
-  }
+  rest_json_flush_immediate_aco(rxc);
   return 0;
 }
 
