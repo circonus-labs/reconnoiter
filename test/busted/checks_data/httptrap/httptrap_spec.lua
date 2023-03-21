@@ -36,7 +36,8 @@ describe("noit", function()
   local b64hist_double = "AAQKAAACFAAAAh4AAAIoAADw"
   local payload = [=[{
     "array": [ 1, 1.2, "string", { "_type": "s", "_value": "100" },
-               { "_type": "L", "_value": 18446744073709551614 } ],
+               { "_type": "L", "_value": 18446744073709551614 },
+               { "_type": "L", "_value": 1, "_value": 2 }],
     "lvl1": {
       "lvl2": {
         "boolean": true
@@ -53,7 +54,8 @@ describe("noit", function()
   expected_stats["array`1"] = { _type = "n", _value = "1.200000000000e+00" }
   expected_stats["array`2"] = { _type = "s", _value = "string" }
   expected_stats["array`3"] = { _type = "s", _value = "100" }
-  expected_stats["array`4"] = { _type = "n", _value = "1.844674407371e+19" }
+  expected_stats["array`4"] = { _type = "L", _value = "18446744073709551614" }
+  expected_stats["array`5"] = { _type = "n", _value = "1.500000000000e+00" }
   expected_stats["explicit_histogram"] = { _type = "h", _value = b64hist }
   expected_stats["implicit_histogram"] = { _type = "h", _value = b64hist }
   expected_stats["cumulative_b64histogram_1"] = { _type = "H", _value = b64hist }
