@@ -571,6 +571,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
       break;
     }
 
+    int computed_count = 0;
     for(p=json->last_value;p;p=p->next) {
       if(json->last_type == 'h' || json->last_type == 'H') {
         metric_type_t hist_type = json->last_type == 'H' ? METRIC_HISTOGRAM_CUMULATIVE : METRIC_HISTOGRAM;
@@ -607,9 +608,16 @@ httptrap_yajl_cb_end_map(void *ctx) {
       if((p->v != NULL) && (json->saw_complex_type & HT_EX_TYPE) && (IS_METRIC_TYPE_NUMERIC(json->last_type))) {
         total += strtold(p->v, NULL);
         cnt = cnt + accum;
+        computed_count++;
         use_computed_value = mtev_true;
       }
       json->cnt++;
+    }
+    if (use_computed_value && computed_count == 1 && json->vop_flag == HTTPTRAP_VOP_REPLACE) {
+      // This is a special case - if we only had one metric provided and we're just
+      // replacing whatever value is already there, we don't need to use the computed
+      // value. We can reset the use_computed_value flag and preserve the original type.
+      use_computed_value = mtev_false;
     }
     if(use_computed_value) {
       newval = (double)(total / (long double)cnt);
