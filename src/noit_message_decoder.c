@@ -813,11 +813,14 @@ noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder,
   }
   mtev_boolean success = mtev_true;
 
-  if(out && builder) {
+  if (out && builder) {
     if (out->tags) {
-        out->tags = (noit_metric_tag_t *)realloc(out->tags, (out->tag_count + builder->tag_count) * sizeof(noit_metric_tag_t));
+      out->tags = (noit_metric_tag_t *)realloc(
+          out->tags,
+          (out->tag_count + builder->tag_count) * sizeof(noit_metric_tag_t));
     } else {
-        out->tags = (noit_metric_tag_t *)calloc(out->tag_count + builder->tag_count, sizeof(noit_metric_tag_t));
+      out->tags = (noit_metric_tag_t *)calloc(
+          out->tag_count + builder->tag_count, sizeof(noit_metric_tag_t));
     }
     size_t tag_index = out->tag_count;
     noit_metric_tagset_builder_el_t *iter = builder->list;
