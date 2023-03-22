@@ -1355,8 +1355,8 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
   }
 
   // setup implicit tags
-  noit_metric_tagset_t tagset_implicit;
-  MKTAGSETCOPY(tagset_implicit);
+  noit_metric_tagset_t tagset_implicit = {};
+  noit_metric_tagset_init(&tagset_implicit, 0, 0);
   char implicit_str[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1 +
                     sizeof("__check_uuid:") + UUID_PRINTABLE_STRING_LENGTH];
   size_t uuid_index =
