@@ -81,8 +81,6 @@ static uint64_t httptrap_count = 0;
 static mtev_boolean httptrap_surrogate;
 static const char *TRUNCATE_ERROR = "at least one metric exceeded max name length";
 
-eventer_jobq_t *flush_jobq = NULL;
-
 typedef struct _mod_config {
   mtev_hash_table *options;
   mtev_boolean asynch_metrics;
@@ -144,28 +142,9 @@ track_filtered(struct rest_json_payload *json, char **name) {
 }
 
 static void
-rest_json_flush_immediate(void *c) {
-  struct rest_json_payload *rxc = (struct rest_json_payload *)c;
+rest_json_flush_immediate(struct rest_json_payload *rxc) {
   noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
   mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
-}
-
-static void
-rest_json_flush_immediate_aco(struct rest_json_payload *rxc) {
-  // If we don't have anything to flush, we shouldn't bother
-  // going asynch - just bail here
-  if (!rxc) {
-    return;
-  }
-  if (!rxc->immediate_metrics) {
-    return;
-  }
-  if (mtev_hash_size(rxc->immediate_metrics) == 0) {
-    return;
-  }
-  eventer_aco_gate_t gate = eventer_aco_gate();
-  eventer_aco_simple_asynch_queue_gated(gate, rest_json_flush_immediate, rxc, flush_jobq);
-  eventer_aco_gate_wait(gate);
 }
 
 static void 
@@ -214,7 +193,7 @@ metric_local_track_or_log(void *vrxc, const char *name,
   }
   if(!mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m)) {
     /* collision, just log it out */
-    rest_json_flush_immediate_aco(rxc);
+    rest_json_flush_immediate(rxc);
     mtevAssert(mtev_hash_store(rxc->immediate_metrics, m->metric_name, strlen(m->metric_name), m));
   }
   noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
@@ -754,11 +733,7 @@ static void
 rest_json_payload_free(void *f) {
   int i;
   struct rest_json_payload *json = f;
-  if(json->immediate_metrics && mtev_hash_size(json->immediate_metrics) != 0) {
-    // We should always have flushed this earlier in the process;
-    // getting here is unexpected, but we should flush out. We can't use ACO
-    // here because we might have left it depending on the http version used to
-    // submit data, so just use the vanilla function
+  if(json->immediate_metrics) {
     rest_json_flush_immediate(json);
   }
   mtev_hash_destroy(json->immediate_metrics, NULL, mtev_memory_safe_free);
@@ -821,7 +796,8 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       rxc->complete = 1;
       _YD("no more data, finishing YAJL parse\n");
       yajl_complete_parse(rxc->parser);
-    } else if (++loop_count % 25 == 0 && !rxc->complete) {
+    }
+    if (++loop_count % 25 == 0 && !rxc->complete) {
       // Every 25 reads, we should check to see if we're taking too long.
       // If we are, we need to kick things back to the eventer. Don't be
       // greedy.
@@ -1225,7 +1201,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
-  rest_json_flush_immediate_aco(rxc);
   return 0;
 
  error:
@@ -1234,16 +1209,14 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
   mtev_http_response_standard(ctx, error_code, "ERROR", "application/json");
   mtev_http_response_append(ctx, "{ \"error\": \"", 12);
-  if (rxc && rxc->error) {
+  if (rxc && rxc->error)
     error = rxc->error;
-  }
   mtevL(nldeb, "Error %s for %s (%" PRIu64 ")\n", error, npats ? pats[0] : "?", current_counter);
   yajl_string_encode((yajl_print_t)http_write_encoded, ctx, (const unsigned char*)error, strlen(error), 0);
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
-  rest_json_flush_immediate_aco(rxc);
   return 0;
 }
 
@@ -1285,21 +1258,6 @@ static int noit_httptrap_onload(mtev_image_t *self) {
   return 0;
 }
 
-#define HTTPTRAP_FLUSH_JOBQ      "httptrap_flush"
-static void httptrap_jobqs_init() {
-#define INIT_JOBQ(name,tgt,max) do { \
-  eventer_jobq_t *j; \
-  j = eventer_jobq_retrieve(name); \
-  if(!j) { \
-    j = eventer_jobq_create_ms(name, EVENTER_JOBQ_MS_GC); \
-    eventer_jobq_set_concurrency(j, tgt); \
-    eventer_jobq_set_min_max(j, 1, max); \
-  } \
-} while(0)
-
-  INIT_JOBQ(HTTPTRAP_FLUSH_JOBQ, 64, 512);
-}
-
 static int noit_httptrap_init(noit_module_t *self) {
   const char *config_val;
   httptrap_mod_config_t *conf;
@@ -1332,23 +1290,16 @@ static int noit_httptrap_init(noit_module_t *self) {
 
   noit_module_set_userdata(self, conf);
 
-  httptrap_jobqs_init();
-
-  mtevAssert((flush_jobq = eventer_jobq_retrieve(HTTPTRAP_FLUSH_JOBQ)));
-
   /* register rest handler */
-  mtev_http_rest_new_rule("OPTIONS", "/module/httptrap/",
+  mtev_http_rest_register("OPTIONS", "/module/httptrap/",
                           "^(" UUID_REGEX ")/([^/]*).*$",
                           rest_httptrap_options_handler);
-  mtev_rest_mountpoint_t *rule = mtev_http_rest_new_rule("PUT",
-                                 "/module/httptrap/",
-                                 "^(" UUID_REGEX ")/([^/]*).*$",
-                                 rest_httptrap_handler);
-  mtev_rest_mountpoint_set_aco(rule, mtev_true);
-  rule = mtev_http_rest_new_rule("POST", "/module/httptrap/",
-                                 "^(" UUID_REGEX ")/([^/]*).*$",
-                                 rest_httptrap_handler);
-  mtev_rest_mountpoint_set_aco(rule, mtev_true);
+  mtev_http_rest_register("PUT", "/module/httptrap/",
+                          "^(" UUID_REGEX ")/([^/]*).*$",
+                          rest_httptrap_handler);
+  mtev_http_rest_register("POST", "/module/httptrap/",
+                          "^(" UUID_REGEX ")/([^/]*).*$",
+                          rest_httptrap_handler);
   return 0;
 }
 
