@@ -35,6 +35,9 @@ check:	all
 	(cd busted && echo "testing xml" && NOIT_LMDB_FILTERSETS=0 NOIT_LMDB_CHECKS=0 ./run-tests.sh && \
 	 echo "testing lmdb" && NOIT_LMDB_FILTERSETS=1 NOIT_LMDB_CHECKS=1 ./run-tests.sh)
 
+check-10-lmdb: all
+	(cd busted && echo "testing lmdb" && NOIT_LMDB_FILTERSETS=1 NOIT_LMDB_CHECKS=1 ./run-10.sh)
+
 check-xml: all
 	(cd busted && NOIT_LMDB_FILTERSETS=0 NOIT_LMDB_CHECKS=0 ./run-tests.sh)
 
