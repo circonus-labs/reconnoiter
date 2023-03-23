@@ -6,6 +6,9 @@ all:
 check:	all
 	(cd test && $(MAKE) check)
 
+check-10-lmdb: all
+	(cd test && $(MAKE) check-10-lmdb)
+
 install:	all
 	(cd src && $(MAKE) install DESTDIR=$(DESTDIR))
 	(cd sql && $(MAKE) install DESTDIR=$(DESTDIR))
