@@ -15,6 +15,8 @@ describe("noit", function()
   teardown(function() if noit ~= nil then noit:stop() end end)
 
   local uuid = mtev.uuid()
+  local accum_uuid = mtev.uuid()
+
   local check_xml =
 [=[<?xml version="1.0" encoding="utf8"?>
 <check>
@@ -32,13 +34,29 @@ describe("noit", function()
   </config>
 </check>]=]
 
+local accum_check_xml =
+[=[<?xml version="1.0" encoding="utf8"?>
+<check>
+  <attributes>
+    <target>127.0.0.1</target>
+    <period>900000</period>
+    <timeout>5000</timeout>
+    <name>httptrap_accum</name>
+    <filterset>allowall</filterset>
+    <module>httptrap</module>
+  </attributes>
+  <config xmlns:histogram="noit://module/histogram">
+    <secret>accum</secret>
+    <histogram:value name="explicit_histogram">add</histogram:value>
+  </config>
+</check>]=]
+
   local b64hist = "AAQKAAABFAAAAR4AAAEoAAB4"
   local b64hist_double = "AAQKAAACFAAAAh4AAAIoAADw"
   local payload = [=[{
     "array": [ 1, 1.2, "string", { "_type": "s", "_value": "100" },
                { "_type": "L", "_value": 18446744073709551614 },
-               { "_type": "L", "_value": 1, "_value": 2 },
-               { "_type": "L", "_value": 1, "_fl": "+" }],
+               { "_type": "L", "_value": 1, "_value": 2 }],
     "lvl1": {
       "lvl2": {
         "boolean": true
@@ -50,39 +68,24 @@ describe("noit", function()
     "cumulative_b64histogram_2": { "_type": "H", "_value": ["H[4]=120", 3, 2, 1, "]=] .. b64hist .. [=["] },
     "implicit_b64histogram_1": { "_type": "h", "_value": ["H[4]=120", 3, 2, 1, "]=] .. b64hist .. [=[" ] }
   }]=]
+  local accum_payload = [=[{
+    "a": { "_type": "L", "_value": 125, "_fl": "+" },
+    "b": { "_type": "L", "_value": 12345 },
+    "c": 54321
+  }]=]
   local expected_stats = {}
-  local cumulative_metric_count = 0
   expected_stats["array`0"] = { _type = "L", _value = "1" }
   expected_stats["array`1"] = { _type = "n", _value = "1.200000000000e+00" }
   expected_stats["array`2"] = { _type = "s", _value = "string" }
   expected_stats["array`3"] = { _type = "s", _value = "100" }
   expected_stats["array`4"] = { _type = "L", _value = "18446744073709551614" }
   expected_stats["array`5"] = { _type = "n", _value = "1.500000000000e+00" }
-  -- array`6 is a placeholder - this will get updated with each payload post since the
-  -- value is cumulative
-  expected_stats["array`6"] = {}
   expected_stats["explicit_histogram"] = { _type = "h", _value = b64hist }
   expected_stats["implicit_histogram"] = { _type = "h", _value = b64hist }
   expected_stats["cumulative_b64histogram_1"] = { _type = "H", _value = b64hist }
   expected_stats["cumulative_b64histogram_2"] = { _type = "H", _value = b64hist }
   expected_stats["implicit_b64histogram_1"] = { _type = "h", _value = b64hist_double }
   expected_stats["lvl1`lvl2`boolean"] = { _type = "i", _value = "1" }
-
-  function update_expected_cumulative_value()
-    cumulative_metric_count = cumulative_metric_count + 1
-    -- Don't need to support higher values for now
-    assert.is_true(cumulative_metric_count < 100)
-    if cumulative_metric_count < 10 then
-      expected_stats["array`6"] = { _type = "n", _value = tostring(cumulative_metric_count) .. ".000000000000e+00" }
-    elseif cumulative_metric_count >= 10 and cumulative_metric_count <= 99 then
-      local divided = cumulative_metric_count / 10
-      if cumulative_metric_count % 10 == 0 then
-        expected_stats["array`6"] = { _type = "n", _value = tostring(divided) .. ".000000000000e+01" }
-      else
-        expected_stats["array`6"] = { _type = "n", _value = tostring(divided) .. "00000000000e+01" }
-      end
-    end
-  end
 
   it("should start", function()
     assert.is_true(noit:start():is_booted())
@@ -102,7 +105,6 @@ describe("noit", function()
     it("accepts payload", function()
       local code, doc, raw = api:json("POST", "/module/httptrap/" .. uuid .. "/foofoo", payload)
       assert.is.equal(200, code)
-      update_expected_cumulative_value()
     end)
     it("has matching H1/2 records", function()
       local record = {}
@@ -135,7 +137,6 @@ describe("noit", function()
       for i=1,10 do
         code, doc = api:json("POST", "/module/httptrap/" .. uuid .. "/foofoo", payload)
         assert.is.equal(200, code)
-        update_expected_cumulative_value()
         mtev.sleep(1.1)
         code, doc = api:json("GET", "/checks/show/" .. uuid .. ".json")
         assert.is.equal(200, code)
@@ -219,6 +220,38 @@ describe("noit", function()
       expected["3.000"] = true
       expected["4.000"] = true
       assert.same(keys, expected)
+    end)
+    it("handles accumulation", function()
+      local code, doc = api:raw("PUT", "/checks/set/" .. accum_uuid, accum_check_xml)
+      assert.is.equal(200, code)
+      for i=1,10 do
+        code, doc = api:json("POST", "/module/httptrap/" .. accum_uuid .. "/accum", accum_payload)
+        assert.is.equal(200, code)
+        assert.is_equal(3, doc["stats"])
+        assert.is_equal(0, doc["filtered"])
+      end
+      local code, xml = api:xml("GET", "/checks/show/" .. accum_uuid)
+      assert.is_equal(200, code)
+      local xmetrics = {}
+      for node in xml:xpath("//metrics/metric") do
+        if xmetrics[node:attr("name")] == nil then
+          local val = node:contents()
+          if val ~= nil and val ~= '' then
+            xmetrics[node:attr("name")] = { _type = node:attr("type"), _value = node:contents() }
+          end
+        end
+      end
+      local expected = {}
+      expected["a"] = {}
+      expected["a"]["_type"] = "n"
+      expected["a"]["_value"] = "1.250000000000e+03"
+      expected["b"] = {}
+      expected["b"]["_type"] = "L"
+      expected["b"]["_value"] = "12345"
+      expected["c"] = {}
+      expected["c"]["_type"] = "L"
+      expected["c"]["_value"] = "54321"
+      assert.same(expected, xmetrics)
     end)
   end)
 end)
