@@ -1237,7 +1237,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_memory_end();
   mtevAssert(!mtev_memory_in_cs());
   if (rxc) {
-    if(rxc->immediate_metrics && mtev_hash_size(rxc->immediate_metrics) != 0) {
+    if (rxc->immediate_metrics && mtev_hash_size(rxc->immediate_metrics)) {
       rest_json_flush_immediate_aco(rxc);
     }
   }
