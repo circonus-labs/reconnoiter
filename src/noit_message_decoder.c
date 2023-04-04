@@ -756,7 +756,10 @@ mtev_boolean add_tags_to_tagset_builder(noit_metric_tagset_builder_t *builder,
     } else if(next && (tag.total_size == tagstr_len || *next == ',')) {
       noit_metric_tagset_builder_el_t *el =
         (noit_metric_tagset_builder_el_t *) calloc(1, sizeof(noit_metric_tagset_builder_el_t));
-      el->tag = tag;
+      // copy tag to el->tag. may need to use the method from snowht to copy the
+      // tag members individually
+      memcpy(&el->tag, &tag, sizeof(tag));
+      // el->tag = tag; // need to copy
       el->next = builder->list;
       builder->list = el;
       builder->sum_tag_size += tag.total_size;
@@ -825,7 +828,12 @@ noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder,
     size_t tag_index = out->tag_count;
     noit_metric_tagset_builder_el_t *iter = builder->list;
     while (iter) {
-      out->tags[out->tag_count] = iter->tag;
+      out->tags[out->tag_count].tag =
+          (char *)calloc(1, iter->tag.total_size + 1);
+      memcpy(out->tags[out->tag_count].tag, iter->tag.tag,
+             iter->tag.total_size);
+      out->tags[out->tag_count].category_size = iter->tag.category_size;
+      out->tags[out->tag_count].total_size = iter->tag.total_size;
       iter = iter->next;
       out->tag_count++;
     }
