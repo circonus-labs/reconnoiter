@@ -701,8 +701,8 @@ noit_metric_tagset_init_with_context(noit_metric_tagset_t *lookup,
     free((void *) tags);
     return -1;
   }
-  lookup->tags = realloc(tags, tag_count * sizeof(noit_metric_tag_t));
-  lookup->tag_count = tag_count;
+  lookup->tags = realloc(tags, parsed_tag_count * sizeof(noit_metric_tag_t));
+  lookup->tag_count = parsed_tag_count;
   lookup->canonical_size = canonical_size;
   return 0;
 }
