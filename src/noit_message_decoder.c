@@ -830,7 +830,7 @@ noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder,
     while (iter) {
       out->tags[out->tag_count].tag =
           (char *)calloc(1, iter->tag.total_size + 1);
-      memcpy((void *)out->tags[out->tag_count].tag, iter->tag.tag,
+      memcpy(out->tags[out->tag_count].tag, iter->tag.tag,
              iter->tag.total_size);
       out->tags[out->tag_count].category_size = iter->tag.category_size;
       out->tags[out->tag_count].total_size = iter->tag.total_size;
