@@ -118,6 +118,17 @@ struct Matches {
   } queries[14];
 };
 
+std::string max_length_tag_pair = "max_length_tag:max_length" + std::string(NOIT_TAG_MAX_PAIR_LEN - (sizeof("max_length_tag:max_length") - 1) - 3, '0') + "256";
+std::string too_long_tag_pair = "too_long_tag:too_long" + std::string((NOIT_TAG_MAX_PAIR_LEN + 1) - (sizeof("too_long_tag:too_long") - 1) - 3, '0') + "257";
+std::string max_length_test(std::string("tag1:value1,") +
+                            std::string("tag2:value2,") +
+                            max_length_tag_pair + "," +
+                            std::string("tag4:value4"));
+std::string too_long_test(std::string("tag1:value1,") +
+                          std::string("tag2:value2,") +
+                          too_long_tag_pair + "," +
+                          std::string("tag4:value4"));
+
 struct Matches testmatches[] = {
   { 
     "__name:f1.f2.f3.f4.f5.f6",
@@ -208,43 +219,30 @@ struct Matches testmatches[] = {
     }
   },
   {
-    "tag:this_tag_pair_is_too_long_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    "0000000000000000000000000000000257",
+    too_long_tag_pair.c_str(),
     {
-      { "and(tag:*too_long*)", mtev_false },
+      { "and(too_long_tag:too_long*)", mtev_false },
       { NULL, mtev_false }
     }
   },
   {
-    "tag1:value1,"
-    "tag2:value2,"
-    "tag3:this_is_the_max_length_of_a_tag_pair_000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    "0000000000000000000000000000000256,"
-    "tag4:value4",
+    max_length_test.c_str(),
     {
       { "and(tag1:value1)", mtev_true },
       { "and(tag2:value2)", mtev_true },
-      { "and(tag3:*max_length*)", mtev_true },
-      { "and(tag3:*256)", mtev_true },
+      { "and(max_length_tag:max_length*)", mtev_true },
+      { "and(max_length_tag:*256)", mtev_true },
       { "and(tag4:value4)", mtev_true },
       { NULL, mtev_false }
     }
   },
   { 
-    "tag1:value1,"
-    "tag2:value2,"
-    "tag3:this_is_the_max_length_of_a_tag_pair_000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    "0000000000000000000000000000000256,"
-    "tag4:this_tag_pair_is_too_long_000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    "0000000000000000000000000000000257,"
-    "tag5:value5",
+    too_long_test.c_str(),
     {
       { "and(tag1:value1)", mtev_true },
       { "and(tag2:value2)", mtev_true },
-      { "and(tag3:*max_length*)", mtev_true },
-      { "and(tag3:*256)", mtev_true },
-      { "and(tag4:*too_long*)", mtev_false },
-      { "and(tag5:value5)", mtev_true },
+      { "and(too_long_tag:too_long*)", mtev_false },
+      { "and(tag4:value4)", mtev_true },
       { NULL, mtev_false }
     }
   }
@@ -498,6 +496,9 @@ void test_tag_match()
   noit_metric_tagset_builder_t builder;
   noit_metric_tag_search_ast_t *ast;
   mtev_boolean match;
+
+  test_assert(max_length_tag_pair.length() == NOIT_TAG_MAX_PAIR_LEN);
+  test_assert(too_long_tag_pair.length() > NOIT_TAG_MAX_PAIR_LEN);
 
   for(size_t i = 0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
     char *canonical = NULL;
