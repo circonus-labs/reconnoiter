@@ -1359,7 +1359,7 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
   noit_metric_tagset_init(&tagset_implicit, 0, 0);
   char implicit_str[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1 +
                     sizeof("__check_uuid:") + UUID_PRINTABLE_STRING_LENGTH];
-  size_t uuid_index =
+  const size_t uuid_index =
       snprintf(implicit_str, sizeof(implicit_str),
                "__name:%.*s,__check_uuid:", id->name_len, id->name);
   mtev_uuid_unparse_lower(id->id, implicit_str + uuid_index);
