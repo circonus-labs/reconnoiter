@@ -811,7 +811,7 @@ void query_argument_swapping(void) {
   }
 }
 
-void loop(std::string str) {
+void loop(const std::string &str) {
   int len;
   const int nloop = 100000;
   struct timeval start, end;
