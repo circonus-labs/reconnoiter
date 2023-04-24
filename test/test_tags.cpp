@@ -505,7 +505,7 @@ void test_tag_match()
     test_assert_namef(true, "testing tagset '%s'", testmatches[i].tagstring);
     noit_metric_tagset_builder_start(&builder);
     noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
-    memset(&tagset, 0, sizeof(tagset));
+    noit_metric_tagset_init(&tagset, 0, 0);
     noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
 
     for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
@@ -549,7 +549,7 @@ void test_implicit_tag_match() {
     char *canonical = NULL;
     test_assert_namef(true, "testing tagset '%s'",
                       implicit_testmatches[i].tagstring);
-    memset(&tagset, 0, sizeof(tagset));
+    noit_metric_tagset_init(&tagset, 0, 0);
     noit_metric_add_implicit_tags_to_tagset(
         implicit_testmatches[i].tagstring,
         strlen(implicit_testmatches[i].tagstring), &tagset, &canonical);
