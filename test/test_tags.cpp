@@ -1,15 +1,16 @@
-#include <stdio.h>
-#include <string.h>
+#include "noit_message_decoder.h"
 #include "noit_metric.h"
 #include "noit_metric_tag_search.h"
-#include "noit_message_decoder.h"
-#include "libnoit.h"
-#include <mtev_hash.h>
-#include <mtev_b64.h>
-#include <mtev_perftimer.h>
 #include <assert.h>
-#include <sys/time.h>
+#include "libnoit.h"
+#include <fmt/core.h>
+#include <mtev_b64.h>
+#include <mtev_hash.h>
+#include <mtev_perftimer.h>
+#include <stdio.h>
+#include <string.h>
 #include <string>
+#include <sys/time.h>
 
 bool benchmark = false;
 const int BENCH_ITERS = 1000000;
@@ -118,16 +119,21 @@ struct Matches {
   } queries[14];
 };
 
-std::string max_length_tag_pair = "max_length_tag:max_length" + std::string(NOIT_TAG_MAX_PAIR_LEN - (sizeof("max_length_tag:max_length") - 1) - 3, '0') + "256";
-std::string too_long_tag_pair = "too_long_tag:too_long" + std::string((NOIT_TAG_MAX_PAIR_LEN + 1) - (sizeof("too_long_tag:too_long") - 1) - 3, '0') + "257";
-std::string max_length_test(std::string("tag1:value1,") +
-                            std::string("tag2:value2,") +
-                            max_length_tag_pair + "," +
-                            std::string("tag4:value4"));
-std::string too_long_test(std::string("tag1:value1,") +
-                          std::string("tag2:value2,") +
-                          too_long_tag_pair + "," +
-                          std::string("tag4:value4"));
+// the substring "123" is included at the end so the test can ensure the tag is not truncated
+std::string max_length_tag_pair =
+    fmt::format("max_length_tag:max_length{}123",
+                std::string(NOIT_TAG_MAX_PAIR_LEN -
+                                (sizeof("max_length_tag:max_length123") - 1),
+                            '0'));
+std::string too_long_tag_pair =
+    fmt::format("too_long_tag:too_long{}",
+                std::string(NOIT_TAG_MAX_PAIR_LEN + 1 -
+                                (sizeof("too_long_tag:too_long") - 1),
+                            '0'));
+std::string max_length_test =
+    fmt::format("tag1:value1,tag2:value2,{},tag4:value4", max_length_tag_pair);
+std::string too_long_test =
+    fmt::format("tag1:value1,tag2:value2,{},tag4:value4", too_long_tag_pair);
 
 struct Matches testmatches[] = {
   { 
@@ -231,7 +237,7 @@ struct Matches testmatches[] = {
       { "and(tag1:value1)", mtev_true },
       { "and(tag2:value2)", mtev_true },
       { "and(max_length_tag:max_length*)", mtev_true },
-      { "and(max_length_tag:*256)", mtev_true },
+      { "and(max_length_tag:*123)", mtev_true },
       { "and(tag4:value4)", mtev_true },
       { NULL, mtev_false }
     }
@@ -248,10 +254,17 @@ struct Matches testmatches[] = {
   }
 };
 
-std::string max_length_implicit_tag_pair = "__name:max_length" + std::string(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN - (sizeof("__name:max_length") - 1), '0');
-std::string too_long_implicit_tag_pair = "__name:too_long" + std::string((NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1) - (sizeof("__name:too_long") - 1), '0');
+std::string max_length_implicit_tag_pair =
+    fmt::format("__name:max_length{}123",
+                std::string(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN -
+                                (sizeof("__name:max_length123") - 1),
+                            '0'));
+std::string too_long_implicit_tag_pair =
+    fmt::format("__name:too_long{}",
+                std::string(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1 -
+                                (sizeof("__name:too_long") - 1),
+                            '0'));
 std::string check_uuid_tag_pair = "__check_uuid:b946274b-183d-4553-814a-ada8130c560d";
-
 std::string implicit_testmatch = max_length_implicit_tag_pair + "," + too_long_implicit_tag_pair + "," + check_uuid_tag_pair;
 
 struct Matches implicit_testmatches[] = {
@@ -260,6 +273,7 @@ struct Matches implicit_testmatches[] = {
     implicit_testmatch.c_str(),
     {
       { "and(__name:max_length*)", mtev_true },
+      { "and(__name:*123)", mtev_true },
       { "and(__name:*value_not_in_name*)", mtev_false },
       { "and(__name:too_long*)", mtev_false },
       { "and(__check_uuid:*b946274b*)", mtev_true },
