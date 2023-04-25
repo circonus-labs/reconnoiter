@@ -1,5 +1,6 @@
 export PATH="\
-/opt/circonus/perl/bin\
+/opt/rh/devtoolset-11/root/usr/bin\
+:/opt/circonus/perl/bin\
 :/opt/circonus/bin\
 :/usr/local/sbin\
 :/usr/local/bin\
