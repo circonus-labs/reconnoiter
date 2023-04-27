@@ -23,21 +23,46 @@ make
 sudo make install
 ```
 
+## nghttp2
+
+Obtain source for version 1.39.0 or later from the [download
+page](https://github.com/nghttp2/nghttp2/releases) and extract it.
+
+```
+./configure --prefix=/usr/local --enable-lib-only
+make
+sudo make install
+```
+
 ## cURL
 
 Obtain source for version 7.49.0 or later from the [download
 page](https://curl.se/download.html) and extract it.
 
-The only required option is which SSL/TLS library to build against. OpenSSL is
-the most common, and recommended. Ensure that you have the appropriate OpenSSL
-headers installed.
+It is recommended to use OpenSSL for SSL/TLS support. Ensure that you have the
+appropriate OpenSSL headers installed.
 
 ```
-./configure --prefix=/usr/local --with-openssl
+LDFLAGS="-Wl,-rpath=/usr/local/lib" ./configure \
+  --with-openssl \
+  --enable-thread \
+  --enable-ares \
+  --with-nghttp2=/usr/local
 make
 sudo make install
 ```
 
+## lz4
+
+Substitute desired version for `X.Y.Z` below.
+
+```
+git clone https://github.com/lz4/lz4.git
+cd lz4
+git checkout tags/vX.Y.Z
+make
+sudo make BINDIR=/usr/local/bin LIBDIR=/usr/local/lib install
+```
 
 ## flatcc
 
@@ -116,7 +141,7 @@ sudo make install
 
 ## NetSNMP
 
-Obtain source for 5.7.1 or later from the [download
+Obtain source for 5.8 or later from the [download
 page](http://www.net-snmp.org/download.html) and extract it.
 
 ```
@@ -180,7 +205,7 @@ git checkout tags/v1.4.0
 autoreconf -i
 PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
   LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" \
-  ./configure
+  ./configure --disable-static
 make
 sudo make install
 ```
@@ -228,11 +253,24 @@ Obtain source for 1.0.0 or later from the [download
 page](https://github.com/tatsuhiro-t/wslay/releases) and extract it.
 
 ```
-./configure
-make
-sudo make install
+autoreconf -i
+./configure --disable-static
+make -C lib
+sudo make -C lib install
 ```
 
+## udns
+
+Obtain source for version 0.4 from https://www.corpit.ru/mjt/udns/udns-0.4.tar.gz
+and extract it.
+
+```
+patch -p1 < [reconnoiter source]/patches/udns.patch
+./configure
+make
+make shared
+sudo make install
+```
 
 ## libmtev
 
@@ -244,7 +282,9 @@ installing the libraries on this page before proceeding with the
 git clone https://github.com/circonus-labs/libmtev
 cd libmtev
 autoreconf -i -I buildtools
-CPPFLAGS="-I/usr/local/include/luajit-2.1" ./configure
+CPPFLAGS="-I/usr/local/include/luajit-2.1" \
+  CFLAGS="-Wno-uninitialized -Wno-misleading-indentation -Wno-free-nonheap-object" \
+  ./configure
 make
 sudo make install
 ```
