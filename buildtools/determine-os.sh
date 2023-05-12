@@ -10,11 +10,13 @@ if [ ! -z "$2" ] && [ -d "buildtools/$2" ] ; then OS="$2" ; shift ; else
 # else try to auto-identify OS
 cat /etc/*release 2>/dev/null | grep "CentOS Linux 7" 1>&2
 if [ "$?" == "0" ] ; then OS="el7" ; else
-cat /etc/*release 2>/dev/null | grep "Ubuntu 20.04" 1>&2
+cat /etc/*release 2>/dev/null | grep "Ubuntu 20" 1>&2
 if [ "$?" == "0" ] ; then OS="u2004" ; else
+cat /etc/*release 2>/dev/null | grep "Ubuntu 22" 1>&2
+if [ "$?" == "0" ] ; then OS="u2204" ; else
 echo "Usage: $1 '<optional_OS>' '<optional_addl_make_switches>...'" 1>&2
 exit 1
-fi; fi; fi;
+fi; fi; fi; fi;
 
 echo $OS
 exit 0
