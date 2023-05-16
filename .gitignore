@@ -116,6 +116,3 @@ src/modules/types.pb-c.h
 .project
 .settings/
 .latest_buildtype
-Makefile.dep
-test/busted/*.log
-test/busted/test_list
