@@ -18,5 +18,6 @@ end
 
 plpretty = require 'pl.pretty'
 utils = require('lua-support/utils.lua')
+utils.enableLuaDebugging()
 Reconnoiter = require('lua-support/reconnoiter.lua')
 Stomp = require('lua-support/stomp.lua')
