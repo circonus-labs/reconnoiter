@@ -56,16 +56,15 @@ function getDebuggerPath()
   elseif lfs.attributes(home_dir .. "/.vscode-server") then
     vscode_dir = ".vscode-server"
   else
-      return nil
+    return nil
   end
 
   local extension_dir = home_dir .. "/" .. vscode_dir .. "/extensions/"
   for file in lfs.dir(extension_dir) do
-      local matcher = string.match(file, "tomblind%.local%-lua%-debugger%-vscode%-(.*)")
-      if matcher then
-          io.write("final path: " .. extension_dir .. file .. "/debugger/lldebugger.lua\n")
-          return extension_dir .. file .. "/debugger/lldebugger.lua"
-      end
+    local matcher = string.match(file, "tomblind%.local%-lua%-debugger%-vscode%-(.*)")
+    if matcher then
+      return extension_dir .. file .. "/debugger/lldebugger.lua"
+    end
   end
   return nil
 end
