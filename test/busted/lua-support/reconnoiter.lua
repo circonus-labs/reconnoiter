@@ -2,8 +2,15 @@ module(..., package.seeall)
 
 local cwd = mtev.getcwd()
 
+function find_test_dir_wrapper()
+  if TEST_OPTIONS.lua_debug then
+    return TEST_OPTIONS.lua_debug
+  end
+  return find_test_dir()
+end
+
 function test_workspace()
-  return cwd .. "/" .. find_test_dir() .. "/workspace"
+  return cwd .. "/" .. find_test_dir_wrapper() .. "/workspace"
 end
 
 function clean_workspace()
@@ -181,7 +188,7 @@ local all_noit_modules = {
 }
 
 local NOIT_TEST_DB = function()
-  return cwd .. "/" .. find_test_dir() .. "/workspace/test-db"
+  return cwd .. "/" .. find_test_dir_wrapper() .. "/workspace/test-db"
 end
 local NOIT_TEST_DB_PORT = 23816 +
     (os.getenv('BUILD_NUMBER') or 0) % 10000
@@ -738,7 +745,7 @@ function TestProc:configure(name, opts)
   if name == nil then name = "noit" end
   if opts == nil then opts = {} end
   if opts.name == nil then opts.name = name end
-  opts.testdir = find_test_dir()
+  opts.testdir = find_test_dir_wrapper()
   opts.workspace = cwd .. '/' .. opts.testdir .. '/workspace'
   self.name = name
   mtev.mkdir_for_file(opts.workspace .. '/file', tonumber('777',8))

@@ -111,6 +111,7 @@ src/modules/prometheus.pb-c.h
 src/modules/types.pb-c.c
 src/modules/types.pb-c.h
 .vscode/
+!.vscode/launch.json.template
 .autotools
 .cproject
 .project
