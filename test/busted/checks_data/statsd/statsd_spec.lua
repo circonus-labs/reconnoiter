@@ -4,8 +4,6 @@ ffi.cdef([=[
 int noit_check_log_b_to_sm(const char *, int, char ***, int);
 ]=])
 
-utils.enableLuaDebugging()
-
 describe("noit", function()
   local port = 44323
   local noit, api
