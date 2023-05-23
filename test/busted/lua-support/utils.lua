@@ -1,4 +1,5 @@
 module(..., package.seeall)
+lfs = require('lfs')
 
 function dir_descend(file, func)
   local st = mtev.stat(file)
@@ -45,4 +46,35 @@ function postgres_reqs(bins)
     if out[i] == nil then return false end
   end
   return true
+end
+
+function getDebuggerPath()
+  local home_dir = os.getenv("HOME") or os.getenv("USERPROFILE")
+  local vscode_dir
+  if lfs.attributes(home_dir .. "/.vscode") then
+    vscode_dir = ".vscode"
+  elseif lfs.attributes(home_dir .. "/.vscode-server") then
+    vscode_dir = ".vscode-server"
+  else
+      return nil
+  end
+
+  local extension_dir = home_dir .. "/" .. vscode_dir .. "/extensions/"
+  for file in lfs.dir(extension_dir) do
+      local matcher = string.match(file, "tomblind%.local%-lua%-debugger%-vscode%-(.*)")
+      if matcher then
+          io.write("final path: " .. extension_dir .. file .. "/debugger/lldebugger.lua\n")
+          return extension_dir .. file .. "/debugger/lldebugger.lua"
+      end
+  end
+  return nil
+end
+
+function enableLuaDebugging()
+  -- requires the vscode extension "tomblind.local-lua-debugger-vscode"
+  -- https://github.com/circonus/circonus-wiki/blob/master/Engineering/AdvancedDebugAndTest.md#lua-debugging
+  if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
+    io.write("Enabling lua debugging...\n")
+    require(utils.getDebuggerPath()).start()
+  end
 end

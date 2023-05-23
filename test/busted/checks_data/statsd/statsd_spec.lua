@@ -4,11 +4,7 @@ ffi.cdef([=[
 int noit_check_log_b_to_sm(const char *, int, char ***, int);
 ]=])
 
-if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
-  io.write("Enabling lua debugging...\n")
-  local home = os.getenv("HOME")
-  require(home .. "/.vscode-server/extensions/tomblind.local-lua-debugger-vscode-0.3.3/debugger/lldebugger.lua").start()
-end
+utils.enableLuaDebugging()
 
 describe("noit", function()
   local port = 44323
