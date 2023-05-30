@@ -484,8 +484,7 @@ const char *noit_metric_tags_parse_one_implicit(const char *const tagnm, const s
 static int tag_canonical_size(noit_metric_tag_t *tag) {
   mtev_dyn_buffer_t dbuff;
   mtev_dyn_buffer_init(&dbuff);
-  const size_t max_ensured_len =
-      mtev_b64_encode_len(mtev_b64_max_decode_len(tag->total_size));
+  const size_t max_ensured_len = tag->total_size + 1; //+1 for colon added to cat-only tags
   mtev_dyn_buffer_ensure(&dbuff, max_ensured_len);
   int len =
       noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
