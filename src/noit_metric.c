@@ -33,6 +33,7 @@
  */
 
 #include "noit_metric.h"
+#include "noit_ssl10_compat.h"
 
 #include <mtev_b64.h>
 #include <mtev_json_object.h>
@@ -43,6 +44,7 @@
 #include <circllhist.h>
 #include <ctype.h>
 #include <openssl/sha.h>
+#include <openssl/evp.h>
 
 #include <stdio.h>
 
@@ -512,10 +514,15 @@ simple_sha1_hex(void *in, size_t len, char out[2 * SHA_DIGEST_LENGTH]) {
   unsigned char outb[SHA_DIGEST_LENGTH];
   static const char _hexchars[16] =
     {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
-  SHA_CTX ctx;
-  SHA1_Init(&ctx);
-  SHA1_Update(&ctx, in, len);
-  SHA1_Final(outb, &ctx);
+
+  const EVP_MD *md = EVP_get_digestbyname("SHA1");
+  mtevAssert(md);
+  EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+  EVP_DigestInit_ex(ctx, md, NULL);
+  EVP_DigestUpdate(ctx, in, len);
+  EVP_DigestFinal(ctx, outb, NULL);
+  EVP_MD_CTX_free(ctx);
+
   for(int i=0; i<SHA_DIGEST_LENGTH; i++) {
     out[i*2] = _hexchars[(outb[i] >> 4) & 0xf];
     out[i*2+1] = _hexchars[outb[i] & 0xf];
