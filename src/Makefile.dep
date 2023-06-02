@@ -171,11 +171,12 @@ noit_message_decoder.o noit_message_decoder.lo: noit_message_decoder.c noit_mess
   noit_metric.h
 
 noit_metric.o noit_metric.lo: noit_metric.c noit_metric.h \
+  noit_ssl10_compat.h \
 
 noit_metric_director.o noit_metric_director.lo: noit_metric_director.c \
   noit_metric_director.h \
   noit_message_decoder.h noit_metric.h noit_metric_tag_search.h \
-  noit_check_log_helpers.h
+  noit_check_log_helpers.h noit_ssl10_compat.h
 
 noit_metric_rollup.o noit_metric_rollup.lo: noit_metric_rollup.c noit_metric_rollup.h \
   noit_metric.h \
