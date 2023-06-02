@@ -25,7 +25,8 @@ export CXXFLAGS="\
  -ggdb3\
  -O2\
  -Wall\
- -Werror"
+ -Werror\
+ -Wno-mismatched-new-delete"
 export LDFLAGS="\
  -L/opt/circonus/lib\
  -Wl,-rpath=/opt/circonus/lib\

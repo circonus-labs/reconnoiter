@@ -4,119 +4,199 @@
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
 
 #include <algorithm>
-
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/extension_set.h>
-#include <google/protobuf/wire_format_lite.h>
-#include <google/protobuf/descriptor.h>
-#include <google/protobuf/generated_message_reflection.h>
-#include <google/protobuf/reflection_ops.h>
-#include <google/protobuf/wire_format.h>
+#include "google/protobuf/io/coded_stream.h"
+#include "google/protobuf/extension_set.h"
+#include "google/protobuf/wire_format_lite.h"
+#include "google/protobuf/descriptor.h"
+#include "google/protobuf/generated_message_reflection.h"
+#include "google/protobuf/reflection_ops.h"
+#include "google/protobuf/wire_format.h"
 // @@protoc_insertion_point(includes)
-#include <google/protobuf/port_def.inc>
 
+// Must be included last.
+#include "google/protobuf/port_def.inc"
 PROTOBUF_PRAGMA_INIT_SEG
+namespace _pb = ::PROTOBUF_NAMESPACE_ID;
+namespace _pbi = ::PROTOBUF_NAMESPACE_ID::internal;
 namespace opentelemetry {
 namespace proto {
 namespace collector {
 namespace metrics {
 namespace v1 {
-constexpr ExportMetricsServiceRequest::ExportMetricsServiceRequest(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : resource_metrics_(){}
+template <typename>
+PROTOBUF_CONSTEXPR ExportMetricsServiceRequest::ExportMetricsServiceRequest(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.resource_metrics_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct ExportMetricsServiceRequestDefaultTypeInternal {
-  constexpr ExportMetricsServiceRequestDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR ExportMetricsServiceRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~ExportMetricsServiceRequestDefaultTypeInternal() {}
   union {
     ExportMetricsServiceRequest _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExportMetricsServiceRequestDefaultTypeInternal _ExportMetricsServiceRequest_default_instance_;
-constexpr ExportMetricsServiceResponse::ExportMetricsServiceResponse(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ExportMetricsServiceRequestDefaultTypeInternal _ExportMetricsServiceRequest_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ExportMetricsServiceResponse::ExportMetricsServiceResponse(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.partial_success_)*/nullptr} {}
 struct ExportMetricsServiceResponseDefaultTypeInternal {
-  constexpr ExportMetricsServiceResponseDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR ExportMetricsServiceResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~ExportMetricsServiceResponseDefaultTypeInternal() {}
   union {
     ExportMetricsServiceResponse _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExportMetricsServiceResponseDefaultTypeInternal _ExportMetricsServiceResponse_default_instance_;
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ExportMetricsServiceResponseDefaultTypeInternal _ExportMetricsServiceResponse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ExportMetricsPartialSuccess::ExportMetricsPartialSuccess(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.error_message_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.rejected_data_points_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct ExportMetricsPartialSuccessDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ExportMetricsPartialSuccessDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ExportMetricsPartialSuccessDefaultTypeInternal() {}
+  union {
+    ExportMetricsPartialSuccess _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ExportMetricsPartialSuccessDefaultTypeInternal _ExportMetricsPartialSuccess_default_instance_;
 }  // namespace v1
 }  // namespace metrics
 }  // namespace collector
 }  // namespace proto
 }  // namespace opentelemetry
-static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto[2];
-static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto = nullptr;
-static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto = nullptr;
+static ::_pb::Metadata file_level_metadata_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto[3];
+static constexpr const ::_pb::EnumDescriptor**
+    file_level_enum_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto = nullptr;
+static constexpr const ::_pb::ServiceDescriptor**
+    file_level_service_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto = nullptr;
+const ::uint32_t TableStruct_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
+    protodesc_cold) = {
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest, _impl_.resource_metrics_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse, _impl_.partial_success_),
+    0,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess, _impl_.rejected_data_points_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess, _impl_.error_message_),
+};
 
-const uint32_t TableStruct_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest, resource_metrics_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-};
-static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-  { 0, -1, -1, sizeof(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest)},
-  { 7, -1, -1, sizeof(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse)},
+static const ::_pbi::MigrationSchema
+    schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
+        { 0, -1, -1, sizeof(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest)},
+        { 9, 18, -1, sizeof(::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse)},
+        { 19, -1, -1, sizeof(::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess)},
 };
 
-static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::collector::metrics::v1::_ExportMetricsServiceRequest_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::collector::metrics::v1::_ExportMetricsServiceResponse_default_instance_),
+static const ::_pb::Message* const file_default_instances[] = {
+    &::opentelemetry::proto::collector::metrics::v1::_ExportMetricsServiceRequest_default_instance_._instance,
+    &::opentelemetry::proto::collector::metrics::v1::_ExportMetricsServiceResponse_default_instance_._instance,
+    &::opentelemetry::proto::collector::metrics::v1::_ExportMetricsPartialSuccess_default_instance_._instance,
+};
+const char descriptor_table_protodef_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
+    "\n>opentelemetry/proto/collector/metrics/"
+    "v1/metrics_service.proto\022(opentelemetry."
+    "proto.collector.metrics.v1\032,opentelemetr"
+    "y/proto/metrics/v1/metrics.proto\"h\n\033Expo"
+    "rtMetricsServiceRequest\022I\n\020resource_metr"
+    "ics\030\001 \003(\0132/.opentelemetry.proto.metrics."
+    "v1.ResourceMetrics\"~\n\034ExportMetricsServi"
+    "ceResponse\022^\n\017partial_success\030\001 \001(\0132E.op"
+    "entelemetry.proto.collector.metrics.v1.E"
+    "xportMetricsPartialSuccess\"R\n\033ExportMetr"
+    "icsPartialSuccess\022\034\n\024rejected_data_point"
+    "s\030\001 \001(\003\022\025\n\rerror_message\030\002 \001(\t2\254\001\n\016Metri"
+    "csService\022\231\001\n\006Export\022E.opentelemetry.pro"
+    "to.collector.metrics.v1.ExportMetricsSer"
+    "viceRequest\032F.opentelemetry.proto.collec"
+    "tor.metrics.v1.ExportMetricsServiceRespo"
+    "nse\"\000B\244\001\n+io.opentelemetry.proto.collect"
+    "or.metrics.v1B\023MetricsServiceProtoP\001Z3go"
+    ".opentelemetry.io/proto/otlp/collector/m"
+    "etrics/v1\252\002(OpenTelemetry.Proto.Collecto"
+    "r.Metrics.V1b\006proto3"
+};
+static const ::_pbi::DescriptorTable* const descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_deps[1] =
+    {
+        &::descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto,
+};
+static ::absl::once_flag descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_once;
+const ::_pbi::DescriptorTable descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto = {
+    false,
+    false,
+    820,
+    descriptor_table_protodef_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto,
+    "opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
+    &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_once,
+    descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_deps,
+    1,
+    3,
+    schemas,
+    file_default_instances,
+    TableStruct_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto::offsets,
+    file_level_metadata_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto,
+    file_level_enum_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto,
+    file_level_service_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto,
 };
 
-const char descriptor_table_protodef_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
-  "\n>opentelemetry/proto/collector/metrics/"
-  "v1/metrics_service.proto\022(opentelemetry."
-  "proto.collector.metrics.v1\032,opentelemetr"
-  "y/proto/metrics/v1/metrics.proto\"h\n\033Expo"
-  "rtMetricsServiceRequest\022I\n\020resource_metr"
-  "ics\030\001 \003(\0132/.opentelemetry.proto.metrics."
-  "v1.ResourceMetrics\"\036\n\034ExportMetricsServi"
-  "ceResponse2\254\001\n\016MetricsService\022\231\001\n\006Export"
-  "\022E.opentelemetry.proto.collector.metrics"
-  ".v1.ExportMetricsServiceRequest\032F.opente"
-  "lemetry.proto.collector.metrics.v1.Expor"
-  "tMetricsServiceResponse\"\000By\n+io.opentele"
-  "metry.proto.collector.metrics.v1B\023Metric"
-  "sServiceProtoP\001Z3go.opentelemetry.io/pro"
-  "to/otlp/collector/metrics/v1b\006proto3"
-  ;
-static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_deps[1] = {
-  &::descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto,
-};
-static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_once;
-const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto = {
-  false, false, 596, descriptor_table_protodef_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto, "opentelemetry/proto/collector/metrics/v1/metrics_service.proto", 
-  &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_once, descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_deps, 1, 2,
-  schemas, file_default_instances, TableStruct_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto::offsets,
-  file_level_metadata_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto, file_level_enum_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto, file_level_service_descriptors_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto,
-};
-PROTOBUF_ATTRIBUTE_WEAK const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable* descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_getter() {
+// This function exists to be marked as weak.
+// It can significantly speed up compilation by breaking up LLVM's SCC
+// in the .pb.cc translation units. Large translation units see a
+// reduction of more than 35% of walltime for optimized builds. Without
+// the weak attribute all the messages in the file, including all the
+// vtables and everything they use become part of the same SCC through
+// a cycle like:
+// GetMetadata -> descriptor table -> default instances ->
+//   vtables -> GetMetadata
+// By adding a weak function here we break the connection from the
+// individual vtables back into the descriptor table.
+PROTOBUF_ATTRIBUTE_WEAK const ::_pbi::DescriptorTable* descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_getter() {
   return &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto;
 }
-
 // Force running AddDescriptors() at dynamic initialization time.
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto(&descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY2
+static ::_pbi::AddDescriptorsRunner dynamic_init_dummy_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto(&descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto);
 namespace opentelemetry {
 namespace proto {
 namespace collector {
 namespace metrics {
 namespace v1 {
-
 // ===================================================================
 
 class ExportMetricsServiceRequest::_Internal {
@@ -124,68 +204,69 @@ class ExportMetricsServiceRequest::_Internal {
 };
 
 void ExportMetricsServiceRequest::clear_resource_metrics() {
-  resource_metrics_.Clear();
+  _internal_mutable_resource_metrics()->Clear();
 }
-ExportMetricsServiceRequest::ExportMetricsServiceRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  resource_metrics_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+ExportMetricsServiceRequest::ExportMetricsServiceRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
 }
 ExportMetricsServiceRequest::ExportMetricsServiceRequest(const ExportMetricsServiceRequest& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      resource_metrics_(from.resource_metrics_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ExportMetricsServiceRequest* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.resource_metrics_){from._impl_.resource_metrics_}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
 }
 
-inline void ExportMetricsServiceRequest::SharedCtor() {
+inline void ExportMetricsServiceRequest::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.resource_metrics_){arena}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 ExportMetricsServiceRequest::~ExportMetricsServiceRequest() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void ExportMetricsServiceRequest::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_resource_metrics()->~RepeatedPtrField();
 }
 
-void ExportMetricsServiceRequest::ArenaDtor(void* object) {
-  ExportMetricsServiceRequest* _this = reinterpret_cast< ExportMetricsServiceRequest* >(object);
-  (void)_this;
-}
-void ExportMetricsServiceRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void ExportMetricsServiceRequest::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void ExportMetricsServiceRequest::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  resource_metrics_.Clear();
+  _internal_mutable_resource_metrics()->Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* ExportMetricsServiceRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* ExportMetricsServiceRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -193,8 +274,9 @@ const char* ExportMetricsServiceRequest::_InternalParse(const char* ptr, ::PROTO
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -219,67 +301,63 @@ failure:
 #undef CHK_
 }
 
-uint8_t* ExportMetricsServiceRequest::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* ExportMetricsServiceRequest::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_resource_metrics_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_resource_metrics_size()); i < n; i++) {
+    const auto& repfield = this->_internal_resource_metrics(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_resource_metrics(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
   return target;
 }
 
-size_t ExportMetricsServiceRequest::ByteSizeLong() const {
+::size_t ExportMetricsServiceRequest::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
   total_size += 1UL * this->_internal_resource_metrics_size();
-  for (const auto& msg : this->resource_metrics_) {
+  for (const auto& msg : this->_internal_resource_metrics()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ExportMetricsServiceRequest::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     ExportMetricsServiceRequest::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ExportMetricsServiceRequest::GetClassData() const { return &_class_data_; }
 
-void ExportMetricsServiceRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<ExportMetricsServiceRequest *>(to)->MergeFrom(
-      static_cast<const ExportMetricsServiceRequest &>(from));
-}
 
-
-void ExportMetricsServiceRequest::MergeFrom(const ExportMetricsServiceRequest& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void ExportMetricsServiceRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ExportMetricsServiceRequest*>(&to_msg);
+  auto& from = static_cast<const ExportMetricsServiceRequest&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  resource_metrics_.MergeFrom(from.resource_metrics_);
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_mutable_resource_metrics()->MergeFrom(from._internal_resource_metrics());
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void ExportMetricsServiceRequest::CopyFrom(const ExportMetricsServiceRequest& from) {
@@ -296,54 +374,448 @@ bool ExportMetricsServiceRequest::IsInitialized() const {
 void ExportMetricsServiceRequest::InternalSwap(ExportMetricsServiceRequest* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  resource_metrics_.InternalSwap(&other->resource_metrics_);
+  _internal_mutable_resource_metrics()->InternalSwap(other->_internal_mutable_resource_metrics());
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ExportMetricsServiceRequest::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto[0]);
 }
-
 // ===================================================================
 
 class ExportMetricsServiceResponse::_Internal {
  public:
+  using HasBits = decltype(std::declval<ExportMetricsServiceResponse>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ExportMetricsServiceResponse, _impl_._has_bits_);
+  static const ::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess& partial_success(const ExportMetricsServiceResponse* msg);
+  static void set_has_partial_success(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
-ExportMetricsServiceResponse::ExportMetricsServiceResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena, is_message_owned) {
+const ::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess&
+ExportMetricsServiceResponse::_Internal::partial_success(const ExportMetricsServiceResponse* msg) {
+  return *msg->_impl_.partial_success_;
+}
+ExportMetricsServiceResponse::ExportMetricsServiceResponse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
 }
 ExportMetricsServiceResponse::ExportMetricsServiceResponse(const ExportMetricsServiceResponse& from)
-  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ExportMetricsServiceResponse* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.partial_success_){nullptr}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.partial_success_ = new ::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess(*from._impl_.partial_success_);
+  }
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
 }
 
+inline void ExportMetricsServiceResponse::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.partial_success_){nullptr}
+  };
+}
 
+ExportMetricsServiceResponse::~ExportMetricsServiceResponse() {
+  // @@protoc_insertion_point(destructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
 
+inline void ExportMetricsServiceResponse::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  if (this != internal_default_instance()) delete _impl_.partial_success_;
+}
 
+void ExportMetricsServiceResponse::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ExportMetricsServiceResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.partial_success_ != nullptr);
+    _impl_.partial_success_->Clear();
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ExportMetricsServiceResponse::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // .opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess partial_success = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_partial_success(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ExportMetricsServiceResponse::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess partial_success = 1;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(1, _Internal::partial_success(this),
+        _Internal::partial_success(this).GetCachedSize(), target, stream);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
+  return target;
+}
+
+::size_t ExportMetricsServiceResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // .opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess partial_success = 1;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.partial_success_);
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ExportMetricsServiceResponse::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
-    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ExportMetricsServiceResponse::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ExportMetricsServiceResponse::GetClassData() const { return &_class_data_; }
 
 
+void ExportMetricsServiceResponse::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ExportMetricsServiceResponse*>(&to_msg);
+  auto& from = static_cast<const ExportMetricsServiceResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
 
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_partial_success()->::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess::MergeFrom(
+        from._internal_partial_success());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
 
+void ExportMetricsServiceResponse::CopyFrom(const ExportMetricsServiceResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
 
+bool ExportMetricsServiceResponse::IsInitialized() const {
+  return true;
+}
 
+void ExportMetricsServiceResponse::InternalSwap(ExportMetricsServiceResponse* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  swap(_impl_.partial_success_, other->_impl_.partial_success_);
+}
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ExportMetricsServiceResponse::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto[1]);
 }
+// ===================================================================
 
+class ExportMetricsPartialSuccess::_Internal {
+ public:
+};
+
+ExportMetricsPartialSuccess::ExportMetricsPartialSuccess(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+}
+ExportMetricsPartialSuccess::ExportMetricsPartialSuccess(const ExportMetricsPartialSuccess& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ExportMetricsPartialSuccess* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.error_message_) {}
+
+    , decltype(_impl_.rejected_data_points_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.error_message_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.error_message_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_error_message().empty()) {
+    _this->_impl_.error_message_.Set(from._internal_error_message(), _this->GetArenaForAllocation());
+  }
+  _this->_impl_.rejected_data_points_ = from._impl_.rejected_data_points_;
+  // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+}
+
+inline void ExportMetricsPartialSuccess::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.error_message_) {}
+
+    , decltype(_impl_.rejected_data_points_) { ::int64_t{0} }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+  _impl_.error_message_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.error_message_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+}
+
+ExportMetricsPartialSuccess::~ExportMetricsPartialSuccess() {
+  // @@protoc_insertion_point(destructor:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void ExportMetricsPartialSuccess::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.error_message_.Destroy();
+}
+
+void ExportMetricsPartialSuccess::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void ExportMetricsPartialSuccess::Clear() {
+// @@protoc_insertion_point(message_clear_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.error_message_.ClearToEmpty();
+  _impl_.rejected_data_points_ = ::int64_t{0};
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* ExportMetricsPartialSuccess::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // int64 rejected_data_points = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.rejected_data_points_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string error_message = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          auto str = _internal_mutable_error_message();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess.error_message"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* ExportMetricsPartialSuccess::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // int64 rejected_data_points = 1;
+  if (this->_internal_rejected_data_points() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        1, this->_internal_rejected_data_points(), target);
+  }
+
+  // string error_message = 2;
+  if (!this->_internal_error_message().empty()) {
+    const std::string& _s = this->_internal_error_message();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess.error_message");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+  return target;
+}
+
+::size_t ExportMetricsPartialSuccess::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string error_message = 2;
+  if (!this->_internal_error_message().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_error_message());
+  }
+
+  // int64 rejected_data_points = 1;
+  if (this->_internal_rejected_data_points() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_rejected_data_points());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ExportMetricsPartialSuccess::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ExportMetricsPartialSuccess::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ExportMetricsPartialSuccess::GetClassData() const { return &_class_data_; }
+
+
+void ExportMetricsPartialSuccess::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ExportMetricsPartialSuccess*>(&to_msg);
+  auto& from = static_cast<const ExportMetricsPartialSuccess&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_error_message().empty()) {
+    _this->_internal_set_error_message(from._internal_error_message());
+  }
+  if (from._internal_rejected_data_points() != 0) {
+    _this->_internal_set_rejected_data_points(from._internal_rejected_data_points());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ExportMetricsPartialSuccess::CopyFrom(const ExportMetricsPartialSuccess& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:opentelemetry.proto.collector.metrics.v1.ExportMetricsPartialSuccess)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool ExportMetricsPartialSuccess::IsInitialized() const {
+  return true;
+}
+
+void ExportMetricsPartialSuccess::InternalSwap(ExportMetricsPartialSuccess* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.error_message_, lhs_arena,
+                                       &other->_impl_.error_message_, rhs_arena);
+
+  swap(_impl_.rejected_data_points_, other->_impl_.rejected_data_points_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata ExportMetricsPartialSuccess::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto_once,
+      file_level_metadata_opentelemetry_2fproto_2fcollector_2fmetrics_2fv1_2fmetrics_5fservice_2eproto[2]);
+}
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace v1
 }  // namespace metrics
@@ -351,13 +823,18 @@ const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ExportMetricsServiceResponse::
 }  // namespace proto
 }  // namespace opentelemetry
 PROTOBUF_NAMESPACE_OPEN
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest* Arena::CreateMaybeMessage< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse* Arena::CreateMaybeMessage< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceResponse >(arena);
 }
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::opentelemetry::proto::collector::metrics::v1::ExportMetricsPartialSuccess >(arena);
+}
 PROTOBUF_NAMESPACE_CLOSE
-
 // @@protoc_insertion_point(global_scope)
-#include <google/protobuf/port_undef.inc>
+#include "google/protobuf/port_undef.inc"

@@ -55,12 +55,29 @@ extern "C" {
 #include "noit_mtev_bridge.h"
 }
 #include <tuple>
+#include <thread>
+#include <grpcpp/grpcpp.h>
 #include <google/protobuf/stubs/common.h>
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
+#include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 
-static mtev_log_stream_t nlerr = NULL;
-static mtev_log_stream_t nldeb = NULL;
+namespace OtelProto = opentelemetry::proto;
+namespace OtelCommon = OtelProto::common::v1;
+namespace OtelMetrics = OtelProto::metrics::v1;
+namespace OtelCollectorMetrics = OtelProto::collector::metrics::v1;
+
+static mtev_log_stream_t nlerr;
+static mtev_log_stream_t nldeb;
+class GRPCService : public OtelCollectorMetrics::MetricsService::Service
+{
+  grpc::Status Export(grpc::ServerContext* context,
+                      const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
+                      OtelCollectorMetrics::ExportMetricsServiceResponse* response) override;
+};
+
+GRPCService grpcservice;
+static std::thread *grpcserver;
 
 typedef struct _mod_config {
   mtev_hash_table *options;
@@ -287,7 +304,7 @@ class name_builder {
   std::vector<std::tuple<std::string,std::string,bool>> tags;
   bool materialized{false};
   public:
-  name_builder(const std::string &base_name, const google::protobuf::RepeatedPtrField<opentelemetry::proto::common::v1::KeyValue> &kvs) : base_name{base_name} {
+  name_builder(const std::string &base_name, const google::protobuf::RepeatedPtrField<OtelCommon::KeyValue> &kvs) : base_name{base_name} {
     final_name[0] = '\0';
     for(auto kv : kvs) {
       add(kv);
@@ -343,7 +360,7 @@ class name_builder {
     return final_name;
   }
 
-  name_builder &add(const std::string &cat, const opentelemetry::proto::common::v1::KeyValue &f) {
+  name_builder &add(const std::string &cat, const OtelCommon::KeyValue &f) {
     materialized = false;
     if(f.has_value()) {
       add(cat + "." + f.key(), f.value());
@@ -353,27 +370,27 @@ class name_builder {
     return *this;
   }
 
-  name_builder &add(const std::string &cat, const opentelemetry::proto::common::v1::AnyValue &v) {
+  name_builder &add(const std::string &cat, const OtelCommon::AnyValue &v) {
     materialized = false;
     switch(v.value_case()) {
-    case opentelemetry::proto::common::v1::AnyValue::kStringValue:
+    case OtelCommon::AnyValue::kStringValue:
       tags.emplace_back(cat, v.string_value(), v.has_string_value());
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kBoolValue:
+    case OtelCommon::AnyValue::kBoolValue:
       tags.push_back(std::make_tuple(cat, v.bool_value() ? "true" : "false", true));
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kIntValue:
+    case OtelCommon::AnyValue::kIntValue:
       tags.push_back(std::make_tuple(cat, std::to_string(v.int_value()), true));
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kDoubleValue:
+    case OtelCommon::AnyValue::kDoubleValue:
       tags.push_back(std::make_tuple(cat, std::to_string(v.double_value()), true));
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kArrayValue:
+    case OtelCommon::AnyValue::kArrayValue:
       for ( auto subv : v.array_value().values() ) {
         add(cat, subv);
       }
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kKvlistValue:
+    case OtelCommon::AnyValue::kKvlistValue:
       for ( auto kv : v.kvlist_value().values() ) {
         add(cat, kv);
       }
@@ -383,7 +400,7 @@ class name_builder {
     }
     return *this;
   }
-  name_builder &add(const opentelemetry::proto::common::v1::KeyValue &f) {
+  name_builder &add(const OtelCommon::KeyValue &f) {
     materialized = false;
     if(f.has_value()) {
       add(f.key(), f.value());
@@ -400,7 +417,7 @@ class name_builder {
 };
 
 void handle_dp(otlphttp_upload_t *rxc, name_builder &metric,
-               const opentelemetry::proto::metrics::v1::NumberDataPoint &dp,
+               const OtelMetrics::NumberDataPoint &dp,
                double scale) {
   auto whence_ns = dp.time_unix_nano();
   if(whence_ns == 0) return;
@@ -408,7 +425,7 @@ void handle_dp(otlphttp_upload_t *rxc, name_builder &metric,
                              static_cast<time_t>((whence_ns / 1000ULL) % 1000000) };
   
   switch(dp.value_case()) {
-  case opentelemetry::proto::metrics::v1::NumberDataPoint::kAsInt:
+  case OtelMetrics::NumberDataPoint::kAsInt:
     {
     int64_t vi = dp.as_int();
     if(scale >= 1) {
@@ -422,7 +439,7 @@ void handle_dp(otlphttp_upload_t *rxc, name_builder &metric,
     }
     break;
     }
-  case opentelemetry::proto::metrics::v1::NumberDataPoint::kAsDouble:
+  case OtelMetrics::NumberDataPoint::kAsDouble:
     {
     double vd = dp.as_double();
     vd *= scale;
@@ -458,7 +475,7 @@ void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
 
 static
 void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
-               const opentelemetry::proto::metrics::v1::HistogramDataPoint &dp,
+               const OtelMetrics::HistogramDataPoint &dp,
                bool cumulative, double scale) {
   auto whence_ns = dp.time_unix_nano();
   auto size = dp.bucket_counts_size();
@@ -480,7 +497,7 @@ void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
 
 static
 void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
-               const opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint &dp,
+               const OtelMetrics::ExponentialHistogramDataPoint &dp,
                bool cumulative, double scale) {
   auto whence_ns = dp.time_unix_nano();
   auto size = (dp.zero_count() == 0) ? 0 : 1;
@@ -529,13 +546,13 @@ void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
 }
 
 static void
-handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest &msg) {
+handle_message(otlphttp_upload_t *rxc, const OtelCollectorMetrics::ExportMetricsServiceRequest &msg) {
   mtevL(nldeb, "otlp resource metrics: %d\n", msg.resource_metrics_size());
   for(int i=0; i<msg.resource_metrics_size(); i++) {
     auto rm = msg.resource_metrics(i);
-    mtevL(nldeb, "otlp resource metrics[%d] ilm: %d\n", i, rm.instrumentation_library_metrics_size());
-    for(int li=0; li<rm.instrumentation_library_metrics_size(); li++) {
-      auto lm = rm.instrumentation_library_metrics(li);
+    mtevL(nldeb, "otlp resource metrics[%d] ilm: %d\n", i, rm.scope_metrics_size()); //instrumentation_library_metrics_size());
+    for(int li=0; li<rm.scope_metrics_size(); li++) {
+      auto lm = rm.scope_metrics(li);
 
       for(int mi=0; mi<lm.metrics_size(); mi++) {
         auto m = lm.metrics(mi);
@@ -544,7 +561,7 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
 
         mtevL(nldeb, "otlp resource metrics[%d][%d][%d]: type %d, name: %s\n", i, li, mi, m.data_case(), name.c_str());
         switch(m.data_case()) {
-        case opentelemetry::proto::metrics::v1::Metric::kGauge:
+        case OtelMetrics::Metric::kGauge:
         {
           for( auto dp : m.gauge().data_points() ) {
             name_builder metric{name, dp.attributes()};
@@ -557,10 +574,10 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kSum:
+        case OtelMetrics::Metric::kSum:
         {
           auto sum = m.sum();
-          auto cumulative = sum.aggregation_temporality() == opentelemetry::proto::metrics::v1::AGGREGATION_TEMPORALITY_CUMULATIVE;
+          auto cumulative = sum.aggregation_temporality() == OtelMetrics::AGGREGATION_TEMPORALITY_CUMULATIVE;
           for( auto dp : m.sum().data_points() ) {
             name_builder metric{name, dp.attributes()};
             double mult = 1;
@@ -576,10 +593,10 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kHistogram:
+        case OtelMetrics::Metric::kHistogram:
         {
           auto hist = m.histogram();
-          auto cumulative = hist.aggregation_temporality() == opentelemetry::proto::metrics::v1::AGGREGATION_TEMPORALITY_CUMULATIVE;
+          auto cumulative = hist.aggregation_temporality() == OtelMetrics::AGGREGATION_TEMPORALITY_CUMULATIVE;
           for( auto dp : hist.data_points() ) {
             name_builder metric{name, dp.attributes()};
             double mult = 1;
@@ -591,10 +608,10 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kExponentialHistogram:
+        case OtelMetrics::Metric::kExponentialHistogram:
         {
           auto hist = m.exponential_histogram();
-          auto cumulative = hist.aggregation_temporality() == opentelemetry::proto::metrics::v1::AGGREGATION_TEMPORALITY_CUMULATIVE;
+          auto cumulative = hist.aggregation_temporality() == OtelMetrics::AGGREGATION_TEMPORALITY_CUMULATIVE;
           for( auto dp : hist.data_points() ) {
             name_builder metric{name, dp.attributes()};
             double mult = 1;
@@ -606,8 +623,8 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kSummary:
-        case opentelemetry::proto::metrics::v1::Metric::DATA_NOT_SET:
+        case OtelMetrics::Metric::kSummary:
+        case OtelMetrics::Metric::DATA_NOT_SET:
         {
           break;
         }
@@ -659,6 +676,41 @@ metric_local_batch(otlphttp_upload_t *rxc, const char *name, double *val, int64_
 
   noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
   mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
+}
+
+grpc::Status GRPCService::Export(grpc::ServerContext* context,
+                                 const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
+                                 OtelCollectorMetrics::ExportMetricsServiceResponse* response)
+{
+  otlphttp_upload_t *rxc = NULL;
+  std::string error;
+
+  uuid_t check_id;
+  const char *check_uuid = "c7343673-ab9b-4d1b-9775-713c2d1ec5af";
+  mtev_uuid_parse(check_uuid, check_id);
+  noit_check_t *check = noit_poller_lookup(check_id);
+  if(!check) {
+    error = "no such check: ";
+    error += check_uuid;
+    goto error;
+  }
+  if(strcmp(check->module, "otlphttp")) {
+    error = "no such otlphttp check: ";
+    error += check_uuid;
+    goto error;
+  }
+  rxc = new otlphttp_upload_t(check);
+
+  mtev_memory_init_thread();
+  mtev_memory_begin();
+  handle_message(rxc, *request);
+  metric_local_batch_flush_immediate(rxc);
+  mtev_memory_end();
+
+  return grpc::Status::OK;
+
+error:
+  return grpc::Status(grpc::StatusCode::NOT_FOUND, "Bad check id");
 }
 
 static int
@@ -743,7 +795,7 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     goto error;
   }
   
-  if(opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest msg;
+  if(OtelCollectorMetrics::ExportMetricsServiceRequest msg;
      msg.ParseFromArray(mtev_dyn_buffer_data(&rxc->data),
                         static_cast<int>(mtev_dyn_buffer_used(&rxc->data)))) {
     mtev_memory_begin();
@@ -858,11 +910,27 @@ static int noit_otlphttp_config(noit_module_t *self, mtev_hash_table *options) {
   return 1;
 }
 
+static void grpc_server_thread()
+{
+  std::string server_address("127.0.0.1:4317"); 
+  grpc::ServerBuilder builder;
+  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  builder.RegisterService(&grpcservice);
+  std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+  mtevL(nlerr, "otelproto grpc server listening on %s\n", server_address.c_str());
+  server->Wait();
+  mtevL(nlerr, "otelproto gprc server terminated!\n");
+}
+
 static int noit_otlphttp_onload(mtev_image_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/otlphttp");
   if(!nldeb) nldeb = mtev_log_stream_find("debug/otlphttp");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
+
+  // start up the grpc server
+  grpcserver = new std::thread{grpc_server_thread};
+  
   return 0;
 }
 
