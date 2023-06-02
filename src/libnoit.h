@@ -28,5 +28,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef LIBNOIT_H
+#define LIBNOIT_H
+
 API_EXPORT(void)
   libnoit_init_globals(void);
+
+#endif
