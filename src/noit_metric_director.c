@@ -1239,8 +1239,6 @@ void noit_metric_director_init() {
     mtev_frrh_set_prob_function(search_miss_cache, generation_aware_displace);
   }
 
-  OpenSSL_add_all_digests();
-
   mtev_memory_begin();
 
   check_interests = mtev_memory_safe_calloc(sizeof(*check_interests),nthreads);

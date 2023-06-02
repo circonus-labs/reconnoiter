@@ -515,7 +515,6 @@ simple_sha1_hex(void *in, size_t len, char out[2 * SHA_DIGEST_LENGTH]) {
   static const char _hexchars[16] =
     {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 
-  OpenSSL_add_all_digests();
   const EVP_MD *md = EVP_get_digestbyname("SHA1");
   mtevAssert(md);
   EVP_MD_CTX *ctx = EVP_MD_CTX_new();
