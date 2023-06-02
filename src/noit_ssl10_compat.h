@@ -12,8 +12,9 @@ inline void *OPENSSL_zalloc(size_t num)
 {
    void *ret = OPENSSL_malloc(num);
 
-   if (ret != NULL)
+   if (ret) {
        memset(ret, 0, num);
+   }
    return ret;
 }
 
@@ -24,7 +25,8 @@ inline EVP_MD_CTX *EVP_MD_CTX_new(void)
 
 inline void EVP_MD_CTX_free(EVP_MD_CTX *ctx)
 {
-  EVP_MD_CTX_cleanup(ctx); OPENSSL_free(ctx);
+  EVP_MD_CTX_cleanup(ctx);
+  OPENSSL_free(ctx);
 }
 #endif
 
