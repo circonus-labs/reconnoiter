@@ -25,7 +25,7 @@ MODULELD=@MODULELD@
 MODULECC=@MODULECC@
 MODULESHCFLAGS=@MODULESHCFLAGS@
 MODULECXX=@MODULECXX@
-MODULESHCXXFLAGS=@MODULESHCXXFLAGS@ -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -std=c++17
+MODULESHCXXFLAGS=@MODULESHCXXFLAGS@ -Wno-mismatched-new-delete -Wno-sign-compare -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -DPROTOBUF_USE_DLLS -std=c++17
 MODULEEXT=@MODULEEXT@
 LDFLAGS=@LDFLAGS@
 SHLDFLAGS=@SHLDFLAGS@
@@ -216,11 +216,12 @@ graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite_pickle.xmlh graphite
 OTEL_METRICS_OBJS=opentelemetry/proto/metrics/v1/metrics.pb.lo \
 		  opentelemetry/proto/common/v1/common.pb.lo \
 		  opentelemetry/proto/resource/v1/resource.pb.lo \
-		  opentelemetry/proto/collector/metrics/v1/metrics_service.pb.lo
+		  opentelemetry/proto/collector/metrics/v1/metrics_service.pb.lo \
+          opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.lo
 
 otlphttp.@MODULEEXT@:	otlphttp.lo $(OTEL_METRICS_OBJS)
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf -lgrpc++
 
 otlphttp.lo:	otlphttp.xmlh otlphttp.cpp
 otel-metrics.pb.lo:	otel-metrics.pb.cpp
@@ -289,7 +290,7 @@ snmp.lo:	snmp.xmlh snmptrap.xmlh
 	$(Q)$(MODULECC) $(CPPFLAGS) $(MODULESHCFLAGS) -c $< -o $@
 
 alldocs:
-	@echo "- buiding module docs"
+	@echo "- building module docs"
 	$(Q)for c in *.xml ; do \
 		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - | sed -e 's/ xmlns=""//g;' > $(top_srcdir)/docs/config/modules/$$c ; \
 	done

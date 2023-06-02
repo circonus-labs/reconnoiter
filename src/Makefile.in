@@ -483,10 +483,10 @@ Makefile.dep:
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 js/bundle.desc:	proto/bundle.proto
-	protoc -ojs/bundle.desc proto/bundle.proto
+	LD_LIBRARY_PATH=/opt/circonus/lib protoc -ojs/bundle.desc proto/bundle.proto
 
 bundle.pb-c.c bundle.pb-c.h: proto/bundle.proto
-	(cd proto && protoc bundle.proto --java_out=`pwd`/../java && protoc-c bundle.proto --c_out=`pwd`/../ && cd ..)
+	(cd proto && LD_LIBRARY_PATH=/opt/circonus/lib protoc bundle.proto --java_out=`pwd`/../java && LD_LIBRARY_PATH=/opt/circonus/lib protoc-c bundle.proto --c_out=`pwd`/../ && cd ..)
 
 include Makefile.dep
 include Makefile.noit.dep

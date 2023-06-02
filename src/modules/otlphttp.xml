@@ -22,7 +22,7 @@
       <title>Sending otel data</title>
 
       <programlisting><![CDATA[
-        exporters:
+        exporters:-
           otlphttp:
             metrics_endpoint: https://broker:43191/module/otlphttp/v1/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y
         ]]></programlisting>
