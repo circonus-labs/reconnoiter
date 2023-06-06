@@ -243,8 +243,6 @@ function TestConfig:make_eventer_config(fd, opts)
   "  <config>\n" ..
   "    <default_queue_threads>" .. opts['eventer_config']['default_queue_threads'] .. "</default_queue_threads>\n" ..
   "    <default_ca_chain>" .. opts['eventer_config']['default_ca_chain'] .. "</default_ca_chain>\n" ..
-  "    <ssl_dhparam1024_file/>\n" ..
-  "    <ssl_dhparam2048_file/>\n" ..
   "  </config>\n" ..
   "</eventer>\n"
   mtev.write(fd, out)
