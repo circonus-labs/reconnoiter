@@ -754,6 +754,14 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
 
   rxc = new otlphttp_upload_t(check);
 
+  if (const char *mode_str = mtev_hash_dict_get(check->config, "hist_approx_mode")) {
+    if(!strcmp(mode_str, "low")) rxc->mode = HIST_APPROX_LOW;
+    else if(!strcmp(mode_str, "mid")) rxc->mode = HIST_APPROX_MID;
+    else if(!strcmp(mode_str, "harmonic_mean")) rxc->mode = HIST_APPROX_HARMONIC_MEAN;
+    else if(!strcmp(mode_str, "high")) rxc->mode = HIST_APPROX_HIGH;
+    // Else it just sticks the with initial defaults */
+  }
+
   mtev_memory_init_thread();
   mtev_memory_begin();
   handle_message(rxc, *request);
