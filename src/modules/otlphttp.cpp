@@ -81,6 +81,11 @@ static std::thread *grpcserver;
 
 typedef struct _mod_config {
   mtev_hash_table *options;
+  std::string server;
+  int port;
+  bool enable_grpc;
+  bool enable_http;
+  bool use_grpc_ssl;
 } otlphttp_mod_config_t;
 
 typedef struct otlphttp_closure_s {
@@ -684,21 +689,69 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
 {
   otlphttp_upload_t *rxc = NULL;
   std::string error;
+  std::string check_name;
+  std::string check_uuid;
+  std::string secret;
+  const char *check_secret{nullptr};
 
+  mtevL(nlerr, "Client metadata:\n");
+  const std::multimap<grpc::string_ref, grpc::string_ref> metadata =
+      context->client_metadata();
+  for (auto iter = metadata.begin(); iter != metadata.end(); ++iter) {
+    std::string key = iter->first.data();
+    mtevL(nlerr, "Header key: %s\n", key.c_str());
+    // Check for binary value
+    size_t isbin = iter->first.find("-bin");
+    if ((isbin != std::string::npos) && (isbin + 4 == iter->first.size())) {
+      mtevL(nlerr, "Value: ");
+      for (auto c : iter->second) {
+        mtevL(nlerr, "%x", c);
+      }
+      mtevL(nlerr, "\n");
+      continue;
+    }
+    std::string value = iter->second.data();
+    mtevL(nlerr, "Value: %s\n", value.c_str());
+    if (key == "check_uuid") {
+      check_uuid = value;
+    }
+    else if (key == "check_name") {
+      check_name = value;
+    }
+    else if (key == "secret" || key == "api_key") {
+      secret = value;
+    }
+  }
+
+  noit_check_t *check{nullptr};
   uuid_t check_id;
-  const char *check_uuid = "c7343673-ab9b-4d1b-9775-713c2d1ec5af";
-  mtev_uuid_parse(check_uuid, check_id);
-  noit_check_t *check = noit_poller_lookup(check_id);
-  if(!check) {
-    error = "no such check: ";
-    error += check_uuid;
+  if (!check_uuid.empty()) {
+    mtev_uuid_parse(check_uuid.c_str(), check_id);
+    check = noit_poller_lookup(check_id);
+    if(!check) {
+      error = "no such check: ";
+      error += check_uuid;
+      goto error;
+    }
+  }
+  else {
+    error = "no check_uuid specified by grpc metadata";
     goto error;
   }
+
   if(strcmp(check->module, "otlphttp")) {
     error = "no such otlphttp check: ";
     error += check_uuid;
     goto error;
   }
+
+  (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &check_secret);
+  if (secret != check_secret) {
+    error = "incorrect secret specified for check_uuid: ";
+    error += check_uuid;
+    goto error;
+  }
+
   rxc = new otlphttp_upload_t(check);
 
   mtev_memory_init_thread();
@@ -882,8 +935,8 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 }
 
 static int noit_otlphttp_initiate_check(noit_module_t *self,
-                                          noit_check_t *check,
-                                          int once, noit_check_t *cause) {
+                                        noit_check_t *check,
+                                        int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
   if (check->closure == NULL) {
     otlphttp_closure_t *ccl = new otlphttp_closure_t;
@@ -910,11 +963,14 @@ static int noit_otlphttp_config(noit_module_t *self, mtev_hash_table *options) {
   return 1;
 }
 
-static void grpc_server_thread()
+static void grpc_server_thread(std::string server_address, bool use_grpc_ssl)
 {
-  std::string server_address("127.0.0.1:4317"); 
   grpc::ServerBuilder builder;
-  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  auto server_creds = grpc::SslServerCredentials(grpc::SslServerCredentialsOptions());
+  if (!use_grpc_ssl) {
+    server_creds = grpc::InsecureServerCredentials();
+  }
+  builder.AddListeningPort(server_address, server_creds);
   builder.RegisterService(&grpcservice);
   std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
   mtevL(nlerr, "otelproto grpc server listening on %s\n", server_address.c_str());
@@ -927,30 +983,78 @@ static int noit_otlphttp_onload(mtev_image_t *self) {
   if(!nldeb) nldeb = mtev_log_stream_find("debug/otlphttp");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
-
-  // start up the grpc server
-  grpcserver = new std::thread{grpc_server_thread};
-  
   return 0;
 }
 
 static int noit_otlphttp_init(noit_module_t *self) {
+  const char *config_val;
   otlphttp_mod_config_t *conf = static_cast<otlphttp_mod_config_t*>(noit_module_get_userdata(self));
+
+  conf->server = "127.0.0.1";
+  if(mtev_hash_retr_str(conf->options,
+                        "grpc_server", strlen("grpc_server"),
+                        (const char **)&config_val)) {
+    conf->server = config_val;
+  }
+
+  conf->port = 4317;
+  if(mtev_hash_retr_str(conf->options,
+                        "grpc_port", strlen("grpc_port"),
+                        (const char **)&config_val)) {
+    conf->port = atoi(config_val);
+    if (conf->port == 0) {
+      conf->port = 4317;
+    }
+  }
+
+  conf->enable_grpc = true;
+  if(mtev_hash_retr_str(conf->options,
+                        "enable_grpc", strlen("enable_grpc"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      conf->enable_grpc = false;
+  }
+
+  conf->enable_http = true;
+  if(mtev_hash_retr_str(conf->options,
+                        "enable_http", strlen("enable_http"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      conf->enable_http = false;
+  }
+
+  conf->use_grpc_ssl = true;
+  if (conf->enable_grpc) {
+    if(mtev_hash_retr_str(conf->options,
+                          "use_grpc_ssl", strlen("use_grpc_ssl"),
+                          (const char **)&config_val)) {
+      if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+        conf->use_grpc_ssl = false;
+    }
+  }
 
   noit_module_set_userdata(self, conf);
 
-  eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
+  if (conf->enable_http) {
+    eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
+    /* register rest handler */
+    mtev_rest_mountpoint_t *rule;
+    rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/v1/",
+                                  "^(" UUID_REGEX ")/([^/]*)$",
+                                  rest_otlphttp_handler);
+    if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+    rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/",
+                                  "^(" UUID_REGEX ")/([^/]*)/v1/metrics",
+                                  rest_otlphttp_handler);
+    if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+  }
 
-  /* register rest handler */
-  mtev_rest_mountpoint_t *rule;
-  rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/v1/",
-                                 "^(" UUID_REGEX ")/([^/]*)$",
-                                 rest_otlphttp_handler);
-  if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
-  rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/",
-                                 "^(" UUID_REGEX ")/([^/]*)/v1/metrics",
-                                 rest_otlphttp_handler);
-  if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+  if (conf->enable_grpc) {
+
+    std::string server_address = conf->server + ":" + std::to_string(conf->port);
+    grpcserver = new std::thread{grpc_server_thread, server_address, conf->use_grpc_ssl};
+  }
+
   return 0;
 }
 
@@ -967,5 +1071,5 @@ noit_module_t otlphttp = {
   noit_otlphttp_config,
   noit_otlphttp_init,
   noit_otlphttp_initiate_check,
-  NULL
+  nullptr
 };
