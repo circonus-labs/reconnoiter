@@ -8,26 +8,11 @@
 #include <string.h>
 #include <openssl/engine.h>
 
-inline void *OPENSSL_zalloc(size_t num)
-{
-   void *ret = OPENSSL_malloc(num);
+void *OPENSSL_zalloc(size_t num);
 
-   if (ret) {
-       memset(ret, 0, num);
-   }
-   return ret;
-}
+EVP_MD_CTX *EVP_MD_CTX_new(void);
 
-inline EVP_MD_CTX *EVP_MD_CTX_new(void)
-{
-  return OPENSSL_zalloc(sizeof(EVP_MD_CTX));
-}
-
-inline void EVP_MD_CTX_free(EVP_MD_CTX *ctx)
-{
-  EVP_MD_CTX_cleanup(ctx);
-  OPENSSL_free(ctx);
-}
+void EVP_MD_CTX_free(EVP_MD_CTX *ctx);
 #endif
 
 #endif // NOIT_SSL10_COMPAT_H
