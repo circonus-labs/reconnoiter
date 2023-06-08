@@ -83,8 +83,8 @@ static std::thread *grpcserver;
 
 typedef struct _mod_config {
   mtev_hash_table *options;
-  std::string server;
-  int port;
+  std::string grpc_server;
+  int grpc_port;
   bool enable_grpc;
   bool enable_http;
   bool use_grpc_ssl;
@@ -702,7 +702,7 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
   const std::multimap<grpc::string_ref, grpc::string_ref> metadata =
       context->client_metadata();
   for (auto iter = metadata.begin(); iter != metadata.end(); ++iter) {
-    std::string key = iter->first.data();
+    std::string key{iter->first.data(), iter->first.length()};
     mtevL(nlerr, "Header key: %s\n", key.c_str());
     // Check for binary value
     size_t isbin = iter->first.find("-bin");
@@ -714,7 +714,7 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
       mtevL(nlerr, "\n");
       continue;
     }
-    std::string value = iter->second.data();
+    std::string value{iter->second.data(), iter->second.length()};
     mtevL(nlerr, "Value: %s\n", value.c_str());
     if (key == "check_uuid") {
       check_uuid = value;
@@ -995,6 +995,7 @@ static void grpc_server_thread(std::string server_address,
   grpc::ServerBuilder builder;
   std::shared_ptr<grpc::ServerCredentials> server_creds;
   if (grpc_ssl_use_broker_cert) {
+    mtevL(nlerr, "Setting up grpc ssl using broker cert and key\n");
     // read the cert and key
     std::string servercert = read_keycert(broker_crt);
     std::string serverkey = read_keycert(broker_key);
@@ -1008,6 +1009,7 @@ static void grpc_server_thread(std::string server_address,
     grpc::SslServerCredentialsOptions ssl_opts;
     ssl_opts.pem_root_certs="";
     if (grpc_ssl_use_root_cert) {
+      mtevL(nlerr, "Registering grpc ssl root cert\n");
       std::string rootcert = read_keycert(root_crt);
       ssl_opts.pem_root_certs = rootcert;
     }
@@ -1025,9 +1027,9 @@ static void grpc_server_thread(std::string server_address,
   builder.AddListeningPort(server_address, server_creds);
   builder.RegisterService(&grpcservice);
   std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
-  mtevL(nlerr, "otelproto grpc server listening on %s\n", server_address.c_str());
+  mtevL(nlerr, "otlphttp grpc server listening on %s\n", server_address.c_str());
   server->Wait();
-  mtevL(nlerr, "otelproto gprc server terminated!\n");
+  mtevL(nlerr, "otlphttp gprc server terminated!\n");
 }
 
 static int noit_otlphttp_onload(mtev_image_t *self) {
@@ -1041,23 +1043,6 @@ static int noit_otlphttp_onload(mtev_image_t *self) {
 static int noit_otlphttp_init(noit_module_t *self) {
   const char *config_val;
   otlphttp_mod_config_t *conf = static_cast<otlphttp_mod_config_t*>(noit_module_get_userdata(self));
-
-  conf->server = "127.0.0.1";
-  if (mtev_hash_retr_str(conf->options,
-                         "grpc_server", strlen("grpc_server"),
-                         (const char **)&config_val)) {
-    conf->server = config_val;
-  }
-
-  conf->port = 4317;
-  if (mtev_hash_retr_str(conf->options,
-                         "grpc_port", strlen("grpc_port"),
-                         (const char **)&config_val)) {
-    conf->port = atoi(config_val);
-    if (conf->port == 0) {
-      conf->port = 4317;
-    }
-  }
 
   conf->enable_grpc = true;
   if (mtev_hash_retr_str(conf->options,
@@ -1077,14 +1062,21 @@ static int noit_otlphttp_init(noit_module_t *self) {
     }
   }
 
-  conf->use_grpc_ssl = true;
-  if (conf->enable_grpc) {
-    if (mtev_hash_retr_str(conf->options,
-                           "use_grpc_ssl", strlen("use_grpc_ssl"),
-                           (const char **)&config_val)) {
-      if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
-        conf->use_grpc_ssl = false;
-      }
+  conf->grpc_server = "127.0.0.1";
+  if (mtev_hash_retr_str(conf->options,
+                         "grpc_server", strlen("grpc_server"),
+                         (const char **)&config_val)) {
+    conf->grpc_server = config_val;
+  }
+
+  conf->grpc_port = 4317;
+  if (mtev_hash_retr_str(conf->options,
+                         "grpc_port", strlen("grpc_port"),
+                         (const char **)&config_val)) {
+    conf->grpc_port = std::atoi(config_val);
+    if (conf->grpc_port <= 0) {
+      mtevL(nlerr, "Valid port not specified, using default port 4317\n");
+      conf->grpc_port = 4317;
     }
   }
 
@@ -1120,6 +1112,13 @@ static int noit_otlphttp_init(noit_module_t *self) {
 
   noit_module_set_userdata(self, conf);
 
+  mtevL(nlerr, "otlphttp config: http enabled: %s, grpc_enabled: %s\n",
+        conf->enable_http ? "yes" : "no", conf->enable_grpc ? "yes" : "no");
+  mtevL(nlerr, "grpc: server address: %s:%d, use ssl: %s, use broker cert: %s, use root cert: %s\n",
+        conf->grpc_server.c_str(), conf->grpc_port, conf->use_grpc_ssl ? "yes" : "no",
+        conf->grpc_ssl_use_broker_cert ? "yes" : "no",
+        conf->grpc_ssl_use_root_cert ? "yes" : "no"); 
+
   if (conf->enable_http) {
     eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
     /* register rest handler */
@@ -1132,6 +1131,8 @@ static int noit_otlphttp_init(noit_module_t *self) {
                                   "^(" UUID_REGEX ")/([^/]*)/v1/metrics",
                                   rest_otlphttp_handler);
     if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+
+    mtevL(nlerr, "otlphttp REST endpoint now active\n");
   }
 
   std::string certificate_file;
@@ -1141,7 +1142,7 @@ static int noit_otlphttp_init(noit_module_t *self) {
     if (conf->use_grpc_ssl && conf->grpc_ssl_use_broker_cert) {
       // read cert/key settings from sslconfig
       mtev_conf_section_t listeners = mtev_conf_get_section_read(MTEV_CONF_ROOT,
-                                    "//listeners");
+                                                                 "//listeners");
       if (mtev_conf_section_is_empty(listeners)) {
         mtev_conf_release_section_read(listeners);
         mtevL(nlerr, "Cannot find or empty //listeners config.\n");
@@ -1169,12 +1170,17 @@ static int noit_otlphttp_init(noit_module_t *self) {
                        "CA root cert\n");
         }
       }
+
+      mtevL(nlerr, "Broker cert is: %s\n", certificate_file.c_str());
+      mtevL(nlerr, "Broker key is: %s\n", key_file.c_str());
+      mtevL(nlerr, "Broker ca_chain is: %s\n", ca_chain.c_str());
     }
 
-    std::string server_address = conf->server + ":" + std::to_string(conf->port);
+    std::string server_address = conf->grpc_server + ":" + std::to_string(conf->grpc_port);
     grpcserver = new std::thread{grpc_server_thread, server_address, conf->use_grpc_ssl,
                                  conf->grpc_ssl_use_broker_cert, conf->grpc_ssl_use_root_cert,
                                  certificate_file, key_file, ca_chain};
+    mtevL(nlerr, "otlphttp grpc listener thread started\n");
   }
 
   return 0;
