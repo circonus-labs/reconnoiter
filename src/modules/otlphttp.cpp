@@ -56,6 +56,8 @@ extern "C" {
 }
 #include <tuple>
 #include <thread>
+#include <iostream>
+#include <fstream>
 #include <grpcpp/grpcpp.h>
 #include <google/protobuf/stubs/common.h>
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
@@ -86,6 +88,8 @@ typedef struct _mod_config {
   bool enable_grpc;
   bool enable_http;
   bool use_grpc_ssl;
+  bool grpc_ssl_use_broker_cert;
+  bool grpc_ssl_use_root_cert;
 } otlphttp_mod_config_t;
 
 typedef struct otlphttp_closure_s {
@@ -971,10 +975,50 @@ static int noit_otlphttp_config(noit_module_t *self, mtev_hash_table *options) {
   return 1;
 }
 
-static void grpc_server_thread(std::string server_address, bool use_grpc_ssl)
+static std::string read_keycert(const std::string filename)
+{
+  std::ifstream file(filename, std::ios::binary);
+  std::string temp;
+  std::getline(file, temp);
+  file.close();
+  return temp;
+}
+
+static void grpc_server_thread(std::string server_address,
+                               bool use_grpc_ssl,
+                               bool grpc_ssl_use_broker_cert,
+                               bool grpc_ssl_use_root_cert,
+                               std::string broker_crt,
+                               std::string broker_key,
+                               std::string root_crt)
 {
   grpc::ServerBuilder builder;
-  auto server_creds = grpc::SslServerCredentials(grpc::SslServerCredentialsOptions());
+  std::shared_ptr<grpc::ServerCredentials> server_creds;
+  if (grpc_ssl_use_broker_cert) {
+    // read the cert and key
+    std::string servercert = read_keycert(broker_crt);
+    std::string serverkey = read_keycert(broker_key);
+
+    // create a pem key cert pair using the cert and the key
+    grpc::SslServerCredentialsOptions::PemKeyCertPair pkcp;
+    pkcp.private_key = serverkey;
+    pkcp.cert_chain = servercert;
+
+    // alter the server ssl opts to put in our own cert/key and optionally the root cert too
+    grpc::SslServerCredentialsOptions ssl_opts;
+    ssl_opts.pem_root_certs="";
+    if (grpc_ssl_use_root_cert) {
+      std::string rootcert = read_keycert(root_crt);
+      ssl_opts.pem_root_certs = rootcert;
+    }
+    ssl_opts.pem_key_cert_pairs.push_back(pkcp);
+
+    // create a server credentials object to use on the listening port
+    server_creds = grpc::SslServerCredentials(ssl_opts);
+  }
+  else {  
+    server_creds = grpc::SslServerCredentials(grpc::SslServerCredentialsOptions());
+  }
   if (!use_grpc_ssl) {
     server_creds = grpc::InsecureServerCredentials();
   }
@@ -999,16 +1043,16 @@ static int noit_otlphttp_init(noit_module_t *self) {
   otlphttp_mod_config_t *conf = static_cast<otlphttp_mod_config_t*>(noit_module_get_userdata(self));
 
   conf->server = "127.0.0.1";
-  if(mtev_hash_retr_str(conf->options,
-                        "grpc_server", strlen("grpc_server"),
-                        (const char **)&config_val)) {
+  if (mtev_hash_retr_str(conf->options,
+                         "grpc_server", strlen("grpc_server"),
+                         (const char **)&config_val)) {
     conf->server = config_val;
   }
 
   conf->port = 4317;
-  if(mtev_hash_retr_str(conf->options,
-                        "grpc_port", strlen("grpc_port"),
-                        (const char **)&config_val)) {
+  if (mtev_hash_retr_str(conf->options,
+                         "grpc_port", strlen("grpc_port"),
+                         (const char **)&config_val)) {
     conf->port = atoi(config_val);
     if (conf->port == 0) {
       conf->port = 4317;
@@ -1016,28 +1060,61 @@ static int noit_otlphttp_init(noit_module_t *self) {
   }
 
   conf->enable_grpc = true;
-  if(mtev_hash_retr_str(conf->options,
-                        "enable_grpc", strlen("enable_grpc"),
-                        (const char **)&config_val)) {
-    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+  if (mtev_hash_retr_str(conf->options,
+                         "enable_grpc", strlen("enable_grpc"),
+                         (const char **)&config_val)) {
+    if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
       conf->enable_grpc = false;
+    }
   }
 
   conf->enable_http = true;
-  if(mtev_hash_retr_str(conf->options,
-                        "enable_http", strlen("enable_http"),
-                        (const char **)&config_val)) {
-    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+  if (mtev_hash_retr_str(conf->options,
+                         "enable_http", strlen("enable_http"),
+                         (const char **)&config_val)) {
+    if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
       conf->enable_http = false;
+    }
   }
 
   conf->use_grpc_ssl = true;
   if (conf->enable_grpc) {
-    if(mtev_hash_retr_str(conf->options,
-                          "use_grpc_ssl", strlen("use_grpc_ssl"),
-                          (const char **)&config_val)) {
-      if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+    if (mtev_hash_retr_str(conf->options,
+                           "use_grpc_ssl", strlen("use_grpc_ssl"),
+                           (const char **)&config_val)) {
+      if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
         conf->use_grpc_ssl = false;
+      }
+    }
+  }
+
+  conf->use_grpc_ssl = false;
+  conf->grpc_ssl_use_broker_cert = false;
+  conf->grpc_ssl_use_root_cert = false;
+  if (conf->enable_grpc) {
+    conf->use_grpc_ssl = true;
+    if (mtev_hash_retr_str(conf->options,
+                           "use_grpc_ssl", strlen("use_grpc_ssl"),
+                           (const char **)&config_val)) {
+      if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
+        conf->use_grpc_ssl = false;
+      }
+    }
+    if (conf->use_grpc_ssl) {
+      if (mtev_hash_retr_str(conf->options,
+                             "grpc_ssl_use_broker_cert", strlen("grpc_ssl_use_broker_cert"),
+                             (const char **)&config_val)) {
+        if (!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on")) {
+          conf->grpc_ssl_use_broker_cert = true;
+          if (mtev_hash_retr_str(conf->options,
+                                 "grpc_ssl_use_root_cert", strlen("grpc_ssl_use_root_cert"),
+                                 (const char **)&config_val)) {
+            if (!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on")) {
+              conf->grpc_ssl_use_root_cert = true;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -1057,10 +1134,47 @@ static int noit_otlphttp_init(noit_module_t *self) {
     if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
   }
 
+  std::string certificate_file;
+  std::string key_file;
+  std::string ca_chain;
   if (conf->enable_grpc) {
+    if (conf->use_grpc_ssl && conf->grpc_ssl_use_broker_cert) {
+      // read cert/key settings from sslconfig
+      mtev_conf_section_t listeners = mtev_conf_get_section_read(MTEV_CONF_ROOT,
+                                    "//listeners");
+      if (mtev_conf_section_is_empty(listeners)) {
+        mtev_conf_release_section_read(listeners);
+        mtevL(nlerr, "Cannot find or empty //listeners config.\n");
+        return 1;
+      }
+      const char *value;
+      mtev_hash_table *sslconfig = mtev_conf_get_hash(listeners, "sslconfig");
+      if (mtev_hash_retr_str(sslconfig, "certificate_file", strlen("certificate_file"), &value)) {
+        certificate_file = value;
+      }
+      if (mtev_hash_retr_str(sslconfig, "key_file", strlen("key_file"), &value)) {
+        key_file = value;
+      }
+      if (certificate_file.empty() || key_file.empty()) {
+        mtevL(nlerr, "need sslconfig/listeners to have certificate_file and key_file configured "
+                     "for grpc ssl using broker cert.\n");
+        return 1;
+      }
+      if (conf->grpc_ssl_use_root_cert) {
+        if (mtev_hash_retr_str(sslconfig, "ca_chain", strlen("ca_chain"), &value)) {
+          ca_chain = value;
+        }
+        if (ca_chain.empty()) {
+          mtevL(nlerr, "need sslconfig/listeners to have ca_chain configured for grpc ssl using "
+                       "CA root cert\n");
+        }
+      }
+    }
 
     std::string server_address = conf->server + ":" + std::to_string(conf->port);
-    grpcserver = new std::thread{grpc_server_thread, server_address, conf->use_grpc_ssl};
+    grpcserver = new std::thread{grpc_server_thread, server_address, conf->use_grpc_ssl,
+                                 conf->grpc_ssl_use_broker_cert, conf->grpc_ssl_use_root_cert,
+                                 certificate_file, key_file, ca_chain};
   }
 
   return 0;
