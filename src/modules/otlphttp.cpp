@@ -978,10 +978,10 @@ static int noit_otlphttp_config(noit_module_t *self, mtev_hash_table *options) {
 static std::string read_keycert(const std::string filename)
 {
   std::ifstream file(filename, std::ios::binary);
-  std::string temp;
-  std::getline(file, temp);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
   file.close();
-  return temp;
+  return buffer.str();
 }
 
 static void grpc_server_thread(std::string server_address,
