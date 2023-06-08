@@ -6,15 +6,23 @@
 # exit code is 0 for success, 1 for failure
 
 # check if first arg is a valid OS subfolder
-if [ ! -z "$2" ] && [ -d "buildtools/$2" ] ; then OS="$2" ; shift ; else
+if [[ -n "$2" ]] && [[ -d "buildtools/$2" ]] ; then
+    OS="$2"
+    shift
 # else try to auto-identify OS
-cat /etc/*release 2>/dev/null | grep "CentOS Linux 7" 1>&2
-if [ "$?" == "0" ] ; then OS="el7" ; else
-cat /etc/*release 2>/dev/null | grep "Ubuntu 20.04" 1>&2
-if [ "$?" == "0" ] ; then OS="u2004" ; else
-echo "Usage: $1 '<optional_OS>' '<optional_addl_make_switches>...'" 1>&2
-exit 1
-fi; fi; fi;
+elif grep -qE '(Red Hat|CentOS).*7' /etc/redhat-release 2>/dev/null ; then
+    OS="el7"
+elif [[ -r /etc/lsb-release ]] ; then
+    . /etc/lsb-release
+    case $DISTRIB_RELEASE in
+        "20.04") OS="u2004" ;;
+        "22.04") OS="u2204" ;;
+              *) exit 1 ;;
+    esac
+else
+    echo "Usage: $1 '<optional_OS>' '<optional_addl_make_switches>...'" 1>&2
+    exit 1
+fi
 
 echo $OS
 exit 0
