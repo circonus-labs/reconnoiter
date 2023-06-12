@@ -306,6 +306,52 @@ metric_local_batch_flush_immediate(otlphttp_upload *rxc) {
   }
 }
 
+static void 
+metric_local_batch(otlphttp_upload *rxc, const char *name, double *val, int64_t *vali,
+                   struct timeval w) {
+  char cmetric[MAX_METRIC_TAGGED_NAME + 1 + sizeof(uint64_t)];
+  void *vm;
+
+  if(!noit_check_build_tag_extended_name(cmetric, MAX_METRIC_TAGGED_NAME, name, rxc->check)) {
+    return;
+  }
+  int cmetric_len = strlen(cmetric);
+  /* We will append the time stamp afer the null terminator to keep the key
+   * appropriately unique.
+   */
+  uint64_t t = w.tv_sec * 1000 + w.tv_usec / 1000;
+  memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
+  cmetric_len += 1 + sizeof(uint64_t);
+
+  if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
+    metric_local_batch_flush_immediate(rxc);
+    return;
+  }
+  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
+    /* collision, just log it out */
+    metric_local_batch_flush_immediate(rxc);
+    return;
+  }
+  metric_t *m = noit_metric_alloc();
+  m->metric_name = mtev_strndup(cmetric, cmetric_len);
+  if(val) {
+    m->metric_type = METRIC_DOUBLE;
+    memcpy(&m->whence, &w, sizeof(struct timeval));
+    m->metric_value.vp = malloc(sizeof(double));
+    *(m->metric_value.n) = *val;
+  } else if(vali) {
+    m->metric_type = METRIC_INT64;
+    memcpy(&m->whence, &w, sizeof(struct timeval));
+    m->metric_value.vp = malloc(sizeof(int64_t));
+    *(m->metric_value.n) = *vali;
+  } else {
+    assert(val || vali);
+  }
+
+  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
+  mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
+}
+
 class name_builder {
   private:
   std::string base_name;
@@ -643,51 +689,6 @@ handle_message(otlphttp_upload *rxc, const OtelCollectorMetrics::ExportMetricsSe
     }
   }
 }
-static void 
-metric_local_batch(otlphttp_upload *rxc, const char *name, double *val, int64_t *vali,
-                   struct timeval w) {
-  char cmetric[MAX_METRIC_TAGGED_NAME + 1 + sizeof(uint64_t)];
-  void *vm;
-
-  if(!noit_check_build_tag_extended_name(cmetric, MAX_METRIC_TAGGED_NAME, name, rxc->check)) {
-    return;
-  }
-  int cmetric_len = strlen(cmetric);
-  /* We will append the time stamp afer the null terminator to keep the key
-   * appropriately unique.
-   */
-  uint64_t t = w.tv_sec * 1000 + w.tv_usec / 1000;
-  memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
-  cmetric_len += 1 + sizeof(uint64_t);
-
-  if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
-    metric_local_batch_flush_immediate(rxc);
-    return;
-  }
-  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
-    /* collision, just log it out */
-    metric_local_batch_flush_immediate(rxc);
-    return;
-  }
-  metric_t *m = noit_metric_alloc();
-  m->metric_name = mtev_strndup(cmetric, cmetric_len);
-  if(val) {
-    m->metric_type = METRIC_DOUBLE;
-    memcpy(&m->whence, &w, sizeof(struct timeval));
-    m->metric_value.vp = malloc(sizeof(double));
-    *(m->metric_value.n) = *val;
-  } else if(vali) {
-    m->metric_type = METRIC_INT64;
-    memcpy(&m->whence, &w, sizeof(struct timeval));
-    m->metric_value.vp = malloc(sizeof(int64_t));
-    *(m->metric_value.n) = *vali;
-  } else {
-    assert(val || vali);
-  }
-
-  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
-  mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
-}
 
 grpc::Status GRPCService::Export(grpc::ServerContext* context,
                                  const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
@@ -774,11 +775,11 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
   metric_local_batch_flush_immediate(rxc);
   mtev_memory_end();
 
-  mtevL(nldebug_verbose, "[otlphttp] grpc metric data batch submitted successfully.\n")
+  mtevL(nldeb_verbose, "[otlphttp] grpc metric data batch submitted successfully.\n");
   return grpc::Status::OK;
 
 error:
-  mtevL(nldebug_verbose, "[otlphttp] grpc metric data batch error: %s\n", error.c_str());
+  mtevL(nldeb_verbose, "[otlphttp] grpc metric data batch error: %s\n", error.c_str());
   return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
 }
 
