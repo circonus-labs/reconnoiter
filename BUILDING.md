@@ -64,11 +64,11 @@ Install dependencies that are available as packages:
     sudo apt-get update && sudo apt-get install gcc-11 g++-11
 
     sudo apt-get install autoconf build-essential cmake \
-      libapr1-dev libaprutil1-dev libcurl4-openssl-dev libhwloc-dev \
-      liblmdb-dev liblz4-dev libncurses-dev libnghttp2-dev libpcre3-dev \
-      libpq-dev librabbitmq-dev libsqlite3-dev libssl-dev libudns-dev \
-      libwslay-dev libxslt1-dev libyajl-dev openjdk-8-jdk-headless pkg-config \
-      uuid-dev xsltproc zlib1g-dev
+      libapr1-dev libaprutil1-dev libc-ares-dev libcurl4-openssl-dev \
+      libhwloc-dev liblmdb-dev liblz4-dev libncurses-dev libnghttp2-dev \
+      libpcre3-dev libpq-dev librabbitmq-dev libsqlite3-dev libssl-dev \
+      libudns-dev libwslay-dev libxslt1-dev libyajl-dev \
+      openjdk-8-jdk-headless pkg-config uuid-dev xsltproc zlib1g-dev
 
 Ensure the necessary compiler version is used:
 
@@ -81,7 +81,9 @@ are not available as packages. Then come back here and continue below.
     git clone https://github.com/circonus-labs/reconnoiter
     cd reconnoiter
     autoreconf -i
-    CPPFLAGS="-I/usr/local/include/luajit-2.1" ./configure
+    CPPFLAGS="-I/usr/local/include/luajit-2.1" \
+        CFLAGS="-Wno-stringop-overflow -Wno-stringop-overread" \
+        ./configure
     make
     sudo make install
 

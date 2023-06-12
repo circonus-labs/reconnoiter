@@ -87,10 +87,13 @@ sudo make install
 
 ## Abseil
 
-Obtain source for Abseil C++ version 20230125 or later. CMake is required to
+Obtain source for Abseil C++ version 20230125.3 or later. CMake is required to
 build.
 
 ```
+git clone https://github.com/abseil/abseil-cpp.git
+cd abseil-cpp
+git checkout tags/20230125.3
 mkdir -p build/install
 cd build/install
 cmake ../.. \
@@ -107,9 +110,12 @@ sudo make install
 
 ## Protobuf
 
-Obtain source for version 3.23 or later. CMake is required to build.
+Obtain source for version 3.23.2 or later. CMake is required to build.
 
 ```
+git clone https://github.com/protocolbuffers/protobuf.git
+cd protobuf
+git checkout tags/v3.23.2
 mkdir -p build/install
 cd build/install
 cmake ../.. \
@@ -135,7 +141,9 @@ cd protobuf-c
 git checkout tags/v1.4.1
 patch -p1 < [reconnoiter source]/patches/protobuf-c.patch
 autoreconf -i
-./configure
+CXXFLAGS="-std=c++20" \
+    LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" \
+    ./configure
 make
 sudo make install
 ```
@@ -146,6 +154,9 @@ sudo make install
 Obtain source for version 2023-03-01 or later. CMake is required to build.
 
 ```
+git clone https://github.com/google/re2.git
+cd re2
+git checkout tags/2023-03-01
 mkdir -p build/install
 cd build/install
 cmake ../.. \
@@ -163,6 +174,9 @@ sudo make install
 Obtain source for version 1.55 or later. CMake is required to build.
 
 ```
+git clone https://github.com/grpc/grpc.git
+cd grpc
+git checkout tags/v1.55.1
 mkdir -p build/install
 cd build/install
 cmake ../.. \
@@ -196,12 +210,11 @@ sudo make install
 
 ## LuaJIT
 
-Reconnoiter requires version 2.1.
+Reconnoiter requires version 2.1. This is currently the default branch.
 
 ```
 git clone https://github.com/LuaJIT/LuaJIT.git
 cd LuaJIT
-git checkout v2.1
 make CFLAGS="-D_REENTRANT -DLUAJIT_ENABLE_GC64" \
      LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" \
      BUILDMODE="dynamic" \
