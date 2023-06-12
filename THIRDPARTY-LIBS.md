@@ -85,6 +85,103 @@ sudo make install
 ```
 
 
+## Abseil
+
+Obtain source for Abseil C++ version 20230125 or later. CMake is required to
+build.
+
+```
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=/usr/local/lib \
+    -DCMAKE_INSTALL_RPATH=/usr/local/lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DABSL_PROPAGATE_CXX_STD=ON \
+    -DABSL_ENABLE_INSTALL=ON \
+    -DBUILD_SHARED_LIBS=ON
+sudo make install
+```
+
+
+## Protobuf
+
+Obtain source for version 3.23 or later. CMake is required to build.
+
+```
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -Dprotobuf_BUILD_TESTS=OFF \
+    -Dprotobuf_ABSL_PROVIDER=package \
+    -Dprotobuf_BUILD_SHARED_LIBS=ON
+sudo make install
+```
+
+
+## Protobuf-C
+
+Obtain source for 1.4.1 or later. The patch updates the version to "1.4.2"
+which at this time has not been released. It appears that development has
+stalled on this project, so this patch may become unnecessary if development
+resumes in the future.
+
+```
+git clone https://github.com/protobuf-c/protobuf-c.git
+cd protobuf-c
+git checkout tags/v1.4.1
+patch -p1 < [reconnoiter source]/patches/protobuf-c.patch
+autoreconf -i
+./configure
+make
+sudo make install
+```
+
+
+## RE2
+
+Obtain source for version 2023-03-01 or later. CMake is required to build.
+
+```
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=/usr/local/lib \
+    -DCMAKE_INSTALL_RPATH=/usr/local/lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -DRE2_BUILD_TESTING=OFF \
+    -DBUILD_SHARED_LIBS=ON
+sudo make install
+```
+
+
+## gRPC
+
+Obtain source for version 1.55 or later. CMake is required to build.
+
+```
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=/usr/local/lib \
+    -DCMAKE_INSTALL_RPATH=/usr/local/lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -DBUILD_SHARED_LIBS=ON \
+    -DgRPC_INSTALL=ON \
+    -DgRPC_BUILD_TESTS=OFF \
+    -DgRPC_ABSL_PROVIDER=package \
+    -DgRPC_CARES_PROVIDER=package \
+    -DgRPC_PROTOBUF_PROVIDER=package \
+    -DgRPC_RE2_PROVIDER=package \
+    -DgRPC_SSL_PROVIDER=package \
+    -DgRPC_ZLIB_PROVIDER=package
+sudo make install
+```
+
+
 ## LMDB
 
 This is a subset of the OpenLDAP code.
