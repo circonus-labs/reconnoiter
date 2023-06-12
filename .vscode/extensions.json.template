@@ -1,0 +1,9 @@
+{
+	"recommendations": [
+		"tomblind.local-lua-debugger-vscode",
+		"sumneko.lua",
+		"ms-vscode.cpptools",
+		"ms-vscode.cpptools-extension-pack",
+		"eamodio.gitlens"
+	]
+}

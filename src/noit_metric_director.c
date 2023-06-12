@@ -53,6 +53,7 @@
 #include <noit_metric_tag_search.h>
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
+#include "noit_ssl10_compat.h"
 
 /* This is a hot mess designed to optimize metric selection on a variety of vectors.
  *
@@ -1114,7 +1115,13 @@ static mtev_boolean
 check_duplicate(char *payload, size_t payload_len) {
   if (dedupe) {
     unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
-    MD5((unsigned char*)payload, payload_len, digest);
+    const EVP_MD *md = EVP_get_digestbyname("MD5");
+    mtevAssert(md);
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(ctx, md, NULL);
+    EVP_DigestUpdate(ctx, (unsigned char*)payload, payload_len);
+    EVP_DigestFinal(ctx, digest, NULL);
+    EVP_MD_CTX_free(ctx);
 
     uint64_t whence = get_message_time(payload, payload_len);
     if(whence > 0) {

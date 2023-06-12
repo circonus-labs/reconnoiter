@@ -3,6 +3,7 @@
 #include "noit_metric.h"
 #include "noit_metric_tag_search.h"
 #include "noit_message_decoder.h"
+#include "libnoit.h"
 #include <mtev_hash.h>
 #include <mtev_b64.h>
 #include <mtev_perftimer.h>
@@ -797,6 +798,7 @@ int main(int argc, char * const *argv)
       exit(-2);
     }
   }
+  libnoit_init_globals();
   test_tag_decode();
   test_ast_decode();
   test_tag_match();

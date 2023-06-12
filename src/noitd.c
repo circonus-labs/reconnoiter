@@ -65,6 +65,7 @@
 #include <mtev_stats.h>
 #include <noit_clustering.h>
 
+#include "libnoit.h"
 #include "noit_mtev_bridge.h"
 #include "noit_jlog_listener.h"
 #include "noit_check_rest.h"
@@ -318,6 +319,7 @@ noitd_init_globals(void) {
   noit_jlog_listener_init_globals();
   noit_metric_director_init_globals();
   noit_module_init_globals();
+  libnoit_init_globals();
 }
 
 static void 

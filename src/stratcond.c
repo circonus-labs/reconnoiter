@@ -58,6 +58,7 @@
 #include <mtev_capabilities_listener.h>
 #include <mtev_stats.h>
 #include <mtev_heap_profiler.h>
+#include "libnoit.h"
 #include "noit_mtev_bridge.h"
 #include "noit_config.h"
 #include "noit_module.h"
@@ -249,6 +250,7 @@ stratcond_init_globals(void) {
   stratcon_datastore_init_globals();
   stratcon_iep_init_globals();
   stratcon_jlog_streamer_init_globals();
+  libnoit_init_globals();
 }
 
 int main(int argc, char **argv) {
