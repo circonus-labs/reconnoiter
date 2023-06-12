@@ -1,4 +1,4 @@
-pending("otelproto #otelproto #listener", function()
+describe("otelproto #otelproto #listener", function()
   local noit, api
   setup(function()
     Reconnoiter.clean_workspace()
