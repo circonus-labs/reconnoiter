@@ -1,17 +1,45 @@
 <module>
   <name>otlphttp</name>
   <description>
-    <para>The otlphttp module provides a simple way to push native OpenTelemetry data into reconnoiter via the otlphttp exporter.  Simply configure otel collector to write to the provided URL in its otlphttp endpoint.</para>
+    <para>The otlphttp module provides a simple way to push native OpenTelemetry data into reconnoiter via the otlphttp or grpc exporter.  Simply configure otel collector to write to the provided URL for http or ip-address/port for grpc for its endpoint.</para>
   </description>
   <loader>C</loader>
   <image>otlphttp.so</image>
   <moduleconfig>
+    <parameter name="enable_http"
+      required="optional"
+      default="true"
+      allowed="^(?:true|false|on|off)$">Specify if the http listener is enabled via the configured http URL including check_uuid and optional secret.</parameter>
+    <parameter name="enable_grpc"
+      required="optional"
+      default="true"
+      allowed="^(?:true|false|on|off)$">Specify if the grpc listener is enabled via the configured server address and port.</parameter>
+    <parameter name="grpc_server"
+      required="optional"
+      default="127.0.0.1"
+      allowed="^(?:.*|\d*\.\d*\.\d*\.\d*)$">Specify the server address or ip address that is used for the grpc listening port.</parammeter>
+    <parameter name="grpc_port"
+      required="optional"
+      default="4317"
+      allowed="\d+">Specify the listening port that is to be used for grpc.</parameter>
+    <parameter name="use_grpc_ssl"
+      required="optional"
+      default="true"
+      allowed="^(?:true|false|on|off)$">Specify if SSL/TLS security should be used on the grpc listening port.</parameter>
+    <parameter name="grpc_ssl_use_broker_cert"
+      required="optional"
+      default="false"
+      allowed="^(?:true|false|on|off)$">Specify if the listeners/sslconfig certificate_file and key_file should be used for grpc server identification.</parameter>
+    <parameter name="grpc_ssl_use_root_cert"
+      required="optional"
+      default="false"
+      allowed="^(?:true|false|on|off)$">Specify if the listeners/sslconfig ca_chain should be used for grpc server identification.</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name="secret"
       required="optional"
       default=""
-      allowed=".+">Specify the secret with which metrics may be submitted.  Those lacking the secret in the URL will be ignored.</parameter>
+      allowed=".+">Specify the secret with which metrics may be submitted.  Those lacking the secret in the URL will be rejected.</parameter>
     <parameter name="hist_approx_mode"
       required="optional"
       default="high"
@@ -19,7 +47,7 @@
   </checkconfig>
   <examples>
     <example>
-      <title>Sending otel data</title>
+      <title>Sending otlphttp data by http</title>
 
       <programlisting><![CDATA[
         exporters:-
@@ -32,6 +60,32 @@
           otlphttp:
             endpoint: https://broker:43191/module/otlphttp/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y
       ]]></programlisting>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="otlphttp" name="otlphttp"/>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="otlphttp"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><secret>s3cr3tk3y</secret></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+    <example>
+      <title>Sending otlphttp data by grpc</title>
+
+      <programlisting><![CDATA[
+        exporters:-
+          otlphttp:
+            endpoint: broker:4317
+          grpc client metadata:  
+            check_uuid: "1b4e28ba-2fa1-11d2-893f-e9b761bde3fb"
+            secret: "s3cr3tk3y"
+        ]]></programlisting>
 
       <programlisting><![CDATA[
       <noit>
