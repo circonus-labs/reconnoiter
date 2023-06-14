@@ -1326,8 +1326,8 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
   mtev_memory_begin();
 
 #define MKTAGSETCOPY(name)                                                     \
-  noit_metric_tag_t name##_tags[MAX_TAGS + 1];                                 \
-  memcpy(&name##_tags, name.tags, name.tag_count * sizeof(noit_metric_tag_t)); \
+  noit_metric_tag_t *name##_tags = (noit_metric_tag_t *)calloc(name.tag_count + 1, sizeof(noit_metric_tag_t)); \
+  memcpy(name##_tags, name.tags, name.tag_count * sizeof(noit_metric_tag_t));   \
   name.tags = name##_tags
 
   // setup check tags
