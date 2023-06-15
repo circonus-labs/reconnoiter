@@ -55,27 +55,55 @@ extern "C" {
 #include "noit_mtev_bridge.h"
 }
 #include <tuple>
+#include <thread>
+#include <iostream>
+#include <fstream>
+#include <grpcpp/grpcpp.h>
 #include <google/protobuf/stubs/common.h>
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
+#include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 
-static mtev_log_stream_t nlerr = NULL;
-static mtev_log_stream_t nldeb = NULL;
+namespace OtelProto = opentelemetry::proto;
+namespace OtelCommon = OtelProto::common::v1;
+namespace OtelMetrics = OtelProto::metrics::v1;
+namespace OtelCollectorMetrics = OtelProto::collector::metrics::v1;
 
-typedef struct _mod_config {
+static mtev_log_stream_t nlerr;
+static mtev_log_stream_t nldeb;
+static mtev_log_stream_t nldeb_verbose;
+
+class GRPCService final: public OtelCollectorMetrics::MetricsService::Service
+{
+  grpc::Status Export(grpc::ServerContext* context,
+                      const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
+                      OtelCollectorMetrics::ExportMetricsServiceResponse* response) override;
+};
+
+GRPCService grpcservice;
+static std::thread *grpcserver;
+
+struct otlphttp_mod_config {
   mtev_hash_table *options;
-} otlphttp_mod_config_t;
+  std::string grpc_server;
+  int grpc_port;
+  bool enable_grpc;
+  bool enable_http;
+  bool use_grpc_ssl;
+  bool grpc_ssl_use_broker_cert;
+  bool grpc_ssl_use_root_cert;
+};
 
-typedef struct otlphttp_closure_s {
+struct otlphttp_closure {
   noit_module_t *self;
-} otlphttp_closure_t;
+};
 
 struct value_list {
   char *v;
   struct value_list *next;
 };
 
-class otlphttp_upload_t
+class otlphttp_upload final
 {
   public:
   mtev_dyn_buffer_t data;
@@ -86,16 +114,17 @@ class otlphttp_upload_t
   histogram_approx_mode_t mode;
   mtev_hash_table *immediate_metrics;
 
-  explicit otlphttp_upload_t(noit_check_t *check) : complete{false}, check{check}, mode{HIST_APPROX_HIGH} {
-    mtev_gettimeofday(&start_time, NULL);
+  otlphttp_upload() = delete;
+  explicit otlphttp_upload(noit_check_t *check) : complete{false}, check{check}, mode{HIST_APPROX_HIGH} {
+    mtev_gettimeofday(&start_time, nullptr);
     immediate_metrics = static_cast<mtev_hash_table *>(calloc(1, sizeof(*immediate_metrics)));
     mtev_hash_init(immediate_metrics);
     memcpy(check_id, check->checkid, UUID_SIZE);
     mtev_dyn_buffer_init(&data);
   }
-  ~otlphttp_upload_t() {
+  ~otlphttp_upload() {
     mtev_dyn_buffer_destroy(&data);
-    mtev_hash_destroy(immediate_metrics, NULL, mtev_memory_safe_free);
+    mtev_hash_destroy(immediate_metrics, nullptr, mtev_memory_safe_free);
     free(immediate_metrics);
   }
 };
@@ -158,24 +187,21 @@ static const char *units_convert(const char *in, double *mult) {
 }
 #define READ_CHUNK 32768
 
-static void 
-metric_local_batch(otlphttp_upload_t *rxc, const char *name, double *, int64_t *, struct timeval w);
-
 static void
 free_otlphttp_upload(void *pul)
 {
-  otlphttp_upload_t *p = (otlphttp_upload_t *)pul;
+  otlphttp_upload *p = (otlphttp_upload *)pul;
   delete p;
 }
 
-static otlphttp_upload_t *
+static otlphttp_upload *
 rest_get_upload(mtev_http_rest_closure_t *restc, int *mask, int *complete)
 {
 
-  otlphttp_upload_t *rxc;
+  otlphttp_upload *rxc;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
 
-  rxc = (otlphttp_upload_t *)restc->call_closure;
+  rxc = (otlphttp_upload *)restc->call_closure;
 
   while(!rxc->complete) {
     int len;
@@ -187,10 +213,10 @@ rest_get_upload(mtev_http_rest_closure_t *restc, int *mask, int *complete)
     if(len > 0) {
       mtev_dyn_buffer_advance(&rxc->data, len);
     }
-    if(len < 0 && errno == EAGAIN) return NULL;
+    if(len < 0 && errno == EAGAIN) return nullptr;
     else if(len < 0) {
       *complete = 1;
-      return NULL;
+      return nullptr;
     }
     if(len == 0 && mtev_http_request_payload_complete(req)) {
       rxc->complete = mtev_true;
@@ -204,13 +230,13 @@ rest_get_upload(mtev_http_rest_closure_t *restc, int *mask, int *complete)
 static int otlphttp_submit(noit_module_t *self, noit_check_t *check,
                              noit_check_t *cause)
 {
-  otlphttp_closure_t *ccl;
+  otlphttp_closure *ccl;
   struct timeval duration;
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
   if(!check->closure) {
-    ccl = new otlphttp_closure_t;
+    ccl = new otlphttp_closure;
     check->closure = static_cast<void *>(ccl);
     ccl->self = self;
   } else {
@@ -221,7 +247,7 @@ static int otlphttp_submit(noit_module_t *self, noit_check_t *check,
     stats_t *s = noit_check_get_stats_inprogress(check);
 
     mtev_memory_begin();
-    mtev_gettimeofday(&now, NULL);
+    mtev_gettimeofday(&now, nullptr);
     sub_timeval(now, check->last_fire_time, &duration);
     noit_stats_set_whence(check, &now);
     noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
@@ -238,7 +264,7 @@ static int otlphttp_submit(noit_module_t *self, noit_check_t *check,
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
              check->generation, stats_count);
-    mtevL(nldeb, "otlphttp(%s) [%s]\n", check->target, human_buffer);
+    mtevL(nldeb_verbose, "[otlphttp] (%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
     noit_stats_set_available(check, (stats_count > 0) ?
@@ -273,11 +299,57 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
 }
 
 static void
-metric_local_batch_flush_immediate(otlphttp_upload_t *rxc) {
+metric_local_batch_flush_immediate(otlphttp_upload *rxc) {
   if(mtev_hash_size(rxc->immediate_metrics)) {
     noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
-    mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
+    mtev_hash_delete_all(rxc->immediate_metrics, nullptr, mtev_memory_safe_free);
   }
+}
+
+static void 
+metric_local_batch(otlphttp_upload *rxc, const char *name, double *val, int64_t *vali,
+                   struct timeval w) {
+  char cmetric[MAX_METRIC_TAGGED_NAME + 1 + sizeof(uint64_t)];
+  void *vm;
+
+  if(!noit_check_build_tag_extended_name(cmetric, MAX_METRIC_TAGGED_NAME, name, rxc->check)) {
+    return;
+  }
+  int cmetric_len = strlen(cmetric);
+  /* We will append the time stamp afer the null terminator to keep the key
+   * appropriately unique.
+   */
+  uint64_t t = w.tv_sec * 1000 + w.tv_usec / 1000;
+  memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
+  cmetric_len += 1 + sizeof(uint64_t);
+
+  if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
+    metric_local_batch_flush_immediate(rxc);
+    return;
+  }
+  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
+    /* collision, just log it out */
+    metric_local_batch_flush_immediate(rxc);
+    return;
+  }
+  metric_t *m = noit_metric_alloc();
+  m->metric_name = mtev_strndup(cmetric, cmetric_len);
+  if(val) {
+    m->metric_type = METRIC_DOUBLE;
+    memcpy(&m->whence, &w, sizeof(struct timeval));
+    m->metric_value.vp = malloc(sizeof(double));
+    *(m->metric_value.n) = *val;
+  } else if(vali) {
+    m->metric_type = METRIC_INT64;
+    memcpy(&m->whence, &w, sizeof(struct timeval));
+    m->metric_value.vp = malloc(sizeof(int64_t));
+    *(m->metric_value.n) = *vali;
+  } else {
+    assert(val || vali);
+  }
+
+  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
+  mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
 }
 
 class name_builder {
@@ -287,7 +359,7 @@ class name_builder {
   std::vector<std::tuple<std::string,std::string,bool>> tags;
   bool materialized{false};
   public:
-  name_builder(const std::string &base_name, const google::protobuf::RepeatedPtrField<opentelemetry::proto::common::v1::KeyValue> &kvs) : base_name{base_name} {
+  name_builder(const std::string &base_name, const google::protobuf::RepeatedPtrField<OtelCommon::KeyValue> &kvs) : base_name{base_name} {
     final_name[0] = '\0';
     for(auto kv : kvs) {
       add(kv);
@@ -343,7 +415,7 @@ class name_builder {
     return final_name;
   }
 
-  name_builder &add(const std::string &cat, const opentelemetry::proto::common::v1::KeyValue &f) {
+  name_builder &add(const std::string &cat, const OtelCommon::KeyValue &f) {
     materialized = false;
     if(f.has_value()) {
       add(cat + "." + f.key(), f.value());
@@ -353,27 +425,27 @@ class name_builder {
     return *this;
   }
 
-  name_builder &add(const std::string &cat, const opentelemetry::proto::common::v1::AnyValue &v) {
+  name_builder &add(const std::string &cat, const OtelCommon::AnyValue &v) {
     materialized = false;
     switch(v.value_case()) {
-    case opentelemetry::proto::common::v1::AnyValue::kStringValue:
+    case OtelCommon::AnyValue::kStringValue:
       tags.emplace_back(cat, v.string_value(), v.has_string_value());
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kBoolValue:
+    case OtelCommon::AnyValue::kBoolValue:
       tags.push_back(std::make_tuple(cat, v.bool_value() ? "true" : "false", true));
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kIntValue:
+    case OtelCommon::AnyValue::kIntValue:
       tags.push_back(std::make_tuple(cat, std::to_string(v.int_value()), true));
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kDoubleValue:
+    case OtelCommon::AnyValue::kDoubleValue:
       tags.push_back(std::make_tuple(cat, std::to_string(v.double_value()), true));
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kArrayValue:
+    case OtelCommon::AnyValue::kArrayValue:
       for ( auto subv : v.array_value().values() ) {
         add(cat, subv);
       }
       break;
-    case opentelemetry::proto::common::v1::AnyValue::kKvlistValue:
+    case OtelCommon::AnyValue::kKvlistValue:
       for ( auto kv : v.kvlist_value().values() ) {
         add(cat, kv);
       }
@@ -383,7 +455,7 @@ class name_builder {
     }
     return *this;
   }
-  name_builder &add(const opentelemetry::proto::common::v1::KeyValue &f) {
+  name_builder &add(const OtelCommon::KeyValue &f) {
     materialized = false;
     if(f.has_value()) {
       add(f.key(), f.value());
@@ -399,8 +471,8 @@ class name_builder {
   }
 };
 
-void handle_dp(otlphttp_upload_t *rxc, name_builder &metric,
-               const opentelemetry::proto::metrics::v1::NumberDataPoint &dp,
+void handle_dp(otlphttp_upload *rxc, name_builder &metric,
+               const OtelMetrics::NumberDataPoint &dp,
                double scale) {
   auto whence_ns = dp.time_unix_nano();
   if(whence_ns == 0) return;
@@ -408,35 +480,35 @@ void handle_dp(otlphttp_upload_t *rxc, name_builder &metric,
                              static_cast<time_t>((whence_ns / 1000ULL) % 1000000) };
   
   switch(dp.value_case()) {
-  case opentelemetry::proto::metrics::v1::NumberDataPoint::kAsInt:
+  case OtelMetrics::NumberDataPoint::kAsInt:
     {
     int64_t vi = dp.as_int();
     if(scale >= 1) {
       vi *= scale;
-      metric_local_batch(rxc, metric.name(), NULL, &vi, whence);
+      metric_local_batch(rxc, metric.name(), nullptr, &vi, whence);
     }
     else {
       double vd = vi;
       vi *= scale;
-      metric_local_batch(rxc, metric.name(), &vd, NULL, whence);
+      metric_local_batch(rxc, metric.name(), &vd, nullptr, whence);
     }
     break;
     }
-  case opentelemetry::proto::metrics::v1::NumberDataPoint::kAsDouble:
+  case OtelMetrics::NumberDataPoint::kAsDouble:
     {
     double vd = dp.as_double();
     vd *= scale;
-    metric_local_batch(rxc, metric.name(), &vd, NULL, whence);
+    metric_local_batch(rxc, metric.name(), &vd, nullptr, whence);
     break;
     }
   default:
-    mtevL(nldeb, "unsupported type: %d\n", dp.value_case());
+    mtevL(nldeb_verbose, "[otlphttp] unsupported type: %d\n", dp.value_case());
     break;
   }
 }
 
 static
-void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
+void handle_hist(otlphttp_upload *rxc, name_builder &metric,
                uint64_t whence_ns,
                histogram_adhoc_bin_t *bins, size_t size,
                bool cumulative, double sum) {
@@ -457,8 +529,8 @@ void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
 }
 
 static
-void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
-               const opentelemetry::proto::metrics::v1::HistogramDataPoint &dp,
+void handle_hist(otlphttp_upload *rxc, name_builder &metric,
+               const OtelMetrics::HistogramDataPoint &dp,
                bool cumulative, double scale) {
   auto whence_ns = dp.time_unix_nano();
   auto size = dp.bucket_counts_size();
@@ -479,8 +551,8 @@ void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
 }
 
 static
-void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
-               const opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint &dp,
+void handle_hist(otlphttp_upload *rxc, name_builder &metric,
+               const OtelMetrics::ExponentialHistogramDataPoint &dp,
                bool cumulative, double scale) {
   auto whence_ns = dp.time_unix_nano();
   auto size = (dp.zero_count() == 0) ? 0 : 1;
@@ -529,22 +601,23 @@ void handle_hist(otlphttp_upload_t *rxc, name_builder &metric,
 }
 
 static void
-handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest &msg) {
-  mtevL(nldeb, "otlp resource metrics: %d\n", msg.resource_metrics_size());
+handle_message(otlphttp_upload *rxc, const OtelCollectorMetrics::ExportMetricsServiceRequest &msg) {
+  mtevL(nldeb_verbose, "[otlphttp] resource metrics: %d\n", msg.resource_metrics_size());
   for(int i=0; i<msg.resource_metrics_size(); i++) {
     auto rm = msg.resource_metrics(i);
-    mtevL(nldeb, "otlp resource metrics[%d] ilm: %d\n", i, rm.instrumentation_library_metrics_size());
-    for(int li=0; li<rm.instrumentation_library_metrics_size(); li++) {
-      auto lm = rm.instrumentation_library_metrics(li);
+    mtevL(nldeb_verbose, "[otlphttp] resource metrics[%d] ilm: %d\n", i, rm.scope_metrics_size());
+    for(int li=0; li<rm.scope_metrics_size(); li++) {
+      auto lm = rm.scope_metrics(li);
 
       for(int mi=0; mi<lm.metrics_size(); mi++) {
         auto m = lm.metrics(mi);
         auto name = m.name();
         auto unit = m.unit();
 
-        mtevL(nldeb, "otlp resource metrics[%d][%d][%d]: type %d, name: %s\n", i, li, mi, m.data_case(), name.c_str());
+        mtevL(nldeb_verbose, "[otlphttp] resource metrics[%d][%d][%d]: type %d, name: %s\n",
+              i, li, mi, m.data_case(), name.c_str());
         switch(m.data_case()) {
-        case opentelemetry::proto::metrics::v1::Metric::kGauge:
+        case OtelMetrics::Metric::kGauge:
         {
           for( auto dp : m.gauge().data_points() ) {
             name_builder metric{name, dp.attributes()};
@@ -557,10 +630,10 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kSum:
+        case OtelMetrics::Metric::kSum:
         {
           auto sum = m.sum();
-          auto cumulative = sum.aggregation_temporality() == opentelemetry::proto::metrics::v1::AGGREGATION_TEMPORALITY_CUMULATIVE;
+          auto cumulative = sum.aggregation_temporality() == OtelMetrics::AGGREGATION_TEMPORALITY_CUMULATIVE;
           for( auto dp : m.sum().data_points() ) {
             name_builder metric{name, dp.attributes()};
             double mult = 1;
@@ -576,10 +649,10 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kHistogram:
+        case OtelMetrics::Metric::kHistogram:
         {
           auto hist = m.histogram();
-          auto cumulative = hist.aggregation_temporality() == opentelemetry::proto::metrics::v1::AGGREGATION_TEMPORALITY_CUMULATIVE;
+          auto cumulative = hist.aggregation_temporality() == OtelMetrics::AGGREGATION_TEMPORALITY_CUMULATIVE;
           for( auto dp : hist.data_points() ) {
             name_builder metric{name, dp.attributes()};
             double mult = 1;
@@ -591,10 +664,10 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kExponentialHistogram:
+        case OtelMetrics::Metric::kExponentialHistogram:
         {
           auto hist = m.exponential_histogram();
-          auto cumulative = hist.aggregation_temporality() == opentelemetry::proto::metrics::v1::AGGREGATION_TEMPORALITY_CUMULATIVE;
+          auto cumulative = hist.aggregation_temporality() == OtelMetrics::AGGREGATION_TEMPORALITY_CUMULATIVE;
           for( auto dp : hist.data_points() ) {
             name_builder metric{name, dp.attributes()};
             double mult = 1;
@@ -606,8 +679,8 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
           }
           break;
         }
-        case opentelemetry::proto::metrics::v1::Metric::kSummary:
-        case opentelemetry::proto::metrics::v1::Metric::DATA_NOT_SET:
+        case OtelMetrics::Metric::kSummary:
+        case OtelMetrics::Metric::DATA_NOT_SET:
         {
           break;
         }
@@ -616,57 +689,106 @@ handle_message(otlphttp_upload_t *rxc, const opentelemetry::proto::collector::me
     }
   }
 }
-static void 
-metric_local_batch(otlphttp_upload_t *rxc, const char *name, double *val, int64_t *vali, struct timeval w) {
-  char cmetric[MAX_METRIC_TAGGED_NAME + 1 + sizeof(uint64_t)];
-  void *vm;
 
-  if(!noit_check_build_tag_extended_name(cmetric, MAX_METRIC_TAGGED_NAME, name, rxc->check)) {
-    return;
-  }
-  int cmetric_len = strlen(cmetric);
-  /* We will append the time stamp afer the null terminator to keep the key
-   * appropriately unique.
-   */
-  uint64_t t = w.tv_sec * 1000 + w.tv_usec / 1000;
-  memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
-  cmetric_len += 1 + sizeof(uint64_t);
+grpc::Status GRPCService::Export(grpc::ServerContext* context,
+                                 const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
+                                 OtelCollectorMetrics::ExportMetricsServiceResponse* response)
+{
+  otlphttp_upload *rxc{nullptr};
+  std::string error;
+  std::string check_name;
+  std::string check_uuid;
+  std::string secret;
+  const char *check_secret{nullptr};
 
-  if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
-    metric_local_batch_flush_immediate(rxc);
-    return;
-  }
-  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
-    /* collision, just log it out */
-    metric_local_batch_flush_immediate(rxc);
-    return;
-  }
-  metric_t *m = noit_metric_alloc();
-  m->metric_name = mtev_strndup(cmetric, cmetric_len);
-  if(val) {
-    m->metric_type = METRIC_DOUBLE;
-    memcpy(&m->whence, &w, sizeof(struct timeval));
-    m->metric_value.vp = malloc(sizeof(double));
-    *(m->metric_value.n) = *val;
-  } else if(vali) {
-    m->metric_type = METRIC_INT64;
-    memcpy(&m->whence, &w, sizeof(struct timeval));
-    m->metric_value.vp = malloc(sizeof(int64_t));
-    *(m->metric_value.n) = *vali;
-  } else {
-    assert(val || vali);
+  mtevL(nldeb_verbose, "[otlphttp] grpc incoming payload - client metadata:\n");
+  const std::multimap<grpc::string_ref, grpc::string_ref> metadata =
+      context->client_metadata();
+  for (auto iter = metadata.begin(); iter != metadata.end(); ++iter) {
+    std::string key{iter->first.data(), iter->first.length()};
+    mtevL(nldeb_verbose, "[otlphttp] header key: %s\n", key.c_str());
+    // Check for binary value
+    size_t isbin = iter->first.find("-bin");
+    if ((isbin != std::string::npos) && (isbin + 4 == iter->first.size())) {
+      mtevL(nldeb_verbose, "[otlphttp] value: ");
+      for (auto c : iter->second) {
+        mtevL(nldeb_verbose, "%x", c);
+      }
+      mtevL(nldeb_verbose, "\n");
+      continue;
+    }
+    std::string value{iter->second.data(), iter->second.length()};
+    mtevL(nldeb_verbose, "[otlphttp] value: %s\n", value.c_str());
+    if (key == "check_uuid") {
+      check_uuid = value;
+    }
+    else if (key == "check_name") {
+      check_name = value;
+    }
+    else if (key == "secret" || key == "api_key") {
+      secret = value;
+    }
   }
 
-  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
-  mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
+  noit_check_t *check{nullptr};
+  uuid_t check_id;
+  if (!check_uuid.empty()) {
+    mtev_uuid_parse(check_uuid.c_str(), check_id);
+    check = noit_poller_lookup(check_id);
+    if(!check) {
+      error = "no such check: ";
+      error += check_uuid;
+      goto error;
+    }
+  }
+  else {
+    error = "no check_uuid specified by grpc metadata";
+    goto error;
+  }
+
+  if(strcmp(check->module, "otlphttp")) {
+    error = "otlphttp check not found: ";
+    error += check_uuid;
+    goto error;
+  }
+
+  (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &check_secret);
+  if (secret != check_secret) {
+    error = "incorrect secret specified for check_uuid: ";
+    error += check_uuid;
+    goto error;
+  }
+
+  rxc = new otlphttp_upload(check);
+
+  if (const char *mode_str = mtev_hash_dict_get(check->config, "hist_approx_mode")) {
+    if(!strcmp(mode_str, "low")) rxc->mode = HIST_APPROX_LOW;
+    else if(!strcmp(mode_str, "mid")) rxc->mode = HIST_APPROX_MID;
+    else if(!strcmp(mode_str, "harmonic_mean")) rxc->mode = HIST_APPROX_HARMONIC_MEAN;
+    else if(!strcmp(mode_str, "high")) rxc->mode = HIST_APPROX_HIGH;
+    // Else it just sticks the with initial defaults */
+  }
+
+  mtev_memory_init_thread();
+  mtev_memory_begin();
+  handle_message(rxc, *request);
+  metric_local_batch_flush_immediate(rxc);
+  mtev_memory_end();
+
+  mtevL(nldeb_verbose, "[otlphttp] grpc metric data batch submitted successfully.\n");
+  return grpc::Status::OK;
+
+error:
+  mtevL(nldeb_verbose, "[otlphttp] grpc metric data batch error: %s\n", error.c_str());
+  return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
 }
 
 static int
 rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
 {
   int mask, complete = 0, cnt = 0;
-  otlphttp_upload_t *rxc = NULL;
-  const char *error = "internal error", *secret = NULL;
+  otlphttp_upload *rxc{nullptr};
+  const char *error = "internal error", *secret{nullptr};
   mtev_http_session_ctx *ctx = restc->http_ctx;
   const unsigned int DEBUGDATA_OUT_SIZE=4096;
   char debugdata_out[DEBUGDATA_OUT_SIZE];
@@ -686,7 +808,7 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     goto error;
   }
 
-  if(restc->call_closure == NULL) {
+  if(!restc->call_closure) {
     mtev_boolean allowed = mtev_false;
     check = noit_poller_lookup(check_id);
     if(!check) {
@@ -708,8 +830,8 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       goto error;
     }
 
-    mtevL(nldeb, "otlphttp new payload for %s\n", pats[0]);
-    rxc = new otlphttp_upload_t(check);
+    mtevL(nldeb_verbose, "[otlphttp] new http payload for %s\n", pats[0]);
+    rxc = new otlphttp_upload(check);
     if(const char *mode_str = mtev_hash_dict_get(check->config, "hist_approx_mode")) {
       if(!strcmp(mode_str, "low")) rxc->mode = HIST_APPROX_LOW;
       else if(!strcmp(mode_str, "mid")) rxc->mode = HIST_APPROX_MID;
@@ -720,7 +842,7 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     restc->call_closure = static_cast<void *>(rxc);
     restc->call_closure_free = free_otlphttp_upload;
   }
-  else rxc = static_cast<otlphttp_upload_t*>(restc->call_closure);
+  else rxc = static_cast<otlphttp_upload*>(restc->call_closure);
 
   /* flip threads */
   {
@@ -736,24 +858,25 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   }
 
   rxc = rest_get_upload(restc, &mask, &complete);
-  if(rxc == NULL && !complete) return mask;
+  if (!rxc && !complete) return mask;
 
   if(!rxc) {
     error = "No data?";
     goto error;
   }
   
-  if(opentelemetry::proto::collector::metrics::v1::ExportMetricsServiceRequest msg;
+  if(OtelCollectorMetrics::ExportMetricsServiceRequest msg;
      msg.ParseFromArray(mtev_dyn_buffer_data(&rxc->data),
                         static_cast<int>(mtev_dyn_buffer_used(&rxc->data)))) {
     mtev_memory_begin();
-    mtevL(nldeb, "otlphttp payload %zu bytes\n", mtev_dyn_buffer_used(&rxc->data));
+    mtevL(nldeb_verbose, "[otlphttp] http payload %zu bytes\n", mtev_dyn_buffer_used(&rxc->data));
     handle_message(rxc, msg);
     metric_local_batch_flush_immediate(rxc);
     mtev_memory_end();
   }
   else {
-    mtevL(mtev_error, "Error parsing input %zu bytes\n", mtev_dyn_buffer_used(&rxc->data));
+    mtevL(nlerr, "[otlphttp] error parsing http input %zu bytes\n",
+          mtev_dyn_buffer_used(&rxc->data));
     error = "cannot parse protobuf";
     goto error;
   }
@@ -777,7 +900,7 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   if (debugflag == 1)
   {
     mtev_http_response_header_set(ctx, "Content-Type", "application/json");
-    json_object *obj =  NULL;
+    json_object *obj{nullptr};
     obj = json_object_new_object();
     stats_t *c;
     mtev_hash_table *metrics;
@@ -823,18 +946,18 @@ rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   mtev_http_response_server_error(ctx, "application/json");
   mtev_http_response_append(ctx, "{ \"Status\": \"", 13);
   mtev_http_response_append(ctx, error, strlen(error));
-  mtevL(mtev_error, "ERROR: %s\n", error);
+  mtevL(nlerr, "[otlphttp] ERROR during http processing: %s\n", error);
   mtev_http_response_append(ctx, "\" }", 3);
   mtev_http_response_end(ctx);
   return 0;
 }
 
 static int noit_otlphttp_initiate_check(noit_module_t *self,
-                                          noit_check_t *check,
-                                          int once, noit_check_t *cause) {
+                                        noit_check_t *check,
+                                        int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
-  if (check->closure == NULL) {
-    otlphttp_closure_t *ccl = new otlphttp_closure_t;
+  if (!check->closure) {
+    otlphttp_closure *ccl = new otlphttp_closure;
     check->closure = static_cast<void *>(ccl);
     ccl->self = self;
   }
@@ -843,46 +966,234 @@ static int noit_otlphttp_initiate_check(noit_module_t *self,
 }
 
 static int noit_otlphttp_config(noit_module_t *self, mtev_hash_table *options) {
-  otlphttp_mod_config_t *conf;
-  conf = static_cast<otlphttp_mod_config_t*>(noit_module_get_userdata(self));
-  if(conf) {
+  otlphttp_mod_config *conf;
+  conf = static_cast<otlphttp_mod_config*>(noit_module_get_userdata(self));
+  if (conf) {
     if(conf->options) {
       mtev_hash_destroy(conf->options, free, free);
       free(conf->options);
     }
   }
-  else
-    conf = new otlphttp_mod_config_t;
+  else {
+    conf = new otlphttp_mod_config;
+  }
   conf->options = options;
   noit_module_set_userdata(self, conf);
   return 1;
 }
 
+static std::string read_keycert(const std::string filename)
+{
+  std::ifstream file(filename, std::ios::binary);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  file.close();
+  return buffer.str();
+}
+
+static void grpc_server_thread(std::string server_address,
+                               bool use_grpc_ssl,
+                               bool grpc_ssl_use_broker_cert,
+                               bool grpc_ssl_use_root_cert,
+                               std::string broker_crt,
+                               std::string broker_key,
+                               std::string root_crt)
+{
+  grpc::ServerBuilder builder;
+  std::shared_ptr<grpc::ServerCredentials> server_creds;
+  if (grpc_ssl_use_broker_cert) {
+    mtevL(nldeb, "[otlphttp] setting up grpc ssl using broker cert and key\n");
+    // read the cert and key
+    std::string servercert = read_keycert(broker_crt);
+    std::string serverkey = read_keycert(broker_key);
+
+    // create a pem key cert pair using the cert and the key
+    grpc::SslServerCredentialsOptions::PemKeyCertPair pkcp;
+    pkcp.private_key = serverkey;
+    pkcp.cert_chain = servercert;
+
+    // alter the server ssl opts to put in our own cert/key and optionally the root cert too
+    grpc::SslServerCredentialsOptions ssl_opts;
+    ssl_opts.pem_root_certs="";
+    if (grpc_ssl_use_root_cert) {
+      mtevL(nldeb, "[otlphttp] registering grpc ssl root cert\n");
+      std::string rootcert = read_keycert(root_crt);
+      ssl_opts.pem_root_certs = rootcert;
+    }
+    ssl_opts.pem_key_cert_pairs.push_back(pkcp);
+
+    // create a server credentials object to use on the listening port
+    server_creds = grpc::SslServerCredentials(ssl_opts);
+  }
+  else {  
+    server_creds = grpc::SslServerCredentials(grpc::SslServerCredentialsOptions());
+  }
+  if (!use_grpc_ssl) {
+    server_creds = grpc::InsecureServerCredentials();
+  }
+  builder.AddListeningPort(server_address, server_creds);
+  builder.RegisterService(&grpcservice);
+  std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+  mtevL(nldeb, "[otlphttp] grpc server listening on %s\n", server_address.c_str());
+  server->Wait();
+  mtevL(nlerr, "[otlphttp] gprc server terminated!\n"); // should not happen normally
+}
+
 static int noit_otlphttp_onload(mtev_image_t *self) {
-  if(!nlerr) nlerr = mtev_log_stream_find("error/otlphttp");
-  if(!nldeb) nldeb = mtev_log_stream_find("debug/otlphttp");
-  if(!nlerr) nlerr = noit_error;
-  if(!nldeb) nldeb = noit_debug;
+  if (!nlerr) nlerr = mtev_log_stream_find("error/otlphttp");
+  if (!nldeb) nldeb = mtev_log_stream_find("debug/otlphttp");
+  if (!nldeb_verbose) nldeb_verbose = mtev_log_stream_find("debug/otlphttp_verbose");
+  if (!nlerr) nlerr = noit_error;
+  if (!nldeb) nldeb = noit_debug;
   return 0;
 }
 
 static int noit_otlphttp_init(noit_module_t *self) {
-  otlphttp_mod_config_t *conf = static_cast<otlphttp_mod_config_t*>(noit_module_get_userdata(self));
+  const char *config_val;
+  otlphttp_mod_config *conf = static_cast<otlphttp_mod_config*>(noit_module_get_userdata(self));
+
+  conf->enable_grpc = true;
+  if (mtev_hash_retr_str(conf->options,
+                         "enable_grpc", strlen("enable_grpc"),
+                         (const char **)&config_val)) {
+    if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
+      conf->enable_grpc = false;
+    }
+  }
+
+  conf->enable_http = true;
+  if (mtev_hash_retr_str(conf->options,
+                         "enable_http", strlen("enable_http"),
+                         (const char **)&config_val)) {
+    if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
+      conf->enable_http = false;
+    }
+  }
+
+  conf->grpc_server = "127.0.0.1";
+  if (mtev_hash_retr_str(conf->options,
+                         "grpc_server", strlen("grpc_server"),
+                         (const char **)&config_val)) {
+    conf->grpc_server = config_val;
+  }
+
+  conf->grpc_port = 4317;
+  if (mtev_hash_retr_str(conf->options,
+                         "grpc_port", strlen("grpc_port"),
+                         (const char **)&config_val)) {
+    conf->grpc_port = std::atoi(config_val);
+    if (conf->grpc_port <= 0) {
+      mtevL(nlerr, "[otlphttp] invalid grpc port, using default port 4317\n");
+      conf->grpc_port = 4317;
+    }
+  }
+
+  conf->use_grpc_ssl = true;
+  conf->grpc_ssl_use_broker_cert = false;
+  conf->grpc_ssl_use_root_cert = false;
+  if (conf->enable_grpc) {
+    if (mtev_hash_retr_str(conf->options,
+                           "use_grpc_ssl", strlen("use_grpc_ssl"),
+                           (const char **)&config_val)) {
+      if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
+        conf->use_grpc_ssl = false;
+      }
+    }
+    if (conf->use_grpc_ssl) {
+      if (mtev_hash_retr_str(conf->options,
+                             "grpc_ssl_use_broker_cert", strlen("grpc_ssl_use_broker_cert"),
+                             (const char **)&config_val)) {
+        if (!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on")) {
+          conf->grpc_ssl_use_broker_cert = true;
+          if (mtev_hash_retr_str(conf->options,
+                                 "grpc_ssl_use_root_cert", strlen("grpc_ssl_use_root_cert"),
+                                 (const char **)&config_val)) {
+            if (!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on")) {
+              conf->grpc_ssl_use_root_cert = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  else {
+    conf->use_grpc_ssl = false; // because grpc is disabled
+  }
 
   noit_module_set_userdata(self, conf);
 
-  eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
+  mtevL(nldeb, "[otlphttp] config: http enabled: %s, grpc_enabled: %s\n",
+        conf->enable_http ? "yes" : "no", conf->enable_grpc ? "yes" : "no");
+  mtevL(nldeb, "[otlphttp] server address: %s:%d, use ssl: %s, use broker cert: %s, use root cert: %s\n",
+        conf->grpc_server.c_str(), conf->grpc_port, conf->use_grpc_ssl ? "yes" : "no",
+        conf->grpc_ssl_use_broker_cert ? "yes" : "no",
+        conf->grpc_ssl_use_root_cert ? "yes" : "no"); 
 
-  /* register rest handler */
-  mtev_rest_mountpoint_t *rule;
-  rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/v1/",
-                                 "^(" UUID_REGEX ")/([^/]*)$",
-                                 rest_otlphttp_handler);
-  if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
-  rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/",
-                                 "^(" UUID_REGEX ")/([^/]*)/v1/metrics",
-                                 rest_otlphttp_handler);
-  if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+  if (conf->enable_http) {
+    eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
+    /* register rest handler */
+    mtev_rest_mountpoint_t *rule;
+    rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/v1/",
+                                  "^(" UUID_REGEX ")/([^/]*)$",
+                                  rest_otlphttp_handler);
+    if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+    rule = mtev_http_rest_new_rule("POST", "/module/otlphttp/",
+                                  "^(" UUID_REGEX ")/([^/]*)/v1/metrics",
+                                  rest_otlphttp_handler);
+    if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
+
+    mtevL(nldeb, "[otlphttp] REST endpoint now active\n");
+  }
+
+  std::string certificate_file;
+  std::string key_file;
+  std::string ca_chain;
+  if (conf->enable_grpc) {
+    if (conf->use_grpc_ssl && conf->grpc_ssl_use_broker_cert) {
+      // read cert/key settings from sslconfig
+      mtev_conf_section_t listeners = mtev_conf_get_section_read(MTEV_CONF_ROOT,
+                                                                 "//listeners");
+      if (mtev_conf_section_is_empty(listeners)) {
+        mtev_conf_release_section_read(listeners);
+        mtevL(nlerr, "[otlphttp] empty or missing //listeners config.\n");
+        return 1;
+      }
+      const char *value;
+      mtev_hash_table *sslconfig = mtev_conf_get_hash(listeners, "sslconfig");
+      if (mtev_hash_retr_str(sslconfig, "certificate_file", strlen("certificate_file"), &value)) {
+        certificate_file = value;
+      }
+      if (mtev_hash_retr_str(sslconfig, "key_file", strlen("key_file"), &value)) {
+        key_file = value;
+      }
+      if (certificate_file.empty() || key_file.empty()) {
+        mtevL(nlerr, "[otlphttp] sslconfig/listeners must have certificate_file and key_file "
+                     "configured in order to use grpc ssl with broker cert and key.\n");
+        return 1;
+      }
+      if (conf->grpc_ssl_use_root_cert) {
+        if (mtev_hash_retr_str(sslconfig, "ca_chain", strlen("ca_chain"), &value)) {
+          ca_chain = value;
+        }
+        if (ca_chain.empty()) {
+          mtevL(nlerr, "[otlphttp] sslconfig/listeners must have ca_chain configured for grpc ssl "
+                       "using CA root cert\n");
+        }
+      }
+
+      mtevL(nldeb, "[otlphttp] grpc ssl/tls cert settings (if empty, server root will be used):\n");
+      mtevL(nldeb, "[otlphttp] broker cert is: %s\n", certificate_file.c_str());
+      mtevL(nldeb, "[otlphttp] broker key is: %s\n", key_file.c_str());
+      mtevL(nldeb, "[otlphttp] broker ca_chain is: %s\n", ca_chain.c_str());
+    }
+
+    std::string server_address = conf->grpc_server + ":" + std::to_string(conf->grpc_port);
+    grpcserver = new std::thread{grpc_server_thread, server_address, conf->use_grpc_ssl,
+                                 conf->grpc_ssl_use_broker_cert, conf->grpc_ssl_use_root_cert,
+                                 certificate_file, key_file, ca_chain};
+    mtevL(nldeb, "[otlphttp] grpc listener thread started\n");
+  }
+
   return 0;
 }
 
@@ -899,5 +1210,5 @@ noit_module_t otlphttp = {
   noit_otlphttp_config,
   noit_otlphttp_init,
   noit_otlphttp_initiate_check,
-  NULL
+  nullptr
 };

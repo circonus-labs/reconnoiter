@@ -85,6 +85,117 @@ sudo make install
 ```
 
 
+## Abseil
+
+Obtain source for Abseil C++ version 20230125.3 or later. CMake is required to
+build.
+
+```
+git clone https://github.com/abseil/abseil-cpp.git
+cd abseil-cpp
+git checkout tags/20230125.3
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=/usr/local/lib \
+    -DCMAKE_INSTALL_RPATH=/usr/local/lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DABSL_PROPAGATE_CXX_STD=ON \
+    -DABSL_ENABLE_INSTALL=ON \
+    -DBUILD_SHARED_LIBS=ON
+sudo make install
+```
+
+
+## Protobuf
+
+Obtain source for version 3.23.2 or later. CMake is required to build.
+
+```
+git clone https://github.com/protocolbuffers/protobuf.git
+cd protobuf
+git checkout tags/v3.23.2
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -Dprotobuf_BUILD_TESTS=OFF \
+    -Dprotobuf_ABSL_PROVIDER=package \
+    -Dprotobuf_BUILD_SHARED_LIBS=ON
+sudo make install
+```
+
+
+## Protobuf-C
+
+Obtain source for 1.4.1 or later. The patch updates the version to "1.4.2"
+which at this time has not been released. It appears that development has
+stalled on this project, so this patch may become unnecessary if development
+resumes in the future.
+
+```
+git clone https://github.com/protobuf-c/protobuf-c.git
+cd protobuf-c
+git checkout tags/v1.4.1
+patch -p1 < [reconnoiter source]/patches/protobuf-c.patch
+autoreconf -i
+CXXFLAGS="-std=c++20" \
+    LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" \
+    ./configure
+make
+sudo make install
+```
+
+
+## RE2
+
+Obtain source for version 2023-03-01 or later. CMake is required to build.
+
+```
+git clone https://github.com/google/re2.git
+cd re2
+git checkout tags/2023-03-01
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=/usr/local/lib \
+    -DCMAKE_INSTALL_RPATH=/usr/local/lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -DRE2_BUILD_TESTING=OFF \
+    -DBUILD_SHARED_LIBS=ON
+sudo make install
+```
+
+
+## gRPC
+
+Obtain source for version 1.55 or later. CMake is required to build.
+
+```
+git clone https://github.com/grpc/grpc.git
+cd grpc
+git checkout tags/v1.55.1
+mkdir -p build/install
+cd build/install
+cmake ../.. \
+    -DCMAKE_INSTALL_LIBDIR=/usr/local/lib \
+    -DCMAKE_INSTALL_RPATH=/usr/local/lib \
+    -DCMAKE_INSTALL_PREFIX:PATH=/usr/local \
+    -DBUILD_SHARED_LIBS=ON \
+    -DgRPC_INSTALL=ON \
+    -DgRPC_BUILD_TESTS=OFF \
+    -DgRPC_ABSL_PROVIDER=package \
+    -DgRPC_CARES_PROVIDER=package \
+    -DgRPC_PROTOBUF_PROVIDER=package \
+    -DgRPC_RE2_PROVIDER=package \
+    -DgRPC_SSL_PROVIDER=package \
+    -DgRPC_ZLIB_PROVIDER=package
+sudo make install
+```
+
+
 ## LMDB
 
 This is a subset of the OpenLDAP code.
@@ -99,12 +210,11 @@ sudo make install
 
 ## LuaJIT
 
-Reconnoiter requires version 2.1.
+Reconnoiter requires version 2.1. This is currently the default branch.
 
 ```
 git clone https://github.com/LuaJIT/LuaJIT.git
 cd LuaJIT
-git checkout v2.1
 make CFLAGS="-D_REENTRANT -DLUAJIT_ENABLE_GC64" \
      LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" \
      BUILDMODE="dynamic" \

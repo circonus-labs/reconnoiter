@@ -11,10 +11,14 @@ Compiler:
 [Important build notes](THIRDPARTY-LIBS.md)
 
 Required Libraries:
+ * [Abseil C++](https://abseil.io/) common libraries, version 20230125 or
+   later, for Protobuf and gRPC.
  * [c-ares](https://c-ares.org/) version 1.10.0+, for asynchronous DNS
-   resolution in libcurl.
+   resolution in libcurl and gRPC.
  * [Concurrency Kit](https://github.com/concurrencykit/ck) (libck), version 0.7.1 or later ([Patch required](THIRDPARTY-LIBS.md#concurrencykit-libck))
  * [flatcc](https://github.com/dvidelabs/flatcc), version 0.6.0. ([Patch required](THIRDPARTY-LIBS.md#flatcc))
+ * [gRPC](https://github.com/grpc/grpc), version 1.55 or later, for the
+   OpenTelemetry module.
  * [libcircllhist](https://github.com/openhistogram/libcircllhist)
  * [libcircmetrics](https://github.com/circonus-labs/libcircmetrics)
  * libcurl 7.49.0 or later (for `CURLOPT_CONNECT_TO` support)
@@ -31,8 +35,9 @@ Required Libraries:
  * [JLog](https://github.com/omniti-labs/jlog)
  * [Picklingtools](http://www.picklingtools.com) ([Patch required](THIRDPARTY-LIBS.md#picklingtools))
  * PostgreSQL 8.4+
- * Protobuf 3.19+
- * Protobuf-C 1.4+
+ * Protobuf 3.23+
+ * Protobuf-C 1.4+ ([Patch required](THIRDPARTY-LIBS.md#protobuf-c))
+ * [RE2](https://github.com/google/re2), version 2023-03-01 or later, for gRPC.
  * [snappy-c](https://github.com/andikleen/snappy-c.git)
  * [udns](https://www.corpit.ru/mjt/udns.html) version 0.4
  * [wslay](https://github.com/tatsuhiro-t/wslay) for WebSockets support.
@@ -59,11 +64,11 @@ Install dependencies that are available as packages:
     sudo apt-get update && sudo apt-get install gcc-11 g++-11
 
     sudo apt-get install autoconf build-essential cmake \
-      libapr1-dev libaprutil1-dev libcurl4-openssl-dev libhwloc-dev \
-      liblmdb-dev liblz4-dev libncurses-dev libnghttp2-dev libpcre3-dev \
-      libpq-dev librabbitmq-dev libsqlite3-dev libssl-dev libudns-dev \
-      libwslay-dev libxslt1-dev libyajl-dev openjdk-8-jdk-headless pkg-config \
-      uuid-dev xsltproc zlib1g-dev
+      libapr1-dev libaprutil1-dev libc-ares-dev libcurl4-openssl-dev \
+      libhwloc-dev liblmdb-dev liblz4-dev libncurses-dev libnghttp2-dev \
+      libpcre3-dev libpq-dev librabbitmq-dev libsqlite3-dev libssl-dev \
+      libudns-dev libwslay-dev libxslt1-dev libyajl-dev \
+      openjdk-8-jdk-headless pkg-config uuid-dev xsltproc zlib1g-dev
 
 Ensure the necessary compiler version is used:
 
@@ -76,7 +81,9 @@ are not available as packages. Then come back here and continue below.
     git clone https://github.com/circonus-labs/reconnoiter
     cd reconnoiter
     autoreconf -i
-    CPPFLAGS="-I/usr/local/include/luajit-2.1" ./configure
+    CPPFLAGS="-I/usr/local/include/luajit-2.1" \
+        CFLAGS="-Wno-stringop-overflow -Wno-stringop-overread" \
+        ./configure
     make
     sudo make install
 

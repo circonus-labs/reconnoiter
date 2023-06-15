@@ -4,591 +4,805 @@
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 
 #include <algorithm>
-
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/extension_set.h>
-#include <google/protobuf/wire_format_lite.h>
-#include <google/protobuf/descriptor.h>
-#include <google/protobuf/generated_message_reflection.h>
-#include <google/protobuf/reflection_ops.h>
-#include <google/protobuf/wire_format.h>
+#include "google/protobuf/io/coded_stream.h"
+#include "google/protobuf/extension_set.h"
+#include "google/protobuf/wire_format_lite.h"
+#include "google/protobuf/descriptor.h"
+#include "google/protobuf/generated_message_reflection.h"
+#include "google/protobuf/reflection_ops.h"
+#include "google/protobuf/wire_format.h"
 // @@protoc_insertion_point(includes)
-#include <google/protobuf/port_def.inc>
 
+// Must be included last.
+#include "google/protobuf/port_def.inc"
 PROTOBUF_PRAGMA_INIT_SEG
+namespace _pb = ::PROTOBUF_NAMESPACE_ID;
+namespace _pbi = ::PROTOBUF_NAMESPACE_ID::internal;
 namespace opentelemetry {
 namespace proto {
 namespace metrics {
 namespace v1 {
-constexpr MetricsData::MetricsData(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : resource_metrics_(){}
+template <typename>
+PROTOBUF_CONSTEXPR MetricsData::MetricsData(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.resource_metrics_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct MetricsDataDefaultTypeInternal {
-  constexpr MetricsDataDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR MetricsDataDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~MetricsDataDefaultTypeInternal() {}
   union {
     MetricsData _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT MetricsDataDefaultTypeInternal _MetricsData_default_instance_;
-constexpr ResourceMetrics::ResourceMetrics(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : instrumentation_library_metrics_()
-  , schema_url_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
-  , resource_(nullptr){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 MetricsDataDefaultTypeInternal _MetricsData_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ResourceMetrics::ResourceMetrics(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.scope_metrics_)*/{}
+  , /*decltype(_impl_.schema_url_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.resource_)*/nullptr} {}
 struct ResourceMetricsDefaultTypeInternal {
-  constexpr ResourceMetricsDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR ResourceMetricsDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~ResourceMetricsDefaultTypeInternal() {}
   union {
     ResourceMetrics _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ResourceMetricsDefaultTypeInternal _ResourceMetrics_default_instance_;
-constexpr InstrumentationLibraryMetrics::InstrumentationLibraryMetrics(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : metrics_()
-  , schema_url_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
-  , instrumentation_library_(nullptr){}
-struct InstrumentationLibraryMetricsDefaultTypeInternal {
-  constexpr InstrumentationLibraryMetricsDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
-  ~InstrumentationLibraryMetricsDefaultTypeInternal() {}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ResourceMetricsDefaultTypeInternal _ResourceMetrics_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ScopeMetrics::ScopeMetrics(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.metrics_)*/{}
+  , /*decltype(_impl_.schema_url_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.scope_)*/nullptr} {}
+struct ScopeMetricsDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ScopeMetricsDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ScopeMetricsDefaultTypeInternal() {}
   union {
-    InstrumentationLibraryMetrics _instance;
+    ScopeMetrics _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT InstrumentationLibraryMetricsDefaultTypeInternal _InstrumentationLibraryMetrics_default_instance_;
-constexpr Metric::Metric(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
-  , description_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
-  , unit_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
-  , _oneof_case_{}{}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ScopeMetricsDefaultTypeInternal _ScopeMetrics_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR Metric::Metric(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.name_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.description_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.unit_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.data_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_._oneof_case_)*/{}} {}
 struct MetricDefaultTypeInternal {
-  constexpr MetricDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR MetricDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~MetricDefaultTypeInternal() {}
   union {
     Metric _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT MetricDefaultTypeInternal _Metric_default_instance_;
-constexpr Gauge::Gauge(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : data_points_(){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 MetricDefaultTypeInternal _Metric_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR Gauge::Gauge(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.data_points_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct GaugeDefaultTypeInternal {
-  constexpr GaugeDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR GaugeDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~GaugeDefaultTypeInternal() {}
   union {
     Gauge _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT GaugeDefaultTypeInternal _Gauge_default_instance_;
-constexpr Sum::Sum(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : data_points_()
-  , aggregation_temporality_(0)
 
-  , is_monotonic_(false){}
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GaugeDefaultTypeInternal _Gauge_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR Sum::Sum(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.data_points_)*/{}
+  , /*decltype(_impl_.aggregation_temporality_)*/ 0
+
+  , /*decltype(_impl_.is_monotonic_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SumDefaultTypeInternal {
-  constexpr SumDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR SumDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~SumDefaultTypeInternal() {}
   union {
     Sum _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SumDefaultTypeInternal _Sum_default_instance_;
-constexpr Histogram::Histogram(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : data_points_()
-  , aggregation_temporality_(0)
-{}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SumDefaultTypeInternal _Sum_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR Histogram::Histogram(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.data_points_)*/{}
+  , /*decltype(_impl_.aggregation_temporality_)*/ 0
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct HistogramDefaultTypeInternal {
-  constexpr HistogramDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR HistogramDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~HistogramDefaultTypeInternal() {}
   union {
     Histogram _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT HistogramDefaultTypeInternal _Histogram_default_instance_;
-constexpr ExponentialHistogram::ExponentialHistogram(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : data_points_()
-  , aggregation_temporality_(0)
-{}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 HistogramDefaultTypeInternal _Histogram_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ExponentialHistogram::ExponentialHistogram(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.data_points_)*/{}
+  , /*decltype(_impl_.aggregation_temporality_)*/ 0
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct ExponentialHistogramDefaultTypeInternal {
-  constexpr ExponentialHistogramDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR ExponentialHistogramDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~ExponentialHistogramDefaultTypeInternal() {}
   union {
     ExponentialHistogram _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExponentialHistogramDefaultTypeInternal _ExponentialHistogram_default_instance_;
-constexpr Summary::Summary(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : data_points_(){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ExponentialHistogramDefaultTypeInternal _ExponentialHistogram_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR Summary::Summary(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.data_points_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SummaryDefaultTypeInternal {
-  constexpr SummaryDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR SummaryDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~SummaryDefaultTypeInternal() {}
   union {
     Summary _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SummaryDefaultTypeInternal _Summary_default_instance_;
-constexpr NumberDataPoint::NumberDataPoint(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : exemplars_()
-  , attributes_()
-  , start_time_unix_nano_(uint64_t{0u})
-  , time_unix_nano_(uint64_t{0u})
-  , flags_(0u)
-  , _oneof_case_{}{}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SummaryDefaultTypeInternal _Summary_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR NumberDataPoint::NumberDataPoint(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.exemplars_)*/{}
+  , /*decltype(_impl_.attributes_)*/{}
+  , /*decltype(_impl_.start_time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.flags_)*/ 0u
+
+  , /*decltype(_impl_.value_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_._oneof_case_)*/{}} {}
 struct NumberDataPointDefaultTypeInternal {
-  constexpr NumberDataPointDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR NumberDataPointDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~NumberDataPointDefaultTypeInternal() {}
   union {
     NumberDataPoint _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT NumberDataPointDefaultTypeInternal _NumberDataPoint_default_instance_;
-constexpr HistogramDataPoint::HistogramDataPoint(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : bucket_counts_()
-  , explicit_bounds_()
-  , exemplars_()
-  , attributes_()
-  , start_time_unix_nano_(uint64_t{0u})
-  , time_unix_nano_(uint64_t{0u})
-  , count_(uint64_t{0u})
-  , sum_(0)
-  , flags_(0u){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 NumberDataPointDefaultTypeInternal _NumberDataPoint_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR HistogramDataPoint::HistogramDataPoint(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.bucket_counts_)*/ {}
+
+  , /*decltype(_impl_.explicit_bounds_)*/ {}
+
+  , /*decltype(_impl_.exemplars_)*/{}
+  , /*decltype(_impl_.attributes_)*/{}
+  , /*decltype(_impl_.start_time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.count_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.sum_)*/ 0
+
+  , /*decltype(_impl_.min_)*/ 0
+
+  , /*decltype(_impl_.max_)*/ 0
+
+  , /*decltype(_impl_.flags_)*/ 0u
+} {}
 struct HistogramDataPointDefaultTypeInternal {
-  constexpr HistogramDataPointDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR HistogramDataPointDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~HistogramDataPointDefaultTypeInternal() {}
   union {
     HistogramDataPoint _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT HistogramDataPointDefaultTypeInternal _HistogramDataPoint_default_instance_;
-constexpr ExponentialHistogramDataPoint_Buckets::ExponentialHistogramDataPoint_Buckets(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : bucket_counts_()
-  , _bucket_counts_cached_byte_size_(0)
-  , offset_(0){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 HistogramDataPointDefaultTypeInternal _HistogramDataPoint_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ExponentialHistogramDataPoint_Buckets::ExponentialHistogramDataPoint_Buckets(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.bucket_counts_)*/ {}
+  ,/* _impl_._bucket_counts_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.offset_)*/ 0
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct ExponentialHistogramDataPoint_BucketsDefaultTypeInternal {
-  constexpr ExponentialHistogramDataPoint_BucketsDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR ExponentialHistogramDataPoint_BucketsDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~ExponentialHistogramDataPoint_BucketsDefaultTypeInternal() {}
   union {
     ExponentialHistogramDataPoint_Buckets _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExponentialHistogramDataPoint_BucketsDefaultTypeInternal _ExponentialHistogramDataPoint_Buckets_default_instance_;
-constexpr ExponentialHistogramDataPoint::ExponentialHistogramDataPoint(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : attributes_()
-  , exemplars_()
-  , positive_(nullptr)
-  , negative_(nullptr)
-  , start_time_unix_nano_(uint64_t{0u})
-  , time_unix_nano_(uint64_t{0u})
-  , count_(uint64_t{0u})
-  , sum_(0)
-  , zero_count_(uint64_t{0u})
-  , scale_(0)
-  , flags_(0u){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ExponentialHistogramDataPoint_BucketsDefaultTypeInternal _ExponentialHistogramDataPoint_Buckets_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR ExponentialHistogramDataPoint::ExponentialHistogramDataPoint(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.attributes_)*/{}
+  , /*decltype(_impl_.exemplars_)*/{}
+  , /*decltype(_impl_.positive_)*/nullptr
+  , /*decltype(_impl_.negative_)*/nullptr
+  , /*decltype(_impl_.start_time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.count_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.sum_)*/ 0
+
+  , /*decltype(_impl_.zero_count_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.scale_)*/ 0
+
+  , /*decltype(_impl_.flags_)*/ 0u
+
+  , /*decltype(_impl_.min_)*/ 0
+
+  , /*decltype(_impl_.max_)*/ 0
+
+  , /*decltype(_impl_.zero_threshold_)*/ 0
+} {}
 struct ExponentialHistogramDataPointDefaultTypeInternal {
-  constexpr ExponentialHistogramDataPointDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR ExponentialHistogramDataPointDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~ExponentialHistogramDataPointDefaultTypeInternal() {}
   union {
     ExponentialHistogramDataPoint _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExponentialHistogramDataPointDefaultTypeInternal _ExponentialHistogramDataPoint_default_instance_;
-constexpr SummaryDataPoint_ValueAtQuantile::SummaryDataPoint_ValueAtQuantile(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : quantile_(0)
-  , value_(0){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ExponentialHistogramDataPointDefaultTypeInternal _ExponentialHistogramDataPoint_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SummaryDataPoint_ValueAtQuantile::SummaryDataPoint_ValueAtQuantile(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.quantile_)*/ 0
+
+  , /*decltype(_impl_.value_)*/ 0
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SummaryDataPoint_ValueAtQuantileDefaultTypeInternal {
-  constexpr SummaryDataPoint_ValueAtQuantileDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR SummaryDataPoint_ValueAtQuantileDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~SummaryDataPoint_ValueAtQuantileDefaultTypeInternal() {}
   union {
     SummaryDataPoint_ValueAtQuantile _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SummaryDataPoint_ValueAtQuantileDefaultTypeInternal _SummaryDataPoint_ValueAtQuantile_default_instance_;
-constexpr SummaryDataPoint::SummaryDataPoint(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : quantile_values_()
-  , attributes_()
-  , start_time_unix_nano_(uint64_t{0u})
-  , time_unix_nano_(uint64_t{0u})
-  , count_(uint64_t{0u})
-  , sum_(0)
-  , flags_(0u){}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SummaryDataPoint_ValueAtQuantileDefaultTypeInternal _SummaryDataPoint_ValueAtQuantile_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR SummaryDataPoint::SummaryDataPoint(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.quantile_values_)*/{}
+  , /*decltype(_impl_.attributes_)*/{}
+  , /*decltype(_impl_.start_time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.count_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.sum_)*/ 0
+
+  , /*decltype(_impl_.flags_)*/ 0u
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
 struct SummaryDataPointDefaultTypeInternal {
-  constexpr SummaryDataPointDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR SummaryDataPointDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~SummaryDataPointDefaultTypeInternal() {}
   union {
     SummaryDataPoint _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SummaryDataPointDefaultTypeInternal _SummaryDataPoint_default_instance_;
-constexpr Exemplar::Exemplar(
-  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : filtered_attributes_()
-  , span_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
-  , trace_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
-  , time_unix_nano_(uint64_t{0u})
-  , _oneof_case_{}{}
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 SummaryDataPointDefaultTypeInternal _SummaryDataPoint_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR Exemplar::Exemplar(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.filtered_attributes_)*/{}
+  , /*decltype(_impl_.span_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.trace_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.time_unix_nano_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.value_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_._oneof_case_)*/{}} {}
 struct ExemplarDefaultTypeInternal {
-  constexpr ExemplarDefaultTypeInternal()
-    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  PROTOBUF_CONSTEXPR ExemplarDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~ExemplarDefaultTypeInternal() {}
   union {
     Exemplar _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ExemplarDefaultTypeInternal _Exemplar_default_instance_;
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ExemplarDefaultTypeInternal _Exemplar_default_instance_;
 }  // namespace v1
 }  // namespace metrics
 }  // namespace proto
 }  // namespace opentelemetry
-static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[16];
-static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[2];
-static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto = nullptr;
+static ::_pb::Metadata file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[16];
+static const ::_pb::EnumDescriptor* file_level_enum_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[2];
+static constexpr const ::_pb::ServiceDescriptor**
+    file_level_service_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto = nullptr;
+const ::uint32_t TableStruct_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
+    protodesc_cold) = {
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::MetricsData, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::MetricsData, _impl_.resource_metrics_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, _impl_.resource_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, _impl_.scope_metrics_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, _impl_.schema_url_),
+    0,
+    ~0u,
+    ~0u,
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ScopeMetrics, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ScopeMetrics, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ScopeMetrics, _impl_.scope_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ScopeMetrics, _impl_.metrics_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ScopeMetrics, _impl_.schema_url_),
+    0,
+    ~0u,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _internal_metadata_),
+    ~0u,  // no _extensions_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _impl_._oneof_case_[0]),
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _impl_.name_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _impl_.description_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _impl_.unit_),
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _impl_.data_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Gauge, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Gauge, _impl_.data_points_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, _impl_.data_points_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, _impl_.aggregation_temporality_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, _impl_.is_monotonic_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Histogram, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Histogram, _impl_.data_points_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Histogram, _impl_.aggregation_temporality_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogram, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogram, _impl_.data_points_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogram, _impl_.aggregation_temporality_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Summary, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Summary, _impl_.data_points_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _internal_metadata_),
+    ~0u,  // no _extensions_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_._oneof_case_[0]),
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_.attributes_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_.start_time_unix_nano_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_.time_unix_nano_),
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_.exemplars_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_.flags_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_.value_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.attributes_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.start_time_unix_nano_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.time_unix_nano_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.count_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.sum_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.bucket_counts_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.explicit_bounds_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.exemplars_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.flags_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.min_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _impl_.max_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    1,
+    2,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets, _impl_.offset_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets, _impl_.bucket_counts_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.attributes_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.start_time_unix_nano_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.time_unix_nano_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.count_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.sum_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.scale_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.zero_count_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.positive_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.negative_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.flags_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.exemplars_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.min_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.max_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _impl_.zero_threshold_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    2,
+    ~0u,
+    ~0u,
+    0,
+    1,
+    ~0u,
+    ~0u,
+    3,
+    4,
+    ~0u,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile, _impl_.quantile_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile, _impl_.value_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _impl_.attributes_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _impl_.start_time_unix_nano_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _impl_.time_unix_nano_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _impl_.count_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _impl_.sum_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _impl_.quantile_values_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _impl_.flags_),
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _internal_metadata_),
+    ~0u,  // no _extensions_
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _impl_._oneof_case_[0]),
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _impl_.filtered_attributes_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _impl_.time_unix_nano_),
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _impl_.span_id_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _impl_.trace_id_),
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _impl_.value_),
+};
 
-const uint32_t TableStruct_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::MetricsData, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::MetricsData, resource_metrics_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, resource_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, instrumentation_library_metrics_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ResourceMetrics, schema_url_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics, instrumentation_library_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics, metrics_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics, schema_url_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _internal_metadata_),
-  ~0u,  // no _extensions_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _oneof_case_[0]),
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, name_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, description_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, unit_),
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, data_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Gauge, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Gauge, data_points_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, data_points_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, aggregation_temporality_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Sum, is_monotonic_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Histogram, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Histogram, data_points_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Histogram, aggregation_temporality_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogram, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogram, data_points_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogram, aggregation_temporality_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Summary, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Summary, data_points_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _internal_metadata_),
-  ~0u,  // no _extensions_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _oneof_case_[0]),
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, attributes_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, start_time_unix_nano_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, time_unix_nano_),
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, exemplars_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, flags_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, value_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, attributes_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, start_time_unix_nano_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, time_unix_nano_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, count_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, sum_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, bucket_counts_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, explicit_bounds_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, exemplars_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::HistogramDataPoint, flags_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets, offset_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets, bucket_counts_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, attributes_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, start_time_unix_nano_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, time_unix_nano_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, count_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, sum_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, scale_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, zero_count_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, positive_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, negative_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, flags_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint, exemplars_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile, quantile_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile, value_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, attributes_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, start_time_unix_nano_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, time_unix_nano_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, count_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, sum_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, quantile_values_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::SummaryDataPoint, flags_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _internal_metadata_),
-  ~0u,  // no _extensions_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _oneof_case_[0]),
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, filtered_attributes_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, time_unix_nano_),
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  ::PROTOBUF_NAMESPACE_ID::internal::kInvalidFieldOffsetTag,
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, span_id_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, trace_id_),
-  PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, value_),
-};
-static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-  { 0, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::MetricsData)},
-  { 7, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::ResourceMetrics)},
-  { 16, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics)},
-  { 25, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Metric)},
-  { 40, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Gauge)},
-  { 47, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Sum)},
-  { 56, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Histogram)},
-  { 64, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::ExponentialHistogram)},
-  { 72, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Summary)},
-  { 79, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::NumberDataPoint)},
-  { 93, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::HistogramDataPoint)},
-  { 108, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets)},
-  { 116, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint)},
-  { 133, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile)},
-  { 141, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::SummaryDataPoint)},
-  { 154, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Exemplar)},
+static const ::_pbi::MigrationSchema
+    schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
+        { 0, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::MetricsData)},
+        { 9, 20, -1, sizeof(::opentelemetry::proto::metrics::v1::ResourceMetrics)},
+        { 23, 34, -1, sizeof(::opentelemetry::proto::metrics::v1::ScopeMetrics)},
+        { 37, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Metric)},
+        { 54, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Gauge)},
+        { 63, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Sum)},
+        { 74, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Histogram)},
+        { 84, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::ExponentialHistogram)},
+        { 94, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Summary)},
+        { 103, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::NumberDataPoint)},
+        { 119, 138, -1, sizeof(::opentelemetry::proto::metrics::v1::HistogramDataPoint)},
+        { 149, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets)},
+        { 159, 181, -1, sizeof(::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint)},
+        { 195, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile)},
+        { 205, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::SummaryDataPoint)},
+        { 220, -1, -1, sizeof(::opentelemetry::proto::metrics::v1::Exemplar)},
 };
 
-static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_MetricsData_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_ResourceMetrics_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_InstrumentationLibraryMetrics_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_Metric_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_Gauge_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_Sum_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_Histogram_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_ExponentialHistogram_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_Summary_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_NumberDataPoint_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_HistogramDataPoint_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_ExponentialHistogramDataPoint_Buckets_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_ExponentialHistogramDataPoint_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_SummaryDataPoint_ValueAtQuantile_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_SummaryDataPoint_default_instance_),
-  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::opentelemetry::proto::metrics::v1::_Exemplar_default_instance_),
+static const ::_pb::Message* const file_default_instances[] = {
+    &::opentelemetry::proto::metrics::v1::_MetricsData_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_ResourceMetrics_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_ScopeMetrics_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_Metric_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_Gauge_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_Sum_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_Histogram_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_ExponentialHistogram_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_Summary_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_NumberDataPoint_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_HistogramDataPoint_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_ExponentialHistogramDataPoint_Buckets_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_ExponentialHistogramDataPoint_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_SummaryDataPoint_ValueAtQuantile_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_SummaryDataPoint_default_instance_._instance,
+    &::opentelemetry::proto::metrics::v1::_Exemplar_default_instance_._instance,
+};
+const char descriptor_table_protodef_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
+    "\n,opentelemetry/proto/metrics/v1/metrics"
+    ".proto\022\036opentelemetry.proto.metrics.v1\032*"
+    "opentelemetry/proto/common/v1/common.pro"
+    "to\032.opentelemetry/proto/resource/v1/reso"
+    "urce.proto\"X\n\013MetricsData\022I\n\020resource_me"
+    "trics\030\001 \003(\0132/.opentelemetry.proto.metric"
+    "s.v1.ResourceMetrics\"\257\001\n\017ResourceMetrics"
+    "\022;\n\010resource\030\001 \001(\0132).opentelemetry.proto"
+    ".resource.v1.Resource\022C\n\rscope_metrics\030\002"
+    " \003(\0132,.opentelemetry.proto.metrics.v1.Sc"
+    "opeMetrics\022\022\n\nschema_url\030\003 \001(\tJ\006\010\350\007\020\351\007\"\237"
+    "\001\n\014ScopeMetrics\022B\n\005scope\030\001 \001(\01323.opentel"
+    "emetry.proto.common.v1.InstrumentationSc"
+    "ope\0227\n\007metrics\030\002 \003(\0132&.opentelemetry.pro"
+    "to.metrics.v1.Metric\022\022\n\nschema_url\030\003 \001(\t"
+    "\"\222\003\n\006Metric\022\014\n\004name\030\001 \001(\t\022\023\n\013description"
+    "\030\002 \001(\t\022\014\n\004unit\030\003 \001(\t\0226\n\005gauge\030\005 \001(\0132%.op"
+    "entelemetry.proto.metrics.v1.GaugeH\000\0222\n\003"
+    "sum\030\007 \001(\0132#.opentelemetry.proto.metrics."
+    "v1.SumH\000\022>\n\thistogram\030\t \001(\0132).openteleme"
+    "try.proto.metrics.v1.HistogramH\000\022U\n\025expo"
+    "nential_histogram\030\n \001(\01324.opentelemetry."
+    "proto.metrics.v1.ExponentialHistogramH\000\022"
+    ":\n\007summary\030\013 \001(\0132\'.opentelemetry.proto.m"
+    "etrics.v1.SummaryH\000B\006\n\004dataJ\004\010\004\020\005J\004\010\006\020\007J"
+    "\004\010\010\020\t\"M\n\005Gauge\022D\n\013data_points\030\001 \003(\0132/.op"
+    "entelemetry.proto.metrics.v1.NumberDataP"
+    "oint\"\272\001\n\003Sum\022D\n\013data_points\030\001 \003(\0132/.open"
+    "telemetry.proto.metrics.v1.NumberDataPoi"
+    "nt\022W\n\027aggregation_temporality\030\002 \001(\01626.op"
+    "entelemetry.proto.metrics.v1.Aggregation"
+    "Temporality\022\024\n\014is_monotonic\030\003 \001(\010\"\255\001\n\tHi"
+    "stogram\022G\n\013data_points\030\001 \003(\01322.opentelem"
+    "etry.proto.metrics.v1.HistogramDataPoint"
+    "\022W\n\027aggregation_temporality\030\002 \001(\01626.open"
+    "telemetry.proto.metrics.v1.AggregationTe"
+    "mporality\"\303\001\n\024ExponentialHistogram\022R\n\013da"
+    "ta_points\030\001 \003(\0132=.opentelemetry.proto.me"
+    "trics.v1.ExponentialHistogramDataPoint\022W"
+    "\n\027aggregation_temporality\030\002 \001(\01626.opente"
+    "lemetry.proto.metrics.v1.AggregationTemp"
+    "orality\"P\n\007Summary\022E\n\013data_points\030\001 \003(\0132"
+    "0.opentelemetry.proto.metrics.v1.Summary"
+    "DataPoint\"\206\002\n\017NumberDataPoint\022;\n\nattribu"
+    "tes\030\007 \003(\0132\'.opentelemetry.proto.common.v"
+    "1.KeyValue\022\034\n\024start_time_unix_nano\030\002 \001(\006"
+    "\022\026\n\016time_unix_nano\030\003 \001(\006\022\023\n\tas_double\030\004 "
+    "\001(\001H\000\022\020\n\006as_int\030\006 \001(\020H\000\022;\n\texemplars\030\005 \003"
+    "(\0132(.opentelemetry.proto.metrics.v1.Exem"
+    "plar\022\r\n\005flags\030\010 \001(\rB\007\n\005valueJ\004\010\001\020\002\"\346\002\n\022H"
+    "istogramDataPoint\022;\n\nattributes\030\t \003(\0132\'."
+    "opentelemetry.proto.common.v1.KeyValue\022\034"
+    "\n\024start_time_unix_nano\030\002 \001(\006\022\026\n\016time_uni"
+    "x_nano\030\003 \001(\006\022\r\n\005count\030\004 \001(\006\022\020\n\003sum\030\005 \001(\001"
+    "H\000\210\001\001\022\025\n\rbucket_counts\030\006 \003(\006\022\027\n\017explicit"
+    "_bounds\030\007 \003(\001\022;\n\texemplars\030\010 \003(\0132(.opent"
+    "elemetry.proto.metrics.v1.Exemplar\022\r\n\005fl"
+    "ags\030\n \001(\r\022\020\n\003min\030\013 \001(\001H\001\210\001\001\022\020\n\003max\030\014 \001(\001"
+    "H\002\210\001\001B\006\n\004_sumB\006\n\004_minB\006\n\004_maxJ\004\010\001\020\002\"\332\004\n\035"
+    "ExponentialHistogramDataPoint\022;\n\nattribu"
+    "tes\030\001 \003(\0132\'.opentelemetry.proto.common.v"
+    "1.KeyValue\022\034\n\024start_time_unix_nano\030\002 \001(\006"
+    "\022\026\n\016time_unix_nano\030\003 \001(\006\022\r\n\005count\030\004 \001(\006\022"
+    "\020\n\003sum\030\005 \001(\001H\000\210\001\001\022\r\n\005scale\030\006 \001(\021\022\022\n\nzero"
+    "_count\030\007 \001(\006\022W\n\010positive\030\010 \001(\0132E.opentel"
+    "emetry.proto.metrics.v1.ExponentialHisto"
+    "gramDataPoint.Buckets\022W\n\010negative\030\t \001(\0132"
+    "E.opentelemetry.proto.metrics.v1.Exponen"
+    "tialHistogramDataPoint.Buckets\022\r\n\005flags\030"
+    "\n \001(\r\022;\n\texemplars\030\013 \003(\0132(.opentelemetry"
+    ".proto.metrics.v1.Exemplar\022\020\n\003min\030\014 \001(\001H"
+    "\001\210\001\001\022\020\n\003max\030\r \001(\001H\002\210\001\001\022\026\n\016zero_threshold"
+    "\030\016 \001(\001\0320\n\007Buckets\022\016\n\006offset\030\001 \001(\021\022\025\n\rbuc"
+    "ket_counts\030\002 \003(\004B\006\n\004_sumB\006\n\004_minB\006\n\004_max"
+    "\"\305\002\n\020SummaryDataPoint\022;\n\nattributes\030\007 \003("
+    "\0132\'.opentelemetry.proto.common.v1.KeyVal"
+    "ue\022\034\n\024start_time_unix_nano\030\002 \001(\006\022\026\n\016time"
+    "_unix_nano\030\003 \001(\006\022\r\n\005count\030\004 \001(\006\022\013\n\003sum\030\005"
+    " \001(\001\022Y\n\017quantile_values\030\006 \003(\0132@.opentele"
+    "metry.proto.metrics.v1.SummaryDataPoint."
+    "ValueAtQuantile\022\r\n\005flags\030\010 \001(\r\0322\n\017ValueA"
+    "tQuantile\022\020\n\010quantile\030\001 \001(\001\022\r\n\005value\030\002 \001"
+    "(\001J\004\010\001\020\002\"\301\001\n\010Exemplar\022D\n\023filtered_attrib"
+    "utes\030\007 \003(\0132\'.opentelemetry.proto.common."
+    "v1.KeyValue\022\026\n\016time_unix_nano\030\002 \001(\006\022\023\n\ta"
+    "s_double\030\003 \001(\001H\000\022\020\n\006as_int\030\006 \001(\020H\000\022\017\n\007sp"
+    "an_id\030\004 \001(\014\022\020\n\010trace_id\030\005 \001(\014B\007\n\005valueJ\004"
+    "\010\001\020\002*\214\001\n\026AggregationTemporality\022\'\n#AGGRE"
+    "GATION_TEMPORALITY_UNSPECIFIED\020\000\022!\n\035AGGR"
+    "EGATION_TEMPORALITY_DELTA\020\001\022&\n\"AGGREGATI"
+    "ON_TEMPORALITY_CUMULATIVE\020\002*^\n\016DataPoint"
+    "Flags\022\037\n\033DATA_POINT_FLAGS_DO_NOT_USE\020\000\022+"
+    "\n\'DATA_POINT_FLAGS_NO_RECORDED_VALUE_MAS"
+    "K\020\001B\177\n!io.opentelemetry.proto.metrics.v1"
+    "B\014MetricsProtoP\001Z)go.opentelemetry.io/pr"
+    "oto/otlp/metrics/v1\252\002\036OpenTelemetry.Prot"
+    "o.Metrics.V1b\006proto3"
+};
+static const ::_pbi::DescriptorTable* const descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_deps[2] =
+    {
+        &::descriptor_table_opentelemetry_2fproto_2fcommon_2fv1_2fcommon_2eproto,
+        &::descriptor_table_opentelemetry_2fproto_2fresource_2fv1_2fresource_2eproto,
+};
+static ::absl::once_flag descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once;
+const ::_pbi::DescriptorTable descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto = {
+    false,
+    false,
+    3860,
+    descriptor_table_protodef_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto,
+    "opentelemetry/proto/metrics/v1/metrics.proto",
+    &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
+    descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_deps,
+    2,
+    16,
+    schemas,
+    file_default_instances,
+    TableStruct_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto::offsets,
+    file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto,
+    file_level_enum_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto,
+    file_level_service_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto,
 };
 
-const char descriptor_table_protodef_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
-  "\n,opentelemetry/proto/metrics/v1/metrics"
-  ".proto\022\036opentelemetry.proto.metrics.v1\032*"
-  "opentelemetry/proto/common/v1/common.pro"
-  "to\032.opentelemetry/proto/resource/v1/reso"
-  "urce.proto\"X\n\013MetricsData\022I\n\020resource_me"
-  "trics\030\001 \003(\0132/.opentelemetry.proto.metric"
-  "s.v1.ResourceMetrics\"\312\001\n\017ResourceMetrics"
-  "\022;\n\010resource\030\001 \001(\0132).opentelemetry.proto"
-  ".resource.v1.Resource\022f\n\037instrumentation"
-  "_library_metrics\030\002 \003(\0132=.opentelemetry.p"
-  "roto.metrics.v1.InstrumentationLibraryMe"
-  "trics\022\022\n\nschema_url\030\003 \001(\t\"\304\001\n\035Instrument"
-  "ationLibraryMetrics\022V\n\027instrumentation_l"
-  "ibrary\030\001 \001(\01325.opentelemetry.proto.commo"
-  "n.v1.InstrumentationLibrary\0227\n\007metrics\030\002"
-  " \003(\0132&.opentelemetry.proto.metrics.v1.Me"
-  "tric\022\022\n\nschema_url\030\003 \001(\t\"\222\003\n\006Metric\022\014\n\004n"
-  "ame\030\001 \001(\t\022\023\n\013description\030\002 \001(\t\022\014\n\004unit\030\003"
-  " \001(\t\0226\n\005gauge\030\005 \001(\0132%.opentelemetry.prot"
-  "o.metrics.v1.GaugeH\000\0222\n\003sum\030\007 \001(\0132#.open"
-  "telemetry.proto.metrics.v1.SumH\000\022>\n\thist"
-  "ogram\030\t \001(\0132).opentelemetry.proto.metric"
-  "s.v1.HistogramH\000\022U\n\025exponential_histogra"
-  "m\030\n \001(\01324.opentelemetry.proto.metrics.v1"
-  ".ExponentialHistogramH\000\022:\n\007summary\030\013 \001(\013"
-  "2\'.opentelemetry.proto.metrics.v1.Summar"
-  "yH\000B\006\n\004dataJ\004\010\004\020\005J\004\010\006\020\007J\004\010\010\020\t\"M\n\005Gauge\022D"
-  "\n\013data_points\030\001 \003(\0132/.opentelemetry.prot"
-  "o.metrics.v1.NumberDataPoint\"\272\001\n\003Sum\022D\n\013"
-  "data_points\030\001 \003(\0132/.opentelemetry.proto."
-  "metrics.v1.NumberDataPoint\022W\n\027aggregatio"
-  "n_temporality\030\002 \001(\01626.opentelemetry.prot"
-  "o.metrics.v1.AggregationTemporality\022\024\n\014i"
-  "s_monotonic\030\003 \001(\010\"\255\001\n\tHistogram\022G\n\013data_"
-  "points\030\001 \003(\01322.opentelemetry.proto.metri"
-  "cs.v1.HistogramDataPoint\022W\n\027aggregation_"
-  "temporality\030\002 \001(\01626.opentelemetry.proto."
-  "metrics.v1.AggregationTemporality\"\303\001\n\024Ex"
-  "ponentialHistogram\022R\n\013data_points\030\001 \003(\0132"
-  "=.opentelemetry.proto.metrics.v1.Exponen"
-  "tialHistogramDataPoint\022W\n\027aggregation_te"
-  "mporality\030\002 \001(\01626.opentelemetry.proto.me"
-  "trics.v1.AggregationTemporality\"P\n\007Summa"
-  "ry\022E\n\013data_points\030\001 \003(\01320.opentelemetry."
-  "proto.metrics.v1.SummaryDataPoint\"\206\002\n\017Nu"
-  "mberDataPoint\022;\n\nattributes\030\007 \003(\0132\'.open"
-  "telemetry.proto.common.v1.KeyValue\022\034\n\024st"
-  "art_time_unix_nano\030\002 \001(\006\022\026\n\016time_unix_na"
-  "no\030\003 \001(\006\022\023\n\tas_double\030\004 \001(\001H\000\022\020\n\006as_int\030"
-  "\006 \001(\020H\000\022;\n\texemplars\030\005 \003(\0132(.opentelemet"
-  "ry.proto.metrics.v1.Exemplar\022\r\n\005flags\030\010 "
-  "\001(\rB\007\n\005valueJ\004\010\001\020\002\"\245\002\n\022HistogramDataPoin"
-  "t\022;\n\nattributes\030\t \003(\0132\'.opentelemetry.pr"
-  "oto.common.v1.KeyValue\022\034\n\024start_time_uni"
-  "x_nano\030\002 \001(\006\022\026\n\016time_unix_nano\030\003 \001(\006\022\r\n\005"
-  "count\030\004 \001(\006\022\013\n\003sum\030\005 \001(\001\022\025\n\rbucket_count"
-  "s\030\006 \003(\006\022\027\n\017explicit_bounds\030\007 \003(\001\022;\n\texem"
-  "plars\030\010 \003(\0132(.opentelemetry.proto.metric"
-  "s.v1.Exemplar\022\r\n\005flags\030\n \001(\rJ\004\010\001\020\002\"\201\004\n\035E"
-  "xponentialHistogramDataPoint\022;\n\nattribut"
-  "es\030\001 \003(\0132\'.opentelemetry.proto.common.v1"
-  ".KeyValue\022\034\n\024start_time_unix_nano\030\002 \001(\006\022"
-  "\026\n\016time_unix_nano\030\003 \001(\006\022\r\n\005count\030\004 \001(\006\022\013"
-  "\n\003sum\030\005 \001(\001\022\r\n\005scale\030\006 \001(\021\022\022\n\nzero_count"
-  "\030\007 \001(\006\022W\n\010positive\030\010 \001(\0132E.opentelemetry"
-  ".proto.metrics.v1.ExponentialHistogramDa"
-  "taPoint.Buckets\022W\n\010negative\030\t \001(\0132E.open"
-  "telemetry.proto.metrics.v1.ExponentialHi"
-  "stogramDataPoint.Buckets\022\r\n\005flags\030\n \001(\r\022"
-  ";\n\texemplars\030\013 \003(\0132(.opentelemetry.proto"
-  ".metrics.v1.Exemplar\0320\n\007Buckets\022\016\n\006offse"
-  "t\030\001 \001(\021\022\025\n\rbucket_counts\030\002 \003(\004\"\305\002\n\020Summa"
-  "ryDataPoint\022;\n\nattributes\030\007 \003(\0132\'.opente"
-  "lemetry.proto.common.v1.KeyValue\022\034\n\024star"
-  "t_time_unix_nano\030\002 \001(\006\022\026\n\016time_unix_nano"
-  "\030\003 \001(\006\022\r\n\005count\030\004 \001(\006\022\013\n\003sum\030\005 \001(\001\022Y\n\017qu"
-  "antile_values\030\006 \003(\0132@.opentelemetry.prot"
-  "o.metrics.v1.SummaryDataPoint.ValueAtQua"
-  "ntile\022\r\n\005flags\030\010 \001(\r\0322\n\017ValueAtQuantile\022"
-  "\020\n\010quantile\030\001 \001(\001\022\r\n\005value\030\002 \001(\001J\004\010\001\020\002\"\301"
-  "\001\n\010Exemplar\022D\n\023filtered_attributes\030\007 \003(\013"
-  "2\'.opentelemetry.proto.common.v1.KeyValu"
-  "e\022\026\n\016time_unix_nano\030\002 \001(\006\022\023\n\tas_double\030\003"
-  " \001(\001H\000\022\020\n\006as_int\030\006 \001(\020H\000\022\017\n\007span_id\030\004 \001("
-  "\014\022\020\n\010trace_id\030\005 \001(\014B\007\n\005valueJ\004\010\001\020\002*\214\001\n\026A"
-  "ggregationTemporality\022\'\n#AGGREGATION_TEM"
-  "PORALITY_UNSPECIFIED\020\000\022!\n\035AGGREGATION_TE"
-  "MPORALITY_DELTA\020\001\022&\n\"AGGREGATION_TEMPORA"
-  "LITY_CUMULATIVE\020\002*;\n\016DataPointFlags\022\r\n\tF"
-  "LAG_NONE\020\000\022\032\n\026FLAG_NO_RECORDED_VALUE\020\001B^"
-  "\n!io.opentelemetry.proto.metrics.v1B\014Met"
-  "ricsProtoP\001Z)go.opentelemetry.io/proto/o"
-  "tlp/metrics/v1b\006proto3"
-  ;
-static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_deps[2] = {
-  &::descriptor_table_opentelemetry_2fproto_2fcommon_2fv1_2fcommon_2eproto,
-  &::descriptor_table_opentelemetry_2fproto_2fresource_2fv1_2fresource_2eproto,
-};
-static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once;
-const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto = {
-  false, false, 3702, descriptor_table_protodef_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto, "opentelemetry/proto/metrics/v1/metrics.proto", 
-  &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once, descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_deps, 2, 16,
-  schemas, file_default_instances, TableStruct_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto::offsets,
-  file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto, file_level_enum_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto, file_level_service_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto,
-};
-PROTOBUF_ATTRIBUTE_WEAK const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable* descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter() {
+// This function exists to be marked as weak.
+// It can significantly speed up compilation by breaking up LLVM's SCC
+// in the .pb.cc translation units. Large translation units see a
+// reduction of more than 35% of walltime for optimized builds. Without
+// the weak attribute all the messages in the file, including all the
+// vtables and everything they use become part of the same SCC through
+// a cycle like:
+// GetMetadata -> descriptor table -> default instances ->
+//   vtables -> GetMetadata
+// By adding a weak function here we break the connection from the
+// individual vtables back into the descriptor table.
+PROTOBUF_ATTRIBUTE_WEAK const ::_pbi::DescriptorTable* descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter() {
   return &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto;
 }
-
 // Force running AddDescriptors() at dynamic initialization time.
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto(&descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto);
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY2
+static ::_pbi::AddDescriptorsRunner dynamic_init_dummy_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto(&descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto);
 namespace opentelemetry {
 namespace proto {
 namespace metrics {
@@ -607,7 +821,6 @@ bool AggregationTemporality_IsValid(int value) {
       return false;
   }
 }
-
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* DataPointFlags_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto);
   return file_level_enum_descriptors_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[1];
@@ -621,74 +834,73 @@ bool DataPointFlags_IsValid(int value) {
       return false;
   }
 }
-
-
 // ===================================================================
 
 class MetricsData::_Internal {
  public:
 };
 
-MetricsData::MetricsData(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  resource_metrics_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+MetricsData::MetricsData(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.MetricsData)
 }
 MetricsData::MetricsData(const MetricsData& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      resource_metrics_(from.resource_metrics_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  MetricsData* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.resource_metrics_){from._impl_.resource_metrics_}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.MetricsData)
 }
 
-inline void MetricsData::SharedCtor() {
+inline void MetricsData::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.resource_metrics_){arena}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 MetricsData::~MetricsData() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.MetricsData)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void MetricsData::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_resource_metrics()->~RepeatedPtrField();
 }
 
-void MetricsData::ArenaDtor(void* object) {
-  MetricsData* _this = reinterpret_cast< MetricsData* >(object);
-  (void)_this;
-}
-void MetricsData::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void MetricsData::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void MetricsData::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.MetricsData)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  resource_metrics_.Clear();
+  _internal_mutable_resource_metrics()->Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* MetricsData::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* MetricsData::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -696,8 +908,9 @@ const char* MetricsData::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -722,67 +935,63 @@ failure:
 #undef CHK_
 }
 
-uint8_t* MetricsData::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* MetricsData::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.MetricsData)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_resource_metrics_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_resource_metrics_size()); i < n; i++) {
+    const auto& repfield = this->_internal_resource_metrics(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_resource_metrics(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.MetricsData)
   return target;
 }
 
-size_t MetricsData::ByteSizeLong() const {
+::size_t MetricsData::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.MetricsData)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
   total_size += 1UL * this->_internal_resource_metrics_size();
-  for (const auto& msg : this->resource_metrics_) {
+  for (const auto& msg : this->_internal_resource_metrics()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData MetricsData::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     MetricsData::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*MetricsData::GetClassData() const { return &_class_data_; }
 
-void MetricsData::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<MetricsData *>(to)->MergeFrom(
-      static_cast<const MetricsData &>(from));
-}
 
-
-void MetricsData::MergeFrom(const MetricsData& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.MetricsData)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void MetricsData::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<MetricsData*>(&to_msg);
+  auto& from = static_cast<const MetricsData&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.MetricsData)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  resource_metrics_.MergeFrom(from.resource_metrics_);
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_mutable_resource_metrics()->MergeFrom(from._internal_resource_metrics());
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void MetricsData::CopyFrom(const MetricsData& from) {
@@ -799,144 +1008,158 @@ bool MetricsData::IsInitialized() const {
 void MetricsData::InternalSwap(MetricsData* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  resource_metrics_.InternalSwap(&other->resource_metrics_);
+  _internal_mutable_resource_metrics()->InternalSwap(other->_internal_mutable_resource_metrics());
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata MetricsData::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[0]);
 }
-
 // ===================================================================
 
 class ResourceMetrics::_Internal {
  public:
+  using HasBits = decltype(std::declval<ResourceMetrics>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ResourceMetrics, _impl_._has_bits_);
   static const ::opentelemetry::proto::resource::v1::Resource& resource(const ResourceMetrics* msg);
+  static void set_has_resource(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
 const ::opentelemetry::proto::resource::v1::Resource&
 ResourceMetrics::_Internal::resource(const ResourceMetrics* msg) {
-  return *msg->resource_;
+  return *msg->_impl_.resource_;
 }
 void ResourceMetrics::clear_resource() {
-  if (GetArenaForAllocation() == nullptr && resource_ != nullptr) {
-    delete resource_;
-  }
-  resource_ = nullptr;
+  if (_impl_.resource_ != nullptr) _impl_.resource_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000001u;
 }
-ResourceMetrics::ResourceMetrics(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  instrumentation_library_metrics_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+ResourceMetrics::ResourceMetrics(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.ResourceMetrics)
 }
 ResourceMetrics::ResourceMetrics(const ResourceMetrics& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      instrumentation_library_metrics_(from.instrumentation_library_metrics_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ResourceMetrics* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.scope_metrics_){from._impl_.scope_metrics_}
+    , decltype(_impl_.schema_url_) {}
+
+    , decltype(_impl_.resource_){nullptr}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  schema_url_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _impl_.schema_url_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    schema_url_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.schema_url_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_schema_url().empty()) {
-    schema_url_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_schema_url(), 
-      GetArenaForAllocation());
+    _this->_impl_.schema_url_.Set(from._internal_schema_url(), _this->GetArenaForAllocation());
   }
-  if (from._internal_has_resource()) {
-    resource_ = new ::opentelemetry::proto::resource::v1::Resource(*from.resource_);
-  } else {
-    resource_ = nullptr;
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.resource_ = new ::opentelemetry::proto::resource::v1::Resource(*from._impl_.resource_);
   }
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.ResourceMetrics)
 }
 
-inline void ResourceMetrics::SharedCtor() {
-schema_url_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  schema_url_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-resource_ = nullptr;
+inline void ResourceMetrics::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.scope_metrics_){arena}
+    , decltype(_impl_.schema_url_) {}
+
+    , decltype(_impl_.resource_){nullptr}
+  };
+  _impl_.schema_url_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.schema_url_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
 }
 
 ResourceMetrics::~ResourceMetrics() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.ResourceMetrics)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void ResourceMetrics::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  schema_url_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  if (this != internal_default_instance()) delete resource_;
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_scope_metrics()->~RepeatedPtrField();
+  _impl_.schema_url_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.resource_;
 }
 
-void ResourceMetrics::ArenaDtor(void* object) {
-  ResourceMetrics* _this = reinterpret_cast< ResourceMetrics* >(object);
-  (void)_this;
-}
-void ResourceMetrics::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void ResourceMetrics::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void ResourceMetrics::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.ResourceMetrics)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  instrumentation_library_metrics_.Clear();
-  schema_url_.ClearToEmpty();
-  if (GetArenaForAllocation() == nullptr && resource_ != nullptr) {
-    delete resource_;
+  _internal_mutable_scope_metrics()->Clear();
+  _impl_.schema_url_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.resource_ != nullptr);
+    _impl_.resource_->Clear();
   }
-  resource_ = nullptr;
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* ResourceMetrics::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* ResourceMetrics::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // .opentelemetry.proto.resource.v1.Resource resource = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr = ctx->ParseMessage(_internal_mutable_resource(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
-      // repeated .opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics instrumentation_library_metrics = 2;
+      // repeated .opentelemetry.proto.metrics.v1.ScopeMetrics scope_metrics = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
           ptr -= 1;
           do {
             ptr += 1;
-            ptr = ctx->ParseMessage(_internal_add_instrumentation_library_metrics(), ptr);
+            ptr = ctx->ParseMessage(_internal_add_scope_metrics(), ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // string schema_url = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
           auto str = _internal_mutable_schema_url();
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
-          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.ResourceMetrics.schema_url"));
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
-        } else
+          CHK_(::_pbi::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.ResourceMetrics.schema_url"));
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -954,6 +1177,7 @@ const char* ResourceMetrics::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPAC
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -961,105 +1185,100 @@ failure:
 #undef CHK_
 }
 
-uint8_t* ResourceMetrics::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* ResourceMetrics::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.ResourceMetrics)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
+  cached_has_bits = _impl_._has_bits_[0];
   // .opentelemetry.proto.resource.v1.Resource resource = 1;
-  if (this->_internal_has_resource()) {
-    target = stream->EnsureSpace(target);
+  if (cached_has_bits & 0x00000001u) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        1, _Internal::resource(this), target, stream);
+      InternalWriteMessage(1, _Internal::resource(this),
+        _Internal::resource(this).GetCachedSize(), target, stream);
   }
 
-  // repeated .opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics instrumentation_library_metrics = 2;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_instrumentation_library_metrics_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  // repeated .opentelemetry.proto.metrics.v1.ScopeMetrics scope_metrics = 2;
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_scope_metrics_size()); i < n; i++) {
+    const auto& repfield = this->_internal_scope_metrics(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(2, this->_internal_instrumentation_library_metrics(i), target, stream);
+        InternalWriteMessage(2, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // string schema_url = 3;
   if (!this->_internal_schema_url().empty()) {
+    const std::string& _s = this->_internal_schema_url();
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
-      this->_internal_schema_url().data(), static_cast<int>(this->_internal_schema_url().length()),
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
-      "opentelemetry.proto.metrics.v1.ResourceMetrics.schema_url");
-    target = stream->WriteStringMaybeAliased(
-        3, this->_internal_schema_url(), target);
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "opentelemetry.proto.metrics.v1.ResourceMetrics.schema_url");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.ResourceMetrics)
   return target;
 }
 
-size_t ResourceMetrics::ByteSizeLong() const {
+::size_t ResourceMetrics::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.ResourceMetrics)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // repeated .opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics instrumentation_library_metrics = 2;
-  total_size += 1UL * this->_internal_instrumentation_library_metrics_size();
-  for (const auto& msg : this->instrumentation_library_metrics_) {
+  // repeated .opentelemetry.proto.metrics.v1.ScopeMetrics scope_metrics = 2;
+  total_size += 1UL * this->_internal_scope_metrics_size();
+  for (const auto& msg : this->_internal_scope_metrics()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // string schema_url = 3;
   if (!this->_internal_schema_url().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
-        this->_internal_schema_url());
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_schema_url());
   }
 
   // .opentelemetry.proto.resource.v1.Resource resource = 1;
-  if (this->_internal_has_resource()) {
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-        *resource_);
+        *_impl_.resource_);
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ResourceMetrics::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     ResourceMetrics::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ResourceMetrics::GetClassData() const { return &_class_data_; }
 
-void ResourceMetrics::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<ResourceMetrics *>(to)->MergeFrom(
-      static_cast<const ResourceMetrics &>(from));
-}
 
-
-void ResourceMetrics::MergeFrom(const ResourceMetrics& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ResourceMetrics)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void ResourceMetrics::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ResourceMetrics*>(&to_msg);
+  auto& from = static_cast<const ResourceMetrics&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ResourceMetrics)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  instrumentation_library_metrics_.MergeFrom(from.instrumentation_library_metrics_);
+  _this->_internal_mutable_scope_metrics()->MergeFrom(from._internal_scope_metrics());
   if (!from._internal_schema_url().empty()) {
-    _internal_set_schema_url(from._internal_schema_url());
+    _this->_internal_set_schema_url(from._internal_schema_url());
   }
-  if (from._internal_has_resource()) {
-    _internal_mutable_resource()->::opentelemetry::proto::resource::v1::Resource::MergeFrom(from._internal_resource());
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_resource()->::opentelemetry::proto::resource::v1::Resource::MergeFrom(
+        from._internal_resource());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void ResourceMetrics::CopyFrom(const ResourceMetrics& from) {
@@ -1078,131 +1297,141 @@ void ResourceMetrics::InternalSwap(ResourceMetrics* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  instrumentation_library_metrics_.InternalSwap(&other->instrumentation_library_metrics_);
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
-      &schema_url_, lhs_arena,
-      &other->schema_url_, rhs_arena
-  );
-  swap(resource_, other->resource_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_scope_metrics()->InternalSwap(other->_internal_mutable_scope_metrics());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.schema_url_, lhs_arena,
+                                       &other->_impl_.schema_url_, rhs_arena);
+  swap(_impl_.resource_, other->_impl_.resource_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ResourceMetrics::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[1]);
 }
-
 // ===================================================================
 
-class InstrumentationLibraryMetrics::_Internal {
+class ScopeMetrics::_Internal {
  public:
-  static const ::opentelemetry::proto::common::v1::InstrumentationLibrary& instrumentation_library(const InstrumentationLibraryMetrics* msg);
+  using HasBits = decltype(std::declval<ScopeMetrics>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ScopeMetrics, _impl_._has_bits_);
+  static const ::opentelemetry::proto::common::v1::InstrumentationScope& scope(const ScopeMetrics* msg);
+  static void set_has_scope(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
-const ::opentelemetry::proto::common::v1::InstrumentationLibrary&
-InstrumentationLibraryMetrics::_Internal::instrumentation_library(const InstrumentationLibraryMetrics* msg) {
-  return *msg->instrumentation_library_;
+const ::opentelemetry::proto::common::v1::InstrumentationScope&
+ScopeMetrics::_Internal::scope(const ScopeMetrics* msg) {
+  return *msg->_impl_.scope_;
 }
-void InstrumentationLibraryMetrics::clear_instrumentation_library() {
-  if (GetArenaForAllocation() == nullptr && instrumentation_library_ != nullptr) {
-    delete instrumentation_library_;
-  }
-  instrumentation_library_ = nullptr;
+void ScopeMetrics::clear_scope() {
+  if (_impl_.scope_ != nullptr) _impl_.scope_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000001u;
 }
-InstrumentationLibraryMetrics::InstrumentationLibraryMetrics(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  metrics_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
-  // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
+ScopeMetrics::ScopeMetrics(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.ScopeMetrics)
 }
-InstrumentationLibraryMetrics::InstrumentationLibraryMetrics(const InstrumentationLibraryMetrics& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      metrics_(from.metrics_) {
+ScopeMetrics::ScopeMetrics(const ScopeMetrics& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ScopeMetrics* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.metrics_){from._impl_.metrics_}
+    , decltype(_impl_.schema_url_) {}
+
+    , decltype(_impl_.scope_){nullptr}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  schema_url_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _impl_.schema_url_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    schema_url_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.schema_url_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_schema_url().empty()) {
-    schema_url_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_schema_url(), 
-      GetArenaForAllocation());
+    _this->_impl_.schema_url_.Set(from._internal_schema_url(), _this->GetArenaForAllocation());
   }
-  if (from._internal_has_instrumentation_library()) {
-    instrumentation_library_ = new ::opentelemetry::proto::common::v1::InstrumentationLibrary(*from.instrumentation_library_);
-  } else {
-    instrumentation_library_ = nullptr;
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.scope_ = new ::opentelemetry::proto::common::v1::InstrumentationScope(*from._impl_.scope_);
   }
-  // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
+  // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.ScopeMetrics)
 }
 
-inline void InstrumentationLibraryMetrics::SharedCtor() {
-schema_url_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  schema_url_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-instrumentation_library_ = nullptr;
+inline void ScopeMetrics::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.metrics_){arena}
+    , decltype(_impl_.schema_url_) {}
+
+    , decltype(_impl_.scope_){nullptr}
+  };
+  _impl_.schema_url_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.schema_url_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
 }
 
-InstrumentationLibraryMetrics::~InstrumentationLibraryMetrics() {
-  // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
-  if (GetArenaForAllocation() != nullptr) return;
+ScopeMetrics::~ScopeMetrics() {
+  // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.ScopeMetrics)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-inline void InstrumentationLibraryMetrics::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  schema_url_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  if (this != internal_default_instance()) delete instrumentation_library_;
+inline void ScopeMetrics::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_metrics()->~RepeatedPtrField();
+  _impl_.schema_url_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.scope_;
 }
 
-void InstrumentationLibraryMetrics::ArenaDtor(void* object) {
-  InstrumentationLibraryMetrics* _this = reinterpret_cast< InstrumentationLibraryMetrics* >(object);
-  (void)_this;
-}
-void InstrumentationLibraryMetrics::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
-void InstrumentationLibraryMetrics::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+void ScopeMetrics::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
 }
 
-void InstrumentationLibraryMetrics::Clear() {
-// @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
-  uint32_t cached_has_bits = 0;
+void ScopeMetrics::Clear() {
+// @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.ScopeMetrics)
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  metrics_.Clear();
-  schema_url_.ClearToEmpty();
-  if (GetArenaForAllocation() == nullptr && instrumentation_library_ != nullptr) {
-    delete instrumentation_library_;
+  _internal_mutable_metrics()->Clear();
+  _impl_.schema_url_.ClearToEmpty();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    ABSL_DCHECK(_impl_.scope_ != nullptr);
+    _impl_.scope_->Clear();
   }
-  instrumentation_library_ = nullptr;
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* InstrumentationLibraryMetrics::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* ScopeMetrics::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // .opentelemetry.proto.common.v1.InstrumentationLibrary instrumentation_library = 1;
+      // .opentelemetry.proto.common.v1.InstrumentationScope scope = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
-          ptr = ctx->ParseMessage(_internal_mutable_instrumentation_library(), ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_scope(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.metrics.v1.Metric metrics = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -1210,18 +1439,20 @@ const char* InstrumentationLibraryMetrics::_InternalParse(const char* ptr, ::PRO
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // string schema_url = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
           auto str = _internal_mutable_schema_url();
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
-          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics.schema_url"));
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
-        } else
+          CHK_(::_pbi::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.ScopeMetrics.schema_url"));
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -1239,6 +1470,7 @@ const char* InstrumentationLibraryMetrics::_InternalParse(const char* ptr, ::PRO
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -1246,142 +1478,136 @@ failure:
 #undef CHK_
 }
 
-uint8_t* InstrumentationLibraryMetrics::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
-  // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
-  uint32_t cached_has_bits = 0;
+::uint8_t* ScopeMetrics::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.ScopeMetrics)
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // .opentelemetry.proto.common.v1.InstrumentationLibrary instrumentation_library = 1;
-  if (this->_internal_has_instrumentation_library()) {
-    target = stream->EnsureSpace(target);
+  cached_has_bits = _impl_._has_bits_[0];
+  // .opentelemetry.proto.common.v1.InstrumentationScope scope = 1;
+  if (cached_has_bits & 0x00000001u) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        1, _Internal::instrumentation_library(this), target, stream);
+      InternalWriteMessage(1, _Internal::scope(this),
+        _Internal::scope(this).GetCachedSize(), target, stream);
   }
 
   // repeated .opentelemetry.proto.metrics.v1.Metric metrics = 2;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_metrics_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_metrics_size()); i < n; i++) {
+    const auto& repfield = this->_internal_metrics(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(2, this->_internal_metrics(i), target, stream);
+        InternalWriteMessage(2, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // string schema_url = 3;
   if (!this->_internal_schema_url().empty()) {
+    const std::string& _s = this->_internal_schema_url();
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
-      this->_internal_schema_url().data(), static_cast<int>(this->_internal_schema_url().length()),
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
-      "opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics.schema_url");
-    target = stream->WriteStringMaybeAliased(
-        3, this->_internal_schema_url(), target);
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "opentelemetry.proto.metrics.v1.ScopeMetrics.schema_url");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
+  // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.ScopeMetrics)
   return target;
 }
 
-size_t InstrumentationLibraryMetrics::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
-  size_t total_size = 0;
+::size_t ScopeMetrics::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.ScopeMetrics)
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.Metric metrics = 2;
   total_size += 1UL * this->_internal_metrics_size();
-  for (const auto& msg : this->metrics_) {
+  for (const auto& msg : this->_internal_metrics()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // string schema_url = 3;
   if (!this->_internal_schema_url().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
-        this->_internal_schema_url());
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_schema_url());
   }
 
-  // .opentelemetry.proto.common.v1.InstrumentationLibrary instrumentation_library = 1;
-  if (this->_internal_has_instrumentation_library()) {
+  // .opentelemetry.proto.common.v1.InstrumentationScope scope = 1;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-        *instrumentation_library_);
+        *_impl_.scope_);
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
-const ::PROTOBUF_NAMESPACE_ID::Message::ClassData InstrumentationLibraryMetrics::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
-    InstrumentationLibraryMetrics::MergeImpl
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ScopeMetrics::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    ScopeMetrics::MergeImpl
 };
-const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*InstrumentationLibraryMetrics::GetClassData() const { return &_class_data_; }
-
-void InstrumentationLibraryMetrics::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<InstrumentationLibraryMetrics *>(to)->MergeFrom(
-      static_cast<const InstrumentationLibraryMetrics &>(from));
-}
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ScopeMetrics::GetClassData() const { return &_class_data_; }
 
 
-void InstrumentationLibraryMetrics::MergeFrom(const InstrumentationLibraryMetrics& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void ScopeMetrics::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ScopeMetrics*>(&to_msg);
+  auto& from = static_cast<const ScopeMetrics&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ScopeMetrics)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  metrics_.MergeFrom(from.metrics_);
+  _this->_internal_mutable_metrics()->MergeFrom(from._internal_metrics());
   if (!from._internal_schema_url().empty()) {
-    _internal_set_schema_url(from._internal_schema_url());
+    _this->_internal_set_schema_url(from._internal_schema_url());
   }
-  if (from._internal_has_instrumentation_library()) {
-    _internal_mutable_instrumentation_library()->::opentelemetry::proto::common::v1::InstrumentationLibrary::MergeFrom(from._internal_instrumentation_library());
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_mutable_scope()->::opentelemetry::proto::common::v1::InstrumentationScope::MergeFrom(
+        from._internal_scope());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
-void InstrumentationLibraryMetrics::CopyFrom(const InstrumentationLibraryMetrics& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:opentelemetry.proto.metrics.v1.InstrumentationLibraryMetrics)
+void ScopeMetrics::CopyFrom(const ScopeMetrics& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:opentelemetry.proto.metrics.v1.ScopeMetrics)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool InstrumentationLibraryMetrics::IsInitialized() const {
+bool ScopeMetrics::IsInitialized() const {
   return true;
 }
 
-void InstrumentationLibraryMetrics::InternalSwap(InstrumentationLibraryMetrics* other) {
+void ScopeMetrics::InternalSwap(ScopeMetrics* other) {
   using std::swap;
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  metrics_.InternalSwap(&other->metrics_);
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
-      &schema_url_, lhs_arena,
-      &other->schema_url_, rhs_arena
-  );
-  swap(instrumentation_library_, other->instrumentation_library_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_metrics()->InternalSwap(other->_internal_mutable_metrics());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.schema_url_, lhs_arena,
+                                       &other->_impl_.schema_url_, rhs_arena);
+  swap(_impl_.scope_, other->_impl_.scope_);
 }
 
-::PROTOBUF_NAMESPACE_ID::Metadata InstrumentationLibraryMetrics::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+::PROTOBUF_NAMESPACE_ID::Metadata ScopeMetrics::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[2]);
 }
-
 // ===================================================================
 
 class Metric::_Internal {
  public:
+  static constexpr ::int32_t kOneofCaseOffset =
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Metric, _impl_._oneof_case_);
   static const ::opentelemetry::proto::metrics::v1::Gauge& gauge(const Metric* msg);
   static const ::opentelemetry::proto::metrics::v1::Sum& sum(const Metric* msg);
   static const ::opentelemetry::proto::metrics::v1::Histogram& histogram(const Metric* msg);
@@ -1391,36 +1617,36 @@ class Metric::_Internal {
 
 const ::opentelemetry::proto::metrics::v1::Gauge&
 Metric::_Internal::gauge(const Metric* msg) {
-  return *msg->data_.gauge_;
+  return *msg->_impl_.data_.gauge_;
 }
 const ::opentelemetry::proto::metrics::v1::Sum&
 Metric::_Internal::sum(const Metric* msg) {
-  return *msg->data_.sum_;
+  return *msg->_impl_.data_.sum_;
 }
 const ::opentelemetry::proto::metrics::v1::Histogram&
 Metric::_Internal::histogram(const Metric* msg) {
-  return *msg->data_.histogram_;
+  return *msg->_impl_.data_.histogram_;
 }
 const ::opentelemetry::proto::metrics::v1::ExponentialHistogram&
 Metric::_Internal::exponential_histogram(const Metric* msg) {
-  return *msg->data_.exponential_histogram_;
+  return *msg->_impl_.data_.exponential_histogram_;
 }
 const ::opentelemetry::proto::metrics::v1::Summary&
 Metric::_Internal::summary(const Metric* msg) {
-  return *msg->data_.summary_;
+  return *msg->_impl_.data_.summary_;
 }
 void Metric::set_allocated_gauge(::opentelemetry::proto::metrics::v1::Gauge* gauge) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
   clear_data();
   if (gauge) {
     ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
-      ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::opentelemetry::proto::metrics::v1::Gauge>::GetOwningArena(gauge);
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(gauge);
     if (message_arena != submessage_arena) {
       gauge = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
           message_arena, gauge, submessage_arena);
     }
     set_has_gauge();
-    data_.gauge_ = gauge;
+    _impl_.data_.gauge_ = gauge;
   }
   // @@protoc_insertion_point(field_set_allocated:opentelemetry.proto.metrics.v1.Metric.gauge)
 }
@@ -1429,13 +1655,13 @@ void Metric::set_allocated_sum(::opentelemetry::proto::metrics::v1::Sum* sum) {
   clear_data();
   if (sum) {
     ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
-      ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::opentelemetry::proto::metrics::v1::Sum>::GetOwningArena(sum);
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(sum);
     if (message_arena != submessage_arena) {
       sum = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
           message_arena, sum, submessage_arena);
     }
     set_has_sum();
-    data_.sum_ = sum;
+    _impl_.data_.sum_ = sum;
   }
   // @@protoc_insertion_point(field_set_allocated:opentelemetry.proto.metrics.v1.Metric.sum)
 }
@@ -1444,13 +1670,13 @@ void Metric::set_allocated_histogram(::opentelemetry::proto::metrics::v1::Histog
   clear_data();
   if (histogram) {
     ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
-      ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::opentelemetry::proto::metrics::v1::Histogram>::GetOwningArena(histogram);
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(histogram);
     if (message_arena != submessage_arena) {
       histogram = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
           message_arena, histogram, submessage_arena);
     }
     set_has_histogram();
-    data_.histogram_ = histogram;
+    _impl_.data_.histogram_ = histogram;
   }
   // @@protoc_insertion_point(field_set_allocated:opentelemetry.proto.metrics.v1.Metric.histogram)
 }
@@ -1459,13 +1685,13 @@ void Metric::set_allocated_exponential_histogram(::opentelemetry::proto::metrics
   clear_data();
   if (exponential_histogram) {
     ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
-      ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::opentelemetry::proto::metrics::v1::ExponentialHistogram>::GetOwningArena(exponential_histogram);
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(exponential_histogram);
     if (message_arena != submessage_arena) {
       exponential_histogram = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
           message_arena, exponential_histogram, submessage_arena);
     }
     set_has_exponential_histogram();
-    data_.exponential_histogram_ = exponential_histogram;
+    _impl_.data_.exponential_histogram_ = exponential_histogram;
   }
   // @@protoc_insertion_point(field_set_allocated:opentelemetry.proto.metrics.v1.Metric.exponential_histogram)
 }
@@ -1474,72 +1700,82 @@ void Metric::set_allocated_summary(::opentelemetry::proto::metrics::v1::Summary*
   clear_data();
   if (summary) {
     ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
-      ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::opentelemetry::proto::metrics::v1::Summary>::GetOwningArena(summary);
+      ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(summary);
     if (message_arena != submessage_arena) {
       summary = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
           message_arena, summary, submessage_arena);
     }
     set_has_summary();
-    data_.summary_ = summary;
+    _impl_.data_.summary_ = summary;
   }
   // @@protoc_insertion_point(field_set_allocated:opentelemetry.proto.metrics.v1.Metric.summary)
 }
-Metric::Metric(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+Metric::Metric(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.Metric)
 }
 Metric::Metric(const Metric& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
+  Metric* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.name_) {}
+
+    , decltype(_impl_.description_) {}
+
+    , decltype(_impl_.unit_) {}
+
+    , decltype(_impl_.data_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , /*decltype(_impl_._oneof_case_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _impl_.name_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_name().empty()) {
-    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
-      GetArenaForAllocation());
+    _this->_impl_.name_.Set(from._internal_name(), _this->GetArenaForAllocation());
   }
-  description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _impl_.description_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    description_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.description_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_description().empty()) {
-    description_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_description(), 
-      GetArenaForAllocation());
+    _this->_impl_.description_.Set(from._internal_description(), _this->GetArenaForAllocation());
   }
-  unit_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _impl_.unit_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    unit_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.unit_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_unit().empty()) {
-    unit_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_unit(), 
-      GetArenaForAllocation());
+    _this->_impl_.unit_.Set(from._internal_unit(), _this->GetArenaForAllocation());
   }
   clear_has_data();
   switch (from.data_case()) {
     case kGauge: {
-      _internal_mutable_gauge()->::opentelemetry::proto::metrics::v1::Gauge::MergeFrom(from._internal_gauge());
+      _this->_internal_mutable_gauge()->::opentelemetry::proto::metrics::v1::Gauge::MergeFrom(
+          from._internal_gauge());
       break;
     }
     case kSum: {
-      _internal_mutable_sum()->::opentelemetry::proto::metrics::v1::Sum::MergeFrom(from._internal_sum());
+      _this->_internal_mutable_sum()->::opentelemetry::proto::metrics::v1::Sum::MergeFrom(
+          from._internal_sum());
       break;
     }
     case kHistogram: {
-      _internal_mutable_histogram()->::opentelemetry::proto::metrics::v1::Histogram::MergeFrom(from._internal_histogram());
+      _this->_internal_mutable_histogram()->::opentelemetry::proto::metrics::v1::Histogram::MergeFrom(
+          from._internal_histogram());
       break;
     }
     case kExponentialHistogram: {
-      _internal_mutable_exponential_histogram()->::opentelemetry::proto::metrics::v1::ExponentialHistogram::MergeFrom(from._internal_exponential_histogram());
+      _this->_internal_mutable_exponential_histogram()->::opentelemetry::proto::metrics::v1::ExponentialHistogram::MergeFrom(
+          from._internal_exponential_histogram());
       break;
     }
     case kSummary: {
-      _internal_mutable_summary()->::opentelemetry::proto::metrics::v1::Summary::MergeFrom(from._internal_summary());
+      _this->_internal_mutable_summary()->::opentelemetry::proto::metrics::v1::Summary::MergeFrom(
+          from._internal_summary());
       break;
     }
     case DATA_NOT_SET: {
@@ -1549,47 +1785,55 @@ Metric::Metric(const Metric& from)
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.Metric)
 }
 
-inline void Metric::SharedCtor() {
-name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-description_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  description_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-unit_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  unit_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-clear_has_data();
+inline void Metric::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.name_) {}
+
+    , decltype(_impl_.description_) {}
+
+    , decltype(_impl_.unit_) {}
+
+    , decltype(_impl_.data_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , /*decltype(_impl_._oneof_case_)*/{}
+  };
+  _impl_.name_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.description_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.description_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.unit_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.unit_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  clear_has_data();
 }
 
 Metric::~Metric() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.Metric)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void Metric::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  name_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  description_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  unit_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.name_.Destroy();
+  _impl_.description_.Destroy();
+  _impl_.unit_.Destroy();
   if (has_data()) {
     clear_data();
   }
 }
 
-void Metric::ArenaDtor(void* object) {
-  Metric* _this = reinterpret_cast< Metric* >(object);
-  (void)_this;
-}
-void Metric::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void Metric::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void Metric::clear_data() {
@@ -1597,31 +1841,31 @@ void Metric::clear_data() {
   switch (data_case()) {
     case kGauge: {
       if (GetArenaForAllocation() == nullptr) {
-        delete data_.gauge_;
+        delete _impl_.data_.gauge_;
       }
       break;
     }
     case kSum: {
       if (GetArenaForAllocation() == nullptr) {
-        delete data_.sum_;
+        delete _impl_.data_.sum_;
       }
       break;
     }
     case kHistogram: {
       if (GetArenaForAllocation() == nullptr) {
-        delete data_.histogram_;
+        delete _impl_.data_.histogram_;
       }
       break;
     }
     case kExponentialHistogram: {
       if (GetArenaForAllocation() == nullptr) {
-        delete data_.exponential_histogram_;
+        delete _impl_.data_.exponential_histogram_;
       }
       break;
     }
     case kSummary: {
       if (GetArenaForAllocation() == nullptr) {
-        delete data_.summary_;
+        delete _impl_.data_.summary_;
       }
       break;
     }
@@ -1629,98 +1873,106 @@ void Metric::clear_data() {
       break;
     }
   }
-  _oneof_case_[0] = DATA_NOT_SET;
+  _impl_._oneof_case_[0] = DATA_NOT_SET;
 }
 
 
 void Metric::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.Metric)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  name_.ClearToEmpty();
-  description_.ClearToEmpty();
-  unit_.ClearToEmpty();
+  _impl_.name_.ClearToEmpty();
+  _impl_.description_.ClearToEmpty();
+  _impl_.unit_.ClearToEmpty();
   clear_data();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* Metric::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* Metric::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // string name = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           auto str = _internal_mutable_name();
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
-          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.Metric.name"));
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
-        } else
+          CHK_(::_pbi::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.Metric.name"));
+        } else {
           goto handle_unusual;
+        }
         continue;
       // string description = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
           auto str = _internal_mutable_description();
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
-          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.Metric.description"));
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
-        } else
+          CHK_(::_pbi::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.Metric.description"));
+        } else {
           goto handle_unusual;
+        }
         continue;
       // string unit = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
           auto str = _internal_mutable_unit();
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
-          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.Metric.unit"));
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
-        } else
+          CHK_(::_pbi::VerifyUTF8(str, "opentelemetry.proto.metrics.v1.Metric.unit"));
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.Gauge gauge = 5;
       case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 42)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
           ptr = ctx->ParseMessage(_internal_mutable_gauge(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.Sum sum = 7;
       case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 58)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
           ptr = ctx->ParseMessage(_internal_mutable_sum(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.Histogram histogram = 9;
       case 9:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 74)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
           ptr = ctx->ParseMessage(_internal_mutable_histogram(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.ExponentialHistogram exponential_histogram = 10;
       case 10:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 82)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 82)) {
           ptr = ctx->ParseMessage(_internal_mutable_exponential_histogram(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.Summary summary = 11;
       case 11:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 90)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
           ptr = ctx->ParseMessage(_internal_mutable_summary(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -1745,117 +1997,101 @@ failure:
 #undef CHK_
 }
 
-uint8_t* Metric::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* Metric::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.Metric)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // string name = 1;
   if (!this->_internal_name().empty()) {
+    const std::string& _s = this->_internal_name();
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
-      this->_internal_name().data(), static_cast<int>(this->_internal_name().length()),
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
-      "opentelemetry.proto.metrics.v1.Metric.name");
-    target = stream->WriteStringMaybeAliased(
-        1, this->_internal_name(), target);
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "opentelemetry.proto.metrics.v1.Metric.name");
+    target = stream->WriteStringMaybeAliased(1, _s, target);
   }
 
   // string description = 2;
   if (!this->_internal_description().empty()) {
+    const std::string& _s = this->_internal_description();
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
-      this->_internal_description().data(), static_cast<int>(this->_internal_description().length()),
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
-      "opentelemetry.proto.metrics.v1.Metric.description");
-    target = stream->WriteStringMaybeAliased(
-        2, this->_internal_description(), target);
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "opentelemetry.proto.metrics.v1.Metric.description");
+    target = stream->WriteStringMaybeAliased(2, _s, target);
   }
 
   // string unit = 3;
   if (!this->_internal_unit().empty()) {
+    const std::string& _s = this->_internal_unit();
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
-      this->_internal_unit().data(), static_cast<int>(this->_internal_unit().length()),
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
-      "opentelemetry.proto.metrics.v1.Metric.unit");
-    target = stream->WriteStringMaybeAliased(
-        3, this->_internal_unit(), target);
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "opentelemetry.proto.metrics.v1.Metric.unit");
+    target = stream->WriteStringMaybeAliased(3, _s, target);
   }
 
-  // .opentelemetry.proto.metrics.v1.Gauge gauge = 5;
-  if (_internal_has_gauge()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        5, _Internal::gauge(this), target, stream);
+  switch (data_case()) {
+    case kGauge: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(5, _Internal::gauge(this),
+          _Internal::gauge(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSum: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(7, _Internal::sum(this),
+          _Internal::sum(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kHistogram: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(9, _Internal::histogram(this),
+          _Internal::histogram(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kExponentialHistogram: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(10, _Internal::exponential_histogram(this),
+          _Internal::exponential_histogram(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSummary: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(11, _Internal::summary(this),
+          _Internal::summary(this).GetCachedSize(), target, stream);
+      break;
+    }
+    default: ;
   }
-
-  // .opentelemetry.proto.metrics.v1.Sum sum = 7;
-  if (_internal_has_sum()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        7, _Internal::sum(this), target, stream);
-  }
-
-  // .opentelemetry.proto.metrics.v1.Histogram histogram = 9;
-  if (_internal_has_histogram()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        9, _Internal::histogram(this), target, stream);
-  }
-
-  // .opentelemetry.proto.metrics.v1.ExponentialHistogram exponential_histogram = 10;
-  if (_internal_has_exponential_histogram()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        10, _Internal::exponential_histogram(this), target, stream);
-  }
-
-  // .opentelemetry.proto.metrics.v1.Summary summary = 11;
-  if (_internal_has_summary()) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        11, _Internal::summary(this), target, stream);
-  }
-
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.Metric)
   return target;
 }
 
-size_t Metric::ByteSizeLong() const {
+::size_t Metric::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.Metric)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // string name = 1;
   if (!this->_internal_name().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
-        this->_internal_name());
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_name());
   }
 
   // string description = 2;
   if (!this->_internal_description().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
-        this->_internal_description());
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_description());
   }
 
   // string unit = 3;
   if (!this->_internal_unit().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
-        this->_internal_unit());
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_unit());
   }
 
   switch (data_case()) {
@@ -1863,98 +2099,99 @@ size_t Metric::ByteSizeLong() const {
     case kGauge: {
       total_size += 1 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-          *data_.gauge_);
+          *_impl_.data_.gauge_);
       break;
     }
     // .opentelemetry.proto.metrics.v1.Sum sum = 7;
     case kSum: {
       total_size += 1 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-          *data_.sum_);
+          *_impl_.data_.sum_);
       break;
     }
     // .opentelemetry.proto.metrics.v1.Histogram histogram = 9;
     case kHistogram: {
       total_size += 1 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-          *data_.histogram_);
+          *_impl_.data_.histogram_);
       break;
     }
     // .opentelemetry.proto.metrics.v1.ExponentialHistogram exponential_histogram = 10;
     case kExponentialHistogram: {
       total_size += 1 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-          *data_.exponential_histogram_);
+          *_impl_.data_.exponential_histogram_);
       break;
     }
     // .opentelemetry.proto.metrics.v1.Summary summary = 11;
     case kSummary: {
       total_size += 1 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-          *data_.summary_);
+          *_impl_.data_.summary_);
       break;
     }
     case DATA_NOT_SET: {
       break;
     }
   }
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Metric::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     Metric::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Metric::GetClassData() const { return &_class_data_; }
 
-void Metric::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<Metric *>(to)->MergeFrom(
-      static_cast<const Metric &>(from));
-}
 
-
-void Metric::MergeFrom(const Metric& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Metric)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void Metric::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Metric*>(&to_msg);
+  auto& from = static_cast<const Metric&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Metric)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   if (!from._internal_name().empty()) {
-    _internal_set_name(from._internal_name());
+    _this->_internal_set_name(from._internal_name());
   }
   if (!from._internal_description().empty()) {
-    _internal_set_description(from._internal_description());
+    _this->_internal_set_description(from._internal_description());
   }
   if (!from._internal_unit().empty()) {
-    _internal_set_unit(from._internal_unit());
+    _this->_internal_set_unit(from._internal_unit());
   }
   switch (from.data_case()) {
     case kGauge: {
-      _internal_mutable_gauge()->::opentelemetry::proto::metrics::v1::Gauge::MergeFrom(from._internal_gauge());
+      _this->_internal_mutable_gauge()->::opentelemetry::proto::metrics::v1::Gauge::MergeFrom(
+          from._internal_gauge());
       break;
     }
     case kSum: {
-      _internal_mutable_sum()->::opentelemetry::proto::metrics::v1::Sum::MergeFrom(from._internal_sum());
+      _this->_internal_mutable_sum()->::opentelemetry::proto::metrics::v1::Sum::MergeFrom(
+          from._internal_sum());
       break;
     }
     case kHistogram: {
-      _internal_mutable_histogram()->::opentelemetry::proto::metrics::v1::Histogram::MergeFrom(from._internal_histogram());
+      _this->_internal_mutable_histogram()->::opentelemetry::proto::metrics::v1::Histogram::MergeFrom(
+          from._internal_histogram());
       break;
     }
     case kExponentialHistogram: {
-      _internal_mutable_exponential_histogram()->::opentelemetry::proto::metrics::v1::ExponentialHistogram::MergeFrom(from._internal_exponential_histogram());
+      _this->_internal_mutable_exponential_histogram()->::opentelemetry::proto::metrics::v1::ExponentialHistogram::MergeFrom(
+          from._internal_exponential_histogram());
       break;
     }
     case kSummary: {
-      _internal_mutable_summary()->::opentelemetry::proto::metrics::v1::Summary::MergeFrom(from._internal_summary());
+      _this->_internal_mutable_summary()->::opentelemetry::proto::metrics::v1::Summary::MergeFrom(
+          from._internal_summary());
       break;
     }
     case DATA_NOT_SET: {
       break;
     }
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void Metric::CopyFrom(const Metric& from) {
@@ -1973,97 +2210,88 @@ void Metric::InternalSwap(Metric* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
-      &name_, lhs_arena,
-      &other->name_, rhs_arena
-  );
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
-      &description_, lhs_arena,
-      &other->description_, rhs_arena
-  );
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
-      &unit_, lhs_arena,
-      &other->unit_, rhs_arena
-  );
-  swap(data_, other->data_);
-  swap(_oneof_case_[0], other->_oneof_case_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, lhs_arena,
+                                       &other->_impl_.name_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.description_, lhs_arena,
+                                       &other->_impl_.description_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.unit_, lhs_arena,
+                                       &other->_impl_.unit_, rhs_arena);
+  swap(_impl_.data_, other->_impl_.data_);
+  swap(_impl_._oneof_case_[0], other->_impl_._oneof_case_[0]);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata Metric::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[3]);
 }
-
 // ===================================================================
 
 class Gauge::_Internal {
  public:
 };
 
-Gauge::Gauge(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  data_points_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+Gauge::Gauge(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.Gauge)
 }
 Gauge::Gauge(const Gauge& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      data_points_(from.data_points_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  Gauge* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){from._impl_.data_points_}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.Gauge)
 }
 
-inline void Gauge::SharedCtor() {
+inline void Gauge::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){arena}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 Gauge::~Gauge() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.Gauge)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void Gauge::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_data_points()->~RepeatedPtrField();
 }
 
-void Gauge::ArenaDtor(void* object) {
-  Gauge* _this = reinterpret_cast< Gauge* >(object);
-  (void)_this;
-}
-void Gauge::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void Gauge::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void Gauge::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.Gauge)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_points_.Clear();
+  _internal_mutable_data_points()->Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* Gauge::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* Gauge::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.metrics.v1.NumberDataPoint data_points = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -2071,8 +2299,9 @@ const char* Gauge::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inte
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -2097,67 +2326,63 @@ failure:
 #undef CHK_
 }
 
-uint8_t* Gauge::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* Gauge::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.Gauge)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.NumberDataPoint data_points = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_data_points_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_data_points_size()); i < n; i++) {
+    const auto& repfield = this->_internal_data_points(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_data_points(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.Gauge)
   return target;
 }
 
-size_t Gauge::ByteSizeLong() const {
+::size_t Gauge::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.Gauge)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.NumberDataPoint data_points = 1;
   total_size += 1UL * this->_internal_data_points_size();
-  for (const auto& msg : this->data_points_) {
+  for (const auto& msg : this->_internal_data_points()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Gauge::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     Gauge::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Gauge::GetClassData() const { return &_class_data_; }
 
-void Gauge::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<Gauge *>(to)->MergeFrom(
-      static_cast<const Gauge &>(from));
-}
 
-
-void Gauge::MergeFrom(const Gauge& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Gauge)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void Gauge::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Gauge*>(&to_msg);
+  auto& from = static_cast<const Gauge&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Gauge)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  data_points_.MergeFrom(from.data_points_);
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_mutable_data_points()->MergeFrom(from._internal_data_points());
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void Gauge::CopyFrom(const Gauge& from) {
@@ -2174,91 +2399,95 @@ bool Gauge::IsInitialized() const {
 void Gauge::InternalSwap(Gauge* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  data_points_.InternalSwap(&other->data_points_);
+  _internal_mutable_data_points()->InternalSwap(other->_internal_mutable_data_points());
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata Gauge::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[4]);
 }
-
 // ===================================================================
 
 class Sum::_Internal {
  public:
 };
 
-Sum::Sum(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  data_points_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+Sum::Sum(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.Sum)
 }
 Sum::Sum(const Sum& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      data_points_(from.data_points_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  Sum* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){from._impl_.data_points_}
+    , decltype(_impl_.aggregation_temporality_) {}
+
+    , decltype(_impl_.is_monotonic_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&aggregation_temporality_, &from.aggregation_temporality_,
-    static_cast<size_t>(reinterpret_cast<char*>(&is_monotonic_) -
-    reinterpret_cast<char*>(&aggregation_temporality_)) + sizeof(is_monotonic_));
+  ::memcpy(&_impl_.aggregation_temporality_, &from._impl_.aggregation_temporality_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.is_monotonic_) -
+    reinterpret_cast<char*>(&_impl_.aggregation_temporality_)) + sizeof(_impl_.is_monotonic_));
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.Sum)
 }
 
-inline void Sum::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&aggregation_temporality_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&is_monotonic_) -
-    reinterpret_cast<char*>(&aggregation_temporality_)) + sizeof(is_monotonic_));
+inline void Sum::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){arena}
+    , decltype(_impl_.aggregation_temporality_) { 0 }
+
+    , decltype(_impl_.is_monotonic_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 Sum::~Sum() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.Sum)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void Sum::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_data_points()->~RepeatedPtrField();
 }
 
-void Sum::ArenaDtor(void* object) {
-  Sum* _this = reinterpret_cast< Sum* >(object);
-  (void)_this;
-}
-void Sum::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void Sum::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void Sum::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.Sum)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_points_.Clear();
-  ::memset(&aggregation_temporality_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&is_monotonic_) -
-      reinterpret_cast<char*>(&aggregation_temporality_)) + sizeof(is_monotonic_));
+  _internal_mutable_data_points()->Clear();
+  ::memset(&_impl_.aggregation_temporality_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.is_monotonic_) -
+      reinterpret_cast<char*>(&_impl_.aggregation_temporality_)) + sizeof(_impl_.is_monotonic_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* Sum::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* Sum::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.metrics.v1.NumberDataPoint data_points = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -2266,25 +2495,28 @@ const char* Sum::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::intern
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
-          uint64_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
           _internal_set_aggregation_temporality(static_cast<::opentelemetry::proto::metrics::v1::AggregationTemporality>(val));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // bool is_monotonic = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
-          is_monotonic_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
+          _impl_.is_monotonic_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -2309,52 +2541,53 @@ failure:
 #undef CHK_
 }
 
-uint8_t* Sum::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* Sum::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.Sum)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.NumberDataPoint data_points = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_data_points_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_data_points_size()); i < n; i++) {
+    const auto& repfield = this->_internal_data_points(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_data_points(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
   if (this->_internal_aggregation_temporality() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
-      2, this->_internal_aggregation_temporality(), target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        2, this->_internal_aggregation_temporality(), target);
   }
 
   // bool is_monotonic = 3;
   if (this->_internal_is_monotonic() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBoolToArray(3, this->_internal_is_monotonic(), target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        3, this->_internal_is_monotonic(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.Sum)
   return target;
 }
 
-size_t Sum::ByteSizeLong() const {
+::size_t Sum::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.Sum)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.NumberDataPoint data_points = 1;
   total_size += 1UL * this->_internal_data_points_size();
-  for (const auto& msg : this->data_points_) {
+  for (const auto& msg : this->_internal_data_points()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
@@ -2362,44 +2595,40 @@ size_t Sum::ByteSizeLong() const {
   // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
   if (this->_internal_aggregation_temporality() != 0) {
     total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_aggregation_temporality());
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_aggregation_temporality());
   }
 
   // bool is_monotonic = 3;
   if (this->_internal_is_monotonic() != 0) {
-    total_size += 1 + 1;
+    total_size += 2;
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Sum::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     Sum::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Sum::GetClassData() const { return &_class_data_; }
 
-void Sum::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<Sum *>(to)->MergeFrom(
-      static_cast<const Sum &>(from));
-}
 
-
-void Sum::MergeFrom(const Sum& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Sum)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void Sum::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Sum*>(&to_msg);
+  auto& from = static_cast<const Sum&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Sum)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  data_points_.MergeFrom(from.data_points_);
+  _this->_internal_mutable_data_points()->MergeFrom(from._internal_data_points());
   if (from._internal_aggregation_temporality() != 0) {
-    _internal_set_aggregation_temporality(from._internal_aggregation_temporality());
+    _this->_internal_set_aggregation_temporality(from._internal_aggregation_temporality());
   }
   if (from._internal_is_monotonic() != 0) {
-    _internal_set_is_monotonic(from._internal_is_monotonic());
+    _this->_internal_set_is_monotonic(from._internal_is_monotonic());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void Sum::CopyFrom(const Sum& from) {
@@ -2416,90 +2645,93 @@ bool Sum::IsInitialized() const {
 void Sum::InternalSwap(Sum* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  data_points_.InternalSwap(&other->data_points_);
+  _internal_mutable_data_points()->InternalSwap(other->_internal_mutable_data_points());
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Sum, is_monotonic_)
-      + sizeof(Sum::is_monotonic_)
-      - PROTOBUF_FIELD_OFFSET(Sum, aggregation_temporality_)>(
-          reinterpret_cast<char*>(&aggregation_temporality_),
-          reinterpret_cast<char*>(&other->aggregation_temporality_));
+      PROTOBUF_FIELD_OFFSET(Sum, _impl_.is_monotonic_)
+      + sizeof(Sum::_impl_.is_monotonic_)
+      - PROTOBUF_FIELD_OFFSET(Sum, _impl_.aggregation_temporality_)>(
+          reinterpret_cast<char*>(&_impl_.aggregation_temporality_),
+          reinterpret_cast<char*>(&other->_impl_.aggregation_temporality_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata Sum::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[5]);
 }
-
 // ===================================================================
 
 class Histogram::_Internal {
  public:
 };
 
-Histogram::Histogram(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  data_points_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+Histogram::Histogram(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.Histogram)
 }
 Histogram::Histogram(const Histogram& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      data_points_(from.data_points_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  Histogram* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){from._impl_.data_points_}
+    , decltype(_impl_.aggregation_temporality_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  aggregation_temporality_ = from.aggregation_temporality_;
+  _this->_impl_.aggregation_temporality_ = from._impl_.aggregation_temporality_;
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.Histogram)
 }
 
-inline void Histogram::SharedCtor() {
-aggregation_temporality_ = 0;
+inline void Histogram::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){arena}
+    , decltype(_impl_.aggregation_temporality_) { 0 }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 Histogram::~Histogram() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.Histogram)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void Histogram::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_data_points()->~RepeatedPtrField();
 }
 
-void Histogram::ArenaDtor(void* object) {
-  Histogram* _this = reinterpret_cast< Histogram* >(object);
-  (void)_this;
-}
-void Histogram::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void Histogram::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void Histogram::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.Histogram)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_points_.Clear();
-  aggregation_temporality_ = 0;
+  _internal_mutable_data_points()->Clear();
+  _impl_.aggregation_temporality_ = 0;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* Histogram::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* Histogram::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.metrics.v1.HistogramDataPoint data_points = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -2507,17 +2739,19 @@ const char* Histogram::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
-          uint64_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
           _internal_set_aggregation_temporality(static_cast<::opentelemetry::proto::metrics::v1::AggregationTemporality>(val));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -2542,46 +2776,46 @@ failure:
 #undef CHK_
 }
 
-uint8_t* Histogram::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* Histogram::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.Histogram)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.HistogramDataPoint data_points = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_data_points_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_data_points_size()); i < n; i++) {
+    const auto& repfield = this->_internal_data_points(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_data_points(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
   if (this->_internal_aggregation_temporality() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
-      2, this->_internal_aggregation_temporality(), target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        2, this->_internal_aggregation_temporality(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.Histogram)
   return target;
 }
 
-size_t Histogram::ByteSizeLong() const {
+::size_t Histogram::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.Histogram)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.HistogramDataPoint data_points = 1;
   total_size += 1UL * this->_internal_data_points_size();
-  for (const auto& msg : this->data_points_) {
+  for (const auto& msg : this->_internal_data_points()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
@@ -2589,36 +2823,32 @@ size_t Histogram::ByteSizeLong() const {
   // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
   if (this->_internal_aggregation_temporality() != 0) {
     total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_aggregation_temporality());
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_aggregation_temporality());
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Histogram::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     Histogram::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Histogram::GetClassData() const { return &_class_data_; }
 
-void Histogram::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<Histogram *>(to)->MergeFrom(
-      static_cast<const Histogram &>(from));
-}
 
-
-void Histogram::MergeFrom(const Histogram& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Histogram)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void Histogram::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Histogram*>(&to_msg);
+  auto& from = static_cast<const Histogram&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Histogram)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  data_points_.MergeFrom(from.data_points_);
+  _this->_internal_mutable_data_points()->MergeFrom(from._internal_data_points());
   if (from._internal_aggregation_temporality() != 0) {
-    _internal_set_aggregation_temporality(from._internal_aggregation_temporality());
+    _this->_internal_set_aggregation_temporality(from._internal_aggregation_temporality());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void Histogram::CopyFrom(const Histogram& from) {
@@ -2635,85 +2865,88 @@ bool Histogram::IsInitialized() const {
 void Histogram::InternalSwap(Histogram* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  data_points_.InternalSwap(&other->data_points_);
-  swap(aggregation_temporality_, other->aggregation_temporality_);
+  _internal_mutable_data_points()->InternalSwap(other->_internal_mutable_data_points());
+  swap(_impl_.aggregation_temporality_, other->_impl_.aggregation_temporality_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata Histogram::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[6]);
 }
-
 // ===================================================================
 
 class ExponentialHistogram::_Internal {
  public:
 };
 
-ExponentialHistogram::ExponentialHistogram(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  data_points_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+ExponentialHistogram::ExponentialHistogram(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.ExponentialHistogram)
 }
 ExponentialHistogram::ExponentialHistogram(const ExponentialHistogram& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      data_points_(from.data_points_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ExponentialHistogram* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){from._impl_.data_points_}
+    , decltype(_impl_.aggregation_temporality_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  aggregation_temporality_ = from.aggregation_temporality_;
+  _this->_impl_.aggregation_temporality_ = from._impl_.aggregation_temporality_;
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.ExponentialHistogram)
 }
 
-inline void ExponentialHistogram::SharedCtor() {
-aggregation_temporality_ = 0;
+inline void ExponentialHistogram::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){arena}
+    , decltype(_impl_.aggregation_temporality_) { 0 }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 ExponentialHistogram::~ExponentialHistogram() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.ExponentialHistogram)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void ExponentialHistogram::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_data_points()->~RepeatedPtrField();
 }
 
-void ExponentialHistogram::ArenaDtor(void* object) {
-  ExponentialHistogram* _this = reinterpret_cast< ExponentialHistogram* >(object);
-  (void)_this;
-}
-void ExponentialHistogram::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void ExponentialHistogram::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void ExponentialHistogram::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.ExponentialHistogram)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_points_.Clear();
-  aggregation_temporality_ = 0;
+  _internal_mutable_data_points()->Clear();
+  _impl_.aggregation_temporality_ = 0;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* ExponentialHistogram::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* ExponentialHistogram::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint data_points = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -2721,17 +2954,19 @@ const char* ExponentialHistogram::_InternalParse(const char* ptr, ::PROTOBUF_NAM
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
-          uint64_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
           _internal_set_aggregation_temporality(static_cast<::opentelemetry::proto::metrics::v1::AggregationTemporality>(val));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -2756,46 +2991,46 @@ failure:
 #undef CHK_
 }
 
-uint8_t* ExponentialHistogram::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* ExponentialHistogram::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.ExponentialHistogram)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint data_points = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_data_points_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_data_points_size()); i < n; i++) {
+    const auto& repfield = this->_internal_data_points(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_data_points(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
   if (this->_internal_aggregation_temporality() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
-      2, this->_internal_aggregation_temporality(), target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        2, this->_internal_aggregation_temporality(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.ExponentialHistogram)
   return target;
 }
 
-size_t ExponentialHistogram::ByteSizeLong() const {
+::size_t ExponentialHistogram::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.ExponentialHistogram)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint data_points = 1;
   total_size += 1UL * this->_internal_data_points_size();
-  for (const auto& msg : this->data_points_) {
+  for (const auto& msg : this->_internal_data_points()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
@@ -2803,36 +3038,32 @@ size_t ExponentialHistogram::ByteSizeLong() const {
   // .opentelemetry.proto.metrics.v1.AggregationTemporality aggregation_temporality = 2;
   if (this->_internal_aggregation_temporality() != 0) {
     total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_aggregation_temporality());
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_aggregation_temporality());
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ExponentialHistogram::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     ExponentialHistogram::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ExponentialHistogram::GetClassData() const { return &_class_data_; }
 
-void ExponentialHistogram::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<ExponentialHistogram *>(to)->MergeFrom(
-      static_cast<const ExponentialHistogram &>(from));
-}
 
-
-void ExponentialHistogram::MergeFrom(const ExponentialHistogram& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ExponentialHistogram)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void ExponentialHistogram::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ExponentialHistogram*>(&to_msg);
+  auto& from = static_cast<const ExponentialHistogram&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ExponentialHistogram)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  data_points_.MergeFrom(from.data_points_);
+  _this->_internal_mutable_data_points()->MergeFrom(from._internal_data_points());
   if (from._internal_aggregation_temporality() != 0) {
-    _internal_set_aggregation_temporality(from._internal_aggregation_temporality());
+    _this->_internal_set_aggregation_temporality(from._internal_aggregation_temporality());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void ExponentialHistogram::CopyFrom(const ExponentialHistogram& from) {
@@ -2849,82 +3080,82 @@ bool ExponentialHistogram::IsInitialized() const {
 void ExponentialHistogram::InternalSwap(ExponentialHistogram* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  data_points_.InternalSwap(&other->data_points_);
-  swap(aggregation_temporality_, other->aggregation_temporality_);
+  _internal_mutable_data_points()->InternalSwap(other->_internal_mutable_data_points());
+  swap(_impl_.aggregation_temporality_, other->_impl_.aggregation_temporality_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ExponentialHistogram::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[7]);
 }
-
 // ===================================================================
 
 class Summary::_Internal {
  public:
 };
 
-Summary::Summary(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  data_points_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+Summary::Summary(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.Summary)
 }
 Summary::Summary(const Summary& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      data_points_(from.data_points_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  Summary* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){from._impl_.data_points_}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.Summary)
 }
 
-inline void Summary::SharedCtor() {
+inline void Summary::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.data_points_){arena}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 Summary::~Summary() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.Summary)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void Summary::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_data_points()->~RepeatedPtrField();
 }
 
-void Summary::ArenaDtor(void* object) {
-  Summary* _this = reinterpret_cast< Summary* >(object);
-  (void)_this;
-}
-void Summary::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void Summary::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void Summary::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.Summary)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_points_.Clear();
+  _internal_mutable_data_points()->Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* Summary::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* Summary::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.metrics.v1.SummaryDataPoint data_points = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -2932,8 +3163,9 @@ const char* Summary::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::in
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -2958,67 +3190,63 @@ failure:
 #undef CHK_
 }
 
-uint8_t* Summary::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* Summary::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.Summary)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.SummaryDataPoint data_points = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_data_points_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_data_points_size()); i < n; i++) {
+    const auto& repfield = this->_internal_data_points(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_data_points(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.Summary)
   return target;
 }
 
-size_t Summary::ByteSizeLong() const {
+::size_t Summary::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.Summary)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.SummaryDataPoint data_points = 1;
   total_size += 1UL * this->_internal_data_points_size();
-  for (const auto& msg : this->data_points_) {
+  for (const auto& msg : this->_internal_data_points()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Summary::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     Summary::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Summary::GetClassData() const { return &_class_data_; }
 
-void Summary::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<Summary *>(to)->MergeFrom(
-      static_cast<const Summary &>(from));
-}
 
-
-void Summary::MergeFrom(const Summary& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Summary)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void Summary::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Summary*>(&to_msg);
+  auto& from = static_cast<const Summary&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Summary)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  data_points_.MergeFrom(from.data_points_);
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_mutable_data_points()->MergeFrom(from._internal_data_points());
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void Summary::CopyFrom(const Summary& from) {
@@ -3035,51 +3263,58 @@ bool Summary::IsInitialized() const {
 void Summary::InternalSwap(Summary* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  data_points_.InternalSwap(&other->data_points_);
+  _internal_mutable_data_points()->InternalSwap(other->_internal_mutable_data_points());
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata Summary::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[8]);
 }
-
 // ===================================================================
 
 class NumberDataPoint::_Internal {
  public:
+  static constexpr ::int32_t kOneofCaseOffset =
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::NumberDataPoint, _impl_._oneof_case_);
 };
 
 void NumberDataPoint::clear_attributes() {
-  attributes_.Clear();
+  _internal_mutable_attributes()->Clear();
 }
-NumberDataPoint::NumberDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  exemplars_(arena),
-  attributes_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+NumberDataPoint::NumberDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.NumberDataPoint)
 }
 NumberDataPoint::NumberDataPoint(const NumberDataPoint& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      exemplars_(from.exemplars_),
-      attributes_(from.attributes_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  NumberDataPoint* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.exemplars_){from._impl_.exemplars_}
+    , decltype(_impl_.attributes_){from._impl_.attributes_}
+    , decltype(_impl_.start_time_unix_nano_) {}
+
+    , decltype(_impl_.time_unix_nano_) {}
+
+    , decltype(_impl_.flags_) {}
+
+    , decltype(_impl_.value_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , /*decltype(_impl_._oneof_case_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&start_time_unix_nano_, &from.start_time_unix_nano_,
-    static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  ::memcpy(&_impl_.start_time_unix_nano_, &from._impl_.start_time_unix_nano_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.flags_) -
+    reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.flags_));
   clear_has_value();
   switch (from.value_case()) {
     case kAsDouble: {
-      _internal_set_as_double(from._internal_as_double());
+      _this->_internal_set_as_double(from._internal_as_double());
       break;
     }
     case kAsInt: {
-      _internal_set_as_int(from._internal_as_int());
+      _this->_internal_set_as_int(from._internal_as_int());
       break;
     }
     case VALUE_NOT_SET: {
@@ -3089,36 +3324,44 @@ NumberDataPoint::NumberDataPoint(const NumberDataPoint& from)
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.NumberDataPoint)
 }
 
-inline void NumberDataPoint::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&start_time_unix_nano_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
-clear_has_value();
+inline void NumberDataPoint::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.exemplars_){arena}
+    , decltype(_impl_.attributes_){arena}
+    , decltype(_impl_.start_time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.flags_) { 0u }
+
+    , decltype(_impl_.value_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , /*decltype(_impl_._oneof_case_)*/{}
+  };
+  clear_has_value();
 }
 
 NumberDataPoint::~NumberDataPoint() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.NumberDataPoint)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void NumberDataPoint::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_exemplars()->~RepeatedPtrField();
+  _internal_mutable_attributes()->~RepeatedPtrField();
   if (has_value()) {
     clear_value();
   }
 }
 
-void NumberDataPoint::ArenaDtor(void* object) {
-  NumberDataPoint* _this = reinterpret_cast< NumberDataPoint* >(object);
-  (void)_this;
-}
-void NumberDataPoint::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void NumberDataPoint::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void NumberDataPoint::clear_value() {
@@ -3136,58 +3379,61 @@ void NumberDataPoint::clear_value() {
       break;
     }
   }
-  _oneof_case_[0] = VALUE_NOT_SET;
+  _impl_._oneof_case_[0] = VALUE_NOT_SET;
 }
 
 
 void NumberDataPoint::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.NumberDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  exemplars_.Clear();
-  attributes_.Clear();
-  ::memset(&start_time_unix_nano_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&flags_) -
-      reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  _internal_mutable_exemplars()->Clear();
+  _internal_mutable_attributes()->Clear();
+  ::memset(&_impl_.start_time_unix_nano_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.flags_) -
+      reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.flags_));
   clear_value();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* NumberDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* NumberDataPoint::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // fixed64 start_time_unix_nano = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 17)) {
-          start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 17)) {
+          _impl_.start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 time_unix_nano = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 25)) {
-          time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 25)) {
+          _impl_.time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // double as_double = 4;
       case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 33)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 33)) {
           _internal_set_as_double(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr));
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 5;
       case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 42)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -3195,20 +3441,22 @@ const char* NumberDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPAC
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<42>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // sfixed64 as_int = 6;
       case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 49)) {
-          _internal_set_as_int(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<int64_t>(ptr));
-          ptr += sizeof(int64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 49)) {
+          _internal_set_as_int(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::int64_t>(ptr));
+          ptr += sizeof(::int64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 7;
       case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 58)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -3216,16 +3464,18 @@ const char* NumberDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPAC
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<58>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // uint32 flags = 8;
       case 8:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 64)) {
-          flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -3250,165 +3500,167 @@ failure:
 #undef CHK_
 }
 
-uint8_t* NumberDataPoint::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* NumberDataPoint::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.NumberDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(2, this->_internal_start_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        2, this->_internal_start_time_unix_nano(), target);
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(3, this->_internal_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        3, this->_internal_time_unix_nano(), target);
   }
 
   // double as_double = 4;
-  if (_internal_has_as_double()) {
+  if (value_case() == kAsDouble) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteDoubleToArray(4, this->_internal_as_double(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        4, this->_internal_as_double(), target);
   }
 
   // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 5;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_exemplars_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_exemplars_size()); i < n; i++) {
+    const auto& repfield = this->_internal_exemplars(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(5, this->_internal_exemplars(i), target, stream);
+        InternalWriteMessage(5, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // sfixed64 as_int = 6;
-  if (_internal_has_as_int()) {
+  if (value_case() == kAsInt) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteSFixed64ToArray(6, this->_internal_as_int(), target);
+    target = ::_pbi::WireFormatLite::WriteSFixed64ToArray(
+        6, this->_internal_as_int(), target);
   }
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 7;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_attributes_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_attributes_size()); i < n; i++) {
+    const auto& repfield = this->_internal_attributes(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(7, this->_internal_attributes(i), target, stream);
+        InternalWriteMessage(7, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // uint32 flags = 8;
   if (this->_internal_flags() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(8, this->_internal_flags(), target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_flags(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.NumberDataPoint)
   return target;
 }
 
-size_t NumberDataPoint::ByteSizeLong() const {
+::size_t NumberDataPoint::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.NumberDataPoint)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 5;
   total_size += 1UL * this->_internal_exemplars_size();
-  for (const auto& msg : this->exemplars_) {
+  for (const auto& msg : this->_internal_exemplars()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 7;
   total_size += 1UL * this->_internal_attributes_size();
-  for (const auto& msg : this->attributes_) {
+  for (const auto& msg : this->_internal_attributes()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // uint32 flags = 8;
   if (this->_internal_flags() != 0) {
-    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32SizePlusOne(this->_internal_flags());
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_flags());
   }
 
   switch (value_case()) {
     // double as_double = 4;
     case kAsDouble: {
-      total_size += 1 + 8;
+      total_size += 9;
       break;
     }
     // sfixed64 as_int = 6;
     case kAsInt: {
-      total_size += 1 + 8;
+      total_size += 9;
       break;
     }
     case VALUE_NOT_SET: {
       break;
     }
   }
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData NumberDataPoint::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     NumberDataPoint::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*NumberDataPoint::GetClassData() const { return &_class_data_; }
 
-void NumberDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<NumberDataPoint *>(to)->MergeFrom(
-      static_cast<const NumberDataPoint &>(from));
-}
 
-
-void NumberDataPoint::MergeFrom(const NumberDataPoint& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.NumberDataPoint)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void NumberDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<NumberDataPoint*>(&to_msg);
+  auto& from = static_cast<const NumberDataPoint&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.NumberDataPoint)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  exemplars_.MergeFrom(from.exemplars_);
-  attributes_.MergeFrom(from.attributes_);
+  _this->_internal_mutable_exemplars()->MergeFrom(from._internal_exemplars());
+  _this->_internal_mutable_attributes()->MergeFrom(from._internal_attributes());
   if (from._internal_start_time_unix_nano() != 0) {
-    _internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
+    _this->_internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
   }
   if (from._internal_time_unix_nano() != 0) {
-    _internal_set_time_unix_nano(from._internal_time_unix_nano());
+    _this->_internal_set_time_unix_nano(from._internal_time_unix_nano());
   }
   if (from._internal_flags() != 0) {
-    _internal_set_flags(from._internal_flags());
+    _this->_internal_set_flags(from._internal_flags());
   }
   switch (from.value_case()) {
     case kAsDouble: {
-      _internal_set_as_double(from._internal_as_double());
+      _this->_internal_set_as_double(from._internal_as_double());
       break;
     }
     case kAsInt: {
-      _internal_set_as_int(from._internal_as_int());
+      _this->_internal_set_as_int(from._internal_as_int());
       break;
     }
     case VALUE_NOT_SET: {
       break;
     }
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void NumberDataPoint::CopyFrom(const NumberDataPoint& from) {
@@ -3425,166 +3677,227 @@ bool NumberDataPoint::IsInitialized() const {
 void NumberDataPoint::InternalSwap(NumberDataPoint* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  exemplars_.InternalSwap(&other->exemplars_);
-  attributes_.InternalSwap(&other->attributes_);
+  _internal_mutable_exemplars()->InternalSwap(other->_internal_mutable_exemplars());
+  _internal_mutable_attributes()->InternalSwap(other->_internal_mutable_attributes());
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(NumberDataPoint, flags_)
-      + sizeof(NumberDataPoint::flags_)
-      - PROTOBUF_FIELD_OFFSET(NumberDataPoint, start_time_unix_nano_)>(
-          reinterpret_cast<char*>(&start_time_unix_nano_),
-          reinterpret_cast<char*>(&other->start_time_unix_nano_));
-  swap(value_, other->value_);
-  swap(_oneof_case_[0], other->_oneof_case_[0]);
+      PROTOBUF_FIELD_OFFSET(NumberDataPoint, _impl_.flags_)
+      + sizeof(NumberDataPoint::_impl_.flags_)
+      - PROTOBUF_FIELD_OFFSET(NumberDataPoint, _impl_.start_time_unix_nano_)>(
+          reinterpret_cast<char*>(&_impl_.start_time_unix_nano_),
+          reinterpret_cast<char*>(&other->_impl_.start_time_unix_nano_));
+  swap(_impl_.value_, other->_impl_.value_);
+  swap(_impl_._oneof_case_[0], other->_impl_._oneof_case_[0]);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata NumberDataPoint::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[9]);
 }
-
 // ===================================================================
 
 class HistogramDataPoint::_Internal {
  public:
+  using HasBits = decltype(std::declval<HistogramDataPoint>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(HistogramDataPoint, _impl_._has_bits_);
+  static void set_has_sum(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+  static void set_has_min(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+  static void set_has_max(HasBits* has_bits) {
+    (*has_bits)[0] |= 4u;
+  }
 };
 
 void HistogramDataPoint::clear_attributes() {
-  attributes_.Clear();
+  _internal_mutable_attributes()->Clear();
 }
-HistogramDataPoint::HistogramDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  bucket_counts_(arena),
-  explicit_bounds_(arena),
-  exemplars_(arena),
-  attributes_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+HistogramDataPoint::HistogramDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.HistogramDataPoint)
 }
 HistogramDataPoint::HistogramDataPoint(const HistogramDataPoint& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      bucket_counts_(from.bucket_counts_),
-      explicit_bounds_(from.explicit_bounds_),
-      exemplars_(from.exemplars_),
-      attributes_(from.attributes_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  HistogramDataPoint* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.bucket_counts_) { from._impl_.bucket_counts_ }
+
+    , decltype(_impl_.explicit_bounds_) { from._impl_.explicit_bounds_ }
+
+    , decltype(_impl_.exemplars_){from._impl_.exemplars_}
+    , decltype(_impl_.attributes_){from._impl_.attributes_}
+    , decltype(_impl_.start_time_unix_nano_) {}
+
+    , decltype(_impl_.time_unix_nano_) {}
+
+    , decltype(_impl_.count_) {}
+
+    , decltype(_impl_.sum_) {}
+
+    , decltype(_impl_.min_) {}
+
+    , decltype(_impl_.max_) {}
+
+    , decltype(_impl_.flags_) {}
+  };
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&start_time_unix_nano_, &from.start_time_unix_nano_,
-    static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  ::memcpy(&_impl_.start_time_unix_nano_, &from._impl_.start_time_unix_nano_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.flags_) -
+    reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.flags_));
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.HistogramDataPoint)
 }
 
-inline void HistogramDataPoint::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&start_time_unix_nano_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+inline void HistogramDataPoint::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.bucket_counts_) { arena }
+
+    , decltype(_impl_.explicit_bounds_) { arena }
+
+    , decltype(_impl_.exemplars_){arena}
+    , decltype(_impl_.attributes_){arena}
+    , decltype(_impl_.start_time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.count_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.sum_) { 0 }
+
+    , decltype(_impl_.min_) { 0 }
+
+    , decltype(_impl_.max_) { 0 }
+
+    , decltype(_impl_.flags_) { 0u }
+
+  };
 }
 
 HistogramDataPoint::~HistogramDataPoint() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.HistogramDataPoint)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void HistogramDataPoint::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.bucket_counts_.~RepeatedField();
+  _impl_.explicit_bounds_.~RepeatedField();
+  _internal_mutable_exemplars()->~RepeatedPtrField();
+  _internal_mutable_attributes()->~RepeatedPtrField();
 }
 
-void HistogramDataPoint::ArenaDtor(void* object) {
-  HistogramDataPoint* _this = reinterpret_cast< HistogramDataPoint* >(object);
-  (void)_this;
-}
-void HistogramDataPoint::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void HistogramDataPoint::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void HistogramDataPoint::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.HistogramDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  bucket_counts_.Clear();
-  explicit_bounds_.Clear();
-  exemplars_.Clear();
-  attributes_.Clear();
-  ::memset(&start_time_unix_nano_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&flags_) -
-      reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  _internal_mutable_bucket_counts()->Clear();
+  _internal_mutable_explicit_bounds()->Clear();
+  _internal_mutable_exemplars()->Clear();
+  _internal_mutable_attributes()->Clear();
+  ::memset(&_impl_.start_time_unix_nano_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.count_) -
+      reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.count_));
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000007u) {
+    ::memset(&_impl_.sum_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.max_) -
+        reinterpret_cast<char*>(&_impl_.sum_)) + sizeof(_impl_.max_));
+  }
+  _impl_.flags_ = 0u;
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* HistogramDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* HistogramDataPoint::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // fixed64 start_time_unix_nano = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 17)) {
-          start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 17)) {
+          _impl_.start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 time_unix_nano = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 25)) {
-          time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 25)) {
+          _impl_.time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 count = 4;
       case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 33)) {
-          count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 33)) {
+          _impl_.count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
-      // double sum = 5;
+      // optional double sum = 5;
       case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 41)) {
-          sum_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 41)) {
+          _Internal::set_has_sum(&has_bits);
+          _impl_.sum_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated fixed64 bucket_counts = 6;
       case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 50)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
           ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedFixed64Parser(_internal_mutable_bucket_counts(), ptr, ctx);
           CHK_(ptr);
-        } else if (static_cast<uint8_t>(tag) == 49) {
-          _internal_add_bucket_counts(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr));
-          ptr += sizeof(uint64_t);
-        } else
+        } else if (static_cast<::uint8_t>(tag) == 49) {
+          _internal_add_bucket_counts(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr));
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated double explicit_bounds = 7;
       case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 58)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
           ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedDoubleParser(_internal_mutable_explicit_bounds(), ptr, ctx);
           CHK_(ptr);
-        } else if (static_cast<uint8_t>(tag) == 57) {
+        } else if (static_cast<::uint8_t>(tag) == 57) {
           _internal_add_explicit_bounds(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr));
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 8;
       case 8:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 66)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 66)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -3592,12 +3905,13 @@ const char* HistogramDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMES
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<66>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 9;
       case 9:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 74)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -3605,16 +3919,38 @@ const char* HistogramDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMES
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<74>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // uint32 flags = 10;
       case 10:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 80)) {
-          flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
+        continue;
+      // optional double min = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 89)) {
+          _Internal::set_has_min(&has_bits);
+          _impl_.min_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+          ptr += sizeof(double);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional double max = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 97)) {
+          _Internal::set_has_max(&has_bits);
+          _impl_.max_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+          ptr += sizeof(double);
+        } else {
+          goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -3632,6 +3968,7 @@ const char* HistogramDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMES
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -3639,38 +3976,39 @@ failure:
 #undef CHK_
 }
 
-uint8_t* HistogramDataPoint::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* HistogramDataPoint::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.HistogramDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(2, this->_internal_start_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        2, this->_internal_start_time_unix_nano(), target);
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(3, this->_internal_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        3, this->_internal_time_unix_nano(), target);
   }
 
   // fixed64 count = 4;
   if (this->_internal_count() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(4, this->_internal_count(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        4, this->_internal_count(), target);
   }
 
-  // double sum = 5;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
-  double tmp_sum = this->_internal_sum();
-  uint64_t raw_sum;
-  memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
-  if (raw_sum != 0) {
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional double sum = 5;
+  if (cached_has_bits & 0x00000001u) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteDoubleToArray(5, this->_internal_sum(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        5, this->_internal_sum(), target);
   }
 
   // repeated fixed64 bucket_counts = 6;
@@ -3684,156 +4022,185 @@ uint8_t* HistogramDataPoint::_InternalSerialize(
   }
 
   // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 8;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_exemplars_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_exemplars_size()); i < n; i++) {
+    const auto& repfield = this->_internal_exemplars(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(8, this->_internal_exemplars(i), target, stream);
+        InternalWriteMessage(8, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 9;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_attributes_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_attributes_size()); i < n; i++) {
+    const auto& repfield = this->_internal_attributes(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(9, this->_internal_attributes(i), target, stream);
+        InternalWriteMessage(9, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // uint32 flags = 10;
   if (this->_internal_flags() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(10, this->_internal_flags(), target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        10, this->_internal_flags(), target);
+  }
+
+  // optional double min = 11;
+  if (cached_has_bits & 0x00000002u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        11, this->_internal_min(), target);
+  }
+
+  // optional double max = 12;
+  if (cached_has_bits & 0x00000004u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        12, this->_internal_max(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.HistogramDataPoint)
   return target;
 }
 
-size_t HistogramDataPoint::ByteSizeLong() const {
+::size_t HistogramDataPoint::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.HistogramDataPoint)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated fixed64 bucket_counts = 6;
   {
-    unsigned int count = static_cast<unsigned int>(this->_internal_bucket_counts_size());
-    size_t data_size = 8UL * count;
-    if (data_size > 0) {
-      total_size += 1 +
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
-            static_cast<int32_t>(data_size));
-    }
-    total_size += data_size;
+    std::size_t data_size = std::size_t{8} *
+        ::_pbi::FromIntSize(this->_internal_bucket_counts_size())
+    ;
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
   }
 
   // repeated double explicit_bounds = 7;
   {
-    unsigned int count = static_cast<unsigned int>(this->_internal_explicit_bounds_size());
-    size_t data_size = 8UL * count;
-    if (data_size > 0) {
-      total_size += 1 +
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
-            static_cast<int32_t>(data_size));
-    }
-    total_size += data_size;
+    std::size_t data_size = std::size_t{8} *
+        ::_pbi::FromIntSize(this->_internal_explicit_bounds_size())
+    ;
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
   }
 
   // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 8;
   total_size += 1UL * this->_internal_exemplars_size();
-  for (const auto& msg : this->exemplars_) {
+  for (const auto& msg : this->_internal_exemplars()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 9;
   total_size += 1UL * this->_internal_attributes_size();
-  for (const auto& msg : this->attributes_) {
+  for (const auto& msg : this->_internal_attributes()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // fixed64 count = 4;
   if (this->_internal_count() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
-  // double sum = 5;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
-  double tmp_sum = this->_internal_sum();
-  uint64_t raw_sum;
-  memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
-  if (raw_sum != 0) {
-    total_size += 1 + 8;
-  }
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000007u) {
+    // optional double sum = 5;
+    if (cached_has_bits & 0x00000001u) {
+      total_size += 9;
+    }
 
+    // optional double min = 11;
+    if (cached_has_bits & 0x00000002u) {
+      total_size += 9;
+    }
+
+    // optional double max = 12;
+    if (cached_has_bits & 0x00000004u) {
+      total_size += 9;
+    }
+
+  }
   // uint32 flags = 10;
   if (this->_internal_flags() != 0) {
-    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32SizePlusOne(this->_internal_flags());
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_flags());
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData HistogramDataPoint::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     HistogramDataPoint::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*HistogramDataPoint::GetClassData() const { return &_class_data_; }
 
-void HistogramDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<HistogramDataPoint *>(to)->MergeFrom(
-      static_cast<const HistogramDataPoint &>(from));
-}
 
-
-void HistogramDataPoint::MergeFrom(const HistogramDataPoint& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.HistogramDataPoint)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void HistogramDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<HistogramDataPoint*>(&to_msg);
+  auto& from = static_cast<const HistogramDataPoint&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.HistogramDataPoint)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  bucket_counts_.MergeFrom(from.bucket_counts_);
-  explicit_bounds_.MergeFrom(from.explicit_bounds_);
-  exemplars_.MergeFrom(from.exemplars_);
-  attributes_.MergeFrom(from.attributes_);
+  _this->_impl_.bucket_counts_.MergeFrom(from._impl_.bucket_counts_);
+  _this->_impl_.explicit_bounds_.MergeFrom(from._impl_.explicit_bounds_);
+  _this->_internal_mutable_exemplars()->MergeFrom(from._internal_exemplars());
+  _this->_internal_mutable_attributes()->MergeFrom(from._internal_attributes());
   if (from._internal_start_time_unix_nano() != 0) {
-    _internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
+    _this->_internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
   }
   if (from._internal_time_unix_nano() != 0) {
-    _internal_set_time_unix_nano(from._internal_time_unix_nano());
+    _this->_internal_set_time_unix_nano(from._internal_time_unix_nano());
   }
   if (from._internal_count() != 0) {
-    _internal_set_count(from._internal_count());
+    _this->_internal_set_count(from._internal_count());
   }
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
-  double tmp_sum = from._internal_sum();
-  uint64_t raw_sum;
-  memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
-  if (raw_sum != 0) {
-    _internal_set_sum(from._internal_sum());
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000007u) {
+    if (cached_has_bits & 0x00000001u) {
+      _this->_impl_.sum_ = from._impl_.sum_;
+    }
+    if (cached_has_bits & 0x00000002u) {
+      _this->_impl_.min_ = from._impl_.min_;
+    }
+    if (cached_has_bits & 0x00000004u) {
+      _this->_impl_.max_ = from._impl_.max_;
+    }
+    _this->_impl_._has_bits_[0] |= cached_has_bits;
   }
   if (from._internal_flags() != 0) {
-    _internal_set_flags(from._internal_flags());
+    _this->_internal_set_flags(from._internal_flags());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void HistogramDataPoint::CopyFrom(const HistogramDataPoint& from) {
@@ -3850,108 +4217,118 @@ bool HistogramDataPoint::IsInitialized() const {
 void HistogramDataPoint::InternalSwap(HistogramDataPoint* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  bucket_counts_.InternalSwap(&other->bucket_counts_);
-  explicit_bounds_.InternalSwap(&other->explicit_bounds_);
-  exemplars_.InternalSwap(&other->exemplars_);
-  attributes_.InternalSwap(&other->attributes_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.bucket_counts_.InternalSwap(&other->_impl_.bucket_counts_);
+  _impl_.explicit_bounds_.InternalSwap(&other->_impl_.explicit_bounds_);
+  _internal_mutable_exemplars()->InternalSwap(other->_internal_mutable_exemplars());
+  _internal_mutable_attributes()->InternalSwap(other->_internal_mutable_attributes());
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(HistogramDataPoint, flags_)
-      + sizeof(HistogramDataPoint::flags_)
-      - PROTOBUF_FIELD_OFFSET(HistogramDataPoint, start_time_unix_nano_)>(
-          reinterpret_cast<char*>(&start_time_unix_nano_),
-          reinterpret_cast<char*>(&other->start_time_unix_nano_));
+      PROTOBUF_FIELD_OFFSET(HistogramDataPoint, _impl_.flags_)
+      + sizeof(HistogramDataPoint::_impl_.flags_)
+      - PROTOBUF_FIELD_OFFSET(HistogramDataPoint, _impl_.start_time_unix_nano_)>(
+          reinterpret_cast<char*>(&_impl_.start_time_unix_nano_),
+          reinterpret_cast<char*>(&other->_impl_.start_time_unix_nano_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata HistogramDataPoint::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[10]);
 }
-
 // ===================================================================
 
 class ExponentialHistogramDataPoint_Buckets::_Internal {
  public:
 };
 
-ExponentialHistogramDataPoint_Buckets::ExponentialHistogramDataPoint_Buckets(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  bucket_counts_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+ExponentialHistogramDataPoint_Buckets::ExponentialHistogramDataPoint_Buckets(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
 }
 ExponentialHistogramDataPoint_Buckets::ExponentialHistogramDataPoint_Buckets(const ExponentialHistogramDataPoint_Buckets& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      bucket_counts_(from.bucket_counts_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ExponentialHistogramDataPoint_Buckets* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.bucket_counts_) { from._impl_.bucket_counts_ }
+    ,/* _impl_._bucket_counts_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.offset_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  offset_ = from.offset_;
+  _this->_impl_.offset_ = from._impl_.offset_;
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
 }
 
-inline void ExponentialHistogramDataPoint_Buckets::SharedCtor() {
-offset_ = 0;
+inline void ExponentialHistogramDataPoint_Buckets::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.bucket_counts_) { arena }
+    ,/* _impl_._bucket_counts_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.offset_) { 0 }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 ExponentialHistogramDataPoint_Buckets::~ExponentialHistogramDataPoint_Buckets() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void ExponentialHistogramDataPoint_Buckets::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.bucket_counts_.~RepeatedField();
 }
 
-void ExponentialHistogramDataPoint_Buckets::ArenaDtor(void* object) {
-  ExponentialHistogramDataPoint_Buckets* _this = reinterpret_cast< ExponentialHistogramDataPoint_Buckets* >(object);
-  (void)_this;
-}
-void ExponentialHistogramDataPoint_Buckets::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void ExponentialHistogramDataPoint_Buckets::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void ExponentialHistogramDataPoint_Buckets::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  bucket_counts_.Clear();
-  offset_ = 0;
+  _internal_mutable_bucket_counts()->Clear();
+  _impl_.offset_ = 0;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* ExponentialHistogramDataPoint_Buckets::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* ExponentialHistogramDataPoint_Buckets::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // sint32 offset = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 8)) {
-          offset_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarintZigZag32(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 8)) {
+          _impl_.offset_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarintZigZag32(&ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated uint64 bucket_counts = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
           ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt64Parser(_internal_mutable_bucket_counts(), ptr, ctx);
           CHK_(ptr);
-        } else if (static_cast<uint8_t>(tag) == 16) {
+        } else if (static_cast<::uint8_t>(tag) == 16) {
           _internal_add_bucket_counts(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr));
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -3976,90 +4353,87 @@ failure:
 #undef CHK_
 }
 
-uint8_t* ExponentialHistogramDataPoint_Buckets::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* ExponentialHistogramDataPoint_Buckets::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // sint32 offset = 1;
   if (this->_internal_offset() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteSInt32ToArray(1, this->_internal_offset(), target);
+    target = ::_pbi::WireFormatLite::WriteSInt32ToArray(
+        1, this->_internal_offset(), target);
   }
 
   // repeated uint64 bucket_counts = 2;
   {
-    int byte_size = _bucket_counts_cached_byte_size_.load(std::memory_order_relaxed);
+    int byte_size = _impl_._bucket_counts_cached_byte_size_.Get();
     if (byte_size > 0) {
-      target = stream->WriteUInt64Packed(
-          2, _internal_bucket_counts(), byte_size, target);
+      target = stream->WriteUInt64Packed(2, _internal_bucket_counts(),
+                                                 byte_size, target);
     }
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
   return target;
 }
 
-size_t ExponentialHistogramDataPoint_Buckets::ByteSizeLong() const {
+::size_t ExponentialHistogramDataPoint_Buckets::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated uint64 bucket_counts = 2;
   {
-    size_t data_size = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      UInt64Size(this->bucket_counts_);
-    if (data_size > 0) {
-      total_size += 1 +
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
-            static_cast<int32_t>(data_size));
-    }
-    int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(data_size);
-    _bucket_counts_cached_byte_size_.store(cached_size,
-                                    std::memory_order_relaxed);
-    total_size += data_size;
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt64Size(
+        this->_internal_bucket_counts())
+    ;
+    _impl_._bucket_counts_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
   }
 
   // sint32 offset = 1;
   if (this->_internal_offset() != 0) {
-    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SInt32SizePlusOne(this->_internal_offset());
+    total_size += ::_pbi::WireFormatLite::SInt32SizePlusOne(
+        this->_internal_offset());
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ExponentialHistogramDataPoint_Buckets::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     ExponentialHistogramDataPoint_Buckets::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ExponentialHistogramDataPoint_Buckets::GetClassData() const { return &_class_data_; }
 
-void ExponentialHistogramDataPoint_Buckets::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<ExponentialHistogramDataPoint_Buckets *>(to)->MergeFrom(
-      static_cast<const ExponentialHistogramDataPoint_Buckets &>(from));
-}
 
-
-void ExponentialHistogramDataPoint_Buckets::MergeFrom(const ExponentialHistogramDataPoint_Buckets& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void ExponentialHistogramDataPoint_Buckets::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ExponentialHistogramDataPoint_Buckets*>(&to_msg);
+  auto& from = static_cast<const ExponentialHistogramDataPoint_Buckets&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  bucket_counts_.MergeFrom(from.bucket_counts_);
+  _this->_impl_.bucket_counts_.MergeFrom(from._impl_.bucket_counts_);
   if (from._internal_offset() != 0) {
-    _internal_set_offset(from._internal_offset());
+    _this->_internal_set_offset(from._internal_offset());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void ExponentialHistogramDataPoint_Buckets::CopyFrom(const ExponentialHistogramDataPoint_Buckets& from) {
@@ -4076,128 +4450,201 @@ bool ExponentialHistogramDataPoint_Buckets::IsInitialized() const {
 void ExponentialHistogramDataPoint_Buckets::InternalSwap(ExponentialHistogramDataPoint_Buckets* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  bucket_counts_.InternalSwap(&other->bucket_counts_);
-  swap(offset_, other->offset_);
+  _impl_.bucket_counts_.InternalSwap(&other->_impl_.bucket_counts_);
+
+  swap(_impl_.offset_, other->_impl_.offset_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ExponentialHistogramDataPoint_Buckets::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[11]);
 }
-
 // ===================================================================
 
 class ExponentialHistogramDataPoint::_Internal {
  public:
+  using HasBits = decltype(std::declval<ExponentialHistogramDataPoint>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(ExponentialHistogramDataPoint, _impl_._has_bits_);
+  static void set_has_sum(HasBits* has_bits) {
+    (*has_bits)[0] |= 4u;
+  }
   static const ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets& positive(const ExponentialHistogramDataPoint* msg);
+  static void set_has_positive(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
   static const ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets& negative(const ExponentialHistogramDataPoint* msg);
+  static void set_has_negative(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+  static void set_has_min(HasBits* has_bits) {
+    (*has_bits)[0] |= 8u;
+  }
+  static void set_has_max(HasBits* has_bits) {
+    (*has_bits)[0] |= 16u;
+  }
 };
 
 const ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets&
 ExponentialHistogramDataPoint::_Internal::positive(const ExponentialHistogramDataPoint* msg) {
-  return *msg->positive_;
+  return *msg->_impl_.positive_;
 }
 const ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets&
 ExponentialHistogramDataPoint::_Internal::negative(const ExponentialHistogramDataPoint* msg) {
-  return *msg->negative_;
+  return *msg->_impl_.negative_;
 }
 void ExponentialHistogramDataPoint::clear_attributes() {
-  attributes_.Clear();
+  _internal_mutable_attributes()->Clear();
 }
-ExponentialHistogramDataPoint::ExponentialHistogramDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  attributes_(arena),
-  exemplars_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+ExponentialHistogramDataPoint::ExponentialHistogramDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
 }
 ExponentialHistogramDataPoint::ExponentialHistogramDataPoint(const ExponentialHistogramDataPoint& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      attributes_(from.attributes_),
-      exemplars_(from.exemplars_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  ExponentialHistogramDataPoint* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.attributes_){from._impl_.attributes_}
+    , decltype(_impl_.exemplars_){from._impl_.exemplars_}
+    , decltype(_impl_.positive_){nullptr}
+    , decltype(_impl_.negative_){nullptr}
+    , decltype(_impl_.start_time_unix_nano_) {}
+
+    , decltype(_impl_.time_unix_nano_) {}
+
+    , decltype(_impl_.count_) {}
+
+    , decltype(_impl_.sum_) {}
+
+    , decltype(_impl_.zero_count_) {}
+
+    , decltype(_impl_.scale_) {}
+
+    , decltype(_impl_.flags_) {}
+
+    , decltype(_impl_.min_) {}
+
+    , decltype(_impl_.max_) {}
+
+    , decltype(_impl_.zero_threshold_) {}
+  };
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  if (from._internal_has_positive()) {
-    positive_ = new ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets(*from.positive_);
-  } else {
-    positive_ = nullptr;
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.positive_ = new ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets(*from._impl_.positive_);
   }
-  if (from._internal_has_negative()) {
-    negative_ = new ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets(*from.negative_);
-  } else {
-    negative_ = nullptr;
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_impl_.negative_ = new ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets(*from._impl_.negative_);
   }
-  ::memcpy(&start_time_unix_nano_, &from.start_time_unix_nano_,
-    static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  ::memcpy(&_impl_.start_time_unix_nano_, &from._impl_.start_time_unix_nano_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.zero_threshold_) -
+    reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.zero_threshold_));
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
 }
 
-inline void ExponentialHistogramDataPoint::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&positive_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&positive_)) + sizeof(flags_));
+inline void ExponentialHistogramDataPoint::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.attributes_){arena}
+    , decltype(_impl_.exemplars_){arena}
+    , decltype(_impl_.positive_){nullptr}
+    , decltype(_impl_.negative_){nullptr}
+    , decltype(_impl_.start_time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.count_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.sum_) { 0 }
+
+    , decltype(_impl_.zero_count_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.scale_) { 0 }
+
+    , decltype(_impl_.flags_) { 0u }
+
+    , decltype(_impl_.min_) { 0 }
+
+    , decltype(_impl_.max_) { 0 }
+
+    , decltype(_impl_.zero_threshold_) { 0 }
+
+  };
 }
 
 ExponentialHistogramDataPoint::~ExponentialHistogramDataPoint() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void ExponentialHistogramDataPoint::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  if (this != internal_default_instance()) delete positive_;
-  if (this != internal_default_instance()) delete negative_;
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_attributes()->~RepeatedPtrField();
+  _internal_mutable_exemplars()->~RepeatedPtrField();
+  if (this != internal_default_instance()) delete _impl_.positive_;
+  if (this != internal_default_instance()) delete _impl_.negative_;
 }
 
-void ExponentialHistogramDataPoint::ArenaDtor(void* object) {
-  ExponentialHistogramDataPoint* _this = reinterpret_cast< ExponentialHistogramDataPoint* >(object);
-  (void)_this;
-}
-void ExponentialHistogramDataPoint::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void ExponentialHistogramDataPoint::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void ExponentialHistogramDataPoint::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  attributes_.Clear();
-  exemplars_.Clear();
-  if (GetArenaForAllocation() == nullptr && positive_ != nullptr) {
-    delete positive_;
+  _internal_mutable_attributes()->Clear();
+  _internal_mutable_exemplars()->Clear();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000003u) {
+    if (cached_has_bits & 0x00000001u) {
+      ABSL_DCHECK(_impl_.positive_ != nullptr);
+      _impl_.positive_->Clear();
+    }
+    if (cached_has_bits & 0x00000002u) {
+      ABSL_DCHECK(_impl_.negative_ != nullptr);
+      _impl_.negative_->Clear();
+    }
   }
-  positive_ = nullptr;
-  if (GetArenaForAllocation() == nullptr && negative_ != nullptr) {
-    delete negative_;
+  ::memset(&_impl_.start_time_unix_nano_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.count_) -
+      reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.count_));
+  _impl_.sum_ = 0;
+  ::memset(&_impl_.zero_count_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.flags_) -
+      reinterpret_cast<char*>(&_impl_.zero_count_)) + sizeof(_impl_.flags_));
+  if (cached_has_bits & 0x00000018u) {
+    ::memset(&_impl_.min_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.max_) -
+        reinterpret_cast<char*>(&_impl_.min_)) + sizeof(_impl_.max_));
   }
-  negative_ = nullptr;
-  ::memset(&start_time_unix_nano_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&flags_) -
-      reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  _impl_.zero_threshold_ = 0;
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* ExponentialHistogramDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* ExponentialHistogramDataPoint::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -4205,84 +4652,95 @@ const char* ExponentialHistogramDataPoint::_InternalParse(const char* ptr, ::PRO
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 start_time_unix_nano = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 17)) {
-          start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 17)) {
+          _impl_.start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 time_unix_nano = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 25)) {
-          time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 25)) {
+          _impl_.time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 count = 4;
       case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 33)) {
-          count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 33)) {
+          _impl_.count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
-      // double sum = 5;
+      // optional double sum = 5;
       case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 41)) {
-          sum_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 41)) {
+          _Internal::set_has_sum(&has_bits);
+          _impl_.sum_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // sint32 scale = 6;
       case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 48)) {
-          scale_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarintZigZag32(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 48)) {
+          _impl_.scale_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarintZigZag32(&ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 zero_count = 7;
       case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 57)) {
-          zero_count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 57)) {
+          _impl_.zero_count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets positive = 8;
       case 8:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 66)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 66)) {
           ptr = ctx->ParseMessage(_internal_mutable_positive(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets negative = 9;
       case 9:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 74)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
           ptr = ctx->ParseMessage(_internal_mutable_negative(), ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // uint32 flags = 10;
       case 10:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 80)) {
-          flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          _impl_.flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 11;
       case 11:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 90)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -4290,8 +4748,38 @@ const char* ExponentialHistogramDataPoint::_InternalParse(const char* ptr, ::PRO
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<90>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
+        continue;
+      // optional double min = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 97)) {
+          _Internal::set_has_min(&has_bits);
+          _impl_.min_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+          ptr += sizeof(double);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional double max = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 105)) {
+          _Internal::set_has_max(&has_bits);
+          _impl_.max_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+          ptr += sizeof(double);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // double zero_threshold = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 113)) {
+          _impl_.zero_threshold_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+          ptr += sizeof(double);
+        } else {
+          goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -4309,6 +4797,7 @@ const char* ExponentialHistogramDataPoint::_InternalParse(const char* ptr, ::PRO
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -4316,229 +4805,291 @@ failure:
 #undef CHK_
 }
 
-uint8_t* ExponentialHistogramDataPoint::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* ExponentialHistogramDataPoint::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 1;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_attributes_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_attributes_size()); i < n; i++) {
+    const auto& repfield = this->_internal_attributes(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_attributes(i), target, stream);
+        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(2, this->_internal_start_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        2, this->_internal_start_time_unix_nano(), target);
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(3, this->_internal_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        3, this->_internal_time_unix_nano(), target);
   }
 
   // fixed64 count = 4;
   if (this->_internal_count() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(4, this->_internal_count(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        4, this->_internal_count(), target);
   }
 
-  // double sum = 5;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
-  double tmp_sum = this->_internal_sum();
-  uint64_t raw_sum;
-  memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
-  if (raw_sum != 0) {
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional double sum = 5;
+  if (cached_has_bits & 0x00000004u) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteDoubleToArray(5, this->_internal_sum(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        5, this->_internal_sum(), target);
   }
 
   // sint32 scale = 6;
   if (this->_internal_scale() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteSInt32ToArray(6, this->_internal_scale(), target);
+    target = ::_pbi::WireFormatLite::WriteSInt32ToArray(
+        6, this->_internal_scale(), target);
   }
 
   // fixed64 zero_count = 7;
   if (this->_internal_zero_count() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(7, this->_internal_zero_count(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        7, this->_internal_zero_count(), target);
   }
 
   // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets positive = 8;
-  if (this->_internal_has_positive()) {
-    target = stream->EnsureSpace(target);
+  if (cached_has_bits & 0x00000001u) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        8, _Internal::positive(this), target, stream);
+      InternalWriteMessage(8, _Internal::positive(this),
+        _Internal::positive(this).GetCachedSize(), target, stream);
   }
 
   // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets negative = 9;
-  if (this->_internal_has_negative()) {
-    target = stream->EnsureSpace(target);
+  if (cached_has_bits & 0x00000002u) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(
-        9, _Internal::negative(this), target, stream);
+      InternalWriteMessage(9, _Internal::negative(this),
+        _Internal::negative(this).GetCachedSize(), target, stream);
   }
 
   // uint32 flags = 10;
   if (this->_internal_flags() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(10, this->_internal_flags(), target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        10, this->_internal_flags(), target);
   }
 
   // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 11;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_exemplars_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_exemplars_size()); i < n; i++) {
+    const auto& repfield = this->_internal_exemplars(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(11, this->_internal_exemplars(i), target, stream);
+        InternalWriteMessage(11, repfield, repfield.GetCachedSize(), target, stream);
+  }
+
+  // optional double min = 12;
+  if (cached_has_bits & 0x00000008u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        12, this->_internal_min(), target);
+  }
+
+  // optional double max = 13;
+  if (cached_has_bits & 0x00000010u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        13, this->_internal_max(), target);
+  }
+
+  // double zero_threshold = 14;
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
+  double tmp_zero_threshold = this->_internal_zero_threshold();
+  ::uint64_t raw_zero_threshold;
+  memcpy(&raw_zero_threshold, &tmp_zero_threshold, sizeof(tmp_zero_threshold));
+  if (raw_zero_threshold != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        14, this->_internal_zero_threshold(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
   return target;
 }
 
-size_t ExponentialHistogramDataPoint::ByteSizeLong() const {
+::size_t ExponentialHistogramDataPoint::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 1;
   total_size += 1UL * this->_internal_attributes_size();
-  for (const auto& msg : this->attributes_) {
+  for (const auto& msg : this->_internal_attributes()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // repeated .opentelemetry.proto.metrics.v1.Exemplar exemplars = 11;
   total_size += 1UL * this->_internal_exemplars_size();
-  for (const auto& msg : this->exemplars_) {
+  for (const auto& msg : this->_internal_exemplars()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets positive = 8;
-  if (this->_internal_has_positive()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-        *positive_);
-  }
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000003u) {
+    // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets positive = 8;
+    if (cached_has_bits & 0x00000001u) {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.positive_);
+    }
 
-  // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets negative = 9;
-  if (this->_internal_has_negative()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
-        *negative_);
-  }
+    // .opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint.Buckets negative = 9;
+    if (cached_has_bits & 0x00000002u) {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.negative_);
+    }
 
+  }
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // fixed64 count = 4;
   if (this->_internal_count() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
-  // double sum = 5;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
-  double tmp_sum = this->_internal_sum();
-  uint64_t raw_sum;
-  memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
-  if (raw_sum != 0) {
-    total_size += 1 + 8;
+  // optional double sum = 5;
+  if (cached_has_bits & 0x00000004u) {
+    total_size += 9;
   }
 
   // fixed64 zero_count = 7;
   if (this->_internal_zero_count() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // sint32 scale = 6;
   if (this->_internal_scale() != 0) {
-    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SInt32SizePlusOne(this->_internal_scale());
+    total_size += ::_pbi::WireFormatLite::SInt32SizePlusOne(
+        this->_internal_scale());
   }
 
   // uint32 flags = 10;
   if (this->_internal_flags() != 0) {
-    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32SizePlusOne(this->_internal_flags());
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_flags());
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  if (cached_has_bits & 0x00000018u) {
+    // optional double min = 12;
+    if (cached_has_bits & 0x00000008u) {
+      total_size += 9;
+    }
+
+    // optional double max = 13;
+    if (cached_has_bits & 0x00000010u) {
+      total_size += 9;
+    }
+
+  }
+  // double zero_threshold = 14;
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
+  double tmp_zero_threshold = this->_internal_zero_threshold();
+  ::uint64_t raw_zero_threshold;
+  memcpy(&raw_zero_threshold, &tmp_zero_threshold, sizeof(tmp_zero_threshold));
+  if (raw_zero_threshold != 0) {
+    total_size += 9;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ExponentialHistogramDataPoint::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     ExponentialHistogramDataPoint::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ExponentialHistogramDataPoint::GetClassData() const { return &_class_data_; }
 
-void ExponentialHistogramDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<ExponentialHistogramDataPoint *>(to)->MergeFrom(
-      static_cast<const ExponentialHistogramDataPoint &>(from));
-}
 
-
-void ExponentialHistogramDataPoint::MergeFrom(const ExponentialHistogramDataPoint& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void ExponentialHistogramDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<ExponentialHistogramDataPoint*>(&to_msg);
+  auto& from = static_cast<const ExponentialHistogramDataPoint&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  attributes_.MergeFrom(from.attributes_);
-  exemplars_.MergeFrom(from.exemplars_);
-  if (from._internal_has_positive()) {
-    _internal_mutable_positive()->::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets::MergeFrom(from._internal_positive());
-  }
-  if (from._internal_has_negative()) {
-    _internal_mutable_negative()->::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets::MergeFrom(from._internal_negative());
+  _this->_internal_mutable_attributes()->MergeFrom(from._internal_attributes());
+  _this->_internal_mutable_exemplars()->MergeFrom(from._internal_exemplars());
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000003u) {
+    if (cached_has_bits & 0x00000001u) {
+      _this->_internal_mutable_positive()->::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets::MergeFrom(
+          from._internal_positive());
+    }
+    if (cached_has_bits & 0x00000002u) {
+      _this->_internal_mutable_negative()->::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets::MergeFrom(
+          from._internal_negative());
+    }
   }
   if (from._internal_start_time_unix_nano() != 0) {
-    _internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
+    _this->_internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
   }
   if (from._internal_time_unix_nano() != 0) {
-    _internal_set_time_unix_nano(from._internal_time_unix_nano());
+    _this->_internal_set_time_unix_nano(from._internal_time_unix_nano());
   }
   if (from._internal_count() != 0) {
-    _internal_set_count(from._internal_count());
+    _this->_internal_set_count(from._internal_count());
   }
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
-  double tmp_sum = from._internal_sum();
-  uint64_t raw_sum;
-  memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
-  if (raw_sum != 0) {
-    _internal_set_sum(from._internal_sum());
+  if (cached_has_bits & 0x00000004u) {
+    _this->_internal_set_sum(from._internal_sum());
   }
   if (from._internal_zero_count() != 0) {
-    _internal_set_zero_count(from._internal_zero_count());
+    _this->_internal_set_zero_count(from._internal_zero_count());
   }
   if (from._internal_scale() != 0) {
-    _internal_set_scale(from._internal_scale());
+    _this->_internal_set_scale(from._internal_scale());
   }
   if (from._internal_flags() != 0) {
-    _internal_set_flags(from._internal_flags());
+    _this->_internal_set_flags(from._internal_flags());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  if (cached_has_bits & 0x00000018u) {
+    if (cached_has_bits & 0x00000008u) {
+      _this->_impl_.min_ = from._impl_.min_;
+    }
+    if (cached_has_bits & 0x00000010u) {
+      _this->_impl_.max_ = from._impl_.max_;
+    }
+    _this->_impl_._has_bits_[0] |= cached_has_bits;
+  }
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
+  double tmp_zero_threshold = from._internal_zero_threshold();
+  ::uint64_t raw_zero_threshold;
+  memcpy(&raw_zero_threshold, &tmp_zero_threshold, sizeof(tmp_zero_threshold));
+  if (raw_zero_threshold != 0) {
+    _this->_internal_set_zero_threshold(from._internal_zero_threshold());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void ExponentialHistogramDataPoint::CopyFrom(const ExponentialHistogramDataPoint& from) {
@@ -4555,107 +5106,103 @@ bool ExponentialHistogramDataPoint::IsInitialized() const {
 void ExponentialHistogramDataPoint::InternalSwap(ExponentialHistogramDataPoint* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  attributes_.InternalSwap(&other->attributes_);
-  exemplars_.InternalSwap(&other->exemplars_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _internal_mutable_attributes()->InternalSwap(other->_internal_mutable_attributes());
+  _internal_mutable_exemplars()->InternalSwap(other->_internal_mutable_exemplars());
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(ExponentialHistogramDataPoint, flags_)
-      + sizeof(ExponentialHistogramDataPoint::flags_)
-      - PROTOBUF_FIELD_OFFSET(ExponentialHistogramDataPoint, positive_)>(
-          reinterpret_cast<char*>(&positive_),
-          reinterpret_cast<char*>(&other->positive_));
+      PROTOBUF_FIELD_OFFSET(ExponentialHistogramDataPoint, _impl_.zero_threshold_)
+      + sizeof(ExponentialHistogramDataPoint::_impl_.zero_threshold_)
+      - PROTOBUF_FIELD_OFFSET(ExponentialHistogramDataPoint, _impl_.positive_)>(
+          reinterpret_cast<char*>(&_impl_.positive_),
+          reinterpret_cast<char*>(&other->_impl_.positive_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ExponentialHistogramDataPoint::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[12]);
 }
-
 // ===================================================================
 
 class SummaryDataPoint_ValueAtQuantile::_Internal {
  public:
 };
 
-SummaryDataPoint_ValueAtQuantile::SummaryDataPoint_ValueAtQuantile(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+SummaryDataPoint_ValueAtQuantile::SummaryDataPoint_ValueAtQuantile(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
 }
 SummaryDataPoint_ValueAtQuantile::SummaryDataPoint_ValueAtQuantile(const SummaryDataPoint_ValueAtQuantile& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message() {
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&quantile_, &from.quantile_,
-    static_cast<size_t>(reinterpret_cast<char*>(&value_) -
-    reinterpret_cast<char*>(&quantile_)) + sizeof(value_));
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
 }
 
-inline void SummaryDataPoint_ValueAtQuantile::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&quantile_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&value_) -
-    reinterpret_cast<char*>(&quantile_)) + sizeof(value_));
+inline void SummaryDataPoint_ValueAtQuantile::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.quantile_) { 0 }
+
+    , decltype(_impl_.value_) { 0 }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 SummaryDataPoint_ValueAtQuantile::~SummaryDataPoint_ValueAtQuantile() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void SummaryDataPoint_ValueAtQuantile::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
 }
 
-void SummaryDataPoint_ValueAtQuantile::ArenaDtor(void* object) {
-  SummaryDataPoint_ValueAtQuantile* _this = reinterpret_cast< SummaryDataPoint_ValueAtQuantile* >(object);
-  (void)_this;
-}
-void SummaryDataPoint_ValueAtQuantile::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void SummaryDataPoint_ValueAtQuantile::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void SummaryDataPoint_ValueAtQuantile::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  ::memset(&quantile_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&value_) -
-      reinterpret_cast<char*>(&quantile_)) + sizeof(value_));
+  ::memset(&_impl_.quantile_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.value_) -
+      reinterpret_cast<char*>(&_impl_.quantile_)) + sizeof(_impl_.value_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* SummaryDataPoint_ValueAtQuantile::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* SummaryDataPoint_ValueAtQuantile::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // double quantile = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 9)) {
-          quantile_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 9)) {
+          _impl_.quantile_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // double value = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 17)) {
-          value_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 17)) {
+          _impl_.value_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -4680,103 +5227,101 @@ failure:
 #undef CHK_
 }
 
-uint8_t* SummaryDataPoint_ValueAtQuantile::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* SummaryDataPoint_ValueAtQuantile::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // double quantile = 1;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_quantile = this->_internal_quantile();
-  uint64_t raw_quantile;
+  ::uint64_t raw_quantile;
   memcpy(&raw_quantile, &tmp_quantile, sizeof(tmp_quantile));
   if (raw_quantile != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteDoubleToArray(1, this->_internal_quantile(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        1, this->_internal_quantile(), target);
   }
 
   // double value = 2;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_value = this->_internal_value();
-  uint64_t raw_value;
+  ::uint64_t raw_value;
   memcpy(&raw_value, &tmp_value, sizeof(tmp_value));
   if (raw_value != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteDoubleToArray(2, this->_internal_value(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        2, this->_internal_value(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
   return target;
 }
 
-size_t SummaryDataPoint_ValueAtQuantile::ByteSizeLong() const {
+::size_t SummaryDataPoint_ValueAtQuantile::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // double quantile = 1;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_quantile = this->_internal_quantile();
-  uint64_t raw_quantile;
+  ::uint64_t raw_quantile;
   memcpy(&raw_quantile, &tmp_quantile, sizeof(tmp_quantile));
   if (raw_quantile != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // double value = 2;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_value = this->_internal_value();
-  uint64_t raw_value;
+  ::uint64_t raw_value;
   memcpy(&raw_value, &tmp_value, sizeof(tmp_value));
   if (raw_value != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SummaryDataPoint_ValueAtQuantile::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     SummaryDataPoint_ValueAtQuantile::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SummaryDataPoint_ValueAtQuantile::GetClassData() const { return &_class_data_; }
 
-void SummaryDataPoint_ValueAtQuantile::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<SummaryDataPoint_ValueAtQuantile *>(to)->MergeFrom(
-      static_cast<const SummaryDataPoint_ValueAtQuantile &>(from));
-}
 
-
-void SummaryDataPoint_ValueAtQuantile::MergeFrom(const SummaryDataPoint_ValueAtQuantile& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void SummaryDataPoint_ValueAtQuantile::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SummaryDataPoint_ValueAtQuantile*>(&to_msg);
+  auto& from = static_cast<const SummaryDataPoint_ValueAtQuantile&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_quantile = from._internal_quantile();
-  uint64_t raw_quantile;
+  ::uint64_t raw_quantile;
   memcpy(&raw_quantile, &tmp_quantile, sizeof(tmp_quantile));
   if (raw_quantile != 0) {
-    _internal_set_quantile(from._internal_quantile());
+    _this->_internal_set_quantile(from._internal_quantile());
   }
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_value = from._internal_value();
-  uint64_t raw_value;
+  ::uint64_t raw_value;
   memcpy(&raw_value, &tmp_value, sizeof(tmp_value));
   if (raw_value != 0) {
-    _internal_set_value(from._internal_value());
+    _this->_internal_set_value(from._internal_value());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void SummaryDataPoint_ValueAtQuantile::CopyFrom(const SummaryDataPoint_ValueAtQuantile& from) {
@@ -4794,19 +5339,18 @@ void SummaryDataPoint_ValueAtQuantile::InternalSwap(SummaryDataPoint_ValueAtQuan
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(SummaryDataPoint_ValueAtQuantile, value_)
-      + sizeof(SummaryDataPoint_ValueAtQuantile::value_)
-      - PROTOBUF_FIELD_OFFSET(SummaryDataPoint_ValueAtQuantile, quantile_)>(
-          reinterpret_cast<char*>(&quantile_),
-          reinterpret_cast<char*>(&other->quantile_));
+      PROTOBUF_FIELD_OFFSET(SummaryDataPoint_ValueAtQuantile, _impl_.value_)
+      + sizeof(SummaryDataPoint_ValueAtQuantile::_impl_.value_)
+      - PROTOBUF_FIELD_OFFSET(SummaryDataPoint_ValueAtQuantile, _impl_.quantile_)>(
+          reinterpret_cast<char*>(&_impl_.quantile_),
+          reinterpret_cast<char*>(&other->_impl_.quantile_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata SummaryDataPoint_ValueAtQuantile::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[13]);
 }
-
 // ===================================================================
 
 class SummaryDataPoint::_Internal {
@@ -4814,113 +5358,135 @@ class SummaryDataPoint::_Internal {
 };
 
 void SummaryDataPoint::clear_attributes() {
-  attributes_.Clear();
+  _internal_mutable_attributes()->Clear();
 }
-SummaryDataPoint::SummaryDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  quantile_values_(arena),
-  attributes_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+SummaryDataPoint::SummaryDataPoint(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.SummaryDataPoint)
 }
 SummaryDataPoint::SummaryDataPoint(const SummaryDataPoint& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      quantile_values_(from.quantile_values_),
-      attributes_(from.attributes_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  SummaryDataPoint* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.quantile_values_){from._impl_.quantile_values_}
+    , decltype(_impl_.attributes_){from._impl_.attributes_}
+    , decltype(_impl_.start_time_unix_nano_) {}
+
+    , decltype(_impl_.time_unix_nano_) {}
+
+    , decltype(_impl_.count_) {}
+
+    , decltype(_impl_.sum_) {}
+
+    , decltype(_impl_.flags_) {}
+
+    , /*decltype(_impl_._cached_size_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&start_time_unix_nano_, &from.start_time_unix_nano_,
-    static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  ::memcpy(&_impl_.start_time_unix_nano_, &from._impl_.start_time_unix_nano_,
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.flags_) -
+    reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.flags_));
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.SummaryDataPoint)
 }
 
-inline void SummaryDataPoint::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&start_time_unix_nano_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&flags_) -
-    reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+inline void SummaryDataPoint::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.quantile_values_){arena}
+    , decltype(_impl_.attributes_){arena}
+    , decltype(_impl_.start_time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.count_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.sum_) { 0 }
+
+    , decltype(_impl_.flags_) { 0u }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
 }
 
 SummaryDataPoint::~SummaryDataPoint() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.SummaryDataPoint)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void SummaryDataPoint::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_quantile_values()->~RepeatedPtrField();
+  _internal_mutable_attributes()->~RepeatedPtrField();
 }
 
-void SummaryDataPoint::ArenaDtor(void* object) {
-  SummaryDataPoint* _this = reinterpret_cast< SummaryDataPoint* >(object);
-  (void)_this;
-}
-void SummaryDataPoint::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void SummaryDataPoint::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void SummaryDataPoint::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.SummaryDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  quantile_values_.Clear();
-  attributes_.Clear();
-  ::memset(&start_time_unix_nano_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&flags_) -
-      reinterpret_cast<char*>(&start_time_unix_nano_)) + sizeof(flags_));
+  _internal_mutable_quantile_values()->Clear();
+  _internal_mutable_attributes()->Clear();
+  ::memset(&_impl_.start_time_unix_nano_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.flags_) -
+      reinterpret_cast<char*>(&_impl_.start_time_unix_nano_)) + sizeof(_impl_.flags_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* SummaryDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* SummaryDataPoint::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // fixed64 start_time_unix_nano = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 17)) {
-          start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 17)) {
+          _impl_.start_time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 time_unix_nano = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 25)) {
-          time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 25)) {
+          _impl_.time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // fixed64 count = 4;
       case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 33)) {
-          count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 33)) {
+          _impl_.count_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // double sum = 5;
       case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 41)) {
-          sum_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 41)) {
+          _impl_.sum_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile quantile_values = 6;
       case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 50)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -4928,12 +5494,13 @@ const char* SummaryDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPA
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<50>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 7;
       case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 58)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -4941,16 +5508,18 @@ const char* SummaryDataPoint::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPA
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<58>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // uint32 flags = 8;
       case 8:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 64)) {
-          flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
+          _impl_.flags_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -4975,165 +5544,167 @@ failure:
 #undef CHK_
 }
 
-uint8_t* SummaryDataPoint::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* SummaryDataPoint::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.SummaryDataPoint)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(2, this->_internal_start_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        2, this->_internal_start_time_unix_nano(), target);
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(3, this->_internal_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        3, this->_internal_time_unix_nano(), target);
   }
 
   // fixed64 count = 4;
   if (this->_internal_count() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(4, this->_internal_count(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        4, this->_internal_count(), target);
   }
 
   // double sum = 5;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_sum = this->_internal_sum();
-  uint64_t raw_sum;
+  ::uint64_t raw_sum;
   memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
   if (raw_sum != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteDoubleToArray(5, this->_internal_sum(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        5, this->_internal_sum(), target);
   }
 
   // repeated .opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile quantile_values = 6;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_quantile_values_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_quantile_values_size()); i < n; i++) {
+    const auto& repfield = this->_internal_quantile_values(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(6, this->_internal_quantile_values(i), target, stream);
+        InternalWriteMessage(6, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 7;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_attributes_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_attributes_size()); i < n; i++) {
+    const auto& repfield = this->_internal_attributes(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(7, this->_internal_attributes(i), target, stream);
+        InternalWriteMessage(7, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   // uint32 flags = 8;
   if (this->_internal_flags() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(8, this->_internal_flags(), target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        8, this->_internal_flags(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.SummaryDataPoint)
   return target;
 }
 
-size_t SummaryDataPoint::ByteSizeLong() const {
+::size_t SummaryDataPoint::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.SummaryDataPoint)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.metrics.v1.SummaryDataPoint.ValueAtQuantile quantile_values = 6;
   total_size += 1UL * this->_internal_quantile_values_size();
-  for (const auto& msg : this->quantile_values_) {
+  for (const auto& msg : this->_internal_quantile_values()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // repeated .opentelemetry.proto.common.v1.KeyValue attributes = 7;
   total_size += 1UL * this->_internal_attributes_size();
-  for (const auto& msg : this->attributes_) {
+  for (const auto& msg : this->_internal_attributes()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // fixed64 start_time_unix_nano = 2;
   if (this->_internal_start_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // fixed64 time_unix_nano = 3;
   if (this->_internal_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // fixed64 count = 4;
   if (this->_internal_count() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // double sum = 5;
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_sum = this->_internal_sum();
-  uint64_t raw_sum;
+  ::uint64_t raw_sum;
   memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
   if (raw_sum != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   // uint32 flags = 8;
   if (this->_internal_flags() != 0) {
-    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32SizePlusOne(this->_internal_flags());
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_flags());
   }
 
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SummaryDataPoint::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     SummaryDataPoint::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SummaryDataPoint::GetClassData() const { return &_class_data_; }
 
-void SummaryDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<SummaryDataPoint *>(to)->MergeFrom(
-      static_cast<const SummaryDataPoint &>(from));
-}
 
-
-void SummaryDataPoint::MergeFrom(const SummaryDataPoint& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.SummaryDataPoint)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void SummaryDataPoint::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<SummaryDataPoint*>(&to_msg);
+  auto& from = static_cast<const SummaryDataPoint&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.SummaryDataPoint)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  quantile_values_.MergeFrom(from.quantile_values_);
-  attributes_.MergeFrom(from.attributes_);
+  _this->_internal_mutable_quantile_values()->MergeFrom(from._internal_quantile_values());
+  _this->_internal_mutable_attributes()->MergeFrom(from._internal_attributes());
   if (from._internal_start_time_unix_nano() != 0) {
-    _internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
+    _this->_internal_set_start_time_unix_nano(from._internal_start_time_unix_nano());
   }
   if (from._internal_time_unix_nano() != 0) {
-    _internal_set_time_unix_nano(from._internal_time_unix_nano());
+    _this->_internal_set_time_unix_nano(from._internal_time_unix_nano());
   }
   if (from._internal_count() != 0) {
-    _internal_set_count(from._internal_count());
+    _this->_internal_set_count(from._internal_count());
   }
-  static_assert(sizeof(uint64_t) == sizeof(double), "Code assumes uint64_t and double are the same size.");
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
   double tmp_sum = from._internal_sum();
-  uint64_t raw_sum;
+  ::uint64_t raw_sum;
   memcpy(&raw_sum, &tmp_sum, sizeof(tmp_sum));
   if (raw_sum != 0) {
-    _internal_set_sum(from._internal_sum());
+    _this->_internal_set_sum(from._internal_sum());
   }
   if (from._internal_flags() != 0) {
-    _internal_set_flags(from._internal_flags());
+    _this->_internal_set_flags(from._internal_flags());
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void SummaryDataPoint::CopyFrom(const SummaryDataPoint& from) {
@@ -5150,70 +5721,76 @@ bool SummaryDataPoint::IsInitialized() const {
 void SummaryDataPoint::InternalSwap(SummaryDataPoint* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  quantile_values_.InternalSwap(&other->quantile_values_);
-  attributes_.InternalSwap(&other->attributes_);
+  _internal_mutable_quantile_values()->InternalSwap(other->_internal_mutable_quantile_values());
+  _internal_mutable_attributes()->InternalSwap(other->_internal_mutable_attributes());
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(SummaryDataPoint, flags_)
-      + sizeof(SummaryDataPoint::flags_)
-      - PROTOBUF_FIELD_OFFSET(SummaryDataPoint, start_time_unix_nano_)>(
-          reinterpret_cast<char*>(&start_time_unix_nano_),
-          reinterpret_cast<char*>(&other->start_time_unix_nano_));
+      PROTOBUF_FIELD_OFFSET(SummaryDataPoint, _impl_.flags_)
+      + sizeof(SummaryDataPoint::_impl_.flags_)
+      - PROTOBUF_FIELD_OFFSET(SummaryDataPoint, _impl_.start_time_unix_nano_)>(
+          reinterpret_cast<char*>(&_impl_.start_time_unix_nano_),
+          reinterpret_cast<char*>(&other->_impl_.start_time_unix_nano_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata SummaryDataPoint::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[14]);
 }
-
 // ===================================================================
 
 class Exemplar::_Internal {
  public:
+  static constexpr ::int32_t kOneofCaseOffset =
+    PROTOBUF_FIELD_OFFSET(::opentelemetry::proto::metrics::v1::Exemplar, _impl_._oneof_case_);
 };
 
 void Exemplar::clear_filtered_attributes() {
-  filtered_attributes_.Clear();
+  _internal_mutable_filtered_attributes()->Clear();
 }
-Exemplar::Exemplar(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  filtered_attributes_(arena) {
-  SharedCtor();
-  if (!is_message_owned) {
-    RegisterArenaDtor(arena);
-  }
+Exemplar::Exemplar(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
   // @@protoc_insertion_point(arena_constructor:opentelemetry.proto.metrics.v1.Exemplar)
 }
 Exemplar::Exemplar(const Exemplar& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message(),
-      filtered_attributes_(from.filtered_attributes_) {
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  Exemplar* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.filtered_attributes_){from._impl_.filtered_attributes_}
+    , decltype(_impl_.span_id_) {}
+
+    , decltype(_impl_.trace_id_) {}
+
+    , decltype(_impl_.time_unix_nano_) {}
+
+    , decltype(_impl_.value_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , /*decltype(_impl_._oneof_case_)*/{}};
+
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  span_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _impl_.span_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    span_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.span_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_span_id().empty()) {
-    span_id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_span_id(), 
-      GetArenaForAllocation());
+    _this->_impl_.span_id_.Set(from._internal_span_id(), _this->GetArenaForAllocation());
   }
-  trace_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _impl_.trace_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    trace_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.trace_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_trace_id().empty()) {
-    trace_id_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_trace_id(), 
-      GetArenaForAllocation());
+    _this->_impl_.trace_id_.Set(from._internal_trace_id(), _this->GetArenaForAllocation());
   }
-  time_unix_nano_ = from.time_unix_nano_;
+  _this->_impl_.time_unix_nano_ = from._impl_.time_unix_nano_;
   clear_has_value();
   switch (from.value_case()) {
     case kAsDouble: {
-      _internal_set_as_double(from._internal_as_double());
+      _this->_internal_set_as_double(from._internal_as_double());
       break;
     }
     case kAsInt: {
-      _internal_set_as_int(from._internal_as_int());
+      _this->_internal_set_as_int(from._internal_as_int());
       break;
     }
     case VALUE_NOT_SET: {
@@ -5223,43 +5800,52 @@ Exemplar::Exemplar(const Exemplar& from)
   // @@protoc_insertion_point(copy_constructor:opentelemetry.proto.metrics.v1.Exemplar)
 }
 
-inline void Exemplar::SharedCtor() {
-span_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  span_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-trace_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  trace_id_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-time_unix_nano_ = uint64_t{0u};
-clear_has_value();
+inline void Exemplar::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.filtered_attributes_){arena}
+    , decltype(_impl_.span_id_) {}
+
+    , decltype(_impl_.trace_id_) {}
+
+    , decltype(_impl_.time_unix_nano_) { ::uint64_t{0u} }
+
+    , decltype(_impl_.value_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , /*decltype(_impl_._oneof_case_)*/{}
+  };
+  _impl_.span_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.span_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.trace_id_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.trace_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  clear_has_value();
 }
 
 Exemplar::~Exemplar() {
   // @@protoc_insertion_point(destructor:opentelemetry.proto.metrics.v1.Exemplar)
-  if (GetArenaForAllocation() != nullptr) return;
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
   SharedDtor();
-  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 inline void Exemplar::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  span_id_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  trace_id_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _internal_mutable_filtered_attributes()->~RepeatedPtrField();
+  _impl_.span_id_.Destroy();
+  _impl_.trace_id_.Destroy();
   if (has_value()) {
     clear_value();
   }
 }
 
-void Exemplar::ArenaDtor(void* object) {
-  Exemplar* _this = reinterpret_cast< Exemplar* >(object);
-  (void)_this;
-}
-void Exemplar::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
-}
 void Exemplar::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void Exemplar::clear_value() {
@@ -5277,75 +5863,80 @@ void Exemplar::clear_value() {
       break;
     }
   }
-  _oneof_case_[0] = VALUE_NOT_SET;
+  _impl_._oneof_case_[0] = VALUE_NOT_SET;
 }
 
 
 void Exemplar::Clear() {
 // @@protoc_insertion_point(message_clear_start:opentelemetry.proto.metrics.v1.Exemplar)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  filtered_attributes_.Clear();
-  span_id_.ClearToEmpty();
-  trace_id_.ClearToEmpty();
-  time_unix_nano_ = uint64_t{0u};
+  _internal_mutable_filtered_attributes()->Clear();
+  _impl_.span_id_.ClearToEmpty();
+  _impl_.trace_id_.ClearToEmpty();
+  _impl_.time_unix_nano_ = ::uint64_t{0u};
   clear_value();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* Exemplar::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+const char* Exemplar::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
       // fixed64 time_unix_nano = 2;
       case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 17)) {
-          time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint64_t>(ptr);
-          ptr += sizeof(uint64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 17)) {
+          _impl_.time_unix_nano_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::uint64_t>(ptr);
+          ptr += sizeof(::uint64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // double as_double = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 25)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 25)) {
           _internal_set_as_double(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr));
           ptr += sizeof(double);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // bytes span_id = 4;
       case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 34)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
           auto str = _internal_mutable_span_id();
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // bytes trace_id = 5;
       case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 42)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
           auto str = _internal_mutable_trace_id();
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       // sfixed64 as_int = 6;
       case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 49)) {
-          _internal_set_as_int(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<int64_t>(ptr));
-          ptr += sizeof(int64_t);
-        } else
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 49)) {
+          _internal_set_as_int(::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<::int64_t>(ptr));
+          ptr += sizeof(::int64_t);
+        } else {
           goto handle_unusual;
+        }
         continue;
       // repeated .opentelemetry.proto.common.v1.KeyValue filtered_attributes = 7;
       case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 58)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
           ptr -= 1;
           do {
             ptr += 1;
@@ -5353,8 +5944,9 @@ const char* Exemplar::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::i
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<58>(ptr));
-        } else
+        } else {
           goto handle_unusual;
+        }
         continue;
       default:
         goto handle_unusual;
@@ -5379,153 +5971,150 @@ failure:
 #undef CHK_
 }
 
-uint8_t* Exemplar::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+::uint8_t* Exemplar::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
   // @@protoc_insertion_point(serialize_to_array_start:opentelemetry.proto.metrics.v1.Exemplar)
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
   // fixed64 time_unix_nano = 2;
   if (this->_internal_time_unix_nano() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFixed64ToArray(2, this->_internal_time_unix_nano(), target);
+    target = ::_pbi::WireFormatLite::WriteFixed64ToArray(
+        2, this->_internal_time_unix_nano(), target);
   }
 
   // double as_double = 3;
-  if (_internal_has_as_double()) {
+  if (value_case() == kAsDouble) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteDoubleToArray(3, this->_internal_as_double(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        3, this->_internal_as_double(), target);
   }
 
   // bytes span_id = 4;
   if (!this->_internal_span_id().empty()) {
-    target = stream->WriteBytesMaybeAliased(
-        4, this->_internal_span_id(), target);
+    const std::string& _s = this->_internal_span_id();
+    target = stream->WriteBytesMaybeAliased(4, _s, target);
   }
 
   // bytes trace_id = 5;
   if (!this->_internal_trace_id().empty()) {
-    target = stream->WriteBytesMaybeAliased(
-        5, this->_internal_trace_id(), target);
+    const std::string& _s = this->_internal_trace_id();
+    target = stream->WriteBytesMaybeAliased(5, _s, target);
   }
 
   // sfixed64 as_int = 6;
-  if (_internal_has_as_int()) {
+  if (value_case() == kAsInt) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteSFixed64ToArray(6, this->_internal_as_int(), target);
+    target = ::_pbi::WireFormatLite::WriteSFixed64ToArray(
+        6, this->_internal_as_int(), target);
   }
 
   // repeated .opentelemetry.proto.common.v1.KeyValue filtered_attributes = 7;
-  for (unsigned int i = 0,
-      n = static_cast<unsigned int>(this->_internal_filtered_attributes_size()); i < n; i++) {
-    target = stream->EnsureSpace(target);
+  for (unsigned i = 0,
+      n = static_cast<unsigned>(this->_internal_filtered_attributes_size()); i < n; i++) {
+    const auto& repfield = this->_internal_filtered_attributes(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(7, this->_internal_filtered_attributes(i), target, stream);
+        InternalWriteMessage(7, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
   // @@protoc_insertion_point(serialize_to_array_end:opentelemetry.proto.metrics.v1.Exemplar)
   return target;
 }
 
-size_t Exemplar::ByteSizeLong() const {
+::size_t Exemplar::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:opentelemetry.proto.metrics.v1.Exemplar)
-  size_t total_size = 0;
+  ::size_t total_size = 0;
 
-  uint32_t cached_has_bits = 0;
+  ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
   // repeated .opentelemetry.proto.common.v1.KeyValue filtered_attributes = 7;
   total_size += 1UL * this->_internal_filtered_attributes_size();
-  for (const auto& msg : this->filtered_attributes_) {
+  for (const auto& msg : this->_internal_filtered_attributes()) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // bytes span_id = 4;
   if (!this->_internal_span_id().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
-        this->_internal_span_id());
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+                                    this->_internal_span_id());
   }
 
   // bytes trace_id = 5;
   if (!this->_internal_trace_id().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
-        this->_internal_trace_id());
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+                                    this->_internal_trace_id());
   }
 
   // fixed64 time_unix_nano = 2;
   if (this->_internal_time_unix_nano() != 0) {
-    total_size += 1 + 8;
+    total_size += 9;
   }
 
   switch (value_case()) {
     // double as_double = 3;
     case kAsDouble: {
-      total_size += 1 + 8;
+      total_size += 9;
       break;
     }
     // sfixed64 as_int = 6;
     case kAsInt: {
-      total_size += 1 + 8;
+      total_size += 9;
       break;
     }
     case VALUE_NOT_SET: {
       break;
     }
   }
-  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Exemplar::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
     Exemplar::MergeImpl
 };
 const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Exemplar::GetClassData() const { return &_class_data_; }
 
-void Exemplar::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
-                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
-  static_cast<Exemplar *>(to)->MergeFrom(
-      static_cast<const Exemplar &>(from));
-}
 
-
-void Exemplar::MergeFrom(const Exemplar& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Exemplar)
-  GOOGLE_DCHECK_NE(&from, this);
-  uint32_t cached_has_bits = 0;
+void Exemplar::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Exemplar*>(&to_msg);
+  auto& from = static_cast<const Exemplar&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:opentelemetry.proto.metrics.v1.Exemplar)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  filtered_attributes_.MergeFrom(from.filtered_attributes_);
+  _this->_internal_mutable_filtered_attributes()->MergeFrom(from._internal_filtered_attributes());
   if (!from._internal_span_id().empty()) {
-    _internal_set_span_id(from._internal_span_id());
+    _this->_internal_set_span_id(from._internal_span_id());
   }
   if (!from._internal_trace_id().empty()) {
-    _internal_set_trace_id(from._internal_trace_id());
+    _this->_internal_set_trace_id(from._internal_trace_id());
   }
   if (from._internal_time_unix_nano() != 0) {
-    _internal_set_time_unix_nano(from._internal_time_unix_nano());
+    _this->_internal_set_time_unix_nano(from._internal_time_unix_nano());
   }
   switch (from.value_case()) {
     case kAsDouble: {
-      _internal_set_as_double(from._internal_as_double());
+      _this->_internal_set_as_double(from._internal_as_double());
       break;
     }
     case kAsInt: {
-      _internal_set_as_int(from._internal_as_int());
+      _this->_internal_set_as_int(from._internal_as_int());
       break;
     }
     case VALUE_NOT_SET: {
       break;
     }
   }
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
 void Exemplar::CopyFrom(const Exemplar& from) {
@@ -5544,83 +6133,92 @@ void Exemplar::InternalSwap(Exemplar* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  filtered_attributes_.InternalSwap(&other->filtered_attributes_);
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
-      &span_id_, lhs_arena,
-      &other->span_id_, rhs_arena
-  );
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
-      &trace_id_, lhs_arena,
-      &other->trace_id_, rhs_arena
-  );
-  swap(time_unix_nano_, other->time_unix_nano_);
-  swap(value_, other->value_);
-  swap(_oneof_case_[0], other->_oneof_case_[0]);
+  _internal_mutable_filtered_attributes()->InternalSwap(other->_internal_mutable_filtered_attributes());
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.span_id_, lhs_arena,
+                                       &other->_impl_.span_id_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.trace_id_, lhs_arena,
+                                       &other->_impl_.trace_id_, rhs_arena);
+
+  swap(_impl_.time_unix_nano_, other->_impl_.time_unix_nano_);
+  swap(_impl_.value_, other->_impl_.value_);
+  swap(_impl_._oneof_case_[0], other->_impl_._oneof_case_[0]);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata Exemplar::GetMetadata() const {
-  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+  return ::_pbi::AssignDescriptors(
       &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_getter, &descriptor_table_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto_once,
       file_level_metadata_opentelemetry_2fproto_2fmetrics_2fv1_2fmetrics_2eproto[15]);
 }
-
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace v1
 }  // namespace metrics
 }  // namespace proto
 }  // namespace opentelemetry
 PROTOBUF_NAMESPACE_OPEN
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::MetricsData* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::MetricsData >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::MetricsData*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::MetricsData >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::MetricsData >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ResourceMetrics* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ResourceMetrics >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ResourceMetrics*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ResourceMetrics >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::ResourceMetrics >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics >(Arena* arena) {
-  return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::InstrumentationLibraryMetrics >(arena);
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ScopeMetrics*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ScopeMetrics >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::ScopeMetrics >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Metric* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Metric >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Metric*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Metric >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::Metric >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Gauge* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Gauge >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Gauge*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Gauge >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::Gauge >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Sum* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Sum >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Sum*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Sum >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::Sum >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Histogram* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Histogram >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Histogram*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Histogram >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::Histogram >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ExponentialHistogram* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ExponentialHistogram >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ExponentialHistogram*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ExponentialHistogram >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::ExponentialHistogram >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Summary* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Summary >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Summary*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Summary >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::Summary >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::NumberDataPoint* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::NumberDataPoint >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::NumberDataPoint*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::NumberDataPoint >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::NumberDataPoint >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::HistogramDataPoint* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::HistogramDataPoint >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::HistogramDataPoint*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::HistogramDataPoint >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::HistogramDataPoint >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint_Buckets >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::ExponentialHistogramDataPoint >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::SummaryDataPoint_ValueAtQuantile >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::SummaryDataPoint* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::SummaryDataPoint >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::SummaryDataPoint*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::SummaryDataPoint >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::SummaryDataPoint >(arena);
 }
-template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Exemplar* Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Exemplar >(Arena* arena) {
+template<> PROTOBUF_NOINLINE ::opentelemetry::proto::metrics::v1::Exemplar*
+Arena::CreateMaybeMessage< ::opentelemetry::proto::metrics::v1::Exemplar >(Arena* arena) {
   return Arena::CreateMessageInternal< ::opentelemetry::proto::metrics::v1::Exemplar >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
-
 // @@protoc_insertion_point(global_scope)
-#include <google/protobuf/port_undef.inc>
+#include "google/protobuf/port_undef.inc"

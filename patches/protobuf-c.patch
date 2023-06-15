@@ -1,0 +1,456 @@
+diff --git a/build-cmake/CMakeLists.txt b/build-cmake/CMakeLists.txt
+index bfd502a..883c238 100644
+--- a/build-cmake/CMakeLists.txt
++++ b/build-cmake/CMakeLists.txt
+@@ -1,6 +1,6 @@
+ SET(PACKAGE protobuf-c)
+ SET(PACKAGE_NAME protobuf-c)
+-SET(PACKAGE_VERSION 1.4.1)
++SET(PACKAGE_VERSION 1.4.2)
+ SET(PACKAGE_URL https://github.com/protobuf-c/protobuf-c)
+ SET(PACKAGE_DESCRIPTION "Protocol Buffers implementation in C")
+ 
+diff --git a/configure.ac b/configure.ac
+index f5a0261..bdc5ae3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1,7 +1,7 @@
+ AC_PREREQ(2.63)
+ 
+ AC_INIT([protobuf-c],
+-        [1.4.1],
++        [1.4.2],
+         [https://github.com/protobuf-c/protobuf-c/issues],
+         [protobuf-c],
+         [https://github.com/protobuf-c/protobuf-c])
+diff --git a/protobuf-c/protobuf-c.h b/protobuf-c/protobuf-c.h
+index 5fa52da..e16dd26 100755
+--- a/protobuf-c/protobuf-c.h
++++ b/protobuf-c/protobuf-c.h
+@@ -794,13 +794,13 @@ protobuf_c_version_number(void);
+  * The version of the protobuf-c headers, represented as a string using the same
+  * format as protobuf_c_version().
+  */
+-#define PROTOBUF_C_VERSION		"1.4.1"
++#define PROTOBUF_C_VERSION		"1.4.2"
+ 
+ /**
+  * The version of the protobuf-c headers, represented as an integer using the
+  * same format as protobuf_c_version_number().
+  */
+-#define PROTOBUF_C_VERSION_NUMBER	1004001
++#define PROTOBUF_C_VERSION_NUMBER	1004002
+ 
+ /**
+  * The minimum protoc-c version which works with the current version of the
+diff --git a/protoc-c/c_bytes_field.h b/protoc-c/c_bytes_field.h
+index bf873f0..61c892a 100644
+--- a/protoc-c/c_bytes_field.h
++++ b/protoc-c/c_bytes_field.h
+@@ -75,6 +75,8 @@ namespace c {
+ class BytesFieldGenerator : public FieldGenerator {
+  public:
+   explicit BytesFieldGenerator(const FieldDescriptor* descriptor);
++  BytesFieldGenerator(const BytesFieldGenerator&) = delete;
++  void operator=(const BytesFieldGenerator&) = delete;
+   ~BytesFieldGenerator();
+ 
+   // implements FieldGenerator ---------------------------------------
+@@ -87,8 +89,6 @@ class BytesFieldGenerator : public FieldGenerator {
+ 
+  private:
+   std::map<std::string, std::string> variables_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(BytesFieldGenerator);
+ };
+ 
+ 
+diff --git a/protoc-c/c_enum.h b/protoc-c/c_enum.h
+index 9c34b69..9c5011f 100644
+--- a/protoc-c/c_enum.h
++++ b/protoc-c/c_enum.h
+@@ -82,6 +82,8 @@ class EnumGenerator {
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit EnumGenerator(const EnumDescriptor* descriptor,
+                          const std::string& dllexport_decl);
++  EnumGenerator(const EnumGenerator&) = delete;
++  void operator=(const EnumGenerator&) = delete;
+   ~EnumGenerator();
+ 
+   // Header stuff.
+@@ -106,8 +108,6 @@ class EnumGenerator {
+  private:
+   const EnumDescriptor* descriptor_;
+   std::string dllexport_decl_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(EnumGenerator);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_enum_field.h b/protoc-c/c_enum_field.h
+index 3f8c005..0c0e01c 100644
+--- a/protoc-c/c_enum_field.h
++++ b/protoc-c/c_enum_field.h
+@@ -75,6 +75,8 @@ namespace c {
+ class EnumFieldGenerator : public FieldGenerator {
+  public:
+   explicit EnumFieldGenerator(const FieldDescriptor* descriptor);
++  EnumFieldGenerator(const EnumFieldGenerator&) = delete;
++  void operator=(const EnumFieldGenerator&) = delete;
+   ~EnumFieldGenerator();
+ 
+   // implements FieldGenerator ---------------------------------------
+@@ -85,8 +87,6 @@ class EnumFieldGenerator : public FieldGenerator {
+ 
+  private:
+   std::map<std::string, std::string> variables_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(EnumFieldGenerator);
+ };
+ 
+ 
+diff --git a/protoc-c/c_extension.h b/protoc-c/c_extension.h
+index 9541388..34b63ef 100644
+--- a/protoc-c/c_extension.h
++++ b/protoc-c/c_extension.h
+@@ -86,6 +86,8 @@ class ExtensionGenerator {
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit ExtensionGenerator(const FieldDescriptor* descriptor,
+                               const std::string& dllexport_decl);
++  ExtensionGenerator(const ExtensionGenerator&) = delete;
++  void operator=(const ExtensionGenerator&) = delete;
+   ~ExtensionGenerator();
+ 
+   // Header stuff.
+@@ -98,8 +100,6 @@ class ExtensionGenerator {
+   const FieldDescriptor* descriptor_;
+   std::string type_traits_;
+   std::string dllexport_decl_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ExtensionGenerator);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_field.cc b/protoc-c/c_field.cc
+index 0716744..4abdc6d 100644
+--- a/protoc-c/c_field.cc
++++ b/protoc-c/c_field.cc
+@@ -231,7 +231,7 @@ FieldGeneratorMap::~FieldGeneratorMap() {}
+ 
+ const FieldGenerator& FieldGeneratorMap::get(
+     const FieldDescriptor* field) const {
+-  GOOGLE_CHECK_EQ(field->containing_type(), descriptor_);
++  ABSL_CHECK_EQ(field->containing_type(), descriptor_);
+   return *field_generators_[field->index()];
+ }
+ 
+diff --git a/protoc-c/c_field.h b/protoc-c/c_field.h
+index 3cad35d..d9f6183 100644
+--- a/protoc-c/c_field.h
++++ b/protoc-c/c_field.h
+@@ -81,6 +81,8 @@ namespace c {
+ class FieldGenerator {
+  public:
+   explicit FieldGenerator(const FieldDescriptor *descriptor) : descriptor_(descriptor) {}
++  FieldGenerator(const FieldGenerator&) = delete;
++  void operator=(const FieldGenerator&) = delete;
+   virtual ~FieldGenerator();
+ 
+   // Generate definitions to be included in the structure.
+@@ -103,15 +105,14 @@ class FieldGenerator {
+                                             const std::string &type_macro,
+                                             const std::string &descriptor_addr) const;
+   const FieldDescriptor *descriptor_;
+-
+- private:
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(FieldGenerator);
+ };
+ 
+ // Convenience class which constructs FieldGenerators for a Descriptor.
+ class FieldGeneratorMap {
+  public:
+   explicit FieldGeneratorMap(const Descriptor* descriptor);
++  FieldGeneratorMap(const FieldGeneratorMap&) = delete;
++  void operator=(const FieldGeneratorMap&) = delete;
+   ~FieldGeneratorMap();
+ 
+   const FieldGenerator& get(const FieldDescriptor* field) const;
+@@ -121,8 +122,6 @@ class FieldGeneratorMap {
+   std::unique_ptr<std::unique_ptr<FieldGenerator>[]> field_generators_;
+ 
+   static FieldGenerator* MakeGenerator(const FieldDescriptor* field);
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(FieldGeneratorMap);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_file.cc b/protoc-c/c_file.cc
+index 59c1824..1ccf4e1 100644
+--- a/protoc-c/c_file.cc
++++ b/protoc-c/c_file.cc
+@@ -119,7 +119,8 @@ void FileGenerator::GenerateHeader(io::Printer* printer) {
+ 
+   int min_header_version = 1000000;
+ #if defined(HAVE_PROTO3)
+-  if (file_->syntax() == FileDescriptor::SYNTAX_PROTO3) {
++  FileDescriptorLegacy fdl(file_);
++  if (fdl.syntax() == FileDescriptorLegacy::SYNTAX_PROTO3) {
+     min_header_version = 1003000;
+   }
+ #endif
+diff --git a/protoc-c/c_file.h b/protoc-c/c_file.h
+index 8dfd8ba..73c6c92 100644
+--- a/protoc-c/c_file.h
++++ b/protoc-c/c_file.h
+@@ -91,6 +91,8 @@ class FileGenerator {
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit FileGenerator(const FileDescriptor* file,
+                          const std::string& dllexport_decl);
++  FileGenerator(const FileGenerator&) = delete;
++  void operator=(const FileGenerator&) = delete;
+   ~FileGenerator();
+ 
+   void GenerateHeader(io::Printer* printer);
+@@ -103,8 +105,6 @@ class FileGenerator {
+   std::unique_ptr<std::unique_ptr<EnumGenerator>[]> enum_generators_;
+   std::unique_ptr<std::unique_ptr<ServiceGenerator>[]> service_generators_;
+   std::unique_ptr<std::unique_ptr<ExtensionGenerator>[]> extension_generators_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(FileGenerator);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_generator.h b/protoc-c/c_generator.h
+index ac1ffaf..4016edd 100644
+--- a/protoc-c/c_generator.h
++++ b/protoc-c/c_generator.h
+@@ -86,6 +86,8 @@ namespace c {
+ class PROTOC_C_EXPORT CGenerator : public CodeGenerator {
+  public:
+   CGenerator();
++  CGenerator(const CGenerator&) = delete;
++  void operator=(const CGenerator&) = delete;
+   ~CGenerator();
+ 
+   // implements CodeGenerator ----------------------------------------
+@@ -93,9 +95,6 @@ class PROTOC_C_EXPORT CGenerator : public CodeGenerator {
+                 const std::string& parameter,
+                 OutputDirectory* output_directory,
+                 std::string* error) const;
+-
+- private:
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(CGenerator);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_helpers.cc b/protoc-c/c_helpers.cc
+index 6fd0cd3..1eaeeb4 100644
+--- a/protoc-c/c_helpers.cc
++++ b/protoc-c/c_helpers.cc
+@@ -286,7 +286,7 @@ const char* const kKeywordList[] = {
+ 
+ std::set<std::string> MakeKeywordsMap() {
+   std::set<std::string> result;
+-  for (int i = 0; i < GOOGLE_ARRAYSIZE(kKeywordList); i++) {
++  for (int i = 0; i < ABSL_ARRAYSIZE(kKeywordList); i++) {
+     result.insert(kKeywordList[i]);
+   }
+   return result;
+@@ -548,7 +548,7 @@ std::string CEscape(const std::string& src) {
+   std::unique_ptr<char[]> dest(new char[dest_length]);
+   const int len = CEscapeInternal(src.data(), src.size(),
+                                   dest.get(), dest_length, false);
+-  GOOGLE_DCHECK_GE(len, 0);
++  ABSL_DCHECK_GE(len, 0);
+   return std::string(dest.get(), len);
+ }
+ 
+diff --git a/protoc-c/c_helpers.h b/protoc-c/c_helpers.h
+index 7598a4e..fc41b6c 100644
+--- a/protoc-c/c_helpers.h
++++ b/protoc-c/c_helpers.h
+@@ -67,6 +67,7 @@
+ #include <vector>
+ #include <sstream>
+ #include <google/protobuf/descriptor.h>
++#include <google/protobuf/descriptor_legacy.h>
+ #include <protobuf-c/protobuf-c.pb.h>
+ #include <google/protobuf/io/printer.h>
+ 
+@@ -172,7 +173,8 @@ int compare_name_indices_by_name(const void*, const void*);
+ // This wrapper is needed to be able to compile against protobuf2.
+ inline int FieldSyntax(const FieldDescriptor* field) {
+ #ifdef HAVE_PROTO3
+-  return field->file()->syntax() == FileDescriptor::SYNTAX_PROTO3 ? 3 : 2;
++  FileDescriptorLegacy fdl(field->file());
++  return fdl.syntax() == FileDescriptorLegacy::SYNTAX_PROTO3 ? 3 : 2;
+ #else
+   return 2;
+ #endif
+diff --git a/protoc-c/c_message.cc b/protoc-c/c_message.cc
+index 37e8bf8..916f475 100755
+--- a/protoc-c/c_message.cc
++++ b/protoc-c/c_message.cc
+@@ -499,7 +499,7 @@ GenerateMessageDescriptor(io::Printer* printer, bool gen_init) {
+ 	  // NOTE: not supported by protobuf
+ 	  vars["maybe_static"] = "";
+ 	  vars["field_dv_ctype"] = "{ ... }";
+-	  GOOGLE_LOG(DFATAL) << "Messages can't have default values!";
++	  //GOOGLE_LOG(DFATAL) << "Messages can't have default values!";
+ 	  break;
+ 	case FieldDescriptor::CPPTYPE_STRING:
+ 	  if (fd->type() == FieldDescriptor::TYPE_BYTES || opt.string_as_bytes())
+@@ -521,7 +521,7 @@ GenerateMessageDescriptor(io::Printer* printer, bool gen_init) {
+ 	    break;
+ 	  }
+ 	default:
+-	  GOOGLE_LOG(DFATAL) << "Unknown CPPTYPE";
++	  //GOOGLE_LOG(DFATAL) << "Unknown CPPTYPE";
+ 	  break;
+ 	}
+ 	if (!already_defined)
+diff --git a/protoc-c/c_message.h b/protoc-c/c_message.h
+index ea1c3ab..291a5a2 100644
+--- a/protoc-c/c_message.h
++++ b/protoc-c/c_message.h
+@@ -87,6 +87,8 @@ class MessageGenerator {
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit MessageGenerator(const Descriptor* descriptor,
+                             const std::string& dllexport_decl);
++  MessageGenerator(const MessageGenerator&) = delete;
++  void operator=(const MessageGenerator&) = delete;
+   ~MessageGenerator();
+ 
+   // Header stuff.
+@@ -136,8 +138,6 @@ class MessageGenerator {
+   std::unique_ptr<std::unique_ptr<MessageGenerator>[]> nested_generators_;
+   std::unique_ptr<std::unique_ptr<EnumGenerator>[]> enum_generators_;
+   std::unique_ptr<std::unique_ptr<ExtensionGenerator>[]> extension_generators_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(MessageGenerator);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_message_field.h b/protoc-c/c_message_field.h
+index 39b8d99..e2133de 100644
+--- a/protoc-c/c_message_field.h
++++ b/protoc-c/c_message_field.h
+@@ -75,6 +75,8 @@ namespace c {
+ class MessageFieldGenerator : public FieldGenerator {
+  public:
+   explicit MessageFieldGenerator(const FieldDescriptor* descriptor);
++  MessageFieldGenerator(const MessageFieldGenerator&) = delete;
++  void operator=(const MessageFieldGenerator&) = delete;
+   ~MessageFieldGenerator();
+ 
+   // implements FieldGenerator ---------------------------------------
+@@ -82,10 +84,6 @@ class MessageFieldGenerator : public FieldGenerator {
+   void GenerateDescriptorInitializer(io::Printer* printer) const;
+   std::string GetDefaultValue(void) const;
+   void GenerateStaticInit(io::Printer* printer) const;
+-
+- private:
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(MessageFieldGenerator);
+ };
+ 
+ 
+diff --git a/protoc-c/c_primitive_field.cc b/protoc-c/c_primitive_field.cc
+index 6990893..036c684 100644
+--- a/protoc-c/c_primitive_field.cc
++++ b/protoc-c/c_primitive_field.cc
+@@ -99,7 +99,7 @@ void PrimitiveFieldGenerator::GenerateStructMembers(io::Printer* printer) const
+     case FieldDescriptor::TYPE_STRING  :
+     case FieldDescriptor::TYPE_BYTES   :
+     case FieldDescriptor::TYPE_GROUP   :
+-    case FieldDescriptor::TYPE_MESSAGE : GOOGLE_LOG(FATAL) << "not a primitive type"; break;
++    case FieldDescriptor::TYPE_MESSAGE : /*GOOGLE_LOG(FATAL) << "not a primitive type";*/ break;
+ 
+     // No default because we want the compiler to complain if any new
+     // types are added.
+@@ -143,7 +143,7 @@ std::string PrimitiveFieldGenerator::GetDefaultValue() const
+     case FieldDescriptor::CPPTYPE_BOOL:
+       return descriptor_->default_value_bool() ? "1" : "0";
+     default:
+-      GOOGLE_LOG(DFATAL) << "unexpected CPPTYPE in c_primitive_field";
++//      GOOGLE_LOG(DFATAL) << "unexpected CPPTYPE in c_primitive_field";
+       return "UNEXPECTED_CPPTYPE";
+   }
+ }
+@@ -197,7 +197,7 @@ void PrimitiveFieldGenerator::GenerateDescriptorInitializer(io::Printer* printer
+     case FieldDescriptor::TYPE_STRING  :
+     case FieldDescriptor::TYPE_BYTES   :
+     case FieldDescriptor::TYPE_GROUP   :
+-    case FieldDescriptor::TYPE_MESSAGE : GOOGLE_LOG(FATAL) << "not a primitive type"; break;
++    case FieldDescriptor::TYPE_MESSAGE : /*GOOGLE_LOG(FATAL) << "not a primitive type";*/ break;
+ 
+     // No default because we want the compiler to complain if any new
+     // types are added.
+diff --git a/protoc-c/c_primitive_field.h b/protoc-c/c_primitive_field.h
+index a9eb893..41d1f99 100644
+--- a/protoc-c/c_primitive_field.h
++++ b/protoc-c/c_primitive_field.h
+@@ -75,6 +75,8 @@ namespace c {
+ class PrimitiveFieldGenerator : public FieldGenerator {
+  public:
+   explicit PrimitiveFieldGenerator(const FieldDescriptor* descriptor);
++  PrimitiveFieldGenerator(const PrimitiveFieldGenerator&) = delete;
++  void operator=(const PrimitiveFieldGenerator&) = delete;
+   ~PrimitiveFieldGenerator();
+ 
+   // implements FieldGenerator ---------------------------------------
+@@ -82,10 +84,6 @@ class PrimitiveFieldGenerator : public FieldGenerator {
+   void GenerateDescriptorInitializer(io::Printer* printer) const;
+   std::string GetDefaultValue(void) const;
+   void GenerateStaticInit(io::Printer* printer) const;
+-
+- private:
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(PrimitiveFieldGenerator);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_service.h b/protoc-c/c_service.h
+index 27125a6..89175b7 100644
+--- a/protoc-c/c_service.h
++++ b/protoc-c/c_service.h
+@@ -83,6 +83,8 @@ class ServiceGenerator {
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit ServiceGenerator(const ServiceDescriptor* descriptor,
+                             const std::string& dllexport_decl);
++  ServiceGenerator(const ServiceGenerator&) = delete;
++  void operator=(const ServiceGenerator&) = delete;
+   ~ServiceGenerator();
+ 
+   // Header stuff.
+@@ -100,8 +102,6 @@ class ServiceGenerator {
+ 
+   const ServiceDescriptor* descriptor_;
+   std::map<std::string, std::string> vars_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ServiceGenerator);
+ };
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_string_field.h b/protoc-c/c_string_field.h
+index 513cea7..dbfff60 100644
+--- a/protoc-c/c_string_field.h
++++ b/protoc-c/c_string_field.h
+@@ -75,6 +75,8 @@ namespace c {
+ class StringFieldGenerator : public FieldGenerator {
+  public:
+   explicit StringFieldGenerator(const FieldDescriptor* descriptor);
++  StringFieldGenerator(const StringFieldGenerator&) = delete;
++  void operator=(const StringFieldGenerator&) = delete;
+   ~StringFieldGenerator();
+ 
+   // implements FieldGenerator ---------------------------------------
+@@ -87,8 +89,6 @@ class StringFieldGenerator : public FieldGenerator {
+ 
+  private:
+   std::map<std::string, std::string> variables_;
+-
+-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(StringFieldGenerator);
+ };
+ 
+ 
