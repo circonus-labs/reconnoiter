@@ -224,7 +224,7 @@ endif
 
 otlphttp.@MODULEEXT@:	otlphttp.lo $(OTEL_METRICS_OBJS)
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf -lgrpc++
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf @GRPCLIB@
 
 otlphttp.lo:	otlphttp.xmlh otlphttp.cpp
 otel-metrics.pb.lo:	otel-metrics.pb.cpp

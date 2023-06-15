@@ -489,6 +489,7 @@ AS_IF([test "x$with_module_stomp" != "xno"],
 
 # gRPC support for OpenTelemetry module
 HAS_GRPC="no"
+GRPCLIB=""
 AC_CHECK_LIB(grpc++, stat,
             [
                 AC_MSG_CHECKING([if gRPC version >= 1.55.0])
@@ -508,6 +509,7 @@ int main() {
                     ],
                     [
                         HAS_GRPC="yes"
+                        GRPCLIB="-lgrpc++"
                         AC_MSG_RESULT([$HAS_GRPC])
                         AC_DEFINE(HAVE_GRPC, [1], [grpc++])
                     ],
@@ -679,6 +681,7 @@ AC_SUBST(MODULESHCXXFLAGS)
 AC_SUBST(LUACFLAGS)
 AC_SUBST(PERL)
 AC_SUBST(HAS_GRPC)
+AC_SUBST(GRPCLIB)
 
 UNAME_V=`uname -v`
 UNAME_R=`uname -r`
