@@ -62,16 +62,14 @@ extern "C" {
 #include <google/protobuf/stubs/common.h>
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
-#include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 
 namespace OtelProto = opentelemetry::proto;
 namespace OtelCommon = OtelProto::common::v1;
 namespace OtelMetrics = OtelProto::metrics::v1;
 namespace OtelCollectorMetrics = OtelProto::collector::metrics::v1;
 
-static mtev_log_stream_t nlerr;
-static mtev_log_stream_t nldeb;
-static mtev_log_stream_t nldeb_verbose;
+#ifdef HAVE_GRPC
+#include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 
 class GRPCService final: public OtelCollectorMetrics::MetricsService::Service
 {
@@ -82,9 +80,15 @@ class GRPCService final: public OtelCollectorMetrics::MetricsService::Service
 
 GRPCService grpcservice;
 static std::thread *grpcserver;
+#endif
+
+static mtev_log_stream_t nlerr;
+static mtev_log_stream_t nldeb;
+static mtev_log_stream_t nldeb_verbose;
 
 struct otlphttp_mod_config {
   mtev_hash_table *options;
+#ifdef HAVE_GRPC
   std::string grpc_server;
   int grpc_port;
   bool enable_grpc;
@@ -92,6 +96,7 @@ struct otlphttp_mod_config {
   bool use_grpc_ssl;
   bool grpc_ssl_use_broker_cert;
   bool grpc_ssl_use_root_cert;
+#endif
 };
 
 struct otlphttp_closure {
@@ -690,6 +695,64 @@ handle_message(otlphttp_upload *rxc, const OtelCollectorMetrics::ExportMetricsSe
   }
 }
 
+#ifdef HAVE_GRPC
+static std::string read_keycert(const std::string filename)
+{
+  std::ifstream file(filename, std::ios::binary);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  file.close();
+  return buffer.str();
+}
+
+static void grpc_server_thread(std::string server_address,
+                               bool use_grpc_ssl,
+                               bool grpc_ssl_use_broker_cert,
+                               bool grpc_ssl_use_root_cert,
+                               std::string broker_crt,
+                               std::string broker_key,
+                               std::string root_crt)
+{
+  grpc::ServerBuilder builder;
+  std::shared_ptr<grpc::ServerCredentials> server_creds;
+  if (grpc_ssl_use_broker_cert) {
+    mtevL(nldeb, "[otlphttp] setting up grpc ssl using broker cert and key\n");
+    // read the cert and key
+    std::string servercert = read_keycert(broker_crt);
+    std::string serverkey = read_keycert(broker_key);
+
+    // create a pem key cert pair using the cert and the key
+    grpc::SslServerCredentialsOptions::PemKeyCertPair pkcp;
+    pkcp.private_key = serverkey;
+    pkcp.cert_chain = servercert;
+
+    // alter the server ssl opts to put in our own cert/key and optionally the root cert too
+    grpc::SslServerCredentialsOptions ssl_opts;
+    ssl_opts.pem_root_certs="";
+    if (grpc_ssl_use_root_cert) {
+      mtevL(nldeb, "[otlphttp] registering grpc ssl root cert\n");
+      std::string rootcert = read_keycert(root_crt);
+      ssl_opts.pem_root_certs = rootcert;
+    }
+    ssl_opts.pem_key_cert_pairs.push_back(pkcp);
+
+    // create a server credentials object to use on the listening port
+    server_creds = grpc::SslServerCredentials(ssl_opts);
+  }
+  else {
+    server_creds = grpc::SslServerCredentials(grpc::SslServerCredentialsOptions());
+  }
+  if (!use_grpc_ssl) {
+    server_creds = grpc::InsecureServerCredentials();
+  }
+  builder.AddListeningPort(server_address, server_creds);
+  builder.RegisterService(&grpcservice);
+  std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+  mtevL(nldeb, "[otlphttp] grpc server listening on %s\n", server_address.c_str());
+  server->Wait();
+  mtevL(nlerr, "[otlphttp] gprc server terminated!\n"); // should not happen normally
+}
+
 grpc::Status GRPCService::Export(grpc::ServerContext* context,
                                  const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
                                  OtelCollectorMetrics::ExportMetricsServiceResponse* response)
@@ -782,6 +845,7 @@ error:
   mtevL(nldeb_verbose, "[otlphttp] grpc metric data batch error: %s\n", error.c_str());
   return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
 }
+#endif
 
 static int
 rest_otlphttp_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
@@ -982,63 +1046,6 @@ static int noit_otlphttp_config(noit_module_t *self, mtev_hash_table *options) {
   return 1;
 }
 
-static std::string read_keycert(const std::string filename)
-{
-  std::ifstream file(filename, std::ios::binary);
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  file.close();
-  return buffer.str();
-}
-
-static void grpc_server_thread(std::string server_address,
-                               bool use_grpc_ssl,
-                               bool grpc_ssl_use_broker_cert,
-                               bool grpc_ssl_use_root_cert,
-                               std::string broker_crt,
-                               std::string broker_key,
-                               std::string root_crt)
-{
-  grpc::ServerBuilder builder;
-  std::shared_ptr<grpc::ServerCredentials> server_creds;
-  if (grpc_ssl_use_broker_cert) {
-    mtevL(nldeb, "[otlphttp] setting up grpc ssl using broker cert and key\n");
-    // read the cert and key
-    std::string servercert = read_keycert(broker_crt);
-    std::string serverkey = read_keycert(broker_key);
-
-    // create a pem key cert pair using the cert and the key
-    grpc::SslServerCredentialsOptions::PemKeyCertPair pkcp;
-    pkcp.private_key = serverkey;
-    pkcp.cert_chain = servercert;
-
-    // alter the server ssl opts to put in our own cert/key and optionally the root cert too
-    grpc::SslServerCredentialsOptions ssl_opts;
-    ssl_opts.pem_root_certs="";
-    if (grpc_ssl_use_root_cert) {
-      mtevL(nldeb, "[otlphttp] registering grpc ssl root cert\n");
-      std::string rootcert = read_keycert(root_crt);
-      ssl_opts.pem_root_certs = rootcert;
-    }
-    ssl_opts.pem_key_cert_pairs.push_back(pkcp);
-
-    // create a server credentials object to use on the listening port
-    server_creds = grpc::SslServerCredentials(ssl_opts);
-  }
-  else {  
-    server_creds = grpc::SslServerCredentials(grpc::SslServerCredentialsOptions());
-  }
-  if (!use_grpc_ssl) {
-    server_creds = grpc::InsecureServerCredentials();
-  }
-  builder.AddListeningPort(server_address, server_creds);
-  builder.RegisterService(&grpcservice);
-  std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
-  mtevL(nldeb, "[otlphttp] grpc server listening on %s\n", server_address.c_str());
-  server->Wait();
-  mtevL(nlerr, "[otlphttp] gprc server terminated!\n"); // should not happen normally
-}
-
 static int noit_otlphttp_onload(mtev_image_t *self) {
   if (!nlerr) nlerr = mtev_log_stream_find("error/otlphttp");
   if (!nldeb) nldeb = mtev_log_stream_find("debug/otlphttp");
@@ -1052,6 +1059,7 @@ static int noit_otlphttp_init(noit_module_t *self) {
   const char *config_val;
   otlphttp_mod_config *conf = static_cast<otlphttp_mod_config*>(noit_module_get_userdata(self));
 
+#ifdef HAVE_GRPC
   conf->enable_grpc = true;
   if (mtev_hash_retr_str(conf->options,
                          "enable_grpc", strlen("enable_grpc"),
@@ -1119,9 +1127,11 @@ static int noit_otlphttp_init(noit_module_t *self) {
   else {
     conf->use_grpc_ssl = false; // because grpc is disabled
   }
+#endif
 
   noit_module_set_userdata(self, conf);
 
+#ifdef HAVE_GRPC
   mtevL(nldeb, "[otlphttp] config: http enabled: %s, grpc_enabled: %s\n",
         conf->enable_http ? "yes" : "no", conf->enable_grpc ? "yes" : "no");
   mtevL(nldeb, "[otlphttp] server address: %s:%d, use ssl: %s, use broker cert: %s, use root cert: %s\n",
@@ -1130,6 +1140,7 @@ static int noit_otlphttp_init(noit_module_t *self) {
         conf->grpc_ssl_use_root_cert ? "yes" : "no"); 
 
   if (conf->enable_http) {
+#endif
     eventer_pool_t *dp = noit_check_choose_pool_by_module(self->hdr.name);
     /* register rest handler */
     mtev_rest_mountpoint_t *rule;
@@ -1143,6 +1154,8 @@ static int noit_otlphttp_init(noit_module_t *self) {
     if(dp) mtev_rest_mountpoint_set_eventer_pool(rule, dp);
 
     mtevL(nldeb, "[otlphttp] REST endpoint now active\n");
+
+#ifdef HAVE_GRPC
   }
 
   std::string certificate_file;
@@ -1193,6 +1206,7 @@ static int noit_otlphttp_init(noit_module_t *self) {
                                  certificate_file, key_file, ca_chain};
     mtevL(nldeb, "[otlphttp] grpc listener thread started\n");
   }
+#endif
 
   return 0;
 }
