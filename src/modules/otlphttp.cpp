@@ -58,7 +58,6 @@ extern "C" {
 #include <thread>
 #include <iostream>
 #include <fstream>
-#include <grpcpp/grpcpp.h>
 #include <google/protobuf/stubs/common.h>
 #include "opentelemetry/proto/metrics/v1/metrics.pb.h"
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.pb.h"
@@ -69,6 +68,7 @@ namespace OtelMetrics = OtelProto::metrics::v1;
 namespace OtelCollectorMetrics = OtelProto::collector::metrics::v1;
 
 #ifdef HAVE_GRPC
+#include <grpcpp/grpcpp.h>
 #include "opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.h"
 
 class GRPCService final: public OtelCollectorMetrics::MetricsService::Service
