@@ -41,6 +41,7 @@ DEPS_CIRC="
     circonus-platform-library-apr-util
     circonus-platform-library-curl
     circonus-platform-library-flatcc
+    circonus-platform-library-grpc
     circonus-platform-library-jemalloc
     circonus-platform-library-jlog
     circonus-platform-library-libcircllhist
