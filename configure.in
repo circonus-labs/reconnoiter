@@ -246,7 +246,6 @@ AC_CHECK_LIB(umem, umem_cache_create, , )
 AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
 	[AC_MSG_ERROR(libprotobuf-c required)])
 AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
-AC_CHECK_LIB(grpc++, stat, , [AC_MSG_ERROR(*** grpc++ is required ***)])
 AC_CHECK_LIB(m, sqrt, , )
 AC_CHECK_LIB(rt, sem_init, , [
 	AC_CHECK_LIB(rt, clock_gettime, , )
@@ -488,6 +487,43 @@ AS_IF([test "x$with_module_stomp" != "xno"],
 	],
 	[STOMP_DRIVER_MODULE=no])
 
+# gRPC support for OpenTelemetry module
+HAS_GRPC="no"
+GRPCLIB=""
+AC_CHECK_LIB(grpc++, stat,
+            [
+                AC_MSG_CHECKING([if gRPC version >= 1.55.0])
+                AC_RUN_IFELSE(
+                    [
+                        AC_LANG_SOURCE([[
+#include <stdlib.h>
+#include <grpcpp/version_info.h>
+int main() {
+   if (GRPC_CPP_VERSION_MAJOR >= 1 && GRPC_CPP_VERSION_MINOR >= 55) {
+        exit(0);
+   } else {
+        exit(1);
+   }
+}
+                        ]])
+                    ],
+                    [
+                        HAS_GRPC="yes"
+                        GRPCLIB="-lgrpc++"
+                        AC_MSG_RESULT([$HAS_GRPC])
+                        AC_DEFINE(HAVE_GRPC, [1], [grpc++])
+                    ],
+                    [
+                        AC_MSG_RESULT([$HAS_GRPC])
+                        AC_MSG_WARN([gRPC found, but version is too old. OpenTelemetry gRPC support requires 1.55.0 or newer])
+                    ]
+                )
+            ],
+            [
+                AC_MSG_WARN([gRPC not detected, OpenTelemetry module will only support HTTP transport])
+            ]
+)
+
 AC_FUNC_STRFTIME
 AC_CHECK_FUNCS(ssetugid strlcpy openpty inet_pton inet_ntop getopt \
 	poll vasprintf strlcat)
@@ -644,6 +680,8 @@ AC_SUBST(SHCXXFLAGS)
 AC_SUBST(MODULESHCXXFLAGS)
 AC_SUBST(LUACFLAGS)
 AC_SUBST(PERL)
+AC_SUBST(HAS_GRPC)
+AC_SUBST(GRPCLIB)
 
 UNAME_V=`uname -v`
 UNAME_R=`uname -r`
@@ -701,6 +739,7 @@ AC_MSG_RESULT([
 
   == optional noit modules ==
   SNMP module:        $SNMP_MODULE
+  OpenTelemetry:      HTTP: yes, gRPC: $HAS_GRPC
 
   == optional stratcon modules ==
   Postgres ingestor:  $POSTGRES_INGESTOR_MODULE

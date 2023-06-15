@@ -216,12 +216,15 @@ graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite_pickle.xmlh graphite
 OTEL_METRICS_OBJS=opentelemetry/proto/metrics/v1/metrics.pb.lo \
 		  opentelemetry/proto/common/v1/common.pb.lo \
 		  opentelemetry/proto/resource/v1/resource.pb.lo \
-		  opentelemetry/proto/collector/metrics/v1/metrics_service.pb.lo \
-          opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.lo
+		  opentelemetry/proto/collector/metrics/v1/metrics_service.pb.lo
+
+ifeq ("@HAS_GRPC@", "yes")
+    OTEL_METRICS_OBJS+=opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.lo
+endif
 
 otlphttp.@MODULEEXT@:	otlphttp.lo $(OTEL_METRICS_OBJS)
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf -lgrpc++
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf @GRPCLIB@
 
 otlphttp.lo:	otlphttp.xmlh otlphttp.cpp
 otel-metrics.pb.lo:	otel-metrics.pb.cpp
