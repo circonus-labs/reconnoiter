@@ -507,9 +507,11 @@ int main() {
                     ],
                     [
                         HAS_GRPC="yes"
+                        AC_MSG_RESULT([$HAS_GRPC])
                         AC_DEFINE(HAVE_GRPC, [1], [grpc++])
                     ],
                     [
+                        AC_MSG_RESULT([$HAS_GRPC])
                         AC_MSG_WARN([gRPC found, but version is too old. OpenTelemetry gRPC support requires 1.55.0 or newer])
                     ]
                 )
@@ -732,6 +734,7 @@ AC_MSG_RESULT([
 
   == optional noit modules ==
   SNMP module:        $SNMP_MODULE
+  OpenTelemetry:      HTTP: yes, gRPC: $HAS_GRPC
 
   == optional stratcon modules ==
   Postgres ingestor:  $POSTGRES_INGESTOR_MODULE
