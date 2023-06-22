@@ -984,7 +984,17 @@ noit_lua_module_config(noit_module_t *mod,
   mtlsc = __get_module_tls_conf(&mod->hdr);
   if(mtlsc->configured) return mtlsc->configured_return;
 
-  SETUP_CALL(L, object, "config", return 0);
+  // SETUP_CALL(L, object, "config", return 0);
+  mtev_log_go_synch();
+  mtevL(mtev_error, "MICHAEL: setup\n");
+  mtev_lua_pushmodule(L, object);
+  lua_getfield(L, -1, "config");
+  lua_remove(L, -2);
+  if(!lua_isfunction(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  // END SETUP_CALL(L, object, "config", return 0);
 
   noit_lua_setup_module(L, mod);
   mtev_lua_hash_to_table(L, options);
@@ -992,8 +1002,25 @@ noit_lua_module_config(noit_module_t *mod,
 
   /* If rv == 0, the caller will free options. We've
    * already freed options, that would be bad. fudge -> 1 */
-  RETURN_INT(L, object, "config",
-             { mtlsc->configured = 1; mtlsc->configured_return = rv; });
+  // RETURN_INT(L, object, "config",
+  //           { mtlsc->configured = 1; mtlsc->configured_return = rv; });
+  int base = lua_gettop(L);
+  mtevL(mtev_error, "MICHAEL: return_int, top idx(base): %i\n", base);
+  //mtevAssert(base == 1);
+  // This if replaces the above.
+  if (base != 1) {
+    mtevFatal(mtev_error, "MICHAEL: assert top idx (base) == 1 failed.\n");
+  }
+  if(lua_isnumber(L, -1)) {
+    int rv;
+    rv = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+    { mtlsc->configured = 1; mtlsc->configured_return = rv; }
+    return rv;
+  }
+  lua_pop(L,1);
+  // END RETURN_INT
+
   mtlsc->configured = 1;
   mtlsc->configured_return = -1;
   return -1;
