@@ -1351,7 +1351,7 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
   char name_str[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN];
   snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);
   noit_metric_add_implicit_tags_to_tagset(
-      name_str, sizeof(name_str), &tagset_stream,
+      name_str, strlen(name_str), &tagset_stream,
       NULL);
   if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_stream) == MTEV_HOOK_ABORT) {
     mtev_memory_end();
