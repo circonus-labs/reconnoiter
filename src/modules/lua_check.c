@@ -1002,7 +1002,6 @@ noit_lua_module_config(noit_module_t *mod,
   lua_module_closure_t *lmc;
   const char *object;
   lmc = noit_lua_setup_lmc(mod, &object);
-  mtevL(mtev_error, "MICHAEL: after noit_lua_setup_lmc -- Lua stack size is: %d\n", lua_gettop(L));
   L = mtev_lua_lmc_L(lmc);
   mtevL(mtev_error, "MICHAEL: after mtev_lua_lmc_L -- Lua stack size is: %d\n", lua_gettop(L));
   // END LMC_DECL(L, mod, object);
