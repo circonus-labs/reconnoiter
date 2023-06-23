@@ -988,28 +988,35 @@ noit_lua_module_config(noit_module_t *mod,
   mtev_log_go_synch();
   mtevL(mtev_error, "MICHAEL: setup\n");
   mtev_lua_pushmodule(L, object);
+  mtevL(mtev_error, "MICHAEL: after mtev_lua_pushmodule -- Lua stack size is: %d\n", lua_gettop(L));
   lua_getfield(L, -1, "config");
+  mtevL(mtev_error, "MICHAEL: after lua_getfield -- Lua stack size is: %d\n", lua_gettop(L));
   lua_remove(L, -2);
+  mtevL(mtev_error, "MICHAEL: after lua_remove -- Lua stack size is: %d\n", lua_gettop(L));
   if(!lua_isfunction(L, -1)) {
     lua_pop(L, 1);
+    mtevL(mtev_error, "MICHAEL: after lua_pop -- Lua stack size is: %d\n", lua_gettop(L));
     return 0;
   }
   // END SETUP_CALL(L, object, "config", return 0);
 
   noit_lua_setup_module(L, mod);
+  mtevL(mtev_error, "MICHAEL: after noit_lua_setup_module -- Lua stack size is: %d\n", lua_gettop(L));
   mtev_lua_hash_to_table(L, options);
+  mtevL(mtev_error, "MICHAEL: after mtev_lua_hash_to_table -- Lua stack size is: %d\n", lua_gettop(L));
   lua_pcall(L, 2, 1, 0);
+  mtevL(mtev_error, "MICHAEL: after lua_pcall (calls config()) -- Lua stack size is: %d\n", lua_gettop(L));
 
   /* If rv == 0, the caller will free options. We've
    * already freed options, that would be bad. fudge -> 1 */
   // RETURN_INT(L, object, "config",
   //           { mtlsc->configured = 1; mtlsc->configured_return = rv; });
   int base = lua_gettop(L);
-  mtevL(mtev_error, "MICHAEL: return_int, top idx(base): %i\n", base);
+  mtevL(mtev_error, "MICHAEL: return_int, Lua stack size (base): %i\n", base);
   //mtevAssert(base == 1);
   // This if replaces the above.
   if (base != 1) {
-    mtevFatal(mtev_error, "MICHAEL: assert top idx (base) == 1 failed.\n");
+    mtevFatal(mtev_error, "MICHAEL: assert Lua stack size (base) == 1 failed.\n");
   }
   if(lua_isnumber(L, -1)) {
     int rv;
