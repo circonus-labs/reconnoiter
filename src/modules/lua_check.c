@@ -966,12 +966,46 @@ noit_lua_module_onload(mtev_image_t *img) {
   return -1;
 }
 
+static void dumpstack (lua_State *L) {
+  int top=lua_gettop(L);
+  mtevL(mtev_error, "MICHAEL: BEGIN STACK DUMP\n");
+  for (int i=1; i <= top; i++) {
+    mtevL(mtev_error, "%d\t%s\t", i, luaL_typename(L,i));
+    switch (lua_type(L, i)) {
+    case LUA_TNUMBER:
+      mtevL(mtev_error, "%g\n",lua_tonumber(L,i));
+      break;
+    case LUA_TSTRING:
+      mtevL(mtev_error, "%s\n",lua_tostring(L,i));
+      break;
+    case LUA_TBOOLEAN:
+      mtevL(mtev_error, "%s\n", (lua_toboolean(L, i) ? "true" : "false"));
+      break;
+    case LUA_TNIL:
+      mtevL(mtev_error, "%s\n", "nil");
+      break;
+    default:
+      mtevL(mtev_error, "%p\n",lua_topointer(L,i));
+      break;
+    }
+  }
+  mtevL(mtev_error, "MICHAEL: END STACK DUMP\n");
+}
+
 static int
 noit_lua_module_config(noit_module_t *mod,
                        mtev_hash_table *options) {
   struct module_conf *mc;
   struct module_tls_conf *mtlsc;
-  LMC_DECL(L, mod, object);
+  // LMC_DECL(L, mod, object);
+  lua_State *L;
+  lua_module_closure_t *lmc;
+  const char *object;
+  lmc = noit_lua_setup_lmc(mod, &object);
+  mtevL(mtev_error, "MICHAEL: after noit_lua_setup_lmc -- Lua stack size is: %d\n", lua_gettop(L));
+  L = mtev_lua_lmc_L(lmc);
+  mtevL(mtev_error, "MICHAEL: after mtev_lua_lmc_L -- Lua stack size is: %d\n", lua_gettop(L));
+  // END LMC_DECL(L, mod, object);
 
   mc = noit_module_get_userdata(mod);
   if(options) {
@@ -1013,6 +1047,7 @@ noit_lua_module_config(noit_module_t *mod,
   //           { mtlsc->configured = 1; mtlsc->configured_return = rv; });
   int base = lua_gettop(L);
   mtevL(mtev_error, "MICHAEL: return_int, Lua stack size (base): %i\n", base);
+  dumpstack(L);
   //mtevAssert(base == 1);
   // This if replaces the above.
   if (base != 1) {
