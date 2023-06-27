@@ -1280,8 +1280,6 @@ noit_lua_initiate_ex(noit_module_t *self, noit_check_t *check,
   const char *object;
   lmc = noit_lua_setup_lmc(self, &object);
   L = mtev_lua_lmc_L(lmc);
-  mtevL(mtev_error, "MICHAEL: %s -- Lua stack size is: %d\n", __func__, lua_gettop(L));
-  dumpstack(L);
   // END LMC_DECL(L, mod, object);
   /* deal with unused warning */
   (void)L;
