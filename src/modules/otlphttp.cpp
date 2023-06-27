@@ -48,6 +48,7 @@
 #include <circllhist.h>
 
 extern "C" {
+#include "noit_config.h"
 #include "noit_metric.h"
 #include "noit_module.h"
 #include "noit_check.h"
