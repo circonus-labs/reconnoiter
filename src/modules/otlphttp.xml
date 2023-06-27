@@ -90,7 +90,15 @@
       <programlisting><![CDATA[
       <noit>
         <modules>
-          <module image="otlphttp" name="otlphttp"/>
+          <module image="otlphttp" name="otlphttp">
+            <config>
+              <enable_http>false</enable_http>
+              <enable_grpc>true</enable_grpc>
+              <grpc_server>127.0.0.1</grpc_server>
+              <grpc_port>4317</grpc_port>
+              <use_grpc_ssl>false</use_grpc_ssl>
+            </config>
+          </module>
         </modules>
         <checks>
           <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="otlphttp"
