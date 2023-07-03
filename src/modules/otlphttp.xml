@@ -12,7 +12,7 @@
       allowed="^(?:true|false|on|off)$">Specify if the http listener is enabled via the configured http URL including check_uuid and optional secret.</parameter>
     <parameter name="enable_grpc"
       required="optional"
-      default="true"
+      default="false"
       allowed="^(?:true|false|on|off)$">Specify if the grpc listener is enabled via the configured server address and port.</parameter>
     <parameter name="grpc_server"
       required="optional"
@@ -24,7 +24,7 @@
       allowed="\d+">Specify the listening port that is to be used for grpc.</parameter>
     <parameter name="use_grpc_ssl"
       required="optional"
-      default="true"
+      default="false"
       allowed="^(?:true|false|on|off)$">Specify if SSL/TLS security should be used on the grpc listening port.</parameter>
     <parameter name="grpc_ssl_use_broker_cert"
       required="optional"

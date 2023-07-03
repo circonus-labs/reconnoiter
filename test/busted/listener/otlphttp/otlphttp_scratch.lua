@@ -3,7 +3,7 @@ describe("otelproto #otelproto #listener", function()
   setup(function()
     Reconnoiter.clean_workspace()
     noit = Reconnoiter.TestNoit:new("otlphttp", {
-      modules = { otlphttp = { image = "otlphttp", config = { use_grpc_ssl = "false" } } }
+      modules = { otlphttp = { image = "otlphttp", config = { enable_grpc = "true", use_grpc_ssl = "false" } } }
     })
   end)
   teardown(function()
