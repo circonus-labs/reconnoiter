@@ -1061,12 +1061,12 @@ static int noit_otlphttp_init(noit_module_t *self) {
   otlphttp_mod_config *conf = static_cast<otlphttp_mod_config*>(noit_module_get_userdata(self));
 
 #ifdef HAVE_GRPC
-  conf->enable_grpc = true;
+  conf->enable_grpc = false;
   if (mtev_hash_retr_str(conf->options,
                          "enable_grpc", strlen("enable_grpc"),
                          (const char **)&config_val)) {
-    if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
-      conf->enable_grpc = false;
+    if (!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on")) {
+      conf->enable_grpc = true;
     }
   }
 
@@ -1097,15 +1097,15 @@ static int noit_otlphttp_init(noit_module_t *self) {
     }
   }
 
-  conf->use_grpc_ssl = true;
+  conf->use_grpc_ssl = false;
   conf->grpc_ssl_use_broker_cert = false;
   conf->grpc_ssl_use_root_cert = false;
   if (conf->enable_grpc) {
     if (mtev_hash_retr_str(conf->options,
                            "use_grpc_ssl", strlen("use_grpc_ssl"),
                            (const char **)&config_val)) {
-      if (!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off")) {
-        conf->use_grpc_ssl = false;
+      if (!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on")) {
+        conf->use_grpc_ssl = true;
       }
     }
     if (conf->use_grpc_ssl) {
@@ -1124,9 +1124,6 @@ static int noit_otlphttp_init(noit_module_t *self) {
         }
       }
     }
-  }
-  else {
-    conf->use_grpc_ssl = false; // because grpc is disabled
   }
 #endif
 
