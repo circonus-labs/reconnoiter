@@ -19,7 +19,7 @@ percpu = false
 totalcpu = true
 collect_cpu_time = false
 report_active = false
-core_tags = false
+# core_tags = false
 
 [[outputs.opentelemetry]]
   ## Override the default (localhost:4317) OpenTelemetry gRPC service

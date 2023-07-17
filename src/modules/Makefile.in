@@ -51,7 +51,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
 	reverse_check.@MODULEEXT@ prometheus.@MODULEEXT@ \
 	graphite.@MODULEEXT@ opentsdb.@MODULEEXT@ \
-	otlphttp.@MODULEEXT@ \
+	otlphttp.@MODULEEXT@ otlpgrpc.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so noit_lua/libnoit_binding.so
@@ -222,11 +222,16 @@ ifeq ("@HAS_GRPC@", "yes")
     OTEL_METRICS_OBJS+=opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.lo
 endif
 
-otlphttp.@MODULEEXT@:	otlphttp.lo $(OTEL_METRICS_OBJS)
+otlphttp.@MODULEEXT@:	otlphttp.lo otlp.lo $(OTEL_METRICS_OBJS)
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo $(OTEL_METRICS_OBJS) -lprotobuf @GRPCLIB@
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo otlp.lo $(OTEL_METRICS_OBJS) -lprotobuf @GRPCLIB@
+
+otlpgrpc.@MODULEEXT@:	otlpgrpc.lo otlp.lo $(OTEL_METRICS_OBJS)
+	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlpgrpc.lo otlp.lo $(OTEL_METRICS_OBJS) -lprotobuf @GRPCLIB@
 
 otlphttp.lo:	otlphttp.xmlh otlphttp.cpp
+otlpgrpc.lo:	otlpgrpc.xmlh otlpgrpc.cpp
 otel-metrics.pb.lo:	otel-metrics.pb.cpp
 
 opentsdb.@MODULEEXT@:	opentsdb.lo
