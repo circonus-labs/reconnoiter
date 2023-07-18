@@ -520,7 +520,7 @@ int main() {
                 )
             ],
             [
-                AC_MSG_WARN([gRPC not detected, OpenTelemetry module will only support HTTP transport])
+                AC_MSG_WARN([gRPC not detected, OpenTelemetry support will be limited to HTTP transport])
             ]
 )
 
@@ -739,7 +739,7 @@ AC_MSG_RESULT([
 
   == optional noit modules ==
   SNMP module:        $SNMP_MODULE
-  OpenTelemetry:      HTTP: yes, gRPC: $HAS_GRPC
+  OpenTelemetry gRPC: $HAS_GRPC
 
   == optional stratcon modules ==
   Postgres ingestor:  $POSTGRES_INGESTOR_MODULE
