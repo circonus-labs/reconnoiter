@@ -51,8 +51,11 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
 	reverse_check.@MODULEEXT@ prometheus.@MODULEEXT@ \
 	graphite.@MODULEEXT@ opentsdb.@MODULEEXT@ \
-	otlphttp.@MODULEEXT@ otlpgrpc.@MODULEEXT@ \
-	@BUILD_MODULES@
+	otlphttp.@MODULEEXT@ @BUILD_MODULES@
+
+ifeq ("@HAS_GRPC@", "yes")
+MODULES+=otlpgrpc.@MODULEEXT@
+endif
 
 LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so noit_lua/libnoit_binding.so
 
