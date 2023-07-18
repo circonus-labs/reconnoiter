@@ -218,20 +218,18 @@ OTEL_METRICS_OBJS=opentelemetry/proto/metrics/v1/metrics.pb.lo \
 		  opentelemetry/proto/resource/v1/resource.pb.lo \
 		  opentelemetry/proto/collector/metrics/v1/metrics_service.pb.lo
 
-ifeq ("@HAS_GRPC@", "yes")
-    OTEL_METRICS_OBJS+=opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.lo
-endif
-
 otlphttp.@MODULEEXT@:	otlphttp.lo otlp.lo $(OTEL_METRICS_OBJS)
 	@echo "- linking $@"
 	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlphttp.lo otlp.lo $(OTEL_METRICS_OBJS) -lprotobuf @GRPCLIB@
-
-otlpgrpc.@MODULEEXT@:	otlpgrpc.lo otlp.lo $(OTEL_METRICS_OBJS)
-	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlpgrpc.lo otlp.lo $(OTEL_METRICS_OBJS) -lprotobuf @GRPCLIB@
-
 otlphttp.lo:	otlphttp.xmlh otlphttp.cpp
+
+ifeq ("@HAS_GRPC@", "yes")
+otlpgrpc.@MODULEEXT@:	otlpgrpc.lo otlp.lo $(OTEL_METRICS_OBJS) opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.lo
+	@echo "- linking $@"
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ otlpgrpc.lo otlp.lo $(OTEL_METRICS_OBJS) opentelemetry/proto/collector/metrics/v1/metrics_service.grpc.pb.lo -lprotobuf @GRPCLIB@
 otlpgrpc.lo:	otlpgrpc.xmlh otlpgrpc.cpp
+endif
+
 otel-metrics.pb.lo:	otel-metrics.pb.cpp
 
 opentsdb.@MODULEEXT@:	opentsdb.lo
