@@ -1,0 +1,74 @@
+<module>
+  <name>otlpgrpc</name>
+  <description>
+    <para>The otlpgrpc module provides a simple way to push native OpenTelemetry data into reconnoiter via the grpc exporter.  Simply configure otel collector to write to the provided ip-address/servername and port for its endpoint.</para>
+  </description>
+  <loader>C</loader>
+  <image>otlpgrpc.so</image>
+  <moduleconfig>
+    <parameter name="grpc_server"
+      required="optional"
+      default="127.0.0.1"
+      allowed="^(?:.*|\d*\.\d*\.\d*\.\d*)$">Specify the server address or ip address that is used for the grpc listening port.</parammeter>
+    <parameter name="grpc_port"
+      required="optional"
+      default="4317"
+      allowed="\d+">Specify the listening port that is to be used for grpc.</parameter>
+    <parameter name="use_grpc_ssl"
+      required="optional"
+      default="false"
+      allowed="^(?:true|false|on|off)$">Specify if SSL/TLS security should be used on the grpc listening port.</parameter>
+    <parameter name="grpc_ssl_use_broker_cert"
+      required="optional"
+      default="false"
+      allowed="^(?:true|false|on|off)$">Specify if the listeners/sslconfig certificate_file and key_file should be used for grpc server identification.</parameter>
+    <parameter name="grpc_ssl_use_root_cert"
+      required="optional"
+      default="false"
+      allowed="^(?:true|false|on|off)$">Specify if the listeners/sslconfig ca_chain should be used for grpc server identification.</parameter>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="secret"
+      required="optional"
+      default=""
+      allowed=".+">Specify the secret with which metrics may be submitted.  Those lacking the secret in the grpc metadata will be rejected.</parameter>
+    <parameter name="hist_approx_mode"
+      required="optional"
+      default="high"
+      allowed="^(?:low|mid|high|harmonic_mean)$">Specify the OpenHistogram method of approximation when converting histograms.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Sending otlp data by grpc</title>
+
+      <programlisting><![CDATA[
+        exporters:-
+          otlpgrpc:
+            endpoint: broker:4317
+          grpc client metadata:  
+            check_uuid: "1b4e28ba-2fa1-11d2-893f-e9b761bde3fb"
+            secret: "s3cr3tk3y"
+        ]]></programlisting>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="otlpgrpc" name="otlpgrpc">
+            <config>
+              <grpc_server>127.0.0.1</grpc_server>
+              <grpc_port>4317</grpc_port>
+              <use_grpc_ssl>false</use_grpc_ssl>
+            </config>
+          </module>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="otlpgrpc"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><secret>s3cr3tk3y</secret></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>

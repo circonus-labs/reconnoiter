@@ -1,9 +1,9 @@
-describe("otlphttp #otlphttp #listener", function()
+describe("otlpgrpc #otlpgrpc #listener", function()
   local noit, api
   setup(function()
     Reconnoiter.clean_workspace()
-    noit = Reconnoiter.TestNoit:new("otlphttp", {
-      modules = { otlphttp = { image = "otlphttp", config = {} } }
+    noit = Reconnoiter.TestNoit:new("otlpgrpc", {
+      modules = { otlpgrpc = { image = "otlpgrpc", config = { use_grpc_ssl = "false" } } }
     })
   end)
   teardown(function()
@@ -18,9 +18,9 @@ describe("otlphttp #otlphttp #listener", function()
     <target>127.0.0.1</target>
     <period>60000</period>
     <timeout>30000</timeout>
-    <name>otlphttp</name>
+    <name>otlpgrpc</name>
     <filterset>allowall</filterset>
-    <module>otlphttp</module>
+    <module>otlpgrpc</module>
   </attributes>
   <config>
     <secret>s3cr3tk3y</secret>
@@ -34,8 +34,8 @@ describe("otlphttp #otlphttp #listener", function()
     api = noit:API()
   end)
 
-  describe("otlphttp", function()
-    it("create otlphttp check", function()
+  describe("otlpgrpc", function()
+    it("create otlpgrpc check", function()
       local code, doc = api:raw("PUT", "/checks/set/" .. uuid, check_xml)
       io.write("output:" .. doc)
       mtev.sleep(3000)
