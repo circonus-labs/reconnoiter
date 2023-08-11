@@ -1,5 +1,4 @@
 stratcon-objs/bundle.pb-c.o: bundle.pb-c.o
-stratcon-objs/libnoit.o: libnoit.o
 stratcon-objs/noit_check_log_helpers.o: noit_check_log_helpers.o
 stratcon-objs/noit_check_tools_shared.o: noit_check_tools_shared.o
 stratcon-objs/noit_fb.o: noit_fb.o
@@ -7,7 +6,6 @@ stratcon-objs/noit_metric_director.o: noit_metric_director.o
 stratcon-objs/noit_metric_rollup.o: noit_metric_rollup.o
 stratcon-objs/noit_metric_tag_search.o: noit_metric_tag_search.o
 stratcon-objs/noit_mtev_bridge.o: noit_mtev_bridge.o
-stratcon-objs/noit_ssl10_compat.o: noit_ssl10_compat.o
 stratcon-objs/noit_version.o: noit_version.o
 stratcon-objs/stratcon_datastore.o: stratcon_datastore.o
 stratcon-objs/stratcon_iep.o: stratcon_iep.o
