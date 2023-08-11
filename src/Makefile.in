@@ -489,6 +489,8 @@ js/bundle.desc:	proto/bundle.proto
 bundle.pb-c.c bundle.pb-c.h: proto/bundle.proto
 	(cd proto && protoc bundle.proto --java_out=`pwd`/../java && protoc-c bundle.proto --c_out=`pwd`/../ && cd ..)
 
+noit_check_log.c: bundle.pb-c.h
+
 include Makefile.dep
 include Makefile.noit.dep
 include Makefile.stratcon.dep

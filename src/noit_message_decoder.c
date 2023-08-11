@@ -122,7 +122,12 @@ noit_metric_process_tags_id_phase(noit_metric_id_t *id, int phase) {
     int mtagnmlen = mtagnm ? strlen(mtagnm) : 0;
     if((stagnm ? stagnmlen + 5 : 0) +
        (mtagnm ? mtagnmlen + 5 : 0) +
-       id->name_len > starting_name_len) return -1;
+       id->name_len > starting_name_len)
+    {
+      free(stagnm);
+      free(mtagnm);
+      return -1;
+    }
     char *out = buff;
     memcpy(out, id->name, id->name_len);
     out += id->name_len;
@@ -142,8 +147,6 @@ noit_metric_process_tags_id_phase(noit_metric_id_t *id, int phase) {
       out += mtagnmlen;
       *out++ = '}';
     }
-    free(stagnm);
-    free(mtagnm);
     if(out - buff >= MAX_METRIC_TAGGED_NAME - 1) return -1;
     *out = '\0';
 
@@ -170,6 +173,8 @@ noit_metric_process_tags_id_phase(noit_metric_id_t *id, int phase) {
       free(id->measurement.tags);
       id->measurement.tags = NULL;
       id->measurement.tag_count = 0;
+      free(stagnm);
+      free(mtagnm);
       return noit_metric_process_tags_id_phase(id, 2);
     }
 
@@ -182,6 +187,9 @@ noit_metric_process_tags_id_phase(noit_metric_id_t *id, int phase) {
       /* coverity[USE_AFTER_FREE] */
       relative_tags_adjust(&id->measurement, mtagnm, id->name + (mtag_start - buff));
     }
+
+    free(stagnm);
+    free(mtagnm);
   }
   else {
     noit_metric_tagset_builder_end(&stream_builder, &id->stream, NULL);

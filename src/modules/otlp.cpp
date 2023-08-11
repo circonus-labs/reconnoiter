@@ -407,13 +407,17 @@ void handle_hist(otlp_upload *rxc, name_builder &metric,
   histogram_adhoc_bin_t bins[size];
   int i=0;
   double last_lower = 0 - pow(10,128) / scale;
-  if(dp.explicit_bounds(i) >= 0) {
-    last_lower = 0;
+  double explicit_bounds = 0.0;
+  if (dp.explicit_bounds_size()) {
+    explicit_bounds = dp.explicit_bounds(i);
+    if (explicit_bounds >= 0) {
+      last_lower = 0;
+    }
   }
   for(auto cnt : dp.bucket_counts()) {
     bins[i].count = cnt;
     bins[i].lower = last_lower * scale;
-    bins[i].upper = (i == size-1) ? pow(10,128) : (dp.explicit_bounds(i) * scale);
+    bins[i].upper = (i == size-1) ? pow(10,128) : (explicit_bounds * scale);
     last_lower = bins[i].upper;
     i++;
   }

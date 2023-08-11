@@ -1,4 +1,5 @@
 noit-objs/bundle.pb-c.o: bundle.pb-c.o
+noit-objs/libnoit.o: libnoit.o
 noit-objs/noit_check.o: noit_check.o
 noit-objs/noit_check_lmdb.o: noit_check_lmdb.o
 noit-objs/noit_check_log.o: noit_check_log.o
@@ -23,6 +24,7 @@ noit-objs/noit_metric_tag_search.o: noit_metric_tag_search.o
 noit-objs/noit_module.o: noit_module.o
 noit-objs/noit_mtev_bridge.o: noit_mtev_bridge.o
 noit-objs/noit_socket_listener.o: noit_socket_listener.o
+noit-objs/noit_ssl10_compat.o: noit_ssl10_compat.o
 noit-objs/noit_version.o: noit_version.o
 noit-objs/noit_websocket_handler.o: noit_websocket_handler.o
 noit-objs/noitd.o: noitd.o

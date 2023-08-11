@@ -229,10 +229,12 @@ static void consul_meta_updater(void) {
       }
       pthread_mutex_unlock(&noits_lock);
       if(ca_chain) ca_chain = strdup(ca_chain);
-      free(cert);
-      if(cert) cert = strdup(cert);
-      free(key);
+      char *cert_old = cert;
+      if(cert) cert = strdup(cert_old);
+      free(cert_old);
+      char *key_old = key;
       if(key) key = strdup(key);
+      free(key_old);
     }
     char url[512];
     mtev_curl_handle_t *ch = mtev_curl_easy_aco(false);

@@ -790,10 +790,18 @@ function TestProc:start(params, sloppy)
     io.write("startup dir: " .. params.dir .. "\n")
     io.write("commandline: " .. params.path)
     if params.argv then
+      local debug_flag_seen = false
       for i, parm in ipairs(params.argv) do
+        if parm == "-D" then
+          if debug_flag_seen then
+            goto continue
+          end
+          debug_flag_seen = true
+        end
         if i > 1 then
           io.write(" " .. parm .. " ")
         end
+        ::continue::
       end
     end
     io.write("\nPlease use the commandline above to start this instance\n")
