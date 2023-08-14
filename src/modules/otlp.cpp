@@ -88,6 +88,9 @@ static const char *units_convert(const char *in, double *mult) {
       UCC("TIB", 1099511627776, "bytes");
       UCC("TB", 1000000000000, "bytes");
       break;
+    default:
+      mtevL(nldeb_verbose, "[otlp] unsupported units: %c\n", *in);
+      break;
   }
   return in;
 }
@@ -359,7 +362,7 @@ static void handle_dp(otlp_upload *rxc, name_builder &metric,
     }
     else {
       double vd = vi;
-      vi *= scale;
+      vd *= scale;
       metric_local_batch(rxc, metric.name(), &vd, nullptr, whence);
     }
     break;
