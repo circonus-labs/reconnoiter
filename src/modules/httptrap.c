@@ -807,7 +807,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       // A quarter second is an eternity. If we've been looping for that long,
       // we need to give control back to the eventer
       if ((diff.tv_sec > 0) || (diff.tv_usec >= 250000)) {
-        *mask = EVENTER_READ;
+        *mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
         *complete = 0;
         return NULL;
       }
