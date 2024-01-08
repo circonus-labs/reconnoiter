@@ -533,7 +533,7 @@ int noit_check_resolver_loop(eventer_t e, int mask, void *c,
 }
 
 static inline void start_noit_check_resolver_loop() {
-  eventer_add_in_s_us(noit_check_resolver_loop, NULL, 1, 0);
+  eventer_add_in_s_us(noit_check_resolver_loop, NULL, 0, 0);
 }
 
 static int
