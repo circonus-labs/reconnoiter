@@ -532,6 +532,10 @@ int noit_check_resolver_loop(eventer_t e, int mask, void *c,
   return 0;
 }
 
+static inline void start_noit_check_resolver_loop() {
+  eventer_add_in_s_us(noit_check_resolver_loop, NULL, 1, 0);
+}
+
 static int
 nc_print_dns_cache_node(mtev_console_closure_t ncct,
                         const char *target, dns_cache_node *n) {
@@ -825,7 +829,7 @@ void noit_check_resolver_init() {
     }
   }
 
-  noit_check_resolver_loop(NULL, 0, NULL, NULL);
+  start_noit_check_resolver_loop();
   register_console_dns_cache_commands();
 
   mtev_hash_init(&etc_hosts_cache);
