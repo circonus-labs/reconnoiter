@@ -117,10 +117,6 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
                                  const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
                                  OtelCollectorMetrics::ExportMetricsServiceResponse* response)
 {
-  std::string check_name;
-  std::string check_uuid;
-  std::string secret;
-
   constexpr auto handle_error = [](const std::string &error) {
     mtevL(nldeb_verbose, "[otlpgrpc] grpc metric data batch error: %s\n", error.c_str());
     return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
@@ -129,6 +125,9 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
   mtevL(nldeb_verbose, "[otlpgrpc] grpc incoming payload - client metadata:\n");
   const std::multimap<grpc::string_ref, grpc::string_ref> metadata =
       context->client_metadata();
+
+  std::string check_uuid;
+  std::string secret;
   for (auto iter = metadata.begin(); iter != metadata.end(); ++iter) {
     std::string key{iter->first.data(), iter->first.length()};
     mtevL(nldeb_verbose, "[otlpgrpc] header key: %s\n", key.c_str());
@@ -146,9 +145,6 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
     mtevL(nldeb_verbose, "[otlpgrpc] value: %s\n", value.c_str());
     if (key == "check_uuid") {
       check_uuid = value;
-    }
-    else if (key == "check_name") {
-      check_name = value;
     }
     else if (key == "secret" || key == "api_key") {
       secret = value;
