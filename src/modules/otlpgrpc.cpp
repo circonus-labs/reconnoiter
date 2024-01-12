@@ -41,7 +41,7 @@ class GRPCService final: public OtelCollectorMetrics::MetricsService::Service
 };
 
 GRPCService grpcservice;
-static std::thread *grpcserver;
+static std::unique_ptr<std::thread> grpcserver;
 
 struct otlpgrpc_mod_config : otlp_mod_config {
   std::string grpc_server;
@@ -117,12 +117,14 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
                                  const OtelCollectorMetrics::ExportMetricsServiceRequest* request,
                                  OtelCollectorMetrics::ExportMetricsServiceResponse* response)
 {
-  otlp_upload *rxc{nullptr};
-  std::string error;
   std::string check_name;
   std::string check_uuid;
   std::string secret;
-  const char *check_secret{nullptr};
+
+  constexpr auto handle_error = [](const std::string &error) {
+    mtevL(nldeb_verbose, "[otlpgrpc] grpc metric data batch error: %s\n", error.c_str());
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
+  };
 
   mtevL(nldeb_verbose, "[otlpgrpc] grpc incoming payload - client metadata:\n");
   const std::multimap<grpc::string_ref, grpc::string_ref> metadata =
@@ -159,51 +161,41 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
     mtev_uuid_parse(check_uuid.c_str(), check_id);
     check = noit_poller_lookup(check_id);
     if(!check) {
-      error = "no such check: ";
-      error += check_uuid;
-      goto error;
+      return handle_error(std::string{"no such check: "} + check_uuid);
     }
   }
   else {
-    error = "no check_uuid specified by grpc metadata";
-    goto error;
+    return handle_error("no check_uuid specified by grpc metadata");
   }
 
   if(strcmp(check->module, "otlpgrpc")) {
-    error = "otlpgrpc check not found: ";
-    error += check_uuid;
-    goto error;
+    return handle_error(std::string("otlpgrpc check not found: " + check_uuid));
   }
 
+  const char *check_secret{nullptr};
   (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &check_secret);
   if (secret != check_secret) {
-    error = "incorrect secret specified for check_uuid: ";
-    error += check_uuid;
-    goto error;
+    return handle_error(std::string("incorrect secret specified for check_uuid: ") + check_uuid);
   }
 
-  rxc = new otlp_upload(check);
+  otlp_upload rxc{check};
 
   if (const char *mode_str = mtev_hash_dict_get(check->config, "hist_approx_mode")) {
-    if(!strcmp(mode_str, "low")) rxc->mode = HIST_APPROX_LOW;
-    else if(!strcmp(mode_str, "mid")) rxc->mode = HIST_APPROX_MID;
-    else if(!strcmp(mode_str, "harmonic_mean")) rxc->mode = HIST_APPROX_HARMONIC_MEAN;
-    else if(!strcmp(mode_str, "high")) rxc->mode = HIST_APPROX_HIGH;
+    if(!strcmp(mode_str, "low")) rxc.mode = HIST_APPROX_LOW;
+    else if(!strcmp(mode_str, "mid")) rxc.mode = HIST_APPROX_MID;
+    else if(!strcmp(mode_str, "harmonic_mean")) rxc.mode = HIST_APPROX_HARMONIC_MEAN;
+    else if(!strcmp(mode_str, "high")) rxc.mode = HIST_APPROX_HIGH;
     // Else it just sticks the with initial defaults */
   }
 
   mtev_memory_init_thread();
   mtev_memory_begin();
-  handle_message(rxc, *request);
-  metric_local_batch_flush_immediate(rxc);
+  handle_message(&rxc, *request);
+  metric_local_batch_flush_immediate(&rxc);
   mtev_memory_end();
 
   mtevL(nldeb_verbose, "[otlpgrpc] grpc metric data batch submitted successfully.\n");
   return grpc::Status::OK;
-
-error:
-  mtevL(nldeb_verbose, "[otlpgrpc] grpc metric data batch error: %s\n", error.c_str());
-  return grpc::Status(grpc::StatusCode::NOT_FOUND, error);
 }
 
 static int noit_otlpgrpc_onload(mtev_image_t *self) {
@@ -313,9 +305,9 @@ static int noit_otlpgrpc_init(noit_module_t *self) {
   }
 
   std::string server_address = conf->grpc_server + ":" + std::to_string(conf->grpc_port);
-  grpcserver = new std::thread{grpc_server_thread, server_address, conf->use_grpc_ssl,
-                                conf->grpc_ssl_use_broker_cert, conf->grpc_ssl_use_root_cert,
-                                certificate_file, key_file, ca_chain};
+  grpcserver = std::make_unique<std::thread>(grpc_server_thread, server_address,
+                                conf->use_grpc_ssl, conf->grpc_ssl_use_broker_cert,
+                                conf->grpc_ssl_use_root_cert, certificate_file, key_file, ca_chain);
   mtevL(nldeb, "[otlpgrpc] grpc listener thread started\n");
 
   return 0;
