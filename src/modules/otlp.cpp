@@ -195,7 +195,7 @@ metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *val
   memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
   cmetric_len += 1 + sizeof(uint64_t);
 
-  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, NULL)) {
+  if(mtev_hash_get(rxc->immediate_metrics, cmetric, cmetric_len)) {
     return;
   }
   ck_pr_barrier();
