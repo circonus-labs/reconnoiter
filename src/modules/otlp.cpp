@@ -182,31 +182,20 @@ void metric_local_batch_flush_immediate(otlp_upload *rxc) {
 static void 
 metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *vali,
                    struct timeval w) {
-  char cmetric[MAX_METRIC_TAGGED_NAME + 1 + sizeof(uint64_t)];
-  void *vm;
+  char cmetric[MAX_METRIC_TAGGED_NAME];
 
   if(!noit_check_build_tag_extended_name(cmetric, MAX_METRIC_TAGGED_NAME, name, rxc->check)) {
     return;
   }
-  int cmetric_len = strlen(cmetric);
-  /* We will append the time stamp afer the null terminator to keep the key
-   * appropriately unique.
-   */
-  uint64_t t = w.tv_sec * 1000 + w.tv_usec / 1000;
-  memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
-  cmetric_len += 1 + sizeof(uint64_t);
-
-  if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
+  auto cmetric_len = strlen(cmetric);
+  if(auto metric = static_cast<metric_t *>(mtev_hash_get(rxc->immediate_metrics, cmetric, cmetric_len))) {
+    if (metric->whence.tv_sec == w.tv_sec && metric->whence.tv_usec == w.tv_usec) {
+      return;
+    }
     metric_local_batch_flush_immediate(rxc);
-    return;
   }
-  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
-    /* collision, just log it out */
-    metric_local_batch_flush_immediate(rxc);
-    return;
-  }
-  metric_t *m = noit_metric_alloc();
-  m->metric_name = mtev_strndup(cmetric, cmetric_len);
+  auto m = noit_metric_alloc();
+  m->metric_name = strdup(cmetric);
   if(val) {
     m->metric_type = METRIC_DOUBLE;
     memcpy(&m->whence, &w, sizeof(struct timeval));
@@ -221,8 +210,17 @@ metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *val
     assert(val || vali);
   }
 
+  if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
+    metric_local_batch_flush_immediate(rxc);
+  }
+  if (!mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m)) {
+    metric_local_batch_flush_immediate(rxc);
+    if (!mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m)) {
+      mtevL(nlerr, "%s: could not store metric %s in otlp\n", __func__, m->metric_name);
+      mtev_memory_safe_free(m);
+    }
+  }
   noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
-  mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m);
 }
 
 class name_builder {
