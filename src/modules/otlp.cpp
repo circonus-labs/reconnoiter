@@ -213,7 +213,6 @@ metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *val
   if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
     metric_local_batch_flush_immediate(rxc);
   }
-  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
   if (!mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m)) {
     metric_local_batch_flush_immediate(rxc);
     if (!mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m)) {
@@ -221,6 +220,7 @@ metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *val
       mtev_memory_safe_free(m);
     }
   }
+  noit_stats_mark_metric_logged(noit_check_get_stats_inprogress(rxc->check), m, mtev_false);
 }
 
 class name_builder {
