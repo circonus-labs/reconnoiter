@@ -200,7 +200,8 @@ metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *val
   }
   ck_pr_barrier();
   metric_t *m = noit_metric_alloc();
-  m->metric_name = mtev_strndup(cmetric, cmetric_len);
+  m->metric_name = static_cast<char *>(malloc(cmetric_len));
+  memcpy(m->metric_name, cmetric, cmetric_len);
   if(val) {
     m->metric_type = METRIC_DOUBLE;
     memcpy(&m->whence, &w, sizeof(struct timeval));
