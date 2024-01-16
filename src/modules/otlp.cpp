@@ -182,25 +182,20 @@ void metric_local_batch_flush_immediate(otlp_upload *rxc) {
 static void 
 metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *vali,
                    struct timeval w) {
-  char cmetric[MAX_METRIC_TAGGED_NAME + 1 + sizeof(uint64_t)];
+  char cmetric[MAX_METRIC_TAGGED_NAME];
 
   if(!noit_check_build_tag_extended_name(cmetric, MAX_METRIC_TAGGED_NAME, name, rxc->check)) {
     return;
   }
-  int cmetric_len = strlen(cmetric);
-  /* We will append the time stamp afer the null terminator to keep the key
-   * appropriately unique.
-   */
-  uint64_t t = w.tv_sec * 1000 + w.tv_usec / 1000;
-  memcpy(cmetric + cmetric_len + 1, &t, sizeof(uint64_t));
-  cmetric_len += 1 + sizeof(uint64_t);
-
-  if(mtev_hash_get(rxc->immediate_metrics, cmetric, cmetric_len)) {
-    return;
+  auto cmetric_len = strlen(cmetric);
+  if(auto metric = static_cast<metric_t *>(mtev_hash_get(rxc->immediate_metrics, cmetric, cmetric_len))) {
+    if (metric->whence.tv_sec = w.tv_sec && metric->whence.tv_usec == w.tv_usec) {
+      return;
+    }
+    metric_local_batch_flush_immediate(rxc);
   }
-  metric_t *m = noit_metric_alloc();
-  m->metric_name = static_cast<char *>(malloc(cmetric_len));
-  memcpy(m->metric_name, cmetric, cmetric_len);
+  auto m = noit_metric_alloc();
+  m->metric_name = strdup(cmetric);
   if(val) {
     m->metric_type = METRIC_DOUBLE;
     memcpy(&m->whence, &w, sizeof(struct timeval));
