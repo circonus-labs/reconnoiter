@@ -216,7 +216,7 @@ metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *val
   if (!mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m)) {
     metric_local_batch_flush_immediate(rxc);
     if (!mtev_hash_store(rxc->immediate_metrics, m->metric_name, cmetric_len, m)) {
-      mtevL(nlerr, "%s: could not sure metric %s in otlp\n", __func__, m->metric_name);
+      mtevL(nlerr, "%s: could not store metric %s in otlp\n", __func__, m->metric_name);
       mtev_memory_safe_free(m);
     }
   }
