@@ -189,7 +189,7 @@ metric_local_batch(otlp_upload *rxc, const char *name, double *val, int64_t *val
   }
   auto cmetric_len = strlen(cmetric);
   if(auto metric = static_cast<metric_t *>(mtev_hash_get(rxc->immediate_metrics, cmetric, cmetric_len))) {
-    if (metric->whence.tv_sec = w.tv_sec && metric->whence.tv_usec == w.tv_usec) {
+    if (metric->whence.tv_sec == w.tv_sec && metric->whence.tv_usec == w.tv_usec) {
       return;
     }
     metric_local_batch_flush_immediate(rxc);
