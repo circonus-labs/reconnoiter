@@ -189,6 +189,7 @@ grpc::Status GRPCService::Export(grpc::ServerContext* context,
   handle_message(&rxc, *request);
   metric_local_batch_flush_immediate(&rxc);
   mtev_memory_end();
+  mtev_memory_fini_thread();
 
   mtevL(nldeb_verbose, "[otlpgrpc] grpc metric data batch submitted successfully.\n");
   return grpc::Status::OK;
