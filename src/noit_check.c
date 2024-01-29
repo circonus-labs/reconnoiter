@@ -2896,27 +2896,26 @@ static void
 record_immediate_metric_with_tagset(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 const void *value, mtev_boolean do_log, const struct timeval *time) {
-  struct timeval now;
-  stats_t *c;
-  metric_t *m = noit_metric_alloc();
-
   mtevAssert(mtev_memory_in_cs());
 
+  metric_t *m = noit_metric_alloc();
   if(noit_stats_populate_metric_with_tagset(m, name, type, value)) {
     mtev_memory_safe_free(m);
     return;
   }
   if(time == NULL) {
+    struct timeval now;
     gettimeofday(&now, NULL);
     time = &now;
   }
   if(do_log == mtev_true) {
     noit_check_log_metric(check, time, m);
   }
-  c = noit_check_get_stats_inprogress(check);
-  if(noit_stats_mark_metric_logged(c, m, mtev_true) == mtev_false) {
-    mtev_memory_safe_free(m);
-  }
+  stats_t *c = noit_check_get_stats_inprogress(check);
+  noit_stats_mark_metric_logged(c, m, mtev_true);
+  // noit_stats_mark_metric_logged either doesn't need the metric or
+  // it duplicates it, so we have to clean up regardless
+  mtev_memory_safe_free(m);
 }
 void
 noit_stats_log_immediate_metric_timed(noit_check_t *check,
