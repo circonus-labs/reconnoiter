@@ -2903,8 +2903,8 @@ record_immediate_metric_with_tagset(noit_check_t *check,
     mtev_memory_safe_free(m);
     return;
   }
+  struct timeval now;
   if(time == NULL) {
-    struct timeval now;
     gettimeofday(&now, NULL);
     time = &now;
   }
