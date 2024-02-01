@@ -520,12 +520,10 @@ metric_local_batch(prometheus_upload_t *rxc, const char *name, double val, struc
 
   if(mtev_hash_size(rxc->immediate_metrics) > 1000) {
     metric_local_batch_flush_immediate(rxc);
-    return;
   }
-  if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
-    /* collision, just log it out */
+  else if(mtev_hash_retrieve(rxc->immediate_metrics, cmetric, cmetric_len, &vm)) {
+    /* collision, flush the batch to make room */
     metric_local_batch_flush_immediate(rxc);
-    return;
   }
   mtev_memory_begin();
   metric_t *m = noit_metric_alloc();
