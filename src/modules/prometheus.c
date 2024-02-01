@@ -60,6 +60,8 @@
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
+static pthread_mutex_t batch_flush_lock = PTHREAD_MUTEX_INITIALIZER;
+
 typedef struct _mod_config {
   mtev_hash_table *options;
 } prometheus_mod_config_t;
@@ -408,10 +410,12 @@ metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const ch
 static void
 metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
   mtev_memory_begin();
+  pthread_mutex_lock(&batch_flush_lock);
   if(mtev_hash_size(rxc->immediate_metrics)) {
     noit_check_log_bundle_metrics(rxc->check, &rxc->start_time, rxc->immediate_metrics);
     mtev_hash_delete_all(rxc->immediate_metrics, NULL, mtev_memory_safe_free);
   }
+  pthread_mutex_unlock(&batch_flush_lock);
   mtev_memory_end();
 }
 
@@ -589,8 +593,8 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
     rxc->check = check;
     mtev_gettimeofday(&rxc->start_time, NULL);
-    rxc->immediate_metrics = malloc(sizeof(*rxc->immediate_metrics));
-    mtev_hash_init(rxc->immediate_metrics);
+    rxc->immediate_metrics = calloc(1, sizeof(*rxc->immediate_metrics));
+    mtev_hash_init_locks(rxc->immediate_metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
     memcpy(rxc->check_id, check_id, UUID_SIZE);
     restc->call_closure_free = free_prometheus_upload;
     mtev_dyn_buffer_init(&rxc->data);
