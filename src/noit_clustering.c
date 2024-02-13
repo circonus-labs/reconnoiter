@@ -904,6 +904,7 @@ reconnoiter_specific_cluster_config_cleanup_cb(void *closure, mtev_cluster_t *cl
     return MTEV_HOOK_CONTINUE;
   }
   xmlUnsetProp(node, (xmlChar *)"batch_size");
+  return MTEV_HOOK_CONTINUE;
 }
 
 static mtev_hook_return_t
