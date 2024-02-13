@@ -76,12 +76,13 @@ MTEV_HOOK_IMPL(noit_should_run_check,
 
 #define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
 #define REPL_FAIL_WAIT_US 500000
+#define DEFAULT_BATCH_SIZE 500
 
 static char *cainfo;
 static char *certinfo;
 static char *keyinfo;
 
-static uint32_t batch_size = 500; /* for fetching clusters and filters */
+static uint32_t batch_size = DEFAULT_BATCH_SIZE; /* for fetching clusters and filters */
 
 static void
 noit_cluster_setup_ssl(int port) {
@@ -938,6 +939,24 @@ reconnoiter_specific_read_cluster_config_cb(void *closure, mtev_cluster_t *clust
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
+  if (!conf) {
+    return MTEV_HOOK_CONTINUE;
+  }
+
+  char bufstr[1024];
+  char *endptr = NULL;
+  if(mtev_conf_get_stringbuf(*conf, "@batch_size", bufstr, sizeof(bufstr))) {
+    uint32_t local_batch_size = strtoll(bufstr, &endptr, 10);
+    if(*endptr) {
+      mtevL(mtev_error, "Invalid batch size (%s) provided.... using default (%d)\n", bufstr, DEFAULT_BATCH_SIZE);
+      batch_size = DEFAULT_BATCH_SIZE;
+    }
+    else
+    {
+      batch_size = local_batch_size;
+    }
+  }
+
   return MTEV_HOOK_CONTINUE;
 }
 
