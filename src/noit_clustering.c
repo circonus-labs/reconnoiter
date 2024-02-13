@@ -949,6 +949,7 @@ reconnoiter_specific_free_cluster_config_members_cb(void *closure, mtev_cluster_
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
+  // Nothing special needed to free noit-specific data
   return MTEV_HOOK_CONTINUE;
 }
 
