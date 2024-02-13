@@ -80,7 +80,12 @@ MTEV_HOOK_IMPL(noit_should_run_check,
 static char *cainfo;
 static char *certinfo;
 static char *keyinfo;
-static uint32_t batch_size = 500; /* for fetching clusters and filters */
+
+struct extra_config_data_t {
+  uint32_t batch_size; /* for fetching clusters and filters */
+};
+
+static struct extra_config_data_t extra_config_data = {500};
 
 static void
 noit_cluster_setup_ssl(int port) {
@@ -657,13 +662,13 @@ possibly_start_job(noit_peer_t *peer) {
     mtev_uuid_copy(rj->peerid, peer->id);
     rj->checks.prev = peer->checks.fetched;
     rj->checks.end = peer->checks.available;
-    if (batch_size > 0 && (rj->checks.end - rj->checks.prev > batch_size)) {
-      rj->checks.end = rj->checks.prev + batch_size;
+    if (extra_config_data.batch_size > 0 && (rj->checks.end - rj->checks.prev > extra_config_data.batch_size)) {
+      rj->checks.end = rj->checks.prev + extra_config_data.batch_size;
     }
     rj->filters.prev = peer->filters.fetched;
     rj->filters.end = peer->filters.available;
-    if (batch_size > 0 && (rj->filters.end - rj->filters.prev > batch_size)) {
-      rj->filters.end = rj->filters.prev + batch_size;
+    if (extra_config_data.batch_size > 0 && (rj->filters.end - rj->filters.prev > extra_config_data.batch_size)) {
+      rj->filters.end = rj->filters.prev + extra_config_data.batch_size;
     }
     if(peer->checks.prev_fetched == rj->checks.end && peer->checks.last_batch == 0) {
       rj->checks.prev = rj->checks.end = 0;
@@ -908,12 +913,12 @@ reconnoiter_specific_cluster_config_cleanup_cb(void *closure, mtev_cluster_t *cl
 }
 
 static mtev_hook_return_t
-reconnoiter_specific_cluster_config_cb(void *closure, mtev_cluster_t *cluster, xmlNodePtr node) {
+reconnoiter_specific_write_cluster_config_cb(void *closure, mtev_cluster_t *cluster, xmlNodePtr node) {
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
   char config_str[1024];
-  snprintf(config_str, sizeof(config_str), "%"PRIu32, batch_size);
+  snprintf(config_str, sizeof(config_str), "%"PRIu32, extra_config_data.batch_size);
   char *batch_conf = (char *)xmlGetProp(node, (xmlChar *)"batch_size");
   if (batch_conf) {
     xmlFree(batch_conf);
@@ -925,6 +930,22 @@ reconnoiter_specific_cluster_config_cb(void *closure, mtev_cluster_t *cluster, x
 
 static mtev_hook_return_t
 reconnoiter_specific_node_config_cb(void *closure, mtev_cluster_t *cluster, xmlNodePtr node) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_read_cluster_config_cb(void *closure, mtev_cluster_t *cluster, mtev_conf_section_t *conf) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_free_cluster_config_members_cb(void *closure, mtev_cluster_t *cluster, void *extra_config) {
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
@@ -1005,7 +1026,7 @@ void noit_mtev_cluster_init() {
   showcmd = mtev_console_state_get_cmd(tl, "show");
   mtevAssert(showcmd && showcmd->dstate);
 
-  mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &batch_size);
+  mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &extra_config_data.batch_size);
 
   mtev_console_state_add_cmd(showcmd->dstate,
   NCSCMD("noit-cluster", noit_clustering_show, NULL, NULL, NULL));
@@ -1017,8 +1038,10 @@ void noit_mtev_cluster_init() {
   mtev_cluster_init();
   mtev_cluster_handle_node_update_hook_register("noit-cluster", cluster_topo_cb, NULL);
   mtev_cluster_on_write_extra_cluster_config_cleanup_hook_register("noit-cluster-config-cleanup", reconnoiter_specific_cluster_config_cleanup_cb, NULL);
-  mtev_cluster_write_extra_cluster_config_hook_register("noit-cluster-config", reconnoiter_specific_cluster_config_cb, NULL);
-  mtev_cluster_write_extra_node_config_hook_register("noit-cluster-node-config", reconnoiter_specific_node_config_cb, NULL);
+  mtev_cluster_write_extra_cluster_config_hook_register("noit-cluster-write-config", reconnoiter_specific_write_cluster_config_cb, NULL);
+  mtev_cluster_write_extra_node_config_hook_register("noit-cluster-write-node-config", reconnoiter_specific_node_config_cb, NULL);
+  mtev_cluster_read_extra_cluster_config_hook_register("noit-cluster-read-config", reconnoiter_specific_read_cluster_config_cb, NULL);
+  mtev_cluster_free_extra_cluster_config_members_hook_register("noit-cluster-free-config", reconnoiter_specific_free_cluster_config_members_cb, NULL);
 
   attach_to_cluster(mtev_cluster_by_name(NOIT_MTEV_CLUSTER_NAME));
 
