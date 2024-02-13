@@ -933,6 +933,7 @@ reconnoiter_specific_node_config_cb(void *closure, mtev_cluster_t *cluster, xmlN
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
+  // No node specific noit configs needed
   return MTEV_HOOK_CONTINUE;
 }
 
