@@ -15,25 +15,41 @@ describe("cluster", function()
     if noit1 ~= nil then noit1:stop() end
     if noit2 ~= nil then noit2:stop() end
   end)
-  function put_cluster(api, nodes, idx, seq, set_batch_size, batch_size)
+  function put_cluster(api, idx, seq, set_batch_size, batch_size)
     local payload
     if set_batch_size == false then
-      payload = '<?xml version="1.0" encoding="utf8"?><cluster name="noit" port="' .. tostring(nodes[idx].port) .. '" period="200" timeout="1000" maturity="2000" key="poison" seq="' ..
+      payload = '<?xml version="1.0" encoding="utf8"?><cluster name="noit" port="' .. tostring(cluster[idx].port) .. '" period="200" timeout="1000" maturity="2000" key="poison" seq="' ..
       tostring(seq) .. '">'
     else
-      payload = '<?xml version="1.0" encoding="utf8"?><cluster name="noit" port="' .. tostring(nodes[idx].port) .. '" period="200" timeout="1000" maturity="2000" key="poison" seq="' ..
+      payload = '<?xml version="1.0" encoding="utf8"?><cluster name="noit" port="' .. tostring(cluster[idx].port) .. '" period="200" timeout="1000" maturity="2000" key="poison" seq="' ..
         tostring(seq) .. '" batch_size="' .. tostring(batch_size) .. '">'
     end
-    for i, node in ipairs(nodes) do
+    for i, node in ipairs(cluster) do
       payload = payload .. '<node id="' .. node.id .. '" cn="noit-test" address="127.0.0.1" port="' .. tostring(node.port) .. '"/>'
     end
     payload = payload .. '</cluster>'
     return api:xmlforcewrite("POST", "/cluster", payload)
   end
-  function validate_cluster_xml(code, data, contains_batch_size, batch_size)
+  function validate_cluster_xml(idx, code, data, contains_batch_size, batch_size)
     assert.is_equal(200, code)
+    local count = 0
+    for cluster_node in data:xpath("//clusters/cluster") do
+      count = count + 1
+      assert.is_equal("noit", cluster_node:attr("name"))
+      assert.is_equal(tostring(cluster[idx].port), cluster_node:attr("port"))
+      assert.is_equal("200", cluster_node:attr("period"))
+      assert.is_equal("1000", cluster_node:attr("timeout"))
+      assert.is_equal("2000", cluster_node:attr("maturity"))
+      if contains_batch_size == true then
+        assert.is_not_nil(cluster_node:attr("batch_size"))
+        assert.is_equal(tostring(batch_size), cluster_node:attr("batch_size"))
+      else
+        assert.is_nil(cluster_node:attr("batch_size"))
+      end
+    end
+    assert.is_equal(1, count)
   end
-  function validate_cluster_json(code, data, contains_batch_size, batch_size)
+  function validate_cluster_json(idx, code, data, contains_batch_size, batch_size)
     assert.is_equal(200, code)
   end
 
@@ -48,58 +64,58 @@ describe("cluster", function()
 
   describe("topo", function()
     it("installs a basic cluster topology", function()
-      local code = put_cluster(api1, cluster, 1, 1, false)
+      local code = put_cluster(api1, 1, 1, false)
       assert.is.equal(204, code)
-      code = put_cluster(api2, cluster, 2, 1, false)
+      code = put_cluster(api2, 2, 1, false)
       assert.is.equal(204, code)
     end)
     it("validates the cluster topology as xml", function()
       local code, xml, raw = api1:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, false)
+      validate_cluster_xml(1, code, xml, false)
       code, xml, raw = api2:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, false)
+      validate_cluster_xml(2, code, xml, false)
     end)
     it("validates the cluster topology as json", function()
       local code, obj, raw = api1:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, false)
+      validate_cluster_json(1, code, obj, false)
       code, obj, raw = api2:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, false)
+      validate_cluster_json(2, code, obj, false)
     end)
     it("updates the cluster topology with batch size", function()
-      local code = put_cluster(api1, cluster, 1, 2, true, 5000)
+      local code = put_cluster(api1, 1, 2, true, 5000)
       assert.is.equal(204, code)
-      code = put_cluster(api2, cluster, 2, 2, true, 5000)
+      code = put_cluster(api2, 2, 2, true, 5000)
       assert.is.equal(204, code)
     end)
     it("valdates the new cluster topology as xml", function()
       local code, xml, raw = api1:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, true, 5000)
+      validate_cluster_xml(1, code, xml, true, 5000)
       code, xml, raw = api2:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, true, 5000)
+      validate_cluster_xml(2, code, xml, true, 5000)
     end)
     it("validates the cluster topology as json", function()
       local code, obj, raw = api1:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, true, 5000)
+      validate_cluster_json(1, code, obj, true, 5000)
       code, obj, raw = api2:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, true, 5000)
+      validate_cluster_json(2, code, obj, true, 5000)
     end)
     it("updates the cluster topology with a bad batch size", function()
-      local code = put_cluster(api1, cluster, 1, 3, true, 0)
+      local code = put_cluster(api1, 1, 3, true, 0)
       assert.is.equal(204, code)
-      code = put_cluster(api2, cluster, 2, 3, true, 0)
+      code = put_cluster(api2, 2, 3, true, 0)
       assert.is.equal(204, code)
     end)
     it("valdates the batch size didn't change as xml", function()
       local code, xml, raw = api1:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, true, 5000)
+      validate_cluster_xml(1, code, xml, true, 5000)
       code, xml, raw = api2:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, true, 5000)
+      validate_cluster_xml(2, code, xml, true, 5000)
     end)
     it("valdates the batch size didn't change as json", function()
       local code, obj, raw = api1:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, true, 5000)
+      validate_cluster_json(1, code, obj, true, 5000)
       code, obj, raw = api2:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, true, 5000)
+      validate_cluster_json(2, code, obj, true, 5000)
     end)
     it("restarts nodes", function()
       noit1:stop()
@@ -111,15 +127,15 @@ describe("cluster", function()
     end)
     it("valdates the batch size persisted as xml", function()
       local code, xml, raw = api1:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, true, 5000)
+      validate_cluster_xml(1, code, xml, true, 5000)
       code, xml, raw = api2:xml("GET", "/cluster/noit")
-      validate_cluster_xml(code, xml, true, 5000)
+      validate_cluster_xml(2, code, xml, true, 5000)
     end)
     it("valdates the batch size persisted as json", function()
       local code, obj, raw = api1:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, true, 5000)
+      validate_cluster_json(1, code, obj, true, 5000)
       code, obj, raw = api2:json("GET", "/cluster/noit.json")
-      validate_cluster_json(code, obj, true, 5000)
+      validate_cluster_json(2, code, obj, true, 5000)
     end)
   end)
 end)
