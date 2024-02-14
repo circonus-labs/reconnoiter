@@ -1061,7 +1061,15 @@ void noit_mtev_cluster_init() {
   showcmd = mtev_console_state_get_cmd(tl, "show");
   mtevAssert(showcmd && showcmd->dstate);
 
-  mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &batch_size);
+  if (mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &batch_size)) {
+    if (batch_size == 0) {
+      mtevL(mtev_error, "batch_size in configuration file is invalid (%" PRIu32 ": Using default (%d)\n", batch_size, DEFAULT_BATCH_SIZE);
+      batch_size = DEFAULT_BATCH_SIZE;
+    }
+    else {
+      batch_size_from_config = true;
+    }
+  }
 
   mtev_console_state_add_cmd(showcmd->dstate,
   NCSCMD("noit-cluster", noit_clustering_show, NULL, NULL, NULL));
