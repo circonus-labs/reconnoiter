@@ -51,6 +51,24 @@ describe("cluster", function()
   end
   function validate_cluster_json(idx, code, data, contains_batch_size, batch_size)
     assert.is_equal(200, code)
+    local clusters = data["clusters"]
+    local cluster_count = 0
+    for _ in pairs(clusters) do
+      cluster_count = cluster_count + 1
+    end
+    assert.is_equal(1, cluster_count)
+    local noit_cluster = clusters["noit"]
+    assert.is_not_nil(noit_cluster)
+    assert.is_equal(cluster[idx].port, noit_cluster["port"])
+    assert.is_equal(200, noit_cluster["period"])
+    assert.is_equal(1000, noit_cluster["timeout"])
+    assert.is_equal(2000, noit_cluster["maturity"])
+    if contains_batch_size == true then
+      assert.is_not_nil(noit_cluster["batch_size"])
+      assert.is_equal(batch_size, noit_cluster["batch_size"])
+    else
+      assert.is_nil(noit_cluster["batch_size"])
+    end
   end
 
   it("node1 should start", function()
