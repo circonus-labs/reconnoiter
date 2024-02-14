@@ -76,11 +76,14 @@ MTEV_HOOK_IMPL(noit_should_run_check,
 
 #define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
 #define REPL_FAIL_WAIT_US 500000
+#define DEFAULT_BATCH_SIZE 10000
 
 static char *cainfo;
 static char *certinfo;
 static char *keyinfo;
-static uint32_t batch_size = 500; /* for fetching clusters and filters */
+
+static uint32_t batch_size = DEFAULT_BATCH_SIZE; /* for fetching clusters and filters */
+static bool batch_size_from_config = false;
 
 static void
 noit_cluster_setup_ssl(int port) {
@@ -898,6 +901,104 @@ cluster_topo_cb(void *closure,
   return MTEV_HOOK_CONTINUE;
 }
 
+static mtev_hook_return_t
+reconnoiter_specific_cluster_config_cleanup_cb(void *closure, mtev_cluster_t *cluster, xmlNodePtr node) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  xmlUnsetProp(node, (xmlChar *)"batch_size");
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_write_cluster_config_xml_cb(void *closure, mtev_cluster_t *cluster, xmlNodePtr node) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // If the batch data is the default and not explicitly provided in the config, don't write it out
+  if (!batch_size_from_config) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  char config_str[1024];
+  snprintf(config_str, sizeof(config_str), "%"PRIu32, batch_size);
+  char *batch_conf = (char *)xmlGetProp(node, (xmlChar *)"batch_size");
+  if (batch_conf) {
+    xmlFree(batch_conf);
+    return MTEV_HOOK_ABORT;
+  }
+  xmlSetProp(node, (xmlChar *)"batch_size", (xmlChar *)config_str);
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_write_node_config_xml_cb(void *closure, mtev_cluster_t *cluster, uuid_t node_id, xmlNodePtr node) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // No node specific noit configs needed
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_write_cluster_config_json_cb(void *closure, mtev_cluster_t *cluster, struct json_object *obj) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // If the batch data is the default and not explicitly provided in the config, don't write it out
+  if (!batch_size_from_config) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  MJ_KV(obj, "batch_size", MJ_UINT64(batch_size));
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_write_node_config_json_cb(void *closure, mtev_cluster_t *cluster, uuid_t node_id, struct json_object *obj) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // No node specific noit configs needed
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_read_cluster_config_cb(void *closure, mtev_cluster_t *cluster, mtev_conf_section_t *conf) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  if (!conf) {
+    return MTEV_HOOK_CONTINUE;
+  }
+
+  char bufstr[1024];
+  char *endptr = NULL;
+  if(mtev_conf_get_stringbuf(*conf, "@batch_size", bufstr, sizeof(bufstr))) {
+    uint32_t local_batch_size = strtoll(bufstr, &endptr, 10);
+    if(*endptr || local_batch_size == 0) {
+      mtevL(mtev_error, "Invalid batch size (%s) provided.... keeping previous batch size (%" PRIu32 ")\n", bufstr, batch_size);
+    }
+    else
+    {
+      batch_size = local_batch_size;
+      batch_size_from_config = true;
+    }
+  }
+
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_read_node_config_cb(void *closure, mtev_cluster_t *cluster, uuid_t node_id, mtev_conf_section_t *conf) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  if (!conf) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // No node specific noit configs needed
+  return MTEV_HOOK_CONTINUE;
+}
+
 static mtev_boolean
 alive_nodes(mtev_cluster_node_t *node, mtev_boolean me, void *closure) {
   return !mtev_cluster_node_is_dead(node);
@@ -972,7 +1073,15 @@ void noit_mtev_cluster_init() {
   showcmd = mtev_console_state_get_cmd(tl, "show");
   mtevAssert(showcmd && showcmd->dstate);
 
-  mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &batch_size);
+  if (mtev_conf_get_uint32(MTEV_CONF_ROOT, "//clusters/cluster[@name=\"noit\"]/@batch_size", &batch_size)) {
+    if (batch_size == 0) {
+      mtevL(mtev_error, "batch_size in configuration file is invalid (%" PRIu32 ": Using default (%d)\n", batch_size, DEFAULT_BATCH_SIZE);
+      batch_size = DEFAULT_BATCH_SIZE;
+    }
+    else {
+      batch_size_from_config = true;
+    }
+  }
 
   mtev_console_state_add_cmd(showcmd->dstate,
   NCSCMD("noit-cluster", noit_clustering_show, NULL, NULL, NULL));
@@ -983,6 +1092,14 @@ void noit_mtev_cluster_init() {
 
   mtev_cluster_init();
   mtev_cluster_handle_node_update_hook_register("noit-cluster", cluster_topo_cb, NULL);
+  mtev_cluster_on_write_extra_cluster_config_cleanup_hook_register("noit-cluster-config-cleanup", reconnoiter_specific_cluster_config_cleanup_cb, NULL);
+  mtev_cluster_write_extra_cluster_config_xml_hook_register("noit-cluster-write-xml-config", reconnoiter_specific_write_cluster_config_xml_cb, NULL);
+  mtev_cluster_write_extra_node_config_xml_hook_register("noit-cluster-write-node-xml-config", reconnoiter_specific_write_node_config_xml_cb, NULL);
+  mtev_cluster_write_extra_cluster_config_json_hook_register("noit-cluster-write-json-config", reconnoiter_specific_write_cluster_config_json_cb, NULL);
+  mtev_cluster_write_extra_node_config_json_hook_register("noit-cluster-write-node-json-config", reconnoiter_specific_write_node_config_json_cb, NULL);
+  mtev_cluster_read_extra_cluster_config_hook_register("noit-cluster-read-config", reconnoiter_specific_read_cluster_config_cb, NULL);
+  mtev_cluster_read_extra_node_config_hook_register("noit-cluster-read-node-config", reconnoiter_specific_read_node_config_cb, NULL);
+
   attach_to_cluster(mtev_cluster_by_name(NOIT_MTEV_CLUSTER_NAME));
 
 }
