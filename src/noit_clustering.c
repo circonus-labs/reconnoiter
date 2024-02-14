@@ -948,6 +948,7 @@ reconnoiter_specific_write_cluster_config_json_cb(void *closure, mtev_cluster_t 
   if (!batch_size_from_config) {
     return MTEV_HOOK_CONTINUE;
   }
+  MJ_KV(obj, "batch_size", MJ_UINT64(batch_size));
   return MTEV_HOOK_CONTINUE;
 }
 
