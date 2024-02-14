@@ -940,6 +940,27 @@ reconnoiter_specific_write_node_config_xml_cb(void *closure, mtev_cluster_t *clu
 }
 
 static mtev_hook_return_t
+reconnoiter_specific_write_cluster_config_json_cb(void *closure, mtev_cluster_t *cluster, struct json_object *obj) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // If the batch data is the default and not explicitly provided in the config, don't write it out
+  if (!batch_size_from_config) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
+reconnoiter_specific_write_node_config_json_cb(void *closure, mtev_cluster_t *cluster, struct json_object *obj) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // No node specific noit configs needed
+  return MTEV_HOOK_CONTINUE;
+}
+
+static mtev_hook_return_t
 reconnoiter_specific_read_cluster_config_cb(void *closure, mtev_cluster_t *cluster, mtev_conf_section_t *conf) {
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
@@ -1053,6 +1074,8 @@ void noit_mtev_cluster_init() {
   mtev_cluster_on_write_extra_cluster_config_cleanup_hook_register("noit-cluster-config-cleanup", reconnoiter_specific_cluster_config_cleanup_cb, NULL);
   mtev_cluster_write_extra_cluster_config_xml_hook_register("noit-cluster-write-xml-config", reconnoiter_specific_write_cluster_config_xml_cb, NULL);
   mtev_cluster_write_extra_node_config_xml_hook_register("noit-cluster-write-node-xml-config", reconnoiter_specific_write_node_config_xml_cb, NULL);
+  mtev_cluster_write_extra_cluster_config_json_hook_register("noit-cluster-write-json-config", reconnoiter_specific_write_cluster_config_json_cb, NULL);
+  mtev_cluster_write_extra_node_config_json_hook_register("noit-cluster-write-node-json-config", reconnoiter_specific_write_node_config_json_cb, NULL);
   mtev_cluster_read_extra_cluster_config_hook_register("noit-cluster-read-config", reconnoiter_specific_read_cluster_config_cb, NULL);
 
   attach_to_cluster(mtev_cluster_by_name(NOIT_MTEV_CLUSTER_NAME));
