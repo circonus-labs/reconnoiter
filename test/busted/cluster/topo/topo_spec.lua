@@ -4,6 +4,7 @@ describe("cluster", function()
   -- Static uuids here to make tests (hashing) repeatable
   local uuid1 = '5a74f6f2-3125-44de-84e7-6ea7275e5fee'
   local uuid2 = 'ab419eda-6f51-466f-b086-63ae940c8147'
+  local seq = 0
 
   setup(function()
     Reconnoiter.clean_workspace()
@@ -15,7 +16,7 @@ describe("cluster", function()
     if noit1 ~= nil then noit1:stop() end
     if noit2 ~= nil then noit2:stop() end
   end)
-  function put_cluster(api, idx, seq, set_batch_size, batch_size)
+  function put_cluster(api, idx, set_batch_size, batch_size)
     local payload
     if set_batch_size == false then
       payload = '<?xml version="1.0" encoding="utf8"?><cluster name="noit" port="' .. tostring(cluster[idx].port) .. '" period="200" timeout="1000" maturity="2000" key="poison" seq="' ..
@@ -40,6 +41,7 @@ describe("cluster", function()
       assert.is_equal("200", cluster_node:attr("period"))
       assert.is_equal("1000", cluster_node:attr("timeout"))
       assert.is_equal("2000", cluster_node:attr("maturity"))
+      assert.is_equal(tostring(seq), cluster_node:attr("seq"))
       if contains_batch_size == true then
         assert.is_not_nil(cluster_node:attr("batch_size"))
         assert.is_equal(tostring(batch_size), cluster_node:attr("batch_size"))
@@ -63,6 +65,7 @@ describe("cluster", function()
     assert.is_equal(200, noit_cluster["period"])
     assert.is_equal(1000, noit_cluster["timeout"])
     assert.is_equal(2000, noit_cluster["maturity"])
+    assert.is_equal(seq, noit_cluster["seq"])
     if contains_batch_size == true then
       assert.is_not_nil(noit_cluster["batch_size"])
       assert.is_equal(batch_size, noit_cluster["batch_size"])
@@ -82,9 +85,10 @@ describe("cluster", function()
 
   describe("topo", function()
     it("installs a basic cluster topology", function()
-      local code = put_cluster(api1, 1, 1, false)
+      seq = seq + 1
+      local code = put_cluster(api1, 1, false)
       assert.is.equal(204, code)
-      code = put_cluster(api2, 2, 1, false)
+      code = put_cluster(api2, 2, false)
       assert.is.equal(204, code)
     end)
     it("validates the cluster topology as xml", function()
@@ -100,9 +104,10 @@ describe("cluster", function()
       validate_cluster_json(2, code, obj, false)
     end)
     it("updates the cluster topology with batch size", function()
-      local code = put_cluster(api1, 1, 2, true, 5000)
+      seq = seq + 1
+      local code = put_cluster(api1, 1, true, 5000)
       assert.is.equal(204, code)
-      code = put_cluster(api2, 2, 2, true, 5000)
+      code = put_cluster(api2, 2, true, 5000)
       assert.is.equal(204, code)
     end)
     it("valdates the new cluster topology as xml", function()
@@ -118,9 +123,10 @@ describe("cluster", function()
       validate_cluster_json(2, code, obj, true, 5000)
     end)
     it("updates the cluster topology with a bad batch size", function()
-      local code = put_cluster(api1, 1, 3, true, 0)
+      seq = seq + 1
+      local code = put_cluster(api1, 1, true, 0)
       assert.is.equal(204, code)
-      code = put_cluster(api2, 2, 3, true, 0)
+      code = put_cluster(api2, 2, true, 0)
       assert.is.equal(204, code)
     end)
     it("valdates the batch size didn't change as xml", function()
