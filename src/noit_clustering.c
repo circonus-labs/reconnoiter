@@ -931,7 +931,7 @@ reconnoiter_specific_write_cluster_config_xml_cb(void *closure, mtev_cluster_t *
 }
 
 static mtev_hook_return_t
-reconnoiter_specific_write_node_config_xml_cb(void *closure, mtev_cluster_t *cluster, xmlNodePtr node) {
+reconnoiter_specific_write_node_config_xml_cb(void *closure, mtev_cluster_t *cluster, uuid_t node_id, xmlNodePtr node) {
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
@@ -952,7 +952,7 @@ reconnoiter_specific_write_cluster_config_json_cb(void *closure, mtev_cluster_t 
 }
 
 static mtev_hook_return_t
-reconnoiter_specific_write_node_config_json_cb(void *closure, mtev_cluster_t *cluster, struct json_object *obj) {
+reconnoiter_specific_write_node_config_json_cb(void *closure, mtev_cluster_t *cluster, uuid_t node_id, struct json_object *obj) {
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
