@@ -987,6 +987,18 @@ reconnoiter_specific_read_cluster_config_cb(void *closure, mtev_cluster_t *clust
   return MTEV_HOOK_CONTINUE;
 }
 
+static mtev_hook_return_t
+reconnoiter_specific_read_node_config_cb(void *closure, mtev_cluster_t *cluster, uuid_t node_id, mtev_conf_section_t *conf) {
+  if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  if (!conf) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  // No node specific noit configs needed
+  return MTEV_HOOK_CONTINUE;
+}
+
 static mtev_boolean
 alive_nodes(mtev_cluster_node_t *node, mtev_boolean me, void *closure) {
   return !mtev_cluster_node_is_dead(node);
@@ -1086,6 +1098,7 @@ void noit_mtev_cluster_init() {
   mtev_cluster_write_extra_cluster_config_json_hook_register("noit-cluster-write-json-config", reconnoiter_specific_write_cluster_config_json_cb, NULL);
   mtev_cluster_write_extra_node_config_json_hook_register("noit-cluster-write-node-json-config", reconnoiter_specific_write_node_config_json_cb, NULL);
   mtev_cluster_read_extra_cluster_config_hook_register("noit-cluster-read-config", reconnoiter_specific_read_cluster_config_cb, NULL);
+  mtev_cluster_read_extra_node_config_hook_register("noit-cluster-read-node-config", reconnoiter_specific_read_node_config_cb, NULL);
 
   attach_to_cluster(mtev_cluster_by_name(NOIT_MTEV_CLUSTER_NAME));
 
