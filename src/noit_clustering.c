@@ -948,8 +948,7 @@ reconnoiter_specific_read_cluster_config_cb(void *closure, mtev_cluster_t *clust
   if(mtev_conf_get_stringbuf(*conf, "@batch_size", bufstr, sizeof(bufstr))) {
     uint32_t local_batch_size = strtoll(bufstr, &endptr, 10);
     if(*endptr) {
-      mtevL(mtev_error, "Invalid batch size (%s) provided.... using default (%d)\n", bufstr, DEFAULT_BATCH_SIZE);
-      batch_size = DEFAULT_BATCH_SIZE;
+      mtevL(mtev_error, "Invalid batch size (%s) provided.... keeping previous batch size (%" PRIu32 ")\n", bufstr, batch_size);
     }
     else
     {
