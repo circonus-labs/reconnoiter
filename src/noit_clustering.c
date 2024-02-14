@@ -76,7 +76,7 @@ MTEV_HOOK_IMPL(noit_should_run_check,
 
 #define MAX_CLUSTER_NODES 128 /* 128 this is insanely high */
 #define REPL_FAIL_WAIT_US 500000
-#define DEFAULT_BATCH_SIZE 500
+#define DEFAULT_BATCH_SIZE 10000
 
 static char *cainfo;
 static char *certinfo;
