@@ -83,6 +83,7 @@ static char *certinfo;
 static char *keyinfo;
 
 static uint32_t batch_size = DEFAULT_BATCH_SIZE; /* for fetching clusters and filters */
+static bool batch_size_from_config = false;
 
 static void
 noit_cluster_setup_ssl(int port) {
@@ -914,6 +915,10 @@ reconnoiter_specific_write_cluster_config_cb(void *closure, mtev_cluster_t *clus
   if(strcmp(mtev_cluster_get_name(cluster), NOIT_MTEV_CLUSTER_NAME)) {
     return MTEV_HOOK_CONTINUE;
   }
+  // If the batch data is the default and not explicitly provided in the config, don't write it out
+  if (!batch_size_from_config) {
+    return MTEV_HOOK_CONTINUE;
+  }
   char config_str[1024];
   snprintf(config_str, sizeof(config_str), "%"PRIu32, batch_size);
   char *batch_conf = (char *)xmlGetProp(node, (xmlChar *)"batch_size");
@@ -953,6 +958,7 @@ reconnoiter_specific_read_cluster_config_cb(void *closure, mtev_cluster_t *clust
     else
     {
       batch_size = local_batch_size;
+      batch_size_from_config = true;
     }
   }
 
