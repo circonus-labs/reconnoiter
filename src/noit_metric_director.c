@@ -1158,11 +1158,13 @@ handle_kafka_message(void *closure, mtev_rd_kafka_message_t * msg) {
   if(ck_pr_load_32(&director_in_use) == 0) {
     return MTEV_HOOK_CONTINUE;
   }
+  mtev_rd_kafka_message_ref(msg);
   char *payload = (char *)msg->msg->payload;
   size_t payload_len = (size_t)msg->msg->len;
   if(check_duplicate(payload, payload_len) == mtev_false) {
     handle_metric_buffer(payload, payload_len, 1, NULL);
   }
+  mtev_rd_kafka_message_deref(msg);
   return MTEV_HOOK_CONTINUE;
 }
 static mtev_hook_return_t
