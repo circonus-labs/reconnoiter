@@ -33,6 +33,7 @@
 #include <mtev_dso.h>
 #include <mtev_fq.h>
 #include <mtev_hash.h>
+#include <mtev_kafka.h>
 #include <mtev_memory.h>
 #include <mtev_perftimer.h>
 #include <mtev_str.h>
@@ -1153,6 +1154,20 @@ handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_ms
   return MTEV_HOOK_CONTINUE;
 }
 static mtev_hook_return_t
+handle_kafka_message(void *closure, mtev_rd_kafka_message_t * msg) {
+  if(ck_pr_load_32(&director_in_use) == 0) {
+    return MTEV_HOOK_CONTINUE;
+  }
+  mtev_rd_kafka_message_ref(msg);
+  char *payload = (char *)msg->msg->payload;
+  size_t payload_len = (size_t)msg->msg->len;
+  if(check_duplicate(payload, payload_len) == mtev_false) {
+    handle_metric_buffer(payload, payload_len, 1, NULL);
+  }
+  mtev_rd_kafka_message_deref(msg);
+  return MTEV_HOOK_CONTINUE;
+}
+static mtev_hook_return_t
 handle_log_line(void *closure, mtev_log_stream_t ls, const struct timeval *whence,
                 const char *timebuf, int timebuflen,
                 const char *debugbuf, int debugbuflen,
@@ -1262,6 +1277,9 @@ noit_director_hooks_register(void *closure) {
   /* subscribe to metric messages submitted via fq */
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
+
+  if(mtev_kafka_handle_message_hook_register_available())
+    mtev_kafka_handle_message_hook_register("metric-director", handle_kafka_message, NULL);
 
   /* metrics can be injected into the metric director via the "metrics" log channel */
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
