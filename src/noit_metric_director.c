@@ -1154,13 +1154,13 @@ handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_ms
   return MTEV_HOOK_CONTINUE;
 }
 static mtev_hook_return_t
-handle_kafka_message(void *closure, mtev_rd_kafka_message_t * msg) {
+handle_kafka_message(void *closure, mtev_rd_kafka_message_t *msg, const void *key,
+                     const size_t key_len, const void *payload, const size_t payload_len,
+                     const int64_t offset, const int32_t partition) {
   if(ck_pr_load_32(&director_in_use) == 0) {
     return MTEV_HOOK_CONTINUE;
   }
   mtev_rd_kafka_message_ref(msg);
-  char *payload = (char *)msg->msg->payload;
-  size_t payload_len = (size_t)msg->msg->len;
   if(check_duplicate(payload, payload_len) == mtev_false) {
     handle_metric_buffer(payload, payload_len, 1, NULL);
   }
