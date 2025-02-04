@@ -1120,7 +1120,7 @@ check_duplicate(const char *payload, const size_t payload_len) {
     mtevAssert(md);
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     EVP_DigestInit_ex(ctx, md, NULL);
-    EVP_DigestUpdate(ctx, (unsigned char*)payload, payload_len);
+    EVP_DigestUpdate(ctx, payload, payload_len);
     EVP_DigestFinal(ctx, digest, NULL);
     EVP_MD_CTX_free(ctx);
 
