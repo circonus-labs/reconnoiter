@@ -1113,7 +1113,7 @@ get_message_time(const char* msg, int msg_length) {
 }
 
 static mtev_boolean
-check_duplicate(char *payload, size_t payload_len) {
+check_duplicate(const char *payload, const size_t payload_len) {
   if (dedupe) {
     unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
     const EVP_MD *md = EVP_get_digestbyname("MD5");
