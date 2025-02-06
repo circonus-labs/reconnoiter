@@ -140,7 +140,8 @@ LUALIBS=@LUALIBS@
 LIBNOIT_OBJS=noit_check_log_helpers.lo noit_fb.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
 	noit_metric_director.lo noit_message_decoder.hlo noit_metric.hlo \
-	noit_metric_tag_search.lo noit_ssl10_compat.lo noit_version.lo libnoit.lo
+	noit_metric_tag_search.lo noit_ssl10_compat.lo noit_version.lo libnoit.lo \
+	prometheus.pb-c.lo prometheus_types.pb-c.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o \
 	noit_metric.o noit_ssl10_compat.o
@@ -224,6 +225,12 @@ reversion: $(FLATBUFFERS_HEADERS)
 
 noit_version.h:
 	$(Q)$(top_srcdir)/buildtools/mkversion.sh noit_version.h
+
+prometheus.pb-c.c prometheus.pb-c.h: proto/prometheus.proto
+	(protoc-c proto/prometheus.proto --c_out=.)
+
+prometheus_types.pb-c.c prometheus_types.pb-c.h: proto/prometheus_types.proto
+	(protoc-c proto/prometheus_types.proto --c_out=.)
 
 noit.env:	noit_version.h noit_config.h
 	$(Q)awk '/^#define[ 	]+NOIT_BRANCH/{print $$2"="$$3;}' < noit_version.h > $@
