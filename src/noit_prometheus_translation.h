@@ -32,6 +32,7 @@
 #define NOIT_PROMETHEUS_TRANSLATION_H
 
 #include <stdbool.h>
+#include <mtev_dyn_buffer.h>
 #include "prometheus.pb-c.h"
 
 typedef struct {
@@ -42,6 +43,8 @@ typedef struct {
 
 char *
 noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const char *units, bool coerce_hist);
+
+bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out, const void *data_in, size_t data_in_len);
 
 
 #endif
