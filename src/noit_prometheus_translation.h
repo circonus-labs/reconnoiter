@@ -31,6 +31,12 @@
 #ifndef NOIT_PROMETHEUS_TRANSLATION_H
 #define NOIT_PROMETHEUS_TRANSLATION_H
 
+#include <stdbool.h>
 
+typedef struct {
+  const char *units;
+  bool is_histogram;
+  double hist_boundary;
+} prometheus_coercion_t;
 
 #endif

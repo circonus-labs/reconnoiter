@@ -55,6 +55,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_mtev_bridge.h"
+#include "noit_prometheus_translation.h"
 #include "prometheus.pb-c.h"
 
 static mtev_log_stream_t nlerr = NULL;
@@ -285,16 +286,10 @@ prom_name_munge_units(prometheus_upload_t *rxc, char *in) {
   return units;
 }
 
-typedef struct {
-  const char *units;
-  bool is_histogram;
-  double hist_boundary;
-} coercion_t;
-
-coercion_t
+prometheus_coercion_t
 metric_name_coerce(prometheus_upload_t *rxc, Prometheus__Label **labels, size_t label_count,
                    bool do_units, bool do_hist) {
-  coercion_t rv = {};
+  prometheus_coercion_t rv = {};
   char *name = NULL;
   const char *units = NULL;
   const char *le = NULL;
@@ -701,7 +696,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   for (size_t i = 0; i < write->n_timeseries; i++) {
     Prometheus__TimeSeries *ts = write->timeseries[i];
     /* each timeseries has a list of labels (Tags) and a list of samples */
-    coercion_t coercion = {};
+    prometheus_coercion_t coercion = {};
     if(rxc->extract_units || rxc->coerce_histograms) {
       coercion = metric_name_coerce(rxc, ts->labels, ts->n_labels, rxc->extract_units,
                                     rxc->coerce_histograms);
