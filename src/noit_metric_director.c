@@ -54,6 +54,7 @@
 #include <noit_metric_tag_search.h>
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
+#include "noit_prometheus_translation.h"
 #include "noit_ssl10_compat.h"
 
 /* This is a hot mess designed to optimize metric selection on a variety of vectors.
@@ -1144,6 +1145,22 @@ check_duplicate(const char *payload, const size_t payload_len) {
   return mtev_false;
 }
 
+static void
+handle_prometheus_message(const void *data, size_t data_len) {
+  mtev_dyn_buffer_t uncompressed;
+  mtev_dyn_buffer_init(&uncompressed);
+  size_t uncompressed_size = 0;
+
+  if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size,
+                                         data, data_len)) {
+    mtevL(mtev_error, "ERROR: Cannot snappy decompress incoming prometheus\n");
+    return;
+  }
+  mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
+  // TODO: Process here
+  mtev_dyn_buffer_destroy(&uncompressed);
+}
+
 static mtev_hook_return_t
 handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_msg *m,
                   void *payload, size_t payload_len) {
@@ -1159,8 +1176,13 @@ handle_kafka_message(void *closure, mtev_rd_kafka_message_t *msg) {
     return MTEV_HOOK_CONTINUE;
   }
   mtev_rd_kafka_message_ref(msg);
-  if(check_duplicate(msg->payload, msg->payload_len) == mtev_false) {
-    handle_metric_buffer(msg->payload, msg->payload_len, 1, NULL);
+  if (!strcasecmp(msg->protocol, "prometheus")) {
+    handle_prometheus_message(msg->payload, msg->payload_len);
+  }
+  else {
+    if(check_duplicate(msg->payload, msg->payload_len) == mtev_false) {
+      handle_metric_buffer(msg->payload, msg->payload_len, 1, NULL);
+    }
   }
   mtev_rd_kafka_message_deref(msg);
   return MTEV_HOOK_CONTINUE;

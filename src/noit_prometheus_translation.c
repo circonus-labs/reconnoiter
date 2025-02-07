@@ -141,7 +141,7 @@ bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
   if (!snappy_uncompressed_length(data_in, data_in_len, uncompressed_size_out)) {
     return false;
   }
-  mtev_dyn_buffer_ensure(uncompressed_data_out, uncompressed_size_out);
+  mtev_dyn_buffer_ensure(uncompressed_data_out, *uncompressed_size_out);
   int x = snappy_uncompress(data_in, data_in_len, 
                             (char *)mtev_dyn_buffer_write_pointer(uncompressed_data_out));
   if (x) {
