@@ -259,7 +259,7 @@ $(LIBNOIT):	$(LIBNOIT_V)
 
 $(LIBNOIT_V):	$(FLATBUFFERS_HEADERS) $(FINAL_LIBNOIT_OBJS)
 	@echo "- linking $@"
-	$(Q)$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. $(LMTEV) -llz4 -lflatccrt -lcircmetrics
+	$(Q)$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. $(LMTEV) -llz4 -lflatccrt -lcircmetrics -lsnappyc
 
 stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 	@echo "- assembling $@"

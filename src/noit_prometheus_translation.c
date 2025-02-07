@@ -136,13 +136,12 @@ noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label
   return strdup(final_name);
 }
 
-bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out, const void *data_in, size_t data_in_len)
+bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out, size_t *uncompressed_size_out, const void *data_in, size_t data_in_len)
 {
-  size_t uncompressed_size;
-  if (!snappy_uncompressed_length(data_in, data_in_len, &uncompressed_size)) {
+  if (!snappy_uncompressed_length(data_in, data_in_len, uncompressed_size_out)) {
     return false;
   }
-  mtev_dyn_buffer_ensure(uncompressed_data_out, uncompressed_size);
+  mtev_dyn_buffer_ensure(uncompressed_data_out, uncompressed_size_out);
   int x = snappy_uncompress(data_in, data_in_len, 
                             (char *)mtev_dyn_buffer_write_pointer(uncompressed_data_out));
   if (x) {

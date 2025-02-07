@@ -580,23 +580,13 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   /* prometheus arrives as snappy encoded.  we must uncompress */
   mtev_dyn_buffer_t uncompressed;
   mtev_dyn_buffer_init(&uncompressed);
-  size_t uncompressed_size;
-  if (!snappy_uncompressed_length((const char *)mtev_dyn_buffer_data(&rxc->data), 
-                                  mtev_dyn_buffer_used(&rxc->data), &uncompressed_size)) {
+  size_t uncompressed_size = 0;
+
+  if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size, mtev_dyn_buffer_data(&rxc->data),
+                                         mtev_dyn_buffer_used(&rxc->data))) {
     error = "Cannot snappy decompress incoming prometheus data";
     error_code = 400;
-    mtevL(noit_error, "%s\n", error);
-    goto error;
-  }
-  mtev_dyn_buffer_ensure(&uncompressed, uncompressed_size);
-  int x = snappy_uncompress((const char *)mtev_dyn_buffer_data(&rxc->data), 
-                            mtev_dyn_buffer_used(&rxc->data), 
-                            (char *)mtev_dyn_buffer_write_pointer(&uncompressed));
-  if (x) {
-    mtev_dyn_buffer_destroy(&uncompressed);
-    error = "Cannot snappy decompress incoming prometheus data";
-    error_code = 400;
-    mtevL(noit_error, "%s, error code: %d\n", error, x);
+    mtevL(noit_error, "ERROR: %s\n", error);
     goto error;
   }
   mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
