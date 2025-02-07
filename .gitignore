@@ -110,6 +110,10 @@ src/modules/prometheus.pb-c.c
 src/modules/prometheus.pb-c.h
 src/modules/types.pb-c.c
 src/modules/types.pb-c.h
+src/prometheus.pb-c.c
+src/prometheus.pb-c.h
+src/prometheus_types.pb-c.c
+src/prometheus_types.pb-c.h
 .vscode/
 !.vscode/launch.json.template
 !.vscode/extensions.json
