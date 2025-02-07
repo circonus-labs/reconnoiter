@@ -30,3 +30,106 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "noit_prometheus_translation.h"
+#include <mtev_defines.h>
+#include <mtev_memory.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <math.h>
+#include <ctype.h>
+
+#include <mtev_rand.h>
+#include <mtev_rest.h>
+#include <mtev_hash.h>
+#include <mtev_json.h>
+#include <mtev_uuid.h>
+#include <mtev_b64.h>
+#include <mtev_dyn_buffer.h>
+
+#include <circllhist.h>
+
+#include "noit_metric.h"
+#include "noit_module.h"
+#include "noit_check.h"
+#include "noit_check_tools.h"
+#include "noit_mtev_bridge.h"
+
+
+char *
+noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const char *units, bool coerce_hist)
+{
+  char final_name[MAX_METRIC_TAGGED_NAME] = {0};
+  char *name = final_name;
+  char buffer[MAX_METRIC_TAGGED_NAME] = {0};
+  char encode_buffer[MAX_METRIC_TAGGED_NAME] = {0};
+  char *b = buffer;
+  size_t tag_count = 0;
+  for (size_t i = 0; i < label_count; i++) {
+    Prometheus__Label *l = labels[i];
+    if (strcmp("__name__", l->name) == 0) {
+      strncpy(name, l->value, sizeof(final_name) - 1);
+    } else {
+      /* if we're coercing histograms, remove the "le" label */
+      if(coerce_hist && !strcmp("le", l->name)) continue;
+      if (tag_count > 0) {
+        strlcat(b, ",", sizeof(buffer));
+      }
+      bool wrote_cat = false;
+      size_t tl = strlen(l->name);
+      if(noit_metric_tagset_is_taggable_key(l->name, tl)) {
+        strlcat(b, l->name, sizeof(buffer));
+        wrote_cat = true;
+      } else {
+        int len = mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer) - 1);
+        if (len > 0) {
+          encode_buffer[len] = '\0';
+
+          strlcat(b, "b\"", sizeof(buffer));
+          strlcat(b, encode_buffer, sizeof(buffer));
+          strlcat(b, "\"", sizeof(buffer));
+          wrote_cat = true;
+        }
+      }
+      if(wrote_cat) {
+        strlcat(b, ":", sizeof(buffer));
+        tl = strlen(l->value);
+        if(noit_metric_tagset_is_taggable_value(l->value, tl)) {
+          strlcat(b, l->value, sizeof(buffer));
+        } else {
+          int len = mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer) - 1);
+          if (len > 0) {
+            encode_buffer[len] = '\0';
+            strlcat(b, "b\"", sizeof(buffer));
+            strlcat(b, encode_buffer, sizeof(buffer));
+            strlcat(b, "\"", sizeof(buffer));
+          }
+        }
+      }
+      tag_count++;
+    }
+  }
+  strlcat(name, "|ST[", sizeof(final_name));
+  strlcat(name, buffer, sizeof(final_name));
+  if(units) {
+    if(noit_metric_tagset_is_taggable_value(units, strlen(units))) {
+      if(strlen(buffer) > 0) strlcat(name, ",", sizeof(final_name));
+      strlcat(name, "units:", sizeof(final_name));
+      strlcat(name, units, sizeof(final_name));
+    } else {
+      int len = mtev_b64_encode((const unsigned char *)units, strlen(units),
+                                encode_buffer, sizeof(encode_buffer) - 1);
+      if(len > 0) {
+        if(strlen(buffer) > 0) strlcat(name, ",", sizeof(final_name));
+        strlcat(name, "units:", sizeof(final_name));
+        encode_buffer[len] = '\0';
+        strlcat(name, encode_buffer, sizeof(final_name));
+      }
+    }
+  }
+  strlcat(name, "]", sizeof(final_name));
+
+  /* we don't have to canonicalize here as reconnoiter will do that for us */
+  return strdup(final_name);
+}

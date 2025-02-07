@@ -32,11 +32,16 @@
 #define NOIT_PROMETHEUS_TRANSLATION_H
 
 #include <stdbool.h>
+#include "prometheus.pb-c.h"
 
 typedef struct {
   const char *units;
   bool is_histogram;
   double hist_boundary;
 } prometheus_coercion_t;
+
+char *
+noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const char *units, bool coerce_hist);
+
 
 #endif
