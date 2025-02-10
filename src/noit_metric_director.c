@@ -1186,6 +1186,19 @@ handle_prometheus_message(const void *data, size_t data_len) {
                                                                         true, true, NULL);
     char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
                                                                 coercion.is_histogram);
+    for (size_t j = 0; j < ts->n_samples; j++) {
+      // TODO: Use the timestamp data
+      /*Prometheus__Sample *sample = ts->samples[j];
+      struct timeval tv;
+      tv.tv_sec = (time_t)(sample->timestamp / 1000L);
+      tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);*/
+
+      if(coercion.is_histogram) {
+        // TODO: Handle histograms
+      } else {
+        // TODO: Handle numeric
+      }
+    }
     // TODO: More handling
     free(metric_name);
   }
