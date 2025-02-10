@@ -46,11 +46,11 @@ typedef interest_cnt_t caql_cnt_t; /*legacy*/
 
 /**
  * Funnel metrics to certain threads for processing.
- *
- * The director will de-duplicate the incoming messages on a 10 second window based on an md5 of the
- * incoming message contents.  If you don't want messages de-deplicated, switch it off using the
- * noit_metric_director_dedupe(mtev_false) call.
- *
+ * 
+ * The director will de-duplicate the incoming messages on a 10 second window based on an md5 of the incoming
+ * message contents.  If you don't want messages de-deplicated, switch it off using the noit_metric_director_dedupe(mtev_false)
+ * call.
+ * 
  */
 void noit_metric_director_init();
 
@@ -60,36 +60,20 @@ void noit_metric_director_init();
 int noit_metric_director_my_lane();
 
 /**
- * see init(), will dedupe by default.  Pass mtev_false to switch it off
+ * see init(), will dedupe by default.  Pass mtev_false to switch it off 
  */
 void noit_metric_director_dedupe(mtev_boolean dedupe);
 
 /* Tells noit to funnel all observed lines matching this id-metric
  * back to this thread */
-interest_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt)
-  __attribute__((deprecated));
-interest_cnt_t noit_metric_director_adjust_metric_interest_on_thread(int thread_id,
-                                                                     uuid_t id,
-                                                                     const char *metric,
-                                                                     short cnt);
-interest_cnt_t
-  noit_metric_director_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
+interest_cnt_t noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) __attribute__((deprecated));
+interest_cnt_t noit_metric_director_adjust_metric_interest_on_thread(int thread_id, uuid_t id, const char *metric, short cnt);
+interest_cnt_t noit_metric_director_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
 
-uint32_t noit_metric_director_register_search_on_thread(int thread_id,
-                                                        int64_t account_id,
-                                                        uuid_t check_uuid,
-                                                        const char *metric_name,
-                                                        noit_metric_tag_search_ast_t *ast);
-uint32_t noit_metric_director_register_search(int64_t account_id,
-                                              uuid_t check_uuid,
-                                              const char *metric_name,
-                                              noit_metric_tag_search_ast_t *ast);
-mtev_boolean noit_metric_director_deregister_search_on_thread(
-  int thread_id, int64_t account_id, uuid_t check_uuid, const char *metric_name, uint32_t ast_id);
-mtev_boolean noit_metric_director_deregister_search(int64_t account_id,
-                                                    uuid_t check_uuid,
-                                                    const char *metric_name,
-                                                    uint32_t ast_id);
+uint32_t noit_metric_director_register_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, const char *metric_name, noit_metric_tag_search_ast_t *ast);
+uint32_t noit_metric_director_register_search(int64_t account_id, uuid_t check_uuid, const char *metric_name, noit_metric_tag_search_ast_t *ast);
+mtev_boolean noit_metric_director_deregister_search_on_thread(int thread_id, int64_t account_id, uuid_t check_uuid, const char *metric_name, uint32_t ast_id);
+mtev_boolean noit_metric_director_deregister_search(int64_t account_id, uuid_t check_uuid, const char *metric_name, uint32_t ast_id);
 /* Tells noit that this thread is interested in recieving "check" information.
  * This includes C records and S records.
  */
@@ -114,25 +98,19 @@ int64_t noit_metric_director_get_messages_distributed();
 void noit_metric_director_drop_backlogged(uint32_t limit);
 void noit_metric_director_drop_before(double t);
 
-MTEV_RUNTIME_AVAIL(metric_director_set_check_generation, metric_director_set_check_generation_dyn)
+MTEV_RUNTIME_AVAIL(metric_director_set_check_generation,
+                   metric_director_set_check_generation_dyn)
 MTEV_RUNTIME_RESOLVE(metric_director_set_check_generation,
                      metric_director_set_check_generation_dyn,
                      void,
                      (uuid_t in, uint64_t gen),
                      (in, gen))
 
-MTEV_HOOK_PROTO(metric_director_want,
-                (noit_metric_message_t *, int *, int),
-                void *,
-                closure,
-                (void *closure, noit_metric_message_t *m, int *wants, int want_len));
+MTEV_HOOK_PROTO(metric_director_want, (noit_metric_message_t *, int *, int),
+                void *, closure, (void *closure, noit_metric_message_t *m, int *wants, int want_len));
 
-MTEV_HOOK_PROTO(
-  metric_director_revise,
-  (noit_metric_message_t *, interest_cnt_t *, int),
-  void *,
-  closure,
-  (void *closure, noit_metric_message_t *m, interest_cnt_t *interests, int interests_len));
+MTEV_HOOK_PROTO(metric_director_revise, (noit_metric_message_t *, interest_cnt_t *, int),
+                void *, closure, (void *closure, noit_metric_message_t *m, interest_cnt_t *interests, int interests_len));
 
 #ifdef __cplusplus
 }
