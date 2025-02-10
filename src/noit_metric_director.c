@@ -148,6 +148,19 @@ typedef struct {
   uint32_t refcnt;
 } dmflush_t;
 
+static void *__c_allocator_alloc(void *d, size_t size) {
+  return malloc(size);
+}
+static void __c_allocator_free(void *d, void *p) {
+  free(p);
+}
+static ProtobufCAllocator __c_allocator = {
+  .alloc = __c_allocator_alloc,
+  .free = __c_allocator_free,
+  .allocator_data = NULL
+};
+#define protobuf_c_system_allocator __c_allocator
+
 #define DMFLUSH_FLAG(a) ((dmflush_t *)((uintptr_t)(a) | FLUSHFLAG))
 #define DMFLUSH_UNFLAG(a) ((dmflush_t *)((uintptr_t)(a) & ~(uintptr_t)FLUSHFLAG))
 
@@ -1157,7 +1170,25 @@ handle_prometheus_message(const void *data, size_t data_len) {
     return;
   }
   mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
-  // TODO: Process here
+  Prometheus__WriteRequest *write = prometheus__write_request__unpack(&protobuf_c_system_allocator,
+                                                                      mtev_dyn_buffer_used(&uncompressed),
+                                                                      mtev_dyn_buffer_data(&uncompressed));
+  if(!write) {
+    mtev_dyn_buffer_destroy(&uncompressed);
+    mtevL(mtev_error, "Prometheus__WriteRequest decode: protobuf invalid\n");
+    return;
+  }
+
+  for (size_t i = 0; i < write->n_timeseries; i++) {
+    Prometheus__TimeSeries *ts = write->timeseries[i];
+    /* each timeseries has a list of labels (Tags) and a list of samples */
+    prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
+                                                                        true, true, NULL);
+    char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
+                                                            coercion.is_histogram);
+    // TODO: More handling
+    free(metric_name);
+  }
   mtev_dyn_buffer_destroy(&uncompressed);
 }
 
