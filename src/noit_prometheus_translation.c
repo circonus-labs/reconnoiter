@@ -33,44 +33,38 @@
 #include <mtev_defines.h>
 #include <mtev_memory.h>
 
+#include <ctype.h>
+#include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
-#include <math.h>
-#include <ctype.h>
 
-#include <mtev_rand.h>
-#include <mtev_rest.h>
-#include <mtev_hash.h>
-#include <mtev_json.h>
-#include <mtev_uuid.h>
 #include <mtev_b64.h>
 #include <mtev_dyn_buffer.h>
+#include <mtev_hash.h>
+#include <mtev_json.h>
+#include <mtev_rand.h>
+#include <mtev_rest.h>
+#include <mtev_uuid.h>
 
 #include <circllhist.h>
 
-#include "noit_metric.h"
-#include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_metric.h"
+#include "noit_module.h"
 #include "noit_mtev_bridge.h"
 
 #include <snappy/snappy.h>
 
-static const char *_allowed_units[] = {
-  "seconds",
-  "requests",
-  "responses",
-  "transactions",
-  "packetes",
-  "bytes",
-  "octets",
-  NULL
-};
+static const char *_allowed_units[] = {"seconds",  "requests", "responses", "transactions",
+                                       "packetes", "bytes",    "octets",    NULL};
 
-char *
-noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const char *units, bool coerce_hist)
+char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
+                                              size_t label_count,
+                                              const char *units,
+                                              bool coerce_hist)
 {
   char final_name[MAX_METRIC_TAGGED_NAME] = {0};
   char *name = final_name;
@@ -82,19 +76,23 @@ noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label
     Prometheus__Label *l = labels[i];
     if (strcmp("__name__", l->name) == 0) {
       strncpy(name, l->value, sizeof(final_name) - 1);
-    } else {
+    }
+    else {
       /* if we're coercing histograms, remove the "le" label */
-      if(coerce_hist && !strcmp("le", l->name)) continue;
+      if (coerce_hist && !strcmp("le", l->name))
+        continue;
       if (tag_count > 0) {
         strlcat(b, ",", sizeof(buffer));
       }
       bool wrote_cat = false;
       size_t tl = strlen(l->name);
-      if(noit_metric_tagset_is_taggable_key(l->name, tl)) {
+      if (noit_metric_tagset_is_taggable_key(l->name, tl)) {
         strlcat(b, l->name, sizeof(buffer));
         wrote_cat = true;
-      } else {
-        int len = mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer) - 1);
+      }
+      else {
+        int len = mtev_b64_encode((const unsigned char *) l->name, tl, encode_buffer,
+                                  sizeof(encode_buffer) - 1);
         if (len > 0) {
           encode_buffer[len] = '\0';
 
@@ -104,13 +102,15 @@ noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label
           wrote_cat = true;
         }
       }
-      if(wrote_cat) {
+      if (wrote_cat) {
         strlcat(b, ":", sizeof(buffer));
         tl = strlen(l->value);
-        if(noit_metric_tagset_is_taggable_value(l->value, tl)) {
+        if (noit_metric_tagset_is_taggable_value(l->value, tl)) {
           strlcat(b, l->value, sizeof(buffer));
-        } else {
-          int len = mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer) - 1);
+        }
+        else {
+          int len = mtev_b64_encode((const unsigned char *) l->value, tl, encode_buffer,
+                                    sizeof(encode_buffer) - 1);
           if (len > 0) {
             encode_buffer[len] = '\0';
             strlcat(b, "b\"", sizeof(buffer));
@@ -124,16 +124,19 @@ noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label
   }
   strlcat(name, "|ST[", sizeof(final_name));
   strlcat(name, buffer, sizeof(final_name));
-  if(units) {
-    if(noit_metric_tagset_is_taggable_value(units, strlen(units))) {
-      if(strlen(buffer) > 0) strlcat(name, ",", sizeof(final_name));
+  if (units) {
+    if (noit_metric_tagset_is_taggable_value(units, strlen(units))) {
+      if (strlen(buffer) > 0)
+        strlcat(name, ",", sizeof(final_name));
       strlcat(name, "units:", sizeof(final_name));
       strlcat(name, units, sizeof(final_name));
-    } else {
-      int len = mtev_b64_encode((const unsigned char *)units, strlen(units),
-                                encode_buffer, sizeof(encode_buffer) - 1);
-      if(len > 0) {
-        if(strlen(buffer) > 0) strlcat(name, ",", sizeof(final_name));
+    }
+    else {
+      int len = mtev_b64_encode((const unsigned char *) units, strlen(units), encode_buffer,
+                                sizeof(encode_buffer) - 1);
+      if (len > 0) {
+        if (strlen(buffer) > 0)
+          strlcat(name, ",", sizeof(final_name));
         strlcat(name, "units:", sizeof(final_name));
         encode_buffer[len] = '\0';
         strlcat(name, encode_buffer, sizeof(final_name));
@@ -146,14 +149,17 @@ noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label
   return strdup(final_name);
 }
 
-bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out, size_t *uncompressed_size_out, const void *data_in, size_t data_in_len)
+bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
+                                       size_t *uncompressed_size_out,
+                                       const void *data_in,
+                                       size_t data_in_len)
 {
   if (!snappy_uncompressed_length(data_in, data_in_len, uncompressed_size_out)) {
     return false;
   }
   mtev_dyn_buffer_ensure(uncompressed_data_out, *uncompressed_size_out);
-  int x = snappy_uncompress(data_in, data_in_len, 
-                            (char *)mtev_dyn_buffer_write_pointer(uncompressed_data_out));
+  int x = snappy_uncompress(data_in, data_in_len,
+                            (char *) mtev_dyn_buffer_write_pointer(uncompressed_data_out));
   if (x) {
     mtev_dyn_buffer_destroy(uncompressed_data_out);
     return false;
@@ -161,46 +167,52 @@ bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
   return true;
 }
 
-static bool is_standard_suffix(const char *suffix) {
+static bool is_standard_suffix(const char *suffix)
+{
   return !strcmp(suffix, "count") || !strcmp(suffix, "sum") || !strcmp(suffix, "bucket") ||
-         !strcmp(suffix, "total");
+    !strcmp(suffix, "total");
 }
-static const char *units_suffix(const char *in, const char **allowed_units_in) {
+static const char *units_suffix(const char *in, const char **allowed_units_in)
+{
   const char **allowed_units = allowed_units_in ? allowed_units_in : _allowed_units;
-  for(int i=0; allowed_units[i]; i++) {
+  for (int i = 0; allowed_units[i]; i++) {
     mtevL(mtev_debug, "ALLOWED: %s\n", allowed_units[i]);
-    if(!strcmp(allowed_units[i], in)) {
+    if (!strcmp(allowed_units[i], in)) {
       return allowed_units[i];
     }
   }
   return NULL;
 }
 
-static const char *
-prom_name_munge_units(char *in, const char **allowed_units) {
+static const char *prom_name_munge_units(char *in, const char **allowed_units)
+{
   const char *units = NULL;
   char *hist_suff = NULL;
   char *ls = strrchr(in, '_');
-  if(ls && is_standard_suffix(ls+1)) {
+  if (ls && is_standard_suffix(ls + 1)) {
     hist_suff = ls + 1;
     *ls = '\0';
     ls = strrchr(in, '_');
   }
-  if(ls && NULL != (units = units_suffix(ls+1, allowed_units))) {
+  if (ls && NULL != (units = units_suffix(ls + 1, allowed_units))) {
     *ls = '\0';
   }
-  if(hist_suff) {
+  if (hist_suff) {
     *(--hist_suff) = '_';
-    if(ls) {
+    if (ls) {
       int len = strlen(hist_suff);
-      memmove(ls, hist_suff, len+1);
+      memmove(ls, hist_suff, len + 1);
     }
   }
   return units;
 }
 
-prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **labels, size_t label_count,
-                   bool do_units, bool do_hist, const char **allowed_units) {
+prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **labels,
+                                                         size_t label_count,
+                                                         bool do_units,
+                                                         bool do_hist,
+                                                         const char **allowed_units)
+{
   prometheus_coercion_t rv = {};
   char *name = NULL;
   const char *units = NULL;
@@ -210,29 +222,29 @@ prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **lab
     if (strcmp("__name__", l->name) == 0) {
       name = l->value;
     }
-    else if(strcmp("units", l->name) == 0) {
+    else if (strcmp("units", l->name) == 0) {
       units = l->value;
     }
-    else if(strcmp("le", l->name) == 0) {
+    else if (strcmp("le", l->name) == 0) {
       le = l->value;
     }
   }
-  if(!name) {
+  if (!name) {
     return rv;
   }
-  if(do_units) {
-    if(units) {
+  if (do_units) {
+    if (units) {
       units = NULL;
     }
     else {
-      if(name) {
+      if (name) {
         rv.units = prom_name_munge_units(name, allowed_units);
       }
     }
   }
-  if(do_hist && le) {
+  if (do_hist && le) {
     char *bucket = strrchr(name, '_');
-    if(bucket && !strcmp(bucket, "_bucket")) {
+    if (bucket && !strcmp(bucket, "_bucket")) {
       rv.is_histogram = true;
       rv.hist_boundary = strtod(le, NULL);
       *bucket = '\0';
