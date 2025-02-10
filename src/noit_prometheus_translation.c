@@ -168,7 +168,7 @@ static bool is_standard_suffix(const char *suffix) {
 static const char *units_suffix(const char *in, const char **allowed_units_in) {
   const char **allowed_units = allowed_units_in ? allowed_units_in : _allowed_units;
   for(int i=0; allowed_units[i]; i++) {
-    mtevL(mtev_error, "ALLOWED: %s\n", allowed_units[i]);
+    mtevL(mtev_debug, "ALLOWED: %s\n", allowed_units[i]);
     if(!strcmp(allowed_units[i], in)) {
       return allowed_units[i];
     }

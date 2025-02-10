@@ -1185,10 +1185,11 @@ handle_prometheus_message(const void *data, size_t data_len) {
     prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
                                                                         true, true, NULL);
     char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
-                                                            coercion.is_histogram);
+                                                                coercion.is_histogram);
     // TODO: More handling
     free(metric_name);
   }
+  prometheus__write_request__free_unpacked(write, &protobuf_c_system_allocator);
   mtev_dyn_buffer_destroy(&uncompressed);
 }
 
