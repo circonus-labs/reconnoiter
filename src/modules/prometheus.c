@@ -250,80 +250,6 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
   return mtev_false;
 }
 
-static bool is_standard_suffix(const char *suffix) {
-  return !strcmp(suffix, "count") || !strcmp(suffix, "sum") || !strcmp(suffix, "bucket") ||
-         !strcmp(suffix, "total");
-}
-static const char *units_suffix(prometheus_upload_t *rxc, const char *in) {
-  const char **allowed_units = (rxc && rxc->allowed_units) ? rxc->allowed_units : _allowed_units;
-  for(int i=0; allowed_units[i]; i++) {
-    mtevL(mtev_error, "ALLOWED: %s\n", allowed_units[i]);
-    if(!strcmp(allowed_units[i], in)) return allowed_units[i];
-  }
-  return NULL;
-}
-static const char *
-prom_name_munge_units(prometheus_upload_t *rxc, char *in) {
-  const char *units = NULL;
-  char *hist_suff = NULL;
-  char *ls = strrchr(in, '_');
-  if(ls && is_standard_suffix(ls+1)) {
-    hist_suff = ls + 1;
-    *ls = '\0';
-    ls = strrchr(in, '_');
-  }
-  if(ls && NULL != (units = units_suffix(rxc, ls+1))) {
-    *ls = '\0';
-  }
-  if(hist_suff) {
-    *(--hist_suff) = '_';
-    if(ls) {
-      int len = strlen(hist_suff);
-      memmove(ls, hist_suff, len+1);
-    }
-  }
-  return units;
-}
-
-prometheus_coercion_t
-metric_name_coerce(prometheus_upload_t *rxc, Prometheus__Label **labels, size_t label_count,
-                   bool do_units, bool do_hist) {
-  prometheus_coercion_t rv = {};
-  char *name = NULL;
-  const char *units = NULL;
-  const char *le = NULL;
-  for (size_t i = 0; i < label_count && (!name || !units || !le); i++) {
-    Prometheus__Label *l = labels[i];
-    if (strcmp("__name__", l->name) == 0) {
-      name = l->value;
-    }
-    else if(strcmp("units", l->name) == 0) {
-      units = l->value;
-    }
-    else if(strcmp("le", l->name) == 0) {
-      le = l->value;
-    }
-  }
-  if(!name) return rv;
-  if(do_units) {
-    if(units) units = NULL;
-    else {
-      if(name) {
-        rv.units = prom_name_munge_units(rxc, name);
-      }
-    }
-  }
-  if(do_hist && le) {
-    char *bucket = strrchr(name, '_');
-    if(bucket && !strcmp(bucket, "_bucket")) {
-      rv.is_histogram = true;
-      rv.hist_boundary = strtod(le, NULL);
-      *bucket = '\0';
-    }
-  }
-  return rv;
-}
-
 static void
 metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
   mtev_memory_begin();
@@ -610,8 +536,8 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
     /* each timeseries has a list of labels (Tags) and a list of samples */
     prometheus_coercion_t coercion = {};
     if(rxc->extract_units || rxc->coerce_histograms) {
-      coercion = metric_name_coerce(rxc, ts->labels, ts->n_labels, rxc->extract_units,
-                                    rxc->coerce_histograms);
+      coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels, rxc->extract_units,
+                                    rxc->coerce_histograms, rxc->allowed_units);
     }
     char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
                                                             coercion.is_histogram && rxc->coerce_histograms);

@@ -58,6 +58,16 @@
 
 #include <snappy/snappy.h>
 
+static const char *_allowed_units[] = {
+  "seconds",
+  "requests",
+  "responses",
+  "transactions",
+  "packetes",
+  "bytes",
+  "octets",
+  NULL
+};
 
 char *
 noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const char *units, bool coerce_hist)
@@ -149,4 +159,84 @@ bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
     return false;
   }
   return true;
+}
+
+static bool is_standard_suffix(const char *suffix) {
+  return !strcmp(suffix, "count") || !strcmp(suffix, "sum") || !strcmp(suffix, "bucket") ||
+         !strcmp(suffix, "total");
+}
+static const char *units_suffix(const char *in, const char **allowed_units_in) {
+  const char **allowed_units = allowed_units_in ? allowed_units_in : _allowed_units;
+  for(int i=0; allowed_units[i]; i++) {
+    mtevL(mtev_error, "ALLOWED: %s\n", allowed_units[i]);
+    if(!strcmp(allowed_units[i], in)) {
+      return allowed_units[i];
+    }
+  }
+  return NULL;
+}
+
+static const char *
+prom_name_munge_units(char *in, const char **allowed_units) {
+  const char *units = NULL;
+  char *hist_suff = NULL;
+  char *ls = strrchr(in, '_');
+  if(ls && is_standard_suffix(ls+1)) {
+    hist_suff = ls + 1;
+    *ls = '\0';
+    ls = strrchr(in, '_');
+  }
+  if(ls && NULL != (units = units_suffix(ls+1, allowed_units))) {
+    *ls = '\0';
+  }
+  if(hist_suff) {
+    *(--hist_suff) = '_';
+    if(ls) {
+      int len = strlen(hist_suff);
+      memmove(ls, hist_suff, len+1);
+    }
+  }
+  return units;
+}
+
+prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **labels, size_t label_count,
+                   bool do_units, bool do_hist, const char **allowed_units) {
+  prometheus_coercion_t rv = {};
+  char *name = NULL;
+  const char *units = NULL;
+  const char *le = NULL;
+  for (size_t i = 0; i < label_count && (!name || !units || !le); i++) {
+    Prometheus__Label *l = labels[i];
+    if (strcmp("__name__", l->name) == 0) {
+      name = l->value;
+    }
+    else if(strcmp("units", l->name) == 0) {
+      units = l->value;
+    }
+    else if(strcmp("le", l->name) == 0) {
+      le = l->value;
+    }
+  }
+  if(!name) {
+    return rv;
+  }
+  if(do_units) {
+    if(units) {
+      units = NULL;
+    }
+    else {
+      if(name) {
+        rv.units = prom_name_munge_units(name, allowed_units);
+      }
+    }
+  }
+  if(do_hist && le) {
+    char *bucket = strrchr(name, '_');
+    if(bucket && !strcmp(bucket, "_bucket")) {
+      rv.is_histogram = true;
+      rv.hist_boundary = strtod(le, NULL);
+      *bucket = '\0';
+    }
+  }
+  return rv;
 }

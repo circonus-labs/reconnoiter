@@ -46,5 +46,9 @@ noit_prometheus_metric_name_from_labels(Prometheus__Label **labels, size_t label
 
 bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out, size_t *uncompressed_size_out, const void *data_in, size_t data_in_len);
 
+prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **labels, size_t label_count,
+                   bool do_units, bool do_hist, const char **allowed_units);
+
+
 
 #endif
