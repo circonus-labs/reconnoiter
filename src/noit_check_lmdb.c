@@ -137,14 +137,13 @@ noit_check_lmdb_populate_check_xml_from_lmdb(xmlNodePtr root, uuid_t checkid, bo
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
   MDB_val mdb_key, mdb_data;
-  char *key = NULL;
-  size_t key_size;
   bool locked = false;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
 
-  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
+  size_t key_size = 0;
+  char *key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -887,8 +886,8 @@ noit_check_lmdb_bump_seq_and_mark_deleted(uuid_t checkid) {
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
   char *key = NULL;
+  size_t key_size = 0;
   char buff[255];
-  size_t key_size;
   int new_seq = -1;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance != NULL);
@@ -1011,12 +1010,11 @@ noit_check_lmdb_remove_check_from_db(uuid_t checkid, mtev_boolean force) {
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
-  char *key = NULL;
-  size_t key_size;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
   mtevAssert(instance != NULL);
 
-  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
+  size_t key_size = 0;
+  char *key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -1096,6 +1094,7 @@ noit_check_lmdb_remove_check_from_db(uuid_t checkid, mtev_boolean force) {
 
 cleanup:
   pthread_rwlock_unlock(&instance->lock);
+  free(key);
   return rc;
 }
 
@@ -1279,8 +1278,6 @@ noit_check_lmdb_poller_process_all_checks() {
 static void
 noit_check_lmdb_poller_process_check(uuid_t checkid) {
   int rc;
-  char *key = NULL;
-  size_t key_size;
   MDB_val mdb_key, mdb_data;
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
@@ -1288,7 +1285,8 @@ noit_check_lmdb_poller_process_check(uuid_t checkid) {
 
   mtevAssert(instance);
 
-  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
+  size_t key_size = 0;
+  char *key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -1314,6 +1312,7 @@ noit_check_lmdb_poller_process_check(uuid_t checkid) {
   mdb_cursor_close(cursor);
   mdb_txn_abort(txn);
   pthread_rwlock_unlock(&instance->lock);
+  free(key);
 }
 void
 noit_check_lmdb_poller_process_checks(uuid_t *uuids, int uuid_cnt) {
@@ -1378,8 +1377,6 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
   MDB_val mdb_key, mdb_data;
-  char *key = NULL;
-  size_t key_size;
   mtev_hash_table conf_table;
 
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
@@ -1407,7 +1404,8 @@ noit_check_lmdb_convert_one_xml_check_to_lmdb(mtev_conf_section_t section, char 
   }
   MYATTR(int64, seq, &config_seq);
 
-  key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", &key_size);
+  size_t key_size = 0;
+  char *key = noit_lmdb_make_check_key(checkid, NOIT_LMDB_CHECK_ATTRIBUTE_TYPE, NULL, "seq", &key_size);
   mtevAssert(key);
 
   /* Check to see the sequence is larger -- if it is not, we don't care. */
@@ -1833,13 +1831,12 @@ noit_check_lmdb_already_in_db(uuid_t checkid) {
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
   MDB_val mdb_key, mdb_data;
-  char *key = NULL;
-  size_t key_size;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
 
-  key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
+  size_t key_size = 0;
+  char *key = noit_lmdb_make_check_key_for_iterating(checkid, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
@@ -1872,13 +1869,12 @@ noit_check_lmdb_get_specific_field(uuid_t checkid, noit_lmdb_check_type_e search
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
   MDB_val mdb_key, mdb_data;
-  char *key = NULL;
-  size_t key_size;
   noit_lmdb_instance_t *instance = noit_check_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
 
-  key = noit_lmdb_make_check_key(checkid, search_type, search_namespace, search_key, &key_size);
+  size_t key_size = 0;
+  char *key = noit_lmdb_make_check_key(checkid, search_type, search_namespace, search_key, &key_size);
   mtevAssert(key);
 
   mdb_key.mv_data = key;
