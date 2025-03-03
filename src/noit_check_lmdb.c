@@ -1773,17 +1773,14 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
 
 int
 noit_check_lmdb_process_repl(xmlDocPtr doc) {
-  int i = 0, j = 0, namespace_cnt = 0;
-  xmlNodePtr next = NULL;
+  int ret = 0, namespace_cnt = 0;
   mtev_conf_section_t section;
   char **namespaces = noit_check_get_namespaces(&namespace_cnt);
 
   xmlNodePtr root = xmlDocGetRootElement(doc);
   mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
   mtevAssert(!mtev_conf_section_is_empty(checks));
-  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = next) {
-    next = xmlNextElementSibling(child);
-
+  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = xmlNextElementSibling(child)) {
     uuid_t checkid;
     int64_t seq;
     char uuid_str[UUID_STR_LEN+1], seq_str[32];
@@ -1801,7 +1798,7 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
     /* too old, don't bother */
     if(check && check->config_seq >= seq) {
       noit_check_deref(check);
-      i++;
+      ret++;
       continue;
     }
     noit_check_deref(check);
@@ -1814,14 +1811,14 @@ noit_check_lmdb_process_repl(xmlDocPtr doc) {
       noit_check_lmdb_poller_process_checks(&checkid, 1);
     }
 
-    i++;
+    ret++;
   }
   mtev_conf_release_section_write(checks);
-  for(j=0; j<namespace_cnt; j++) {
+  for(int j=0; j<namespace_cnt; j++) {
     free(namespaces[j]);
   }
   free(namespaces);
-  return i;
+  return ret;
 }
 
 mtev_boolean
