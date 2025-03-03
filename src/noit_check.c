@@ -3548,16 +3548,18 @@ noit_check_build_cluster_changelog(void *vpeer) {
 int
 noit_check_process_repl(xmlDocPtr doc) {
   int i = 0;
-  xmlNodePtr root, child, next = NULL, node;
-  if(!initialized) return -1;
+  if(!initialized) {
+    return -1;
+  }
   if (noit_check_get_lmdb_instance()) {
     return noit_check_lmdb_process_repl(doc);
   }
-  root = xmlDocGetRootElement(doc);
+  xmlNodePtr next = NULL, node = NULL;
+  xmlNodePtr root = xmlDocGetRootElement(doc);
   mtev_conf_section_t section;
   mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
   mtevAssert(!mtev_conf_section_is_empty(checks));
-  for(child = xmlFirstElementChild(root); child; child = next) {
+  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
 
     uuid_t checkid;
