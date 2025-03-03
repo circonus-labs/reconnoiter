@@ -1774,14 +1774,14 @@ noit_check_lmdb_migrate_xml_checks_to_lmdb() {
 int
 noit_check_lmdb_process_repl(xmlDocPtr doc) {
   int i = 0, j = 0, namespace_cnt = 0;
-  xmlNodePtr root = NULL, child = NULL, next = NULL;
+  xmlNodePtr next = NULL;
   mtev_conf_section_t section;
   char **namespaces = noit_check_get_namespaces(&namespace_cnt);
 
-  root = xmlDocGetRootElement(doc);
+  xmlNodePtr root = xmlDocGetRootElement(doc);
   mtev_conf_section_t checks = mtev_conf_get_section_write(MTEV_CONF_ROOT, "/noit/checks");
   mtevAssert(!mtev_conf_section_is_empty(checks));
-  for(child = xmlFirstElementChild(root); child; child = next) {
+  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
 
     uuid_t checkid;

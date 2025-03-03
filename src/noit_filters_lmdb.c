@@ -1283,15 +1283,15 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
 int
 noit_filters_lmdb_process_repl(xmlDocPtr doc) {
   int i = 0;
-  xmlNodePtr root, child, next = NULL;
+  xmlNodePtr next = NULL;
 
   if(!noit_filter_initialized()) {
     mtevL(mtev_debug, "filterset replication pending initialization\n");
     return -1;
   }
 
-  root = xmlDocGetRootElement(doc);
-  for(child = xmlFirstElementChild(root); child; child = next) {
+  xmlNodePtr root = xmlDocGetRootElement(doc);
+  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
 
     char filterset_name[MAX_METRIC_TAGGED_NAME];
