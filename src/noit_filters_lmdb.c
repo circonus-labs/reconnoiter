@@ -1282,8 +1282,7 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
 
 int
 noit_filters_lmdb_process_repl(xmlDocPtr doc) {
-  int i = 0;
-  xmlNodePtr next = NULL;
+  int ret = 0;
 
   if(!noit_filter_initialized()) {
     mtevL(mtev_debug, "filterset replication pending initialization\n");
@@ -1291,9 +1290,7 @@ noit_filters_lmdb_process_repl(xmlDocPtr doc) {
   }
 
   xmlNodePtr root = xmlDocGetRootElement(doc);
-  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = next) {
-    next = xmlNextElementSibling(child);
-
+  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = xmlNextElementSibling(child)) {
     char filterset_name[MAX_METRIC_TAGGED_NAME];
     mtevAssert(mtev_conf_get_stringbuf(mtev_conf_section_from_xmlnodeptr(child), "@name",
                                        filterset_name, sizeof(filterset_name)));
@@ -1305,9 +1302,9 @@ noit_filters_lmdb_process_repl(xmlDocPtr doc) {
         free(error);
       }
     }
-    i++;
+    ret++;
   }
-  return i;
+  return ret;
 }
 
 int
