@@ -1282,21 +1282,33 @@ noit_filters_lmdb_migrate_xml_filtersets_to_lmdb() {
 
 int
 noit_filters_lmdb_process_repl(xmlDocPtr doc) {
-  int i = 0;
-  xmlNodePtr root, child, next = NULL;
+  int ret = 0;
 
   if(!noit_filter_initialized()) {
     mtevL(mtev_debug, "filterset replication pending initialization\n");
     return -1;
   }
 
-  root = xmlDocGetRootElement(doc);
-  for(child = xmlFirstElementChild(root); child; child = next) {
-    next = xmlNextElementSibling(child);
-
+  xmlNodePtr root = xmlDocGetRootElement(doc);
+  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = xmlNextElementSibling(child)) {
     char filterset_name[MAX_METRIC_TAGGED_NAME];
-    mtevAssert(mtev_conf_get_stringbuf(mtev_conf_section_from_xmlnodeptr(child), "@name",
+    mtev_conf_section_t section = mtev_conf_section_from_xmlnodeptr(child);
+    mtevAssert(mtev_conf_get_stringbuf(section, "@name",
                                        filterset_name, sizeof(filterset_name)));
+    /* We should always have a sequence number; if we do, we can check to see if
+       we need to process the new filter. If we don't, assume that whatever we're
+       getting is newer */
+    char seq_str[32];
+    if(mtev_conf_get_stringbuf(section, "@seq", seq_str, sizeof(seq_str))) {
+      int64_t incoming_seq = strtoll(seq_str, NULL, 10);
+      int64_t existing_seq = 0;
+      int exists = noit_filter_get_seq(filterset_name, &existing_seq);
+      if (exists && existing_seq >= incoming_seq) {
+        ret++;
+        continue;
+      }
+    }
+
     if(noit_filter_compile_add(mtev_conf_section_from_xmlnodeptr(child))) {
       char *error = NULL;
       int rv = noit_filters_lmdb_convert_one_xml_filterset_to_lmdb(mtev_conf_section_from_xmlnodeptr(child), &error);
@@ -1305,9 +1317,9 @@ noit_filters_lmdb_process_repl(xmlDocPtr doc) {
         free(error);
       }
     }
-    i++;
+    ret++;
   }
-  return i;
+  return ret;
 }
 
 int

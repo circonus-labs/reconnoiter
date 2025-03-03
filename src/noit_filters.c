@@ -573,7 +573,6 @@ noit_filters_from_conf() {
 int
 noit_filters_process_repl(xmlDocPtr doc) {
   int i = 0;
-  xmlNodePtr root, child, next = NULL;
 
   if (noit_filters_get_lmdb_instance()) {
     return noit_filters_lmdb_process_repl(doc);
@@ -583,10 +582,11 @@ noit_filters_process_repl(xmlDocPtr doc) {
     mtevL(nf_debug, "filterset replication pending initialization\n");
     return -1;
   }
-  root = xmlDocGetRootElement(doc);
+  xmlNodePtr next = NULL;
+  xmlNodePtr root = xmlDocGetRootElement(doc);
   mtev_conf_section_t filtersets = mtev_conf_get_section_write(MTEV_CONF_ROOT, filtersets_replication_path);
   mtevAssert(!mtev_conf_section_is_empty(filtersets));
-  for(child = xmlFirstElementChild(root); child; child = next) {
+  for(xmlNodePtr child = xmlFirstElementChild(root); child; child = next) {
     next = xmlNextElementSibling(child);
 
     char filterset_name[MAX_METRIC_TAGGED_NAME];
