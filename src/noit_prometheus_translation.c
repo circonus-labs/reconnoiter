@@ -274,11 +274,23 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   message->noit.name_len = 0;
   message->type = (coercion->is_histogram ? MESSAGE_TYPE_H : MESSAGE_TYPE_M);
   message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
-  /* data from prometheus is always a double */
-  message->value.type = METRIC_DOUBLE;
-  message->value.is_null = false;
-  message->value.value.v_double = sample->value;
   message->id.account_id = account_id;
   mtev_uuid_copy(message->id.id, check_uuid);
+  message->id.name = metric_name;
+  /* TODO: Should name_len_with_tags and name_len differ here? Does it matter? */
+  message->id.name_len_with_tags = strlen(metric_name);
+  message->id.name_len = message->id.name_len_with_tags;
+
+  if (message->type == MESSAGE_TYPE_M) {
+    /* data from prometheus is always a double */
+    message->value.type = METRIC_DOUBLE;
+    message->value.is_null = false;
+    message->value.value.v_double = sample->value;
+  }
+  else {
+    // TODO: Need to handle histograms
+    message->value.type = METRIC_HISTOGRAM;
+    message->value.is_null = true;
+  }
   return message;
 }
