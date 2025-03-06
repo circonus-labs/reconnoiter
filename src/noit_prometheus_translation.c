@@ -272,5 +272,7 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   message->original_message_len = 0;
   message->type = (coercion->is_histogram ? MESSAGE_TYPE_H : MESSAGE_TYPE_M);
   message->value.whence_ms = (uint64_t) sample->timestamp;
+  message->id.account_id = account_id;
+  mtev_uuid_copy(message->id.id, check_uuid);
   return message;
 }
