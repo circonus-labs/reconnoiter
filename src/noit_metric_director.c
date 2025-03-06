@@ -143,6 +143,9 @@
  * point to a dmflush_t
  */
 #define FLUSHFLAG 0x1
+
+#define PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY "account_id"
+#define PROMETHEUS_MESSAGE_CHECK_UUID_KEY "check_uuid"
 typedef struct {
   eventer_t e;
   uint32_t refcnt;
@@ -1159,7 +1162,10 @@ check_duplicate(const char *payload, const size_t payload_len) {
 }
 
 static void
-handle_prometheus_message(const void *data, size_t data_len) {
+handle_prometheus_message(const int64_t account_id,
+                          const uuid_t check_uuid,
+                          const void *data,
+                          size_t data_len) {
   mtev_dyn_buffer_t uncompressed;
   mtev_dyn_buffer_init(&uncompressed);
   size_t uncompressed_size = 0;
@@ -1188,7 +1194,7 @@ handle_prometheus_message(const void *data, size_t data_len) {
                                                                 coercion.is_histogram);
     for (size_t j = 0; j < ts->n_samples; j++) {
       noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
-        metric_name, ts->samples[j]);
+        account_id, check_uuid, metric_name, ts->samples[j]);
       noit_metric_director_message_ref(message);
     }
     // TODO: More handling
@@ -1214,7 +1220,38 @@ handle_kafka_message(void *closure, mtev_rd_kafka_message_t *msg) {
   }
   mtev_rd_kafka_message_ref(msg);
   if (!strcasecmp(msg->protocol, "prometheus")) {
-    handle_prometheus_message(msg->payload, msg->payload_len);
+    void *account_id_void_ptr = NULL;
+    void *check_uuid_void_ptr = NULL;
+    if (!mtev_hash_retrieve((mtev_hash_table *)msg->extra_configs, PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY,
+      strlen(PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY), &account_id_void_ptr)) {
+      mtevL(mtev_error, "%s: ERROR: account_id not included in kafka config and is required\n", __func__);
+      return MTEV_HOOK_CONTINUE;
+    }
+    if (!mtev_hash_retrieve((mtev_hash_table *)msg->extra_configs, PROMETHEUS_MESSAGE_CHECK_UUID_KEY,
+      strlen(PROMETHEUS_MESSAGE_CHECK_UUID_KEY), &check_uuid_void_ptr)) {
+      mtevL(mtev_error, "%s: ERROR: check_uuid not included in kafka config and is required\n", __func__);
+      return MTEV_HOOK_CONTINUE;
+    }
+    char *endptr = NULL;
+    int64_t account_id = strtoll((char *)account_id_void_ptr, &endptr, 10);
+    if (endptr && *endptr != '\0') {
+      mtevL(mtev_error, "%s: ERROR: account_id %s not a valid integer in kafka config\n", __func__,
+        (char *)account_id_void_ptr);
+        return MTEV_HOOK_CONTINUE;
+    }
+    if (account_id < 0) {
+      mtevL(mtev_error, "%s: ERROR account_id %s must be zero or greater in kafka config\n", __func__,
+        (char *)account_id_void_ptr);
+      return MTEV_HOOK_CONTINUE;
+    }
+
+    uuid_t check_uuid;
+    if(mtev_uuid_parse((char *)check_uuid_void_ptr, check_uuid)) {
+      mtevL(mtev_error, "%s: kafka check_uuid value %s is not a valid uuid\n", __func__,
+        (char *)check_uuid_void_ptr);
+      return MTEV_HOOK_CONTINUE;
+    }
+    handle_prometheus_message(account_id, check_uuid, msg->payload, msg->payload_len);
   }
   else {
     if(check_duplicate(msg->payload, msg->payload_len) == mtev_false) {
