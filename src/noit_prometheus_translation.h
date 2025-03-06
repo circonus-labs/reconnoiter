@@ -33,6 +33,7 @@
 
 #include <mtev_dyn_buffer.h>
 #include <stdbool.h>
+#include "noit_metric.h"
 #include "prometheus.pb-c.h"
 
 typedef struct {
@@ -56,5 +57,10 @@ prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **lab
                                                          bool do_units,
                                                          bool do_hist,
                                                          const char **allowed_units);
+
+noit_metric_message_t *
+noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
+                                                 const char *metric_name,
+                                                 const Prometheus__Sample *sample);
 
 #endif

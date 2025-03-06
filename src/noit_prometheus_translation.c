@@ -53,6 +53,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_metric.h"
+#include "noit_metric_director.h"
 #include "noit_module.h"
 #include "noit_mtev_bridge.h"
 
@@ -251,4 +252,23 @@ prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **lab
     }
   }
   return rv;
+}
+
+noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
+                                                                        const char *metric_name,
+                                                                        const Prometheus__Sample *sample) {
+  if (!coercion || !metric_name || !sample) {
+    return NULL;
+  }
+  if (sample->timestamp < 0) {
+    return NULL;
+  }
+  noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
+  noit_metric_director_message_ref(message);
+  message->original_allocated = mtev_false;
+  message->original_message = NULL;
+  message->original_message_len = 0;
+  message->type = (coercion->is_histogram ? MESSAGE_TYPE_H : MESSAGE_TYPE_M);
+  message->value.whence_ms = (uint64_t) sample->timestamp;
+  return message;
 }
