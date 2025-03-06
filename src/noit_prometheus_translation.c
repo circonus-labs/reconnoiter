@@ -270,8 +270,14 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   message->original_allocated = mtev_false;
   message->original_message = NULL;
   message->original_message_len = 0;
+  message->noit.name = NULL;
+  message->noit.name_len = 0;
   message->type = (coercion->is_histogram ? MESSAGE_TYPE_H : MESSAGE_TYPE_M);
-  message->value.whence_ms = (uint64_t) sample->timestamp;
+  message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
+  /* data from prometheus is always a double */
+  message->value.type = METRIC_DOUBLE;
+  message->value.is_null = false;
+  message->value.value.v_double = sample->value;
   message->id.account_id = account_id;
   mtev_uuid_copy(message->id.id, check_uuid);
   return message;
