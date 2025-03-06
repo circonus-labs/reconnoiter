@@ -1195,7 +1195,7 @@ handle_prometheus_message(const int64_t account_id,
     for (size_t j = 0; j < ts->n_samples; j++) {
       noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
         account_id, check_uuid, metric_name, ts->samples[j]);
-      noit_metric_director_message_ref(message);
+      noit_metric_director_message_deref(message);
     }
     // TODO: More handling
     free(metric_name);
