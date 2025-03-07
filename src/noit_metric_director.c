@@ -1215,6 +1215,23 @@ handle_prometheus_message(const int64_t account_id,
     free(metric_name);
   }
   if (hists) {
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    mtev_memory_begin();
+    while(mtev_hash_adv(hists, &iter)) {
+      prometheus_hist_in_progress_t *hip = iter.value.ptr;
+      noit_prometheus_sort_and_dedupe_histogram_in_progress(hip);
+      histogram_t *h = hist_create_approximation_from_adhoc(HIST_APPROX_HIGH, hip->bins, hip->nbins, 0);
+      ssize_t est = hist_serialize_b64_estimate(h);
+      if(est > 0) {
+        char *hist_encoded = (char *)malloc(est);
+        ssize_t hist_encoded_len = hist_serialize_b64(h, hist_encoded, est);
+        // TODO: Process histogram here
+        free(hist_encoded);
+      }
+      hist_free(h);
+    }
+    mtev_memory_end();
+
     mtev_hash_destroy(hists, NULL, noit_prometheus_hist_in_progress_free);
     free(hists);
   }
