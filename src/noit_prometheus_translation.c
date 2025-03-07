@@ -274,7 +274,7 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
      ref count hits zero. There's probably a way to do this more efficiently without the extra
      strdup */
   message->original_message = strdup(metric_name);
-  message->original_message_len = strlen(metric_name);
+  message->original_message_len = strlen(message->original_message);
   message->original_allocated = mtev_true;
   message->noit.name = NULL;
   message->noit.name_len = 0;
