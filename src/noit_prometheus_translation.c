@@ -265,6 +265,9 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   if (sample->timestamp < 0) {
     return NULL;
   }
+  if (coercion->is_histogram) {
+    return NULL;
+  }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
   /* Typically, "original message" is intended to hold the original noit metric record (IE:
@@ -278,7 +281,7 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   message->original_allocated = mtev_true;
   message->noit.name = NULL;
   message->noit.name_len = 0;
-  message->type = (coercion->is_histogram ? MESSAGE_TYPE_H : MESSAGE_TYPE_M);
+  message->type = MESSAGE_TYPE_M;
   message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
   message->id.account_id = account_id;
   mtev_uuid_copy(message->id.id, check_uuid);
@@ -286,17 +289,8 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   /* TODO: Should name_len_with_tags and name_len differ here? Does it matter? */
   message->id.name_len_with_tags = strlen(metric_name);
   message->id.name_len = message->id.name_len_with_tags;
-
-  if (message->type == MESSAGE_TYPE_M) {
-    /* data from prometheus is always a double */
-    message->value.type = METRIC_DOUBLE;
-    message->value.is_null = false;
-    message->value.value.v_double = sample->value;
-  }
-  else {
-    // TODO: Need to handle histograms
-    message->value.type = METRIC_HISTOGRAM;
-    message->value.is_null = true;
-  }
+  message->value.type = METRIC_DOUBLE;
+  message->value.is_null = false;
+  message->value.value.v_double = sample->value;
   return message;
 }

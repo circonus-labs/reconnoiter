@@ -1195,11 +1195,16 @@ handle_prometheus_message(const int64_t account_id,
     char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
                                                                 coercion.is_histogram);
     for (size_t j = 0; j < ts->n_samples; j++) {
-      noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
-        account_id, check_uuid, metric_name, ts->samples[j]);
-      if (message) {
-        distribute_message(message);
-        noit_metric_director_message_deref(message);
+      if (!coercion.is_histogram) {
+        noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
+          account_id, check_uuid, metric_name, ts->samples[j]);
+        if (message) {
+          distribute_message(message);
+          noit_metric_director_message_deref(message);
+        }
+      }
+      else {
+        /* TODO */
       }
     }
     free(metric_name);
