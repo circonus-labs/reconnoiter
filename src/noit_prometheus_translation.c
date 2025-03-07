@@ -260,6 +260,31 @@ prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **lab
   return rv;
 }
 
+static void noit_prometheus_fill_in_common_fields(noit_metric_message_t *message,
+                                                  const int64_t account_id,
+                                                  const uuid_t check_uuid,
+                                                  const char *metric_name)
+
+{
+  /* Typically, "original message" is intended to hold the original noit metric record (IE:
+     'M' record) and the metric name is stored as an offset into this; however, prometheus data
+     doesn't work that way, so instead, we put the metric name here and later assign the id.name
+     value to it. This ensures that the metric name is correctly freed up when the message
+     ref count hits zero. There's probably a way to do this more efficiently without the extra
+     strdup */
+     message->original_message = strdup(metric_name);
+     message->original_message_len = strlen(message->original_message);
+     message->original_allocated = mtev_true;
+     message->noit.name = NULL;
+     message->noit.name_len = 0;
+     message->id.account_id = account_id;
+     mtev_uuid_copy(message->id.id, check_uuid);
+     message->id.name = message->original_message;
+     /* TODO: Should name_len_with_tags and name_len differ here? Does it matter? */
+     message->id.name_len_with_tags = strlen(metric_name);
+     message->id.name_len = message->id.name_len_with_tags;
+}
+
 noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
                                                                         const int64_t account_id,
                                                                         const uuid_t check_uuid,
@@ -280,28 +305,35 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
-  /* Typically, "original message" is intended to hold the original noit metric record (IE:
-     'M' record) and the metric name is stored as an offset into this; however, prometheus data
-     doesn't work that way, so instead, we put the metric name here and later assign the id.name
-     value to it. This ensures that the metric name is correctly freed up when the message
-     ref count hits zero. There's probably a way to do this more efficiently without the extra
-     strdup */
-  message->original_message = strdup(metric_name);
-  message->original_message_len = strlen(message->original_message);
-  message->original_allocated = mtev_true;
-  message->noit.name = NULL;
-  message->noit.name_len = 0;
+  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name);
+
   message->type = MESSAGE_TYPE_M;
   message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
-  message->id.account_id = account_id;
-  mtev_uuid_copy(message->id.id, check_uuid);
-  message->id.name = message->original_message;
-  /* TODO: Should name_len_with_tags and name_len differ here? Does it matter? */
-  message->id.name_len_with_tags = strlen(metric_name);
-  message->id.name_len = message->id.name_len_with_tags;
   message->value.type = METRIC_DOUBLE;
   message->value.is_null = false;
   message->value.value.v_double = sample->value;
+  return message;
+}
+
+noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
+                                                                           const uuid_t check_uuid,
+                                                                           const char *metric_name,
+                                                                           const int64_t timestamp_ms,
+                                                                           const char *histogram_string)
+{
+  if (!metric_name || !histogram_string) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
+    return NULL;
+  }
+  noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
+  noit_metric_director_message_ref(message);
+  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name);
+
+  message->type = MESSAGE_TYPE_H;
+  message->value.whence_ms = timestamp_ms;
+  message->value.type = METRIC_HISTOGRAM;
+  message->value.is_null = false;
+  message->value.value.v_string = strdup(histogram_string);
   return message;
 }
 

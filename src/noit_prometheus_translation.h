@@ -76,6 +76,12 @@ noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion
                                                  const uuid_t check_uuid,
                                                  const char *metric_name,
                                                  const Prometheus__Sample *sample);
+noit_metric_message_t *
+noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
+                                                    const uuid_t check_uuid,
+                                                    const char *metric_name,
+                                                    const int64_t timestamp_ms,
+                                                    const char *histogram_string);
 
 void
 noit_prometheus_track_histogram(mtev_hash_table **hist_hash,

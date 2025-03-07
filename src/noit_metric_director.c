@@ -1225,7 +1225,15 @@ handle_prometheus_message(const int64_t account_id,
       if(est > 0) {
         char *hist_encoded = (char *)malloc(est);
         ssize_t hist_encoded_len = hist_serialize_b64(h, hist_encoded, est);
-        // TODO: Process histogram here
+        if (hist_encoded_len >= 0) {
+          int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
+          noit_metric_message_t *message = noit_prometheus_create_histogram_noit_metric_object(account_id,
+            check_uuid, hip->name, timestamp_ms, hist_encoded);
+          if (message) {
+            distribute_message(message);
+            noit_metric_director_message_deref(message);
+          }
+        }
         free(hist_encoded);
       }
       hist_free(h);
