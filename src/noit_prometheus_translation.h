@@ -83,5 +83,7 @@ noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
                                 double boundary,
                                 double val,
                                 struct timeval w);
+void
+noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progress_t *hip);
 
 #endif

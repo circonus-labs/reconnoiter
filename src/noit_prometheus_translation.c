@@ -344,3 +344,32 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
   tgt->bins[tgt->nbins].count = val;
   tgt->nbins++;
 }
+
+static int
+noit_prometheus_upper_sort(const void *av, const void *bv) {
+  const histogram_adhoc_bin_t *a = av, *b = bv;
+  if(a->upper < b->upper) return -1;
+  if(a->upper == b->upper) return 0;
+  return 1;
+}
+
+void
+noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progress_t *hip)
+{
+  /* sort */
+  qsort(hip->bins, hip->nbins, sizeof(*hip->bins), noit_prometheus_upper_sort);
+  /* dedup -- should never actually happen */
+  for(int s=0; s<hip->nbins-1; s++) {
+    if(hip->bins[s].upper == hip->bins[s+1].upper) {
+      memmove(&hip->bins[s], &hip->bins[s+1], sizeof(*hip->bins) * (hip->nbins - s - 1));
+      s--;
+      hip->nbins--;
+    }
+  }
+  hip->bins[0].lower = (hip->bins[0].upper <= 0) ? -10e128 : 0;
+  /* undo cummulative aspect and set lower bound */
+  for(int s=1; s<hip->nbins; s++) {
+    hip->bins[s].lower = hip->bins[s-1].upper;
+    hip->bins[s].count -= hip->bins[s-1].count;
+  }
+}
