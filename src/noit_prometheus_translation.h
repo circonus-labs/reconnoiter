@@ -32,6 +32,7 @@
 #define NOIT_PROMETHEUS_TRANSLATION_H
 
 #include <mtev_dyn_buffer.h>
+#include <mtev_hash.h>
 #include <stdbool.h>
 #include <circllhist.h>
 #include "noit_metric.h"
@@ -75,5 +76,12 @@ noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion
                                                  const uuid_t check_uuid,
                                                  const char *metric_name,
                                                  const Prometheus__Sample *sample);
+
+void
+noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
+                                const char *name,
+                                double boundary,
+                                double val,
+                                struct timeval w);
 
 #endif

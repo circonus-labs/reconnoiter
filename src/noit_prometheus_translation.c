@@ -304,3 +304,11 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   message->value.value.v_double = sample->value;
   return message;
 }
+
+void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
+                                     const char *name,
+                                     double boundary,
+                                     double val,
+                                     struct timeval w) {
+
+}
