@@ -260,12 +260,16 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
                                                                         const char *metric_name,
                                                                         const Prometheus__Sample *sample) {
   if (!coercion || !metric_name || !sample) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
     return NULL;
   }
   if (sample->timestamp < 0) {
+    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name);
     return NULL;
   }
   if (coercion->is_histogram) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected histogram argument (metric %s)\n", __func__,
+      metric_name);
     return NULL;
   }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
