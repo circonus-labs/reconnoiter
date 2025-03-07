@@ -1187,6 +1187,7 @@ handle_prometheus_message(const int64_t account_id,
     return;
   }
 
+  mtev_hash_table *hists = NULL;
   for (size_t i = 0; i < write->n_timeseries; i++) {
     Prometheus__TimeSeries *ts = write->timeseries[i];
     /* each timeseries has a list of labels (Tags) and a list of samples */
@@ -1208,6 +1209,10 @@ handle_prometheus_message(const int64_t account_id,
       }
     }
     free(metric_name);
+  }
+  if (hists) {
+    mtev_hash_destroy(hists, NULL, noit_prometheus_hist_in_progress_free);
+    free(hists);
   }
   prometheus__write_request__free_unpacked(write, &protobuf_c_system_allocator);
   mtev_dyn_buffer_destroy(&uncompressed);
