@@ -268,15 +268,21 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
   message->original_allocated = mtev_false;
-  message->original_message = NULL;
-  message->original_message_len = 0;
+  /* Typically, "original message" is intended to hold the original noit metric record (IE:
+     'M' record) and the metric name is stored as an offset into this; however, prometheus data
+     doesn't work that way, so instead, we put the metric name here and later assign the id.name
+     value to it. This ensures that the metric name is correctly freed up when the message
+     ref count hits zero. There's probably a way to do this more efficiently without the extra
+     strdup */
+  message->original_message = strdup(metric_name);
+  message->original_message_len = strlen(metric_name);
   message->noit.name = NULL;
   message->noit.name_len = 0;
   message->type = (coercion->is_histogram ? MESSAGE_TYPE_H : MESSAGE_TYPE_M);
   message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
   message->id.account_id = account_id;
   mtev_uuid_copy(message->id.id, check_uuid);
-  message->id.name = metric_name;
+  message->id.name = message->original_message;
   /* TODO: Should name_len_with_tags and name_len differ here? Does it matter? */
   message->id.name_len_with_tags = strlen(metric_name);
   message->id.name_len = message->id.name_len_with_tags;

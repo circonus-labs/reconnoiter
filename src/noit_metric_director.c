@@ -894,7 +894,9 @@ distribute_metric(noit_metric_message_t *message) {
     }
   }
   stats_set_hist_intscale(stats_msg_selection_latency, mtev_perftimer_elapsed(&start), -9, 1);
-  if(has_interests) distribute_message_with_interests(interests, message);
+  if(has_interests) {
+    distribute_message_with_interests(interests, message);
+  }
 }
 
 static void
@@ -1371,11 +1373,15 @@ noit_director_hooks_register(void *closure) {
   (void)closure;
   
   /* subscribe to metric messages submitted via fq */
-  if(mtev_fq_handle_message_hook_register_available())
+  if(mtev_fq_handle_message_hook_register_available()) {
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
+  }
 
-  if(mtev_kafka_handle_message_hook_register_available())
+  /* subscribe to metric messages submitted via kafka */
+  if(mtev_kafka_handle_message_hook_register_available()) {
     mtev_kafka_handle_message_hook_register("metric-director", handle_kafka_message, NULL);
+  }
+
 
   /* metrics can be injected into the metric director via the "metrics" log channel */
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
