@@ -310,5 +310,37 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
                                      double boundary,
                                      double val,
                                      struct timeval w) {
-
+  if (!hist_hash) {
+    mtevL(mtev_error, "%s: misuse - no hist_hash provided\n", __func__);
+    return;
+  }
+  prometheus_hist_in_progress_t dummy = { .whence = w };
+  int name_len = strlen(name);
+  if(name_len >= sizeof(dummy.name)) return;
+  if(!(*hist_hash)) {
+    *hist_hash = calloc(1, sizeof(*hist_hash));
+    mtev_hash_init(*hist_hash);
+  }
+  memcpy(dummy.name, name, name_len+1); /* include \0 */
+  if(isinf(boundary)) boundary = 10e128;
+  prometheus_hist_in_progress_t *tgt = NULL;
+  void *vptr = NULL;
+  if(mtev_hash_retrieve(*hist_hash, &dummy.whence, sizeof(dummy.whence) + name_len, &vptr)) {
+    tgt = (prometheus_hist_in_progress_t *)vptr;
+  } else {
+    tgt = malloc(sizeof(*tgt));
+    memcpy(tgt, &dummy, sizeof(*tgt));
+    tgt->nallocdbins = 16;
+    tgt->bins = calloc(tgt->nallocdbins, sizeof(*tgt->bins));
+    tgt->nbins = 0;
+    mtev_hash_store(*hist_hash, &tgt->whence, sizeof(tgt->whence) + name_len, tgt);
+  }
+  if(tgt->nbins == tgt->nallocdbins) {
+    tgt->nallocdbins *= 2;
+    tgt->bins = realloc(tgt->bins, tgt->nallocdbins * sizeof(*tgt->bins));
+  }
+  tgt->bins[tgt->nbins].lower = 0;
+  tgt->bins[tgt->nbins].upper = boundary;
+  tgt->bins[tgt->nbins].count = val;
+  tgt->nbins++;
 }

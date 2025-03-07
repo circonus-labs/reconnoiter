@@ -247,39 +247,6 @@ metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
   mtev_memory_end();
 }
 
-static void
-track_histogram(prometheus_upload_t *rxc, const char *name, double boundary, double val, struct timeval w) {
-  prometheus_hist_in_progress_t dummy = { .whence = w };
-  int name_len = strlen(name);
-  if(name_len >= sizeof(dummy.name)) return;
-  if(!rxc->hists) {
-    rxc->hists = calloc(1, sizeof(*rxc->hists));
-    mtev_hash_init(rxc->hists);
-  }
-  memcpy(dummy.name, name, name_len+1); /* include \0 */
-  if(isinf(boundary)) boundary = 10e128;
-  prometheus_hist_in_progress_t *tgt = NULL;
-  void *vptr = NULL;
-  if(mtev_hash_retrieve(rxc->hists, &dummy.whence, sizeof(dummy.whence) + name_len, &vptr)) {
-    tgt = (prometheus_hist_in_progress_t *)vptr;
-  } else {
-    tgt = malloc(sizeof(*tgt));
-    memcpy(tgt, &dummy, sizeof(*tgt));
-    tgt->nallocdbins = 16;
-    tgt->bins = calloc(tgt->nallocdbins, sizeof(*tgt->bins));
-    tgt->nbins = 0;
-    mtev_hash_store(rxc->hists, &tgt->whence, sizeof(tgt->whence) + name_len, tgt);
-  }
-  if(tgt->nbins == tgt->nallocdbins) {
-    tgt->nallocdbins *= 2;
-    tgt->bins = realloc(tgt->bins, tgt->nallocdbins * sizeof(*tgt->bins));
-  }
-  tgt->bins[tgt->nbins].lower = 0;
-  tgt->bins[tgt->nbins].upper = boundary;
-  tgt->bins[tgt->nbins].count = val;
-  tgt->nbins++;
-}
-
 static int
 upper_sort(const void *av, const void *bv) {
   const histogram_adhoc_bin_t *a = av, *b = bv;
@@ -534,7 +501,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
 
       if(coercion.is_histogram) {
-        track_histogram(rxc, metric_name, coercion.hist_boundary, sample->value, tv);
+        noit_prometheus_track_histogram(&rxc->hists, metric_name, coercion.hist_boundary, sample->value, tv);
       } else {
         metric_local_batch(rxc, metric_name, sample->value, tv);
       }
