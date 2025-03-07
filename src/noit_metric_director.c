@@ -1205,7 +1205,11 @@ handle_prometheus_message(const int64_t account_id,
         }
       }
       else {
-        /* TODO */
+        Prometheus__Sample *sample = ts->samples[j];
+        struct timeval tv;
+        tv.tv_sec = (time_t)(sample->timestamp / 1000L);
+        tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
+        noit_prometheus_track_histogram(&hists, metric_name, coercion.hist_boundary, sample->value, tv);
       }
     }
     free(metric_name);
