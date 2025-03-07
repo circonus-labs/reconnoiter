@@ -117,21 +117,6 @@ static ProtobufCAllocator __c_allocator = {
 };
 #define protobuf_c_system_allocator __c_allocator
 
-struct hist_in_progress {
-  histogram_adhoc_bin_t *bins;
-  int nbins;
-  int nallocdbins;
-  struct timeval whence;
-  char name[MAX_METRIC_TAGGED_NAME];
-};
-
-static void
-hist_in_progress_free(void *vhip) {
-  struct hist_in_progress *hip = vhip;
-  free(hip->bins);
-  free(hip);
-}
-
 static void
 free_prometheus_upload(void *pul)
 {
@@ -141,7 +126,7 @@ free_prometheus_upload(void *pul)
   mtev_hash_destroy(p->immediate_metrics, NULL, mtev_memory_safe_free);
   mtev_memory_end();
   free(p->immediate_metrics);
-  mtev_hash_destroy(p->hists, NULL, hist_in_progress_free);
+  mtev_hash_destroy(p->hists, NULL, noit_prometheus_hist_in_progress_free);
   free(p->hists);
   free(p->allowed_units);
   free(p->units_str);
@@ -264,7 +249,7 @@ metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
 
 static void
 track_histogram(prometheus_upload_t *rxc, const char *name, double boundary, double val, struct timeval w) {
-  struct hist_in_progress dummy = { .whence = w };
+  prometheus_hist_in_progress_t dummy = { .whence = w };
   int name_len = strlen(name);
   if(name_len >= sizeof(dummy.name)) return;
   if(!rxc->hists) {
@@ -273,10 +258,10 @@ track_histogram(prometheus_upload_t *rxc, const char *name, double boundary, dou
   }
   memcpy(dummy.name, name, name_len+1); /* include \0 */
   if(isinf(boundary)) boundary = 10e128;
-  struct hist_in_progress *tgt = NULL;
+  prometheus_hist_in_progress_t *tgt = NULL;
   void *vptr = NULL;
   if(mtev_hash_retrieve(rxc->hists, &dummy.whence, sizeof(dummy.whence) + name_len, &vptr)) {
-    tgt = (struct hist_in_progress *)vptr;
+    tgt = (prometheus_hist_in_progress_t *)vptr;
   } else {
     tgt = malloc(sizeof(*tgt));
     memcpy(tgt, &dummy, sizeof(*tgt));
@@ -303,7 +288,7 @@ upper_sort(const void *av, const void *bv) {
   return 1;
 }
 static void
-flush_histogram(prometheus_upload_t *rxc, struct hist_in_progress *hip) {
+flush_histogram(prometheus_upload_t *rxc, prometheus_hist_in_progress_t *hip) {
   /* sort */
   qsort(hip->bins, hip->nbins, sizeof(*hip->bins), upper_sort);
   /* dedup -- should never actually happen */
@@ -338,7 +323,7 @@ flush_histograms(prometheus_upload_t *rxc) {
   if(!rxc->hists) return;
   mtev_memory_begin();
   while(mtev_hash_adv(rxc->hists, &iter)) {
-    struct hist_in_progress *hip = iter.value.ptr;
+    prometheus_hist_in_progress_t *hip = iter.value.ptr;
     flush_histogram(rxc, hip);
   }
   mtev_memory_end();

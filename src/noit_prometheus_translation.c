@@ -62,6 +62,12 @@
 static const char *_allowed_units[] = {"seconds",  "requests", "responses", "transactions",
                                        "packetes", "bytes",    "octets",    NULL};
 
+void noit_prometheus_hist_in_progress_free(void *vhip) {
+  prometheus_hist_in_progress_t *hip = vhip;
+  free(hip->bins);
+  free(hip);
+}
+
 char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
                                               size_t label_count,
                                               const char *units,

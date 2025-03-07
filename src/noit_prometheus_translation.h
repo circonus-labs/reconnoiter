@@ -33,6 +33,7 @@
 
 #include <mtev_dyn_buffer.h>
 #include <stdbool.h>
+#include <circllhist.h>
 #include "noit_metric.h"
 #include "prometheus.pb-c.h"
 
@@ -41,6 +42,16 @@ typedef struct {
   bool is_histogram;
   double hist_boundary;
 } prometheus_coercion_t;
+
+typedef struct {
+  histogram_adhoc_bin_t *bins;
+  int nbins;
+  int nallocdbins;
+  struct timeval whence;
+  char name[MAX_METRIC_TAGGED_NAME];
+} prometheus_hist_in_progress_t;
+
+void noit_prometheus_hist_in_progress_free(void *vhip);
 
 char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
                                               size_t label_count,
