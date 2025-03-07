@@ -331,7 +331,7 @@ noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const
 
   message->type = MESSAGE_TYPE_H;
   message->value.whence_ms = timestamp_ms;
-  message->value.type = METRIC_HISTOGRAM;
+  message->value.type = METRIC_HISTOGRAM_CUMULATIVE;
   message->value.is_null = false;
   message->value.value.v_string = strdup(histogram_string);
   return message;
