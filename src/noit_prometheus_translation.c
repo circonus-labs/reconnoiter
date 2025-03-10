@@ -350,8 +350,9 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
   int name_len = strlen(name);
   if(name_len >= sizeof(dummy.name)) return;
   if(!(*hist_hash)) {
-    *hist_hash = calloc(1, sizeof(*hist_hash));
-    mtev_hash_init(*hist_hash);
+    mtev_hash_table *tmp = (mtev_hash_table *)calloc(1, sizeof(mtev_hash_table));
+    mtev_hash_init(tmp);
+    *hist_hash = tmp;
   }
   memcpy(dummy.name, name, name_len+1); /* include \0 */
   if(isinf(boundary)) boundary = 10e128;

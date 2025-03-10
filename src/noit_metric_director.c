@@ -1216,7 +1216,6 @@ handle_prometheus_message(const int64_t account_id,
   }
   if (hists) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
-    mtev_memory_begin();
     while(mtev_hash_adv(hists, &iter)) {
       prometheus_hist_in_progress_t *hip = iter.value.ptr;
       noit_prometheus_sort_and_dedupe_histogram_in_progress(hip);
@@ -1238,8 +1237,6 @@ handle_prometheus_message(const int64_t account_id,
       }
       hist_free(h);
     }
-    mtev_memory_end();
-
     mtev_hash_destroy(hists, NULL, noit_prometheus_hist_in_progress_free);
     free(hists);
   }
