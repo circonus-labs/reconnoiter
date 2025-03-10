@@ -172,7 +172,7 @@ flatbuffers/%_json_parser.h flatbuffers/%_json_printer.h flatbuffers/%_reader.h 
 flatbuffers/flatbuffers_common_builder.h: flatbuffers/metric_builder.h
 flatbuffers/flatbuffers_common_reader.h: flatbuffers/metric_builder.h
 
-noit_prometheus_translation.h: prometheus.pb-c.h
+noit_prometheus_translation.h: prometheus.pb-c.h prometheus_types.pb-c.h
 noit_prometheus_translation.c noit_metric_director.c: noit_prometheus_translation.h
 
 noit-objs/%.o:	%.o
