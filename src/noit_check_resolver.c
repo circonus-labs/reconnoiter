@@ -146,8 +146,8 @@ typedef struct {
   char *target;
   struct in_addr ip4;
   struct in6_addr ip6;
-  int has_ip4:1;
-  int has_ip6:1;
+  unsigned int has_ip4:1;
+  unsigned int has_ip6:1;
 } static_host_node;
 
 void dns_cache_node_free(void *vn) {
