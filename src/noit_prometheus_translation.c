@@ -60,7 +60,7 @@
 #include <snappy/snappy.h>
 
 static const char *_allowed_units[] = {"seconds",  "requests", "responses", "transactions",
-                                       "packetes", "bytes",    "octets",    NULL};
+                                       "packets", "bytes", "octets", NULL};
 
 void noit_prometheus_hist_in_progress_free(void *vhip) {
   prometheus_hist_in_progress_t *hip = vhip;
