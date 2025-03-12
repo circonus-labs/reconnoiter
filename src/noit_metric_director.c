@@ -1227,7 +1227,8 @@ handle_prometheus_message(const int64_t account_id,
         if (hist_encoded_len >= 0) {
           int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
           noit_metric_message_t *message = noit_prometheus_create_histogram_noit_metric_object(account_id,
-            check_uuid, hip->name, timestamp_ms, hist_encoded);
+            check_uuid, hip->name, hip->untagged_name_len, hip->tagged_name_len, timestamp_ms,
+            hist_encoded);
           if (message) {
             distribute_message(message);
             noit_metric_director_message_deref(message);

@@ -273,7 +273,9 @@ prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **lab
 static void noit_prometheus_fill_in_common_fields(noit_metric_message_t *message,
                                                   const int64_t account_id,
                                                   const uuid_t check_uuid,
-                                                  const char *metric_name)
+                                                  const char *metric_name,
+                                                  const size_t untagged_metric_name_len,
+                                                  const size_t tagged_metric_name_len)
 
 {
   /* Typically, "original message" is intended to hold the original noit metric record (IE:
@@ -283,16 +285,15 @@ static void noit_prometheus_fill_in_common_fields(noit_metric_message_t *message
      ref count hits zero. There's probably a way to do this more efficiently without the extra
      strdup */
      message->original_message = strdup(metric_name);
-     message->original_message_len = strlen(message->original_message);
+     message->original_message_len = tagged_metric_name_len;
      message->original_allocated = mtev_true;
      message->noit.name = NULL;
      message->noit.name_len = 0;
      message->id.account_id = account_id;
      mtev_uuid_copy(message->id.id, check_uuid);
      message->id.name = message->original_message;
-     /* TODO: Should name_len_with_tags and name_len differ here? Does it matter? */
-     message->id.name_len_with_tags = strlen(metric_name);
-     message->id.name_len = message->id.name_len_with_tags;
+     message->id.name_len_with_tags = tagged_metric_name_len;
+     message->id.name_len = untagged_metric_name_len;
 }
 
 noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
@@ -315,7 +316,8 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
-  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name->name);
+  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name->name,
+    metric_name->untagged_len, metric_name->tagged_len);
 
   message->type = MESSAGE_TYPE_M;
   message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
@@ -328,6 +330,8 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
 noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
                                                                            const uuid_t check_uuid,
                                                                            const char *metric_name,
+                                                                           const size_t untagged_metric_name_len,
+                                                                           const size_t tagged_metric_name_len,
                                                                            const int64_t timestamp_ms,
                                                                            const char *histogram_string)
 {
@@ -337,7 +341,8 @@ noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const
   }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
-  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name);
+  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name,
+    untagged_metric_name_len, tagged_metric_name_len);
 
   message->type = MESSAGE_TYPE_H;
   message->value.whence_ms = timestamp_ms;

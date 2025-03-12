@@ -89,6 +89,8 @@ noit_metric_message_t *
 noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
                                                     const uuid_t check_uuid,
                                                     const char *metric_name,
+                                                    const size_t untagged_metric_name_len,
+                                                    const size_t tagged_metric_name_len,
                                                     const int64_t timestamp_ms,
                                                     const char *histogram_string);
 
