@@ -348,7 +348,7 @@ noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const
 }
 
 void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
-                                     const char *name,
+                                     const prometheus_metric_name_t *name,
                                      double boundary,
                                      double val,
                                      struct timeval w) {
@@ -357,18 +357,17 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
     return;
   }
   prometheus_hist_in_progress_t dummy = { .whence = w };
-  int name_len = strlen(name);
-  if(name_len >= sizeof(dummy.name)) return;
+  if(name->tagged_len >= sizeof(dummy.name)) return;
   if(!(*hist_hash)) {
     mtev_hash_table *tmp = (mtev_hash_table *)calloc(1, sizeof(mtev_hash_table));
     mtev_hash_init(tmp);
     *hist_hash = tmp;
   }
-  memcpy(dummy.name, name, name_len+1); /* include \0 */
+  memcpy(dummy.name, name, name->tagged_len+1); /* include \0 */
   if(isinf(boundary)) boundary = 10e128;
   prometheus_hist_in_progress_t *tgt = NULL;
   void *vptr = NULL;
-  if(mtev_hash_retrieve(*hist_hash, &dummy.whence, sizeof(dummy.whence) + name_len, &vptr)) {
+  if(mtev_hash_retrieve(*hist_hash, &dummy.whence, sizeof(dummy.whence) + name->tagged_len, &vptr)) {
     tgt = (prometheus_hist_in_progress_t *)vptr;
   } else {
     tgt = malloc(sizeof(*tgt));
@@ -376,7 +375,9 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
     tgt->nallocdbins = 16;
     tgt->bins = calloc(tgt->nallocdbins, sizeof(*tgt->bins));
     tgt->nbins = 0;
-    mtev_hash_store(*hist_hash, &tgt->whence, sizeof(tgt->whence) + name_len, tgt);
+    tgt->tagged_name_len = name->tagged_len;
+    tgt->untagged_name_len = name->untagged_len;
+    mtev_hash_store(*hist_hash, &tgt->whence, sizeof(tgt->whence) + name->tagged_len, tgt);
   }
   if(tgt->nbins == tgt->nallocdbins) {
     tgt->nallocdbins *= 2;

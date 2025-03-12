@@ -50,6 +50,8 @@ typedef struct {
   int nallocdbins;
   struct timeval whence;
   char name[MAX_METRIC_TAGGED_NAME];
+  size_t untagged_name_len;
+  size_t tagged_name_len;
 } prometheus_hist_in_progress_t;
 
 void noit_prometheus_hist_in_progress_free(void *vhip);
@@ -92,7 +94,7 @@ noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
 
 void
 noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
-                                const char *name,
+                                const prometheus_metric_name_t *name,
                                 double boundary,
                                 double val,
                                 struct timeval w);

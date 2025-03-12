@@ -1209,7 +1209,7 @@ handle_prometheus_message(const int64_t account_id,
         struct timeval tv;
         tv.tv_sec = (time_t)(sample->timestamp / 1000L);
         tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
-        noit_prometheus_track_histogram(&hists, metric_data->name, coercion.hist_boundary, sample->value, tv);
+        noit_prometheus_track_histogram(&hists, metric_data, coercion.hist_boundary, sample->value, tv);
       }
     }
     noit_prometheus_metric_name_free(metric_data);

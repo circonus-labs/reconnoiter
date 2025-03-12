@@ -485,7 +485,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
 
       if(coercion.is_histogram) {
-        noit_prometheus_track_histogram(&rxc->hists, metric_data->name, coercion.hist_boundary, sample->value, tv);
+        noit_prometheus_track_histogram(&rxc->hists, metric_data, coercion.hist_boundary, sample->value, tv);
       } else {
         metric_local_batch(rxc, metric_data->name, sample->value, tv);
       }
