@@ -53,6 +53,13 @@ typedef struct {
 } prometheus_hist_in_progress_t;
 
 void noit_prometheus_hist_in_progress_free(void *vhip);
+typedef struct {
+  char *name;
+  size_t untagged_len;
+  size_t tagged_len;
+} prometheus_metric_name_t;
+
+void noit_prometheus_metric_name_free(void *vpmn);
 
 char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
                                               size_t label_count,

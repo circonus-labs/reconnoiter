@@ -68,6 +68,12 @@ void noit_prometheus_hist_in_progress_free(void *vhip) {
   free(hip);
 }
 
+void noit_prometheus_metric_name_free(void *vpmn) {
+  prometheus_metric_name_t *pmn = (prometheus_metric_name_t *)vpmn;
+  free(pmn->name);
+  free(pmn);
+}
+
 char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
                                               size_t label_count,
                                               const char *units,
