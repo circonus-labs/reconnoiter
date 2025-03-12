@@ -298,24 +298,24 @@ static void noit_prometheus_fill_in_common_fields(noit_metric_message_t *message
 noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
                                                                         const int64_t account_id,
                                                                         const uuid_t check_uuid,
-                                                                        const char *metric_name,
+                                                                        const prometheus_metric_name_t *metric_name,
                                                                         const Prometheus__Sample *sample) {
   if (!coercion || !metric_name || !sample) {
     mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
     return NULL;
   }
   if (sample->timestamp < 0) {
-    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name);
+    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name->name);
     return NULL;
   }
   if (coercion->is_histogram) {
     mtevL(mtev_error, "%s: misuse of function, received unexpected histogram argument (metric %s)\n", __func__,
-      metric_name);
+      metric_name->name);
     return NULL;
   }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
-  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name);
+  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name->name);
 
   message->type = MESSAGE_TYPE_M;
   message->value.whence_ms = (uint64_t) sample->timestamp * 1000;

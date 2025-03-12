@@ -1198,7 +1198,7 @@ handle_prometheus_message(const int64_t account_id,
     for (size_t j = 0; j < ts->n_samples; j++) {
       if (!coercion.is_histogram) {
         noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
-          account_id, check_uuid, metric_data->name, ts->samples[j]);
+          account_id, check_uuid, metric_data, ts->samples[j]);
         if (message) {
           distribute_message(message);
           noit_metric_director_message_deref(message);
