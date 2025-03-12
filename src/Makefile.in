@@ -121,7 +121,8 @@ FLATBUFFERS_HEADERS=flatbuffers/flatbuffers_common_builder.h \
 
 HEADERS=noit_metric.h noit_fb.h noit_check_log_helpers.h noit_check_tools_shared.h \
         noit_metric_tag_search.h noit_lmdb_tools.h \
-	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h $(FLATBUFFERS_HEADERS)
+	noit_metric_rollup.h noit_metric_director.h noit_message_decoder.h \
+	noit_prometheus_translation.h $(FLATBUFFERS_HEADERS)
 
 NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_check_rest.h noit_check_tools.h noit_check_lmdb.h \
@@ -129,7 +130,7 @@ NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_filters.h noit_jlog_listener.h noit_livestream_listener.h \
 	noit_websocket_handler.h noit_module.h noit_metric_director.h \
 	noit_metric.h noit_message_decoder.h noit_socket_listener.h \
-	noit_filters_lmdb.h
+	noit_filters_lmdb.h noit_prometheus_translation.h
 
 STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_ingest.h \
 	stratcon_jlog_streamer.h stratcon_realtime_http.h stratcon_iep_hooks.h
@@ -140,7 +141,8 @@ LUALIBS=@LUALIBS@
 LIBNOIT_OBJS=noit_check_log_helpers.lo noit_fb.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo noit_metric_rollup.lo \
 	noit_metric_director.lo noit_message_decoder.hlo noit_metric.hlo \
-	noit_metric_tag_search.lo noit_ssl10_compat.lo noit_version.lo libnoit.lo
+	noit_metric_tag_search.lo noit_ssl10_compat.lo noit_version.lo libnoit.lo \
+	prometheus.pb-c.lo prometheus_types.pb-c.lo noit_prometheus_translation.lo
 
 B2SM_OBJS=noit_b2sm.o noit_check_log_helpers.o bundle.pb-c.o noit_message_decoder.o \
 	noit_metric.o noit_ssl10_compat.o
@@ -169,6 +171,9 @@ flatbuffers/%_json_parser.h flatbuffers/%_json_printer.h flatbuffers/%_reader.h 
 
 flatbuffers/flatbuffers_common_builder.h: flatbuffers/metric_builder.h
 flatbuffers/flatbuffers_common_reader.h: flatbuffers/metric_builder.h
+
+noit_prometheus_translation.h: prometheus.pb-c.h prometheus_types.pb-c.h
+noit_prometheus_translation.c noit_metric_director.c: noit_prometheus_translation.h
 
 noit-objs/%.o:	%.o
 	$(Q)mkdir -p "`dirname $@`"
@@ -225,6 +230,12 @@ reversion: $(FLATBUFFERS_HEADERS)
 noit_version.h:
 	$(Q)$(top_srcdir)/buildtools/mkversion.sh noit_version.h
 
+prometheus.pb-c.c prometheus.pb-c.h: proto/prometheus.proto
+	(protoc-c -Iproto proto/prometheus.proto --c_out=.)
+
+prometheus_types.pb-c.c prometheus_types.pb-c.h: proto/prometheus_types.proto
+	(protoc-c -Iproto prometheus_types.proto --c_out=.)
+
 noit.env:	noit_version.h noit_config.h
 	$(Q)awk '/^#define[ 	]+NOIT_BRANCH/{print $$2"="$$3;}' < noit_version.h > $@
 	$(Q)cat noit_version.h | tr '[".]' ' ' | awk '/^#define[ 	]+NOIT_VERSION/{print $$2"=\""$$3"\""; print $$2"_TSTAMP=\""$$4"\"";}' >> $@
@@ -251,7 +262,7 @@ $(LIBNOIT):	$(LIBNOIT_V)
 
 $(LIBNOIT_V):	$(FLATBUFFERS_HEADERS) $(FINAL_LIBNOIT_OBJS)
 	@echo "- linking $@"
-	$(Q)$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. $(LMTEV) -llz4 -lflatccrt -lcircmetrics
+	$(Q)$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. $(LMTEV) -llz4 -lflatccrt -lcircmetrics -lsnappyc
 
 stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 	@echo "- assembling $@"

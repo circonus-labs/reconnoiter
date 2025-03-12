@@ -54,6 +54,7 @@
 #include <noit_metric_tag_search.h>
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
+#include "noit_prometheus_translation.h"
 #include "noit_ssl10_compat.h"
 
 /* This is a hot mess designed to optimize metric selection on a variety of vectors.
@@ -142,10 +143,26 @@
  * point to a dmflush_t
  */
 #define FLUSHFLAG 0x1
+
+#define PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY "account_id"
+#define PROMETHEUS_MESSAGE_CHECK_UUID_KEY "check_uuid"
 typedef struct {
   eventer_t e;
   uint32_t refcnt;
 } dmflush_t;
+
+static void *__c_allocator_alloc(void *d, size_t size) {
+  return malloc(size);
+}
+static void __c_allocator_free(void *d, void *p) {
+  free(p);
+}
+static ProtobufCAllocator __c_allocator = {
+  .alloc = __c_allocator_alloc,
+  .free = __c_allocator_free,
+  .allocator_data = NULL
+};
+#define protobuf_c_system_allocator __c_allocator
 
 #define DMFLUSH_FLAG(a) ((dmflush_t *)((uintptr_t)(a) | FLUSHFLAG))
 #define DMFLUSH_UNFLAG(a) ((dmflush_t *)((uintptr_t)(a) & ~(uintptr_t)FLUSHFLAG))
@@ -877,7 +894,9 @@ distribute_metric(noit_metric_message_t *message) {
     }
   }
   stats_set_hist_intscale(stats_msg_selection_latency, mtev_perftimer_elapsed(&start), -9, 1);
-  if(has_interests) distribute_message_with_interests(interests, message);
+  if(has_interests) {
+    distribute_message_with_interests(interests, message);
+  }
 }
 
 static void
@@ -1144,6 +1163,87 @@ check_duplicate(const char *payload, const size_t payload_len) {
   return mtev_false;
 }
 
+static void
+handle_prometheus_message(const int64_t account_id,
+                          const uuid_t check_uuid,
+                          const void *data,
+                          size_t data_len) {
+  mtev_dyn_buffer_t uncompressed;
+  mtev_dyn_buffer_init(&uncompressed);
+  size_t uncompressed_size = 0;
+
+  if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size,
+                                         data, data_len)) {
+    mtevL(mtev_error, "ERROR: Cannot snappy decompress incoming prometheus\n");
+    return;
+  }
+  mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
+  Prometheus__WriteRequest *write = prometheus__write_request__unpack(&protobuf_c_system_allocator,
+                                                                      mtev_dyn_buffer_used(&uncompressed),
+                                                                      mtev_dyn_buffer_data(&uncompressed));
+  if(!write) {
+    mtev_dyn_buffer_destroy(&uncompressed);
+    mtevL(mtev_error, "Prometheus__WriteRequest decode: protobuf invalid\n");
+    return;
+  }
+
+  mtev_hash_table *hists = NULL;
+  for (size_t i = 0; i < write->n_timeseries; i++) {
+    Prometheus__TimeSeries *ts = write->timeseries[i];
+    /* each timeseries has a list of labels (Tags) and a list of samples */
+    prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
+                                                                        false, true, NULL);
+    char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
+                                                                coercion.is_histogram);
+    for (size_t j = 0; j < ts->n_samples; j++) {
+      if (!coercion.is_histogram) {
+        noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
+          account_id, check_uuid, metric_name, ts->samples[j]);
+        if (message) {
+          distribute_message(message);
+          noit_metric_director_message_deref(message);
+        }
+      }
+      else {
+        Prometheus__Sample *sample = ts->samples[j];
+        struct timeval tv;
+        tv.tv_sec = (time_t)(sample->timestamp / 1000L);
+        tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
+        noit_prometheus_track_histogram(&hists, metric_name, coercion.hist_boundary, sample->value, tv);
+      }
+    }
+    free(metric_name);
+  }
+  if (hists) {
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    while(mtev_hash_adv(hists, &iter)) {
+      prometheus_hist_in_progress_t *hip = iter.value.ptr;
+      noit_prometheus_sort_and_dedupe_histogram_in_progress(hip);
+      histogram_t *h = hist_create_approximation_from_adhoc(HIST_APPROX_HIGH, hip->bins, hip->nbins, 0);
+      ssize_t est = hist_serialize_b64_estimate(h);
+      if(est > 0) {
+        char *hist_encoded = (char *)malloc(est);
+        ssize_t hist_encoded_len = hist_serialize_b64(h, hist_encoded, est);
+        if (hist_encoded_len >= 0) {
+          int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
+          noit_metric_message_t *message = noit_prometheus_create_histogram_noit_metric_object(account_id,
+            check_uuid, hip->name, timestamp_ms, hist_encoded);
+          if (message) {
+            distribute_message(message);
+            noit_metric_director_message_deref(message);
+          }
+        }
+        free(hist_encoded);
+      }
+      hist_free(h);
+    }
+    mtev_hash_destroy(hists, NULL, noit_prometheus_hist_in_progress_free);
+    free(hists);
+  }
+  prometheus__write_request__free_unpacked(write, &protobuf_c_system_allocator);
+  mtev_dyn_buffer_destroy(&uncompressed);
+}
+
 static mtev_hook_return_t
 handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_msg *m,
                   void *payload, size_t payload_len) {
@@ -1159,8 +1259,44 @@ handle_kafka_message(void *closure, mtev_rd_kafka_message_t *msg) {
     return MTEV_HOOK_CONTINUE;
   }
   mtev_rd_kafka_message_ref(msg);
-  if(check_duplicate(msg->payload, msg->payload_len) == mtev_false) {
-    handle_metric_buffer(msg->payload, msg->payload_len, 1, NULL);
+  if (!strcasecmp(msg->protocol, "prometheus")) {
+    void *account_id_void_ptr = NULL;
+    void *check_uuid_void_ptr = NULL;
+    if (!mtev_hash_retrieve((mtev_hash_table *)msg->extra_configs, PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY,
+      strlen(PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY), &account_id_void_ptr)) {
+      mtevL(mtev_error, "%s: ERROR: account_id not included in kafka config and is required\n", __func__);
+      return MTEV_HOOK_CONTINUE;
+    }
+    if (!mtev_hash_retrieve((mtev_hash_table *)msg->extra_configs, PROMETHEUS_MESSAGE_CHECK_UUID_KEY,
+      strlen(PROMETHEUS_MESSAGE_CHECK_UUID_KEY), &check_uuid_void_ptr)) {
+      mtevL(mtev_error, "%s: ERROR: check_uuid not included in kafka config and is required\n", __func__);
+      return MTEV_HOOK_CONTINUE;
+    }
+    char *endptr = NULL;
+    int64_t account_id = strtoll((char *)account_id_void_ptr, &endptr, 10);
+    if (endptr && *endptr != '\0') {
+      mtevL(mtev_error, "%s: ERROR: account_id %s not a valid integer in kafka config\n", __func__,
+        (char *)account_id_void_ptr);
+        return MTEV_HOOK_CONTINUE;
+    }
+    if (account_id < 0) {
+      mtevL(mtev_error, "%s: ERROR account_id %s must be zero or greater in kafka config\n", __func__,
+        (char *)account_id_void_ptr);
+      return MTEV_HOOK_CONTINUE;
+    }
+
+    uuid_t check_uuid;
+    if(mtev_uuid_parse((char *)check_uuid_void_ptr, check_uuid)) {
+      mtevL(mtev_error, "%s: kafka check_uuid value %s is not a valid uuid\n", __func__,
+        (char *)check_uuid_void_ptr);
+      return MTEV_HOOK_CONTINUE;
+    }
+    handle_prometheus_message(account_id, check_uuid, msg->payload, msg->payload_len);
+  }
+  else {
+    if(check_duplicate(msg->payload, msg->payload_len) == mtev_false) {
+      handle_metric_buffer(msg->payload, msg->payload_len, 1, NULL);
+    }
   }
   mtev_rd_kafka_message_deref(msg);
   return MTEV_HOOK_CONTINUE;
@@ -1273,11 +1409,15 @@ noit_director_hooks_register(void *closure) {
   (void)closure;
   
   /* subscribe to metric messages submitted via fq */
-  if(mtev_fq_handle_message_hook_register_available())
+  if(mtev_fq_handle_message_hook_register_available()) {
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
+  }
 
-  if(mtev_kafka_handle_message_hook_register_available())
+  /* subscribe to metric messages submitted via kafka */
+  if(mtev_kafka_handle_message_hook_register_available()) {
     mtev_kafka_handle_message_hook_register("metric-director", handle_kafka_message, NULL);
+  }
+
 
   /* metrics can be injected into the metric director via the "metrics" log channel */
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);

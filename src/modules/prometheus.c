@@ -55,7 +55,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_mtev_bridge.h"
-#include "prometheus.pb-c.h"
+#include "noit_prometheus_translation.h"
 
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
@@ -117,21 +117,6 @@ static ProtobufCAllocator __c_allocator = {
 };
 #define protobuf_c_system_allocator __c_allocator
 
-struct hist_in_progress {
-  histogram_adhoc_bin_t *bins;
-  int nbins;
-  int nallocdbins;
-  struct timeval whence;
-  char name[MAX_METRIC_TAGGED_NAME];
-};
-
-static void
-hist_in_progress_free(void *vhip) {
-  struct hist_in_progress *hip = vhip;
-  free(hip->bins);
-  free(hip);
-}
-
 static void
 free_prometheus_upload(void *pul)
 {
@@ -141,7 +126,7 @@ free_prometheus_upload(void *pul)
   mtev_hash_destroy(p->immediate_metrics, NULL, mtev_memory_safe_free);
   mtev_memory_end();
   free(p->immediate_metrics);
-  mtev_hash_destroy(p->hists, NULL, hist_in_progress_free);
+  mtev_hash_destroy(p->hists, NULL, noit_prometheus_hist_in_progress_free);
   free(p->hists);
   free(p->allowed_units);
   free(p->units_str);
@@ -250,163 +235,6 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
   return mtev_false;
 }
 
-static bool is_standard_suffix(const char *suffix) {
-  return !strcmp(suffix, "count") || !strcmp(suffix, "sum") || !strcmp(suffix, "bucket") ||
-         !strcmp(suffix, "total");
-}
-static const char *units_suffix(prometheus_upload_t *rxc, const char *in) {
-  const char **allowed_units = (rxc && rxc->allowed_units) ? rxc->allowed_units : _allowed_units;
-  for(int i=0; allowed_units[i]; i++) {
-    mtevL(mtev_error, "ALLOWED: %s\n", allowed_units[i]);
-    if(!strcmp(allowed_units[i], in)) return allowed_units[i];
-  }
-  return NULL;
-}
-static const char *
-prom_name_munge_units(prometheus_upload_t *rxc, char *in) {
-  const char *units = NULL;
-  char *hist_suff = NULL;
-  char *ls = strrchr(in, '_');
-  if(ls && is_standard_suffix(ls+1)) {
-    hist_suff = ls + 1;
-    *ls = '\0';
-    ls = strrchr(in, '_');
-  }
-  if(ls && NULL != (units = units_suffix(rxc, ls+1))) {
-    *ls = '\0';
-  }
-  if(hist_suff) {
-    *(--hist_suff) = '_';
-    if(ls) {
-      int len = strlen(hist_suff);
-      memmove(ls, hist_suff, len+1);
-    }
-  }
-  return units;
-}
-
-typedef struct {
-  const char *units;
-  bool is_histogram;
-  double hist_boundary;
-} coercion_t;
-
-coercion_t
-metric_name_coerce(prometheus_upload_t *rxc, Prometheus__Label **labels, size_t label_count,
-                   bool do_units, bool do_hist) {
-  coercion_t rv = {};
-  char *name = NULL;
-  const char *units = NULL;
-  const char *le = NULL;
-  for (size_t i = 0; i < label_count && (!name || !units || !le); i++) {
-    Prometheus__Label *l = labels[i];
-    if (strcmp("__name__", l->name) == 0) {
-      name = l->value;
-    }
-    else if(strcmp("units", l->name) == 0) {
-      units = l->value;
-    }
-    else if(strcmp("le", l->name) == 0) {
-      le = l->value;
-    }
-  }
-  if(!name) return rv;
-  if(do_units) {
-    if(units) units = NULL;
-    else {
-      if(name) {
-        rv.units = prom_name_munge_units(rxc, name);
-      }
-    }
-  }
-  if(do_hist && le) {
-    char *bucket = strrchr(name, '_');
-    if(bucket && !strcmp(bucket, "_bucket")) {
-      rv.is_histogram = true;
-      rv.hist_boundary = strtod(le, NULL);
-      *bucket = '\0';
-    }
-  }
-  return rv;
-}
-
-static char *
-metric_name_from_labels(Prometheus__Label **labels, size_t label_count, const char *units, bool coerce_hist)
-{
-  char final_name[MAX_METRIC_TAGGED_NAME] = {0};
-  char *name = final_name;
-  char buffer[MAX_METRIC_TAGGED_NAME] = {0};
-  char encode_buffer[MAX_METRIC_TAGGED_NAME] = {0};
-  char *b = buffer;
-  size_t tag_count = 0;
-  for (size_t i = 0; i < label_count; i++) {
-    Prometheus__Label *l = labels[i];
-    if (strcmp("__name__", l->name) == 0) {
-      strncpy(name, l->value, sizeof(final_name) - 1);
-    } else {
-      /* if we're coercing histograms, remove the "le" label */
-      if(coerce_hist && !strcmp("le", l->name)) continue;
-      if (tag_count > 0) {
-        strlcat(b, ",", sizeof(buffer));
-      }
-      bool wrote_cat = false;
-      size_t tl = strlen(l->name);
-      if(noit_metric_tagset_is_taggable_key(l->name, tl)) {
-        strlcat(b, l->name, sizeof(buffer));
-        wrote_cat = true;
-      } else {
-        int len = mtev_b64_encode((const unsigned char *)l->name, tl, encode_buffer, sizeof(encode_buffer) - 1);
-        if (len > 0) {
-          encode_buffer[len] = '\0';
-
-          strlcat(b, "b\"", sizeof(buffer));
-          strlcat(b, encode_buffer, sizeof(buffer));
-          strlcat(b, "\"", sizeof(buffer));
-          wrote_cat = true;
-        }
-      }
-      if(wrote_cat) {
-        strlcat(b, ":", sizeof(buffer));
-        tl = strlen(l->value);
-        if(noit_metric_tagset_is_taggable_value(l->value, tl)) {
-          strlcat(b, l->value, sizeof(buffer));
-        } else {
-          int len = mtev_b64_encode((const unsigned char *)l->value, tl, encode_buffer, sizeof(encode_buffer) - 1);
-          if (len > 0) {
-            encode_buffer[len] = '\0';
-            strlcat(b, "b\"", sizeof(buffer));
-            strlcat(b, encode_buffer, sizeof(buffer));
-            strlcat(b, "\"", sizeof(buffer));
-          }
-        }
-      }
-      tag_count++;
-    }
-  }
-  strlcat(name, "|ST[", sizeof(final_name));
-  strlcat(name, buffer, sizeof(final_name));
-  if(units) {
-    if(noit_metric_tagset_is_taggable_value(units, strlen(units))) {
-      if(strlen(buffer) > 0) strlcat(name, ",", sizeof(final_name));
-      strlcat(name, "units:", sizeof(final_name));
-      strlcat(name, units, sizeof(final_name));
-    } else {
-      int len = mtev_b64_encode((const unsigned char *)units, strlen(units),
-                                encode_buffer, sizeof(encode_buffer) - 1);
-      if(len > 0) {
-        if(strlen(buffer) > 0) strlcat(name, ",", sizeof(final_name));
-        strlcat(name, "units:", sizeof(final_name));
-        encode_buffer[len] = '\0';
-        strlcat(name, encode_buffer, sizeof(final_name));
-      }
-    }
-  }
-  strlcat(name, "]", sizeof(final_name));
-
-  /* we don't have to canonicalize here as reconnoiter will do that for us */
-  return strdup(final_name);
-}
-
 static void
 metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
   mtev_memory_begin();
@@ -419,39 +247,6 @@ metric_local_batch_flush_immediate(prometheus_upload_t *rxc) {
   mtev_memory_end();
 }
 
-static void
-track_histogram(prometheus_upload_t *rxc, const char *name, double boundary, double val, struct timeval w) {
-  struct hist_in_progress dummy = { .whence = w };
-  int name_len = strlen(name);
-  if(name_len >= sizeof(dummy.name)) return;
-  if(!rxc->hists) {
-    rxc->hists = calloc(1, sizeof(*rxc->hists));
-    mtev_hash_init(rxc->hists);
-  }
-  memcpy(dummy.name, name, name_len+1); /* include \0 */
-  if(isinf(boundary)) boundary = 10e128;
-  struct hist_in_progress *tgt = NULL;
-  void *vptr = NULL;
-  if(mtev_hash_retrieve(rxc->hists, &dummy.whence, sizeof(dummy.whence) + name_len, &vptr)) {
-    tgt = (struct hist_in_progress *)vptr;
-  } else {
-    tgt = malloc(sizeof(*tgt));
-    memcpy(tgt, &dummy, sizeof(*tgt));
-    tgt->nallocdbins = 16;
-    tgt->bins = calloc(tgt->nallocdbins, sizeof(*tgt->bins));
-    tgt->nbins = 0;
-    mtev_hash_store(rxc->hists, &tgt->whence, sizeof(tgt->whence) + name_len, tgt);
-  }
-  if(tgt->nbins == tgt->nallocdbins) {
-    tgt->nallocdbins *= 2;
-    tgt->bins = realloc(tgt->bins, tgt->nallocdbins * sizeof(*tgt->bins));
-  }
-  tgt->bins[tgt->nbins].lower = 0;
-  tgt->bins[tgt->nbins].upper = boundary;
-  tgt->bins[tgt->nbins].count = val;
-  tgt->nbins++;
-}
-
 static int
 upper_sort(const void *av, const void *bv) {
   const histogram_adhoc_bin_t *a = av, *b = bv;
@@ -460,24 +255,8 @@ upper_sort(const void *av, const void *bv) {
   return 1;
 }
 static void
-flush_histogram(prometheus_upload_t *rxc, struct hist_in_progress *hip) {
-  /* sort */
-  qsort(hip->bins, hip->nbins, sizeof(*hip->bins), upper_sort);
-  /* dedup -- should never actually happen */
-  for(int s=0; s<hip->nbins-1; s++) {
-    if(hip->bins[s].upper == hip->bins[s+1].upper) {
-      memmove(&hip->bins[s], &hip->bins[s+1], sizeof(*hip->bins) * (hip->nbins - s - 1));
-      s--;
-      hip->nbins--;
-    }
-  }
-  hip->bins[0].lower = (hip->bins[0].upper <= 0) ? -10e128 : 0;
-  /* undo cummulative aspect and set lower bound */
-  for(int s=1; s<hip->nbins; s++) {
-    hip->bins[s].lower = hip->bins[s-1].upper;
-    hip->bins[s].count -= hip->bins[s-1].count;
-  }
-
+flush_histogram(prometheus_upload_t *rxc, prometheus_hist_in_progress_t *hip) {
+  noit_prometheus_sort_and_dedupe_histogram_in_progress(hip);
   histogram_t *h = hist_create_approximation_from_adhoc(rxc->histogram_mode, hip->bins, hip->nbins, 0);
   ssize_t est = hist_serialize_b64_estimate(h);
   if(est > 0) {
@@ -495,7 +274,7 @@ flush_histograms(prometheus_upload_t *rxc) {
   if(!rxc->hists) return;
   mtev_memory_begin();
   while(mtev_hash_adv(rxc->hists, &iter)) {
-    struct hist_in_progress *hip = iter.value.ptr;
+    prometheus_hist_in_progress_t *hip = iter.value.ptr;
     flush_histogram(rxc, hip);
   }
   mtev_memory_end();
@@ -663,23 +442,13 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   /* prometheus arrives as snappy encoded.  we must uncompress */
   mtev_dyn_buffer_t uncompressed;
   mtev_dyn_buffer_init(&uncompressed);
-  size_t uncompressed_size;
-  if (!snappy_uncompressed_length((const char *)mtev_dyn_buffer_data(&rxc->data), 
-                                  mtev_dyn_buffer_used(&rxc->data), &uncompressed_size)) {
+  size_t uncompressed_size = 0;
+
+  if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size, mtev_dyn_buffer_data(&rxc->data),
+                                         mtev_dyn_buffer_used(&rxc->data))) {
     error = "Cannot snappy decompress incoming prometheus data";
     error_code = 400;
-    mtevL(noit_error, "%s\n", error);
-    goto error;
-  }
-  mtev_dyn_buffer_ensure(&uncompressed, uncompressed_size);
-  int x = snappy_uncompress((const char *)mtev_dyn_buffer_data(&rxc->data), 
-                            mtev_dyn_buffer_used(&rxc->data), 
-                            (char *)mtev_dyn_buffer_write_pointer(&uncompressed));
-  if (x) {
-    mtev_dyn_buffer_destroy(&uncompressed);
-    error = "Cannot snappy decompress incoming prometheus data";
-    error_code = 400;
-    mtevL(noit_error, "%s, error code: %d\n", error, x);
+    mtevL(noit_error, "ERROR: %s\n", error);
     goto error;
   }
   mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
@@ -701,13 +470,13 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
   for (size_t i = 0; i < write->n_timeseries; i++) {
     Prometheus__TimeSeries *ts = write->timeseries[i];
     /* each timeseries has a list of labels (Tags) and a list of samples */
-    coercion_t coercion = {};
+    prometheus_coercion_t coercion = {};
     if(rxc->extract_units || rxc->coerce_histograms) {
-      coercion = metric_name_coerce(rxc, ts->labels, ts->n_labels, rxc->extract_units,
-                                    rxc->coerce_histograms);
+      coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels, rxc->extract_units,
+                                    rxc->coerce_histograms, rxc->allowed_units);
     }
-    char *metric_name = metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
-                                                coercion.is_histogram && rxc->coerce_histograms);
+    char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
+                                                            coercion.is_histogram && rxc->coerce_histograms);
 
     for (size_t j = 0; j < ts->n_samples; j++) {
       Prometheus__Sample *sample = ts->samples[j];
@@ -716,7 +485,7 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
 
       if(coercion.is_histogram) {
-        track_histogram(rxc, metric_name, coercion.hist_boundary, sample->value, tv);
+        noit_prometheus_track_histogram(&rxc->hists, metric_name, coercion.hist_boundary, sample->value, tv);
       } else {
         metric_local_batch(rxc, metric_name, sample->value, tv);
       }
