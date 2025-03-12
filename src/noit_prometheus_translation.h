@@ -61,10 +61,10 @@ typedef struct {
 
 void noit_prometheus_metric_name_free(void *vpmn);
 
-char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
-                                              size_t label_count,
-                                              const char *units,
-                                              bool coerce_hist);
+prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
+                                                                  size_t label_count,
+                                                                  const char *units,
+                                                                  bool coerce_hist);
 
 bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
                                        size_t *uncompressed_size_out,

@@ -74,10 +74,10 @@ void noit_prometheus_metric_name_free(void *vpmn) {
   free(pmn);
 }
 
-char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
-                                              size_t label_count,
-                                              const char *units,
-                                              bool coerce_hist)
+prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
+                                                                  size_t label_count,
+                                                                  const char *units,
+                                                                  bool coerce_hist)
 {
   char final_name[MAX_METRIC_TAGGED_NAME] = {0};
   char *name = final_name;
@@ -85,6 +85,7 @@ char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
   char encode_buffer[MAX_METRIC_TAGGED_NAME] = {0};
   char *b = buffer;
   size_t tag_count = 0;
+  prometheus_metric_name_t *metric_data = (prometheus_metric_name_t *)malloc(sizeof(prometheus_metric_name_t));
   for (size_t i = 0; i < label_count; i++) {
     Prometheus__Label *l = labels[i];
     if (strcmp("__name__", l->name) == 0) {
@@ -135,6 +136,7 @@ char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
       tag_count++;
     }
   }
+  metric_data->untagged_len = strlen(name);
   strlcat(name, "|ST[", sizeof(final_name));
   strlcat(name, buffer, sizeof(final_name));
   if (units) {
@@ -159,7 +161,9 @@ char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
   strlcat(name, "]", sizeof(final_name));
 
   /* we don't have to canonicalize here as reconnoiter will do that for us */
-  return strdup(final_name);
+  metric_data->name = strdup(final_name);
+  metric_data->tagged_len = strlen(final_name);
+  return metric_data;
 }
 
 bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
