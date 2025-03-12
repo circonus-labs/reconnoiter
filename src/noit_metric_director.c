@@ -1192,7 +1192,7 @@ handle_prometheus_message(const int64_t account_id,
     Prometheus__TimeSeries *ts = write->timeseries[i];
     /* each timeseries has a list of labels (Tags) and a list of samples */
     prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
-                                                                        true, true, NULL);
+                                                                        false, true, NULL);
     char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
                                                                 coercion.is_histogram);
     for (size_t j = 0; j < ts->n_samples; j++) {
