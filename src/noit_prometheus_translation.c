@@ -68,10 +68,16 @@ void noit_prometheus_hist_in_progress_free(void *vhip) {
   free(hip);
 }
 
-char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
-                                              size_t label_count,
-                                              const char *units,
-                                              bool coerce_hist)
+void noit_prometheus_metric_name_free(void *vpmn) {
+  prometheus_metric_name_t *pmn = (prometheus_metric_name_t *)vpmn;
+  free(pmn->name);
+  free(pmn);
+}
+
+prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
+                                                                  size_t label_count,
+                                                                  const char *units,
+                                                                  bool coerce_hist)
 {
   char final_name[MAX_METRIC_TAGGED_NAME] = {0};
   char *name = final_name;
@@ -79,6 +85,7 @@ char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
   char encode_buffer[MAX_METRIC_TAGGED_NAME] = {0};
   char *b = buffer;
   size_t tag_count = 0;
+  prometheus_metric_name_t *metric_data = (prometheus_metric_name_t *)malloc(sizeof(prometheus_metric_name_t));
   for (size_t i = 0; i < label_count; i++) {
     Prometheus__Label *l = labels[i];
     if (strcmp("__name__", l->name) == 0) {
@@ -129,6 +136,7 @@ char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
       tag_count++;
     }
   }
+  metric_data->untagged_len = strlen(name);
   strlcat(name, "|ST[", sizeof(final_name));
   strlcat(name, buffer, sizeof(final_name));
   if (units) {
@@ -153,7 +161,9 @@ char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
   strlcat(name, "]", sizeof(final_name));
 
   /* we don't have to canonicalize here as reconnoiter will do that for us */
-  return strdup(final_name);
+  metric_data->name = strdup(final_name);
+  metric_data->tagged_len = strlen(final_name);
+  return metric_data;
 }
 
 bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
@@ -263,7 +273,9 @@ prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **lab
 static void noit_prometheus_fill_in_common_fields(noit_metric_message_t *message,
                                                   const int64_t account_id,
                                                   const uuid_t check_uuid,
-                                                  const char *metric_name)
+                                                  const char *metric_name,
+                                                  const size_t untagged_metric_name_len,
+                                                  const size_t tagged_metric_name_len)
 
 {
   /* Typically, "original message" is intended to hold the original noit metric record (IE:
@@ -273,39 +285,39 @@ static void noit_prometheus_fill_in_common_fields(noit_metric_message_t *message
      ref count hits zero. There's probably a way to do this more efficiently without the extra
      strdup */
      message->original_message = strdup(metric_name);
-     message->original_message_len = strlen(message->original_message);
+     message->original_message_len = tagged_metric_name_len;
      message->original_allocated = mtev_true;
      message->noit.name = NULL;
      message->noit.name_len = 0;
      message->id.account_id = account_id;
      mtev_uuid_copy(message->id.id, check_uuid);
      message->id.name = message->original_message;
-     /* TODO: Should name_len_with_tags and name_len differ here? Does it matter? */
-     message->id.name_len_with_tags = strlen(metric_name);
-     message->id.name_len = message->id.name_len_with_tags;
+     message->id.name_len_with_tags = tagged_metric_name_len;
+     message->id.name_len = untagged_metric_name_len;
 }
 
 noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
                                                                         const int64_t account_id,
                                                                         const uuid_t check_uuid,
-                                                                        const char *metric_name,
+                                                                        const prometheus_metric_name_t *metric_name,
                                                                         const Prometheus__Sample *sample) {
   if (!coercion || !metric_name || !sample) {
     mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
     return NULL;
   }
   if (sample->timestamp < 0) {
-    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name);
+    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name->name);
     return NULL;
   }
   if (coercion->is_histogram) {
     mtevL(mtev_error, "%s: misuse of function, received unexpected histogram argument (metric %s)\n", __func__,
-      metric_name);
+      metric_name->name);
     return NULL;
   }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
-  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name);
+  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name->name,
+    metric_name->untagged_len, metric_name->tagged_len);
 
   message->type = MESSAGE_TYPE_M;
   message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
@@ -318,6 +330,8 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
 noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
                                                                            const uuid_t check_uuid,
                                                                            const char *metric_name,
+                                                                           const size_t untagged_metric_name_len,
+                                                                           const size_t tagged_metric_name_len,
                                                                            const int64_t timestamp_ms,
                                                                            const char *histogram_string)
 {
@@ -327,7 +341,8 @@ noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const
   }
   noit_metric_message_t *message = (noit_metric_message_t *)calloc(1, sizeof(noit_metric_message_t));
   noit_metric_director_message_ref(message);
-  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name);
+  noit_prometheus_fill_in_common_fields(message, account_id, check_uuid, metric_name,
+    untagged_metric_name_len, tagged_metric_name_len);
 
   message->type = MESSAGE_TYPE_H;
   message->value.whence_ms = timestamp_ms;
@@ -338,7 +353,7 @@ noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const
 }
 
 void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
-                                     const char *name,
+                                     const prometheus_metric_name_t *name,
                                      double boundary,
                                      double val,
                                      struct timeval w) {
@@ -347,18 +362,17 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
     return;
   }
   prometheus_hist_in_progress_t dummy = { .whence = w };
-  int name_len = strlen(name);
-  if(name_len >= sizeof(dummy.name)) return;
+  if(name->tagged_len >= sizeof(dummy.name)) return;
   if(!(*hist_hash)) {
     mtev_hash_table *tmp = (mtev_hash_table *)calloc(1, sizeof(mtev_hash_table));
     mtev_hash_init(tmp);
     *hist_hash = tmp;
   }
-  memcpy(dummy.name, name, name_len+1); /* include \0 */
+  memcpy(dummy.name, name, name->tagged_len+1); /* include \0 */
   if(isinf(boundary)) boundary = 10e128;
   prometheus_hist_in_progress_t *tgt = NULL;
   void *vptr = NULL;
-  if(mtev_hash_retrieve(*hist_hash, &dummy.whence, sizeof(dummy.whence) + name_len, &vptr)) {
+  if(mtev_hash_retrieve(*hist_hash, &dummy.whence, sizeof(dummy.whence) + name->tagged_len, &vptr)) {
     tgt = (prometheus_hist_in_progress_t *)vptr;
   } else {
     tgt = malloc(sizeof(*tgt));
@@ -366,7 +380,9 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
     tgt->nallocdbins = 16;
     tgt->bins = calloc(tgt->nallocdbins, sizeof(*tgt->bins));
     tgt->nbins = 0;
-    mtev_hash_store(*hist_hash, &tgt->whence, sizeof(tgt->whence) + name_len, tgt);
+    tgt->tagged_name_len = name->tagged_len;
+    tgt->untagged_name_len = name->untagged_len;
+    mtev_hash_store(*hist_hash, &tgt->whence, sizeof(tgt->whence) + name->tagged_len, tgt);
   }
   if(tgt->nbins == tgt->nallocdbins) {
     tgt->nallocdbins *= 2;

@@ -50,14 +50,23 @@ typedef struct {
   int nallocdbins;
   struct timeval whence;
   char name[MAX_METRIC_TAGGED_NAME];
+  size_t untagged_name_len;
+  size_t tagged_name_len;
 } prometheus_hist_in_progress_t;
 
 void noit_prometheus_hist_in_progress_free(void *vhip);
+typedef struct {
+  char *name;
+  size_t untagged_len;
+  size_t tagged_len;
+} prometheus_metric_name_t;
 
-char *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
-                                              size_t label_count,
-                                              const char *units,
-                                              bool coerce_hist);
+void noit_prometheus_metric_name_free(void *vpmn);
+
+prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
+                                                                  size_t label_count,
+                                                                  const char *units,
+                                                                  bool coerce_hist);
 
 bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
                                        size_t *uncompressed_size_out,
@@ -74,18 +83,20 @@ noit_metric_message_t *
 noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
                                                  const int64_t account_id,
                                                  const uuid_t check_uuid,
-                                                 const char *metric_name,
+                                                 const prometheus_metric_name_t *metric_name,
                                                  const Prometheus__Sample *sample);
 noit_metric_message_t *
 noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
                                                     const uuid_t check_uuid,
                                                     const char *metric_name,
+                                                    const size_t untagged_metric_name_len,
+                                                    const size_t tagged_metric_name_len,
                                                     const int64_t timestamp_ms,
                                                     const char *histogram_string);
 
 void
 noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
-                                const char *name,
+                                const prometheus_metric_name_t *name,
                                 double boundary,
                                 double val,
                                 struct timeval w);

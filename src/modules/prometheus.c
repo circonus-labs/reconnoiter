@@ -475,8 +475,8 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels, rxc->extract_units,
                                     rxc->coerce_histograms, rxc->allowed_units);
     }
-    char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
-                                                            coercion.is_histogram && rxc->coerce_histograms);
+    prometheus_metric_name_t *metric_data = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
+                                                                                    coercion.is_histogram && rxc->coerce_histograms);
 
     for (size_t j = 0; j < ts->n_samples; j++) {
       Prometheus__Sample *sample = ts->samples[j];
@@ -485,12 +485,12 @@ rest_prometheus_handler(mtev_http_rest_closure_t *restc, int npats, char **pats)
       tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
 
       if(coercion.is_histogram) {
-        noit_prometheus_track_histogram(&rxc->hists, metric_name, coercion.hist_boundary, sample->value, tv);
+        noit_prometheus_track_histogram(&rxc->hists, metric_data, coercion.hist_boundary, sample->value, tv);
       } else {
-        metric_local_batch(rxc, metric_name, sample->value, tv);
+        metric_local_batch(rxc, metric_data->name, sample->value, tv);
       }
     }
-    free(metric_name);
+    noit_prometheus_metric_name_free(metric_data);
   }
   metric_local_batch_flush_immediate(rxc);
   flush_histograms(rxc);

@@ -1193,12 +1193,12 @@ handle_prometheus_message(const int64_t account_id,
     /* each timeseries has a list of labels (Tags) and a list of samples */
     prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
                                                                         false, true, NULL);
-    char *metric_name = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels, coercion.units,
-                                                                coercion.is_histogram);
+    prometheus_metric_name_t *metric_data = noit_prometheus_metric_name_from_labels(ts->labels,
+        ts->n_labels, coercion.units, coercion.is_histogram);
     for (size_t j = 0; j < ts->n_samples; j++) {
       if (!coercion.is_histogram) {
         noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
-          account_id, check_uuid, metric_name, ts->samples[j]);
+          account_id, check_uuid, metric_data, ts->samples[j]);
         if (message) {
           distribute_message(message);
           noit_metric_director_message_deref(message);
@@ -1209,10 +1209,10 @@ handle_prometheus_message(const int64_t account_id,
         struct timeval tv;
         tv.tv_sec = (time_t)(sample->timestamp / 1000L);
         tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
-        noit_prometheus_track_histogram(&hists, metric_name, coercion.hist_boundary, sample->value, tv);
+        noit_prometheus_track_histogram(&hists, metric_data, coercion.hist_boundary, sample->value, tv);
       }
     }
-    free(metric_name);
+    noit_prometheus_metric_name_free(metric_data);
   }
   if (hists) {
     mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
@@ -1227,7 +1227,8 @@ handle_prometheus_message(const int64_t account_id,
         if (hist_encoded_len >= 0) {
           int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
           noit_metric_message_t *message = noit_prometheus_create_histogram_noit_metric_object(account_id,
-            check_uuid, hip->name, timestamp_ms, hist_encoded);
+            check_uuid, hip->name, hip->untagged_name_len, hip->tagged_name_len, timestamp_ms,
+            hist_encoded);
           if (message) {
             distribute_message(message);
             noit_metric_director_message_deref(message);
