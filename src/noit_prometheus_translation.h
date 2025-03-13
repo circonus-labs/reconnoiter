@@ -37,6 +37,7 @@
 #include <circllhist.h>
 #include "noit_metric.h"
 #include "prometheus.pb-c.h"
+#include "prometheus_types.pb-c.h"
 
 typedef struct {
   const char *units;

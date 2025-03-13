@@ -49,13 +49,6 @@ external_proc.lo: external_proc.c  \
   ../noit_mtev_bridge.h \
   external_proc.h \
 
-fq_driver.lo: fq_driver.c  \
-  ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h  \
-  ../stratcon_iep_hooks.h \
-  fq_driver.xmlh
-
 ganglia.lo: ganglia.c  \
   ../noit_module.h  \
   ../noit_check.h \
@@ -64,12 +57,6 @@ ganglia.lo: ganglia.c  \
   ../noit_module.h ../noit_clustering.h \
   ../noit_check_tools_shared.h \
   ../noit_mtev_bridge.h ganglia.xmlh
-
-handoff_ingestor.lo: handoff_ingestor.c \
-  ../stratcon_datastore.h \
-  ../stratcon_realtime_http.h ../stratcon_realtime_http.h \
-  ../stratcon_iep.h ../stratcon_datastore.h ../stratcon_jlog_streamer.h \
-  handoff_ingestor.xmlh
 
 histogram.lo: histogram.c  \
   ../noit_mtev_bridge.h \
@@ -105,16 +92,6 @@ ip_acl.lo: ip_acl.c  \
 libstomp.lo: libstomp.c  \
   libstomp.h \
 
-lua_check.lo: lua_check.c  \
-  ../noit_config.h ../noit_module.h \
-  ../noit_check.h  \
-  ../noit_metric.h ../noit_lmdb_tools.h \
-  ../noit_check.h ../noit_check_tools.h  \
-  ../noit_module.h ../noit_clustering.h \
-  ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h  \
-  lua_check.h lua.xmlh
-
 noit_lua_libnoit_binding.lo: noit_lua_libnoit_binding.c \
   ../noit_metric_rollup.h ../noit_metric.h ../noit_metric_director.h \
   ../noit_message_decoder.h ../noit_metric_tag_search.h
@@ -132,16 +109,6 @@ noit_lua_noit_binding.lo: noit_lua_noit_binding.c \
 
 noit_lua_snmp.lo: noit_lua_snmp.c ../noit_config.h \
 
-opentsdb.lo: opentsdb.c  \
-  ../noit_metric.h ../noit_module.h \
-  ../noit_check.h ../noit_metric.h ../noit_lmdb_tools.h \
-  ../noit_check.h ../noit_check_tools.h ../noit_module.h \
-  ../noit_clustering.h  \
-  ../noit_check_tools_shared.h ../noit_mtev_bridge.h prometheus.pb-c.h \
-  types.pb-c.h \
-  ../noit_socket_listener.h ../noit_check_tools.h ../noit_mtev_bridge.h \
-  opentsdb.xmlh
-
 ping_icmp.lo: ping_icmp.c  \
   ../noit_mtev_bridge.h ../noit_module.h  \
   ../noit_check.h \
@@ -151,35 +118,15 @@ ping_icmp.lo: ping_icmp.c  \
   ../noit_check_tools_shared.h \
   check_test.h ping_icmp.xmlh
 
-postgres_ingestor.lo: postgres_ingestor.c \
-  ../noit_mtev_bridge.h \
-  ../noit_module.h  ../noit_check.h \
-  ../noit_metric.h ../noit_lmdb_tools.h  \
-  ../stratcon_datastore.h \
-  ../stratcon_realtime_http.h ../stratcon_ingest.h \
-  ../stratcon_realtime_http.h ../stratcon_iep.h ../stratcon_datastore.h \
-  ../stratcon_jlog_streamer.h  \
-  ../noit_check.h ../noit_check_log_helpers.h ../bundle.pb-c.h \
-  postgres_ingestor.xmlh
-
 prometheus.lo: prometheus.c  \
   ../noit_metric.h ../noit_module.h \
   ../noit_check.h ../noit_metric.h ../noit_lmdb_tools.h \
   ../noit_check.h ../noit_check_tools.h ../noit_module.h \
   ../noit_clustering.h  \
-  ../noit_check_tools_shared.h ../noit_mtev_bridge.h prometheus.pb-c.h \
-  types.pb-c.h \
+  ../noit_check_tools_shared.h ../noit_mtev_bridge.h \
+  ../noit_prometheus_translation.h ../prometheus.pb-c.h \
+  ../prometheus_types.pb-c.h \
   prometheus.xmlh
-
-prometheus.pb-c.lo: prometheus.pb-c.c prometheus.pb-c.h \
-  types.pb-c.h
-
-rabbitmq_driver.lo: rabbitmq_driver.c  \
-  ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h  \
-  ../stratcon_iep_hooks.h \
-  librabbitmq/amqp.h librabbitmq/amqp_framing.h rabbitmq_driver.xmlh
 
 resolver_cache.lo: resolver_cache.c  \
   ../noit_mtev_bridge.h \
@@ -207,15 +154,6 @@ selfcheck.lo: selfcheck.c  \
   ../noit_check_tools_shared.h \
   ../noit_version.h selfcheck.xmlh broker.xmlh
 
-snmp.lo: snmp.c  \
-  ../noit_module.h \
-  ../noit_check.h \
-  ../noit_metric.h ../noit_lmdb_tools.h \
-  ../noit_check.h ../noit_check_tools.h  \
-  ../noit_module.h ../noit_clustering.h \
-  ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h snmp.xmlh snmptrap.xmlh
-
 statsd.lo: statsd.c  \
   ../noit_module.h \
   ../noit_check.h \
@@ -227,13 +165,6 @@ statsd.lo: statsd.c  \
   ../noit_check_tools.h \
   ../noit_mtev_bridge.h statsd.xmlh statsd_tcp.xmlh
 
-stomp_driver.lo: stomp_driver.c  \
-  ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h  \
-  libstomp.h \
-  stomp_driver.xmlh
-
 test_abort.lo: test_abort.c  \
   ../noit_module.h \
   ../noit_check.h \
@@ -242,11 +173,3 @@ test_abort.lo: test_abort.c  \
   ../noit_module.h ../noit_clustering.h \
   ../noit_check_tools_shared.h \
   ../noit_mtev_bridge.h
-
-test_ingestor.lo: test_ingestor.c  \
-  ../stratcon_datastore.h \
-  ../stratcon_realtime_http.h ../stratcon_realtime_http.h \
-  ../stratcon_iep.h ../stratcon_datastore.h ../stratcon_jlog_streamer.h \
-  test_ingestor.xmlh
-
-types.pb-c.lo: types.pb-c.c types.pb-c.h \
