@@ -368,7 +368,7 @@ void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
     mtev_hash_init(tmp);
     *hist_hash = tmp;
   }
-  memcpy(dummy.name, name, name->tagged_len+1); /* include \0 */
+  memcpy(dummy.name, name->name, name->tagged_len+1); /* include \0 */
   if(isinf(boundary)) boundary = 10e128;
   prometheus_hist_in_progress_t *tgt = NULL;
   void *vptr = NULL;
