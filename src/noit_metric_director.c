@@ -1266,11 +1266,13 @@ handle_kafka_message(void *closure, mtev_rd_kafka_message_t *msg) {
     if (!mtev_hash_retrieve((mtev_hash_table *)msg->extra_configs, PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY,
       strlen(PROMETHEUS_MESSAGE_ACCOUNT_ID_KEY), &account_id_void_ptr)) {
       mtevL(mtev_error, "%s: ERROR: account_id not included in kafka config and is required\n", __func__);
+      mtev_rd_kafka_message_deref(msg);
       return MTEV_HOOK_CONTINUE;
     }
     if (!mtev_hash_retrieve((mtev_hash_table *)msg->extra_configs, PROMETHEUS_MESSAGE_CHECK_UUID_KEY,
       strlen(PROMETHEUS_MESSAGE_CHECK_UUID_KEY), &check_uuid_void_ptr)) {
       mtevL(mtev_error, "%s: ERROR: check_uuid not included in kafka config and is required\n", __func__);
+      mtev_rd_kafka_message_deref(msg);
       return MTEV_HOOK_CONTINUE;
     }
     char *endptr = NULL;
@@ -1278,11 +1280,13 @@ handle_kafka_message(void *closure, mtev_rd_kafka_message_t *msg) {
     if (endptr && *endptr != '\0') {
       mtevL(mtev_error, "%s: ERROR: account_id %s not a valid integer in kafka config\n", __func__,
         (char *)account_id_void_ptr);
-        return MTEV_HOOK_CONTINUE;
+      mtev_rd_kafka_message_deref(msg);
+      return MTEV_HOOK_CONTINUE;
     }
     if (account_id < 0) {
       mtevL(mtev_error, "%s: ERROR account_id %s must be zero or greater in kafka config\n", __func__,
         (char *)account_id_void_ptr);
+      mtev_rd_kafka_message_deref(msg);
       return MTEV_HOOK_CONTINUE;
     }
 
@@ -1290,6 +1294,7 @@ handle_kafka_message(void *closure, mtev_rd_kafka_message_t *msg) {
     if(mtev_uuid_parse((char *)check_uuid_void_ptr, check_uuid)) {
       mtevL(mtev_error, "%s: kafka check_uuid value %s is not a valid uuid\n", __func__,
         (char *)check_uuid_void_ptr);
+      mtev_rd_kafka_message_deref(msg);
       return MTEV_HOOK_CONTINUE;
     }
     handle_prometheus_message(account_id, check_uuid, msg->payload, msg->payload_len);
