@@ -1132,7 +1132,48 @@ get_message_time(const char* msg, int msg_length) {
 }
 
 static mtev_boolean
+check_dedupe_hash(unsigned char *digest, uint64_t whence) {
+  if(whence > 0) {
+    mtev_hash_table *hash = get_dedupe_hash(whence);
+    if (hash) {
+      int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
+      if (x == 0) {
+        /* this is a dupe */
+        return mtev_true;
+      }
+    }
+  }
+  return mtev_false;
+}
+
+static mtev_boolean
+check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
+  mtev_boolean ret_val = mtev_false;
+  #if 0
+  if (1 || (msg && dedupe && msg->value.whence_ms > 0)) {
+    char *buffer = NULL;
+    int written = asprintf(&buffer, "%.*s", msg->id.name_len_with_tags, msg->id.name);
+    unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
+    const EVP_MD *md = EVP_get_digestbyname("MD5");
+    mtevAssert(md);
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(ctx, md, NULL);
+    EVP_DigestUpdate(ctx, buffer, written);
+    EVP_DigestFinal(ctx, digest, NULL);
+    EVP_MD_CTX_free(ctx);
+    free(buffer);
+    ret_val = check_dedupe_hash(digest, msg->value.whence_ms);
+    if (ret_val == mtev_false) {
+      free(digest);
+    }
+  }
+  #endif
+  return ret_val;
+}
+
+static mtev_boolean
 check_duplicate(const char *payload, const size_t payload_len) {
+  mtev_boolean ret_val = mtev_false;
   if (dedupe) {
     unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
     const EVP_MD *md = EVP_get_digestbyname("MD5");
@@ -1142,25 +1183,13 @@ check_duplicate(const char *payload, const size_t payload_len) {
     EVP_DigestUpdate(ctx, payload, payload_len);
     EVP_DigestFinal(ctx, digest, NULL);
     EVP_MD_CTX_free(ctx);
-
     uint64_t whence = get_message_time(payload, payload_len);
-    if(whence > 0) {
-      mtev_hash_table *hash = get_dedupe_hash(whence);
-      if (hash) {
-        int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
-        if (x == 0) {
-          /* this is a dupe */
-          free(digest);
-          return mtev_true;
-        }
-      } else {
-        free(digest);
-      }
-    } else {
+    ret_val = check_dedupe_hash(digest, whence);
+    if (ret_val == mtev_false) {
       free(digest);
     }
   }
-  return mtev_false;
+  return ret_val;
 }
 
 static void
@@ -1200,7 +1229,9 @@ handle_prometheus_message(const int64_t account_id,
         noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
           account_id, check_uuid, metric_data, ts->samples[j]);
         if (message) {
-          distribute_message(message);
+          if (!check_duplicate_from_noit_metric_message(message)) {
+            distribute_message(message);
+          }
           noit_metric_director_message_deref(message);
         }
       }
@@ -1230,7 +1261,9 @@ handle_prometheus_message(const int64_t account_id,
             check_uuid, hip->name, hip->untagged_name_len, hip->tagged_name_len, timestamp_ms,
             hist_encoded);
           if (message) {
-            distribute_message(message);
+            if (!check_duplicate_from_noit_metric_message(message)) {
+              distribute_message(message);
+            }
             noit_metric_director_message_deref(message);
           }
         }
