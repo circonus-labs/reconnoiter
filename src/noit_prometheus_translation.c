@@ -320,7 +320,7 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
     metric_name->untagged_len, metric_name->tagged_len);
 
   message->type = MESSAGE_TYPE_M;
-  message->value.whence_ms = (uint64_t) sample->timestamp * 1000;
+  message->value.whence_ms = (uint64_t) sample->timestamp;
   message->value.type = METRIC_DOUBLE;
   message->value.is_null = false;
   message->value.value.v_double = sample->value;
