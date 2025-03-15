@@ -231,7 +231,7 @@ log_histo(noit_check_t *check, uint64_t whence_s,
     mtevL(noit_error, "malloc(%d) failed\n", (int)est);
     goto cleanup;
   }
-  enc_est = ((est + 2)/3)*4;
+  enc_est = mtev_b64_encode_len(est);
   hist_encode = malloc(enc_est);
   if(!hist_encode) {
     mtevL(noit_error, "malloc(%d) failed\n", (int)enc_est);
@@ -676,7 +676,7 @@ histogram_stats_populate_xml_impl(void *closure, xmlNodePtr doc, noit_check_t *c
       if(!hist_serial) {
         mtevL(noit_error, "malloc(%d) failed\n", (int)est);
       } else {
-        ssize_t enc_est = ((est + 2)/3)*4 + 1;
+        ssize_t enc_est = mtev_b64_encode_len(est) + 1;
         hist_encode = malloc(enc_est+1);
         if(!hist_encode) {
           mtevL(noit_error, "malloc(%d) failed\n", (int)enc_est);
@@ -723,7 +723,7 @@ histogram_stats_populate_json_impl(void *closure, struct mtev_json_object *doc, 
       if(!hist_serial) {
         mtevL(noit_error, "malloc(%d) failed\n", (int)est);
       } else {
-        ssize_t enc_est = ((est + 2)/3)*4;
+        ssize_t enc_est = mtev_b64_encode_len(est);
         hist_encode = malloc(enc_est);
         if(!hist_encode) {
           mtevL(noit_error, "malloc(%d) failed\n", (int)enc_est);
