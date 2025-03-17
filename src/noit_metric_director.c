@@ -1139,9 +1139,16 @@ check_dedupe_hash(unsigned char *digest, uint64_t whence) {
       int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
       if (x == 0) {
         /* this is a dupe */
+        free(digest);
         return mtev_true;
       }
     }
+    else {
+      free(digest);
+    }
+  }
+  else {
+    free(digest);
   }
   return mtev_false;
 }
@@ -1182,9 +1189,6 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
     EVP_MD_CTX_free(ctx);
     free(buffer);
     ret_val = check_dedupe_hash(digest, msg->value.whence_ms);
-    if (ret_val == mtev_false) {
-      free(digest);
-    }
   }
   return ret_val;
 }
@@ -1203,9 +1207,6 @@ check_duplicate(const char *payload, const size_t payload_len) {
     EVP_MD_CTX_free(ctx);
     uint64_t whence = get_message_time(payload, payload_len);
     ret_val = check_dedupe_hash(digest, whence);
-    if (ret_val == mtev_false) {
-      free(digest);
-    }
   }
   return ret_val;
 }
