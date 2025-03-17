@@ -1158,64 +1158,44 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
   mtev_boolean ret_val = mtev_false;
   #define BASE_DUPLICATE_PRINT_FORMAT "%lu\t%ld\t%.*s\t%s\t%c\t"
   if (msg && dedupe && msg->value.whence_ms > 0) {
-    char *buffer = NULL;
-    char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
-    mtev_uuid_unparse_lower(msg->id.id, uuid_str);
-    int written = 0;
-    switch (msg->value.type) {
+    unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
+    const EVP_MD *md = EVP_get_digestbyname("MD5");
+    mtevAssert(md);
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(ctx, md, NULL);
+    EVP_DigestUpdate(ctx, &msg->value.whence_ms, sizeof(msg->value.whence_ms));
+    EVP_DigestUpdate(ctx, &msg->id.account_id, sizeof(msg->id.account_id));
+    EVP_DigestUpdate(ctx, msg->id.name, msg->id.name_len_with_tags);
+    EVP_DigestUpdate(ctx, &msg->id.id, sizeof(msg->id.id));
+    EVP_DigestUpdate(ctx, &msg->value.type, sizeof(msg->value.type));
+    switch(msg->value.type) {
       case METRIC_STRING:
       case METRIC_HISTOGRAM:
       case METRIC_HISTOGRAM_CUMULATIVE:
-        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%s", msg->value.whence_ms, msg->id.account_id,
-          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-          msg->value.value.v_string);
+        EVP_DigestUpdate(ctx, msg->value.value.v_string, strlen(msg->value.value.v_string));
         break;
       case METRIC_DOUBLE:
-        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%.10f", msg->value.whence_ms, msg->id.account_id,
-          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-          msg->value.value.v_double);
+        EVP_DigestUpdate(ctx, &msg->value.value.v_double, sizeof(msg->value.value.v_double));
         break;
       case METRIC_INT32:
-        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%d", msg->value.whence_ms, msg->id.account_id,
-          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-          msg->value.value.v_int32);
+        EVP_DigestUpdate(ctx, &msg->value.value.v_int32, sizeof(msg->value.value.v_int32));
         break;
       case METRIC_INT64:
-        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%ld", msg->value.whence_ms, msg->id.account_id,
-          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-          msg->value.value.v_int64);
+        EVP_DigestUpdate(ctx, &msg->value.value.v_int64, sizeof(msg->value.value.v_int64));
         break;
       case METRIC_UINT32:
-        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%u", msg->value.whence_ms, msg->id.account_id,
-          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-          msg->value.value.v_uint32);
+        EVP_DigestUpdate(ctx, &msg->value.value.v_uint32, sizeof(msg->value.value.v_uint32));
         break;
       case METRIC_UINT64:
-        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%lu", msg->value.whence_ms, msg->id.account_id,
-          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-          msg->value.value.v_uint64);
-        break;
-      case METRIC_ABSENT:
-        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%s", msg->value.whence_ms, msg->id.account_id,
-          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-          "[[null]]");
+        EVP_DigestUpdate(ctx, &msg->value.value.v_uint64, sizeof(msg->value.value.v_uint64));
         break;
       default:
-        // unsupported
+        //treat METRIC_GUESS and METRIC_ABSENT as zero
         break;
     }
-    if (written) {
-      unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
-      const EVP_MD *md = EVP_get_digestbyname("MD5");
-      mtevAssert(md);
-      EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-      EVP_DigestInit_ex(ctx, md, NULL);
-      EVP_DigestUpdate(ctx, buffer, written);
-      EVP_DigestFinal(ctx, digest, NULL);
-      EVP_MD_CTX_free(ctx);
-      ret_val = check_dedupe_hash(digest, msg->value.whence_ms / 1000);
-    }
-    free(buffer);
+    EVP_DigestFinal(ctx, digest, NULL);
+    EVP_MD_CTX_free(ctx);
+    ret_val = check_dedupe_hash(digest, msg->value.whence_ms / 1000);
   }
   return ret_val;
 }
