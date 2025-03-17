@@ -1156,6 +1156,7 @@ check_dedupe_hash(unsigned char *digest, uint64_t whence) {
 static mtev_boolean
 check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
   mtev_boolean ret_val = mtev_false;
+  #define BASE_DUPLICATE_PRINT_FORMAT "%lu\t%ld\t%.*s\t%s\t%c\t"
   if (msg && dedupe && msg->value.whence_ms > 0) {
     char *buffer = NULL;
     char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
@@ -1170,12 +1171,12 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
     }
     int written = 0;
     if (is_string) {
-      written = asprintf(&buffer, "%lu\t%ld\t%.*s\t%s\t%c\t%s", msg->value.whence_ms, msg->id.account_id,
+      written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%s", msg->value.whence_ms, msg->id.account_id,
         msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
         msg->value.value.v_string);
     }
     else {
-      written = asprintf(&buffer, "%lu\t%ld\t%.*s\t%s\t%c\t%.10f", msg->value.whence_ms, msg->id.account_id,
+      written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%.10f", msg->value.whence_ms, msg->id.account_id,
         msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
         msg->value.value.v_double);
     }
