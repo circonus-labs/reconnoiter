@@ -1272,8 +1272,9 @@ handle_prometheus_message(const int64_t account_id,
       histogram_t *h = hist_create_approximation_from_adhoc(HIST_APPROX_HIGH, hip->bins, hip->nbins, 0);
       ssize_t est = hist_serialize_b64_estimate(h);
       if(est > 0) {
-        char *hist_encoded = (char *)malloc(est);
+        char *hist_encoded = (char *)malloc(est+1);
         ssize_t hist_encoded_len = hist_serialize_b64(h, hist_encoded, est);
+        hist_encoded[hist_encoded_len] = 0;
         if (hist_encoded_len >= 0) {
           int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
           noit_metric_message_t *message = noit_prometheus_create_histogram_noit_metric_object(account_id,
