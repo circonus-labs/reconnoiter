@@ -1190,7 +1190,7 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
         EVP_DigestUpdate(ctx, &msg->value.value.v_uint64, sizeof(msg->value.value.v_uint64));
         break;
       default:
-        //treat METRIC_GUESS and METRIC_ABSENT as zero
+        //treat METRIC_GUESS and METRIC_ABSENT as zero-length
         break;
     }
     EVP_DigestFinal(ctx, digest, NULL);
