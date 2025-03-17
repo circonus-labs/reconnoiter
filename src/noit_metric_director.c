@@ -1213,7 +1213,7 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
       EVP_DigestUpdate(ctx, buffer, written);
       EVP_DigestFinal(ctx, digest, NULL);
       EVP_MD_CTX_free(ctx);
-      ret_val = check_dedupe_hash(digest, msg->value.whence_ms);
+      ret_val = check_dedupe_hash(digest, msg->value.whence_ms / 1000);
     }
     free(buffer);
   }
