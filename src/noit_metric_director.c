@@ -1161,35 +1161,56 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
     char *buffer = NULL;
     char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
     mtev_uuid_unparse_lower(msg->id.id, uuid_str);
-    bool is_string = false;
+    int written = 0;
     switch (msg->value.type) {
-      case 'H':
-      case 's':
-        is_string = true;
+      case METRIC_STRING:
+      case METRIC_HISTOGRAM:
+      case METRIC_HISTOGRAM_CUMULATIVE:
+        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%s", msg->value.whence_ms, msg->id.account_id,
+          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+          msg->value.value.v_string);
+        break;
+      case METRIC_DOUBLE:
+        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%.10f", msg->value.whence_ms, msg->id.account_id,
+          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+          msg->value.value.v_double);
+        break;
+      case METRIC_INT32:
+        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%d", msg->value.whence_ms, msg->id.account_id,
+          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+          msg->value.value.v_int32);
+        break;
+      case METRIC_INT64:
+        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%ld", msg->value.whence_ms, msg->id.account_id,
+          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+          msg->value.value.v_int64);
+        break;
+      case METRIC_UINT32:
+        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%u", msg->value.whence_ms, msg->id.account_id,
+          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+          msg->value.value.v_uint32);
+        break;
+      case METRIC_UINT64:
+        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%lu", msg->value.whence_ms, msg->id.account_id,
+          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+          msg->value.value.v_uint64);
+        break;
       default:
+        // unsupported
         break;
     }
-    int written = 0;
-    if (is_string) {
-      written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%s", msg->value.whence_ms, msg->id.account_id,
-        msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-        msg->value.value.v_string);
+    if (written) {
+      unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
+      const EVP_MD *md = EVP_get_digestbyname("MD5");
+      mtevAssert(md);
+      EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+      EVP_DigestInit_ex(ctx, md, NULL);
+      EVP_DigestUpdate(ctx, buffer, written);
+      EVP_DigestFinal(ctx, digest, NULL);
+      EVP_MD_CTX_free(ctx);
+      ret_val = check_dedupe_hash(digest, msg->value.whence_ms);
     }
-    else {
-      written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%.10f", msg->value.whence_ms, msg->id.account_id,
-        msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
-        msg->value.value.v_double);
-    }
-    unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
-    const EVP_MD *md = EVP_get_digestbyname("MD5");
-    mtevAssert(md);
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(ctx, md, NULL);
-    EVP_DigestUpdate(ctx, buffer, written);
-    EVP_DigestFinal(ctx, digest, NULL);
-    EVP_MD_CTX_free(ctx);
     free(buffer);
-    ret_val = check_dedupe_hash(digest, msg->value.whence_ms);
   }
   return ret_val;
 }
