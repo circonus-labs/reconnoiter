@@ -1156,7 +1156,6 @@ check_dedupe_hash(unsigned char *digest, uint64_t whence) {
 static mtev_boolean
 check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
   mtev_boolean ret_val = mtev_false;
-  #define BASE_DUPLICATE_PRINT_FORMAT "%lu\t%ld\t%.*s\t%s\t%c\t"
   if (msg && dedupe && msg->value.whence_ms > 0) {
     unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
     const EVP_MD *md = EVP_get_digestbyname("MD5");
