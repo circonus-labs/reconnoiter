@@ -1110,7 +1110,7 @@ handle_metric_buffer(const char *payload, int payload_len,
 }
 
 static uint64_t
-get_message_time(const char* msg, int msg_length) {
+get_message_time_s(const char* msg, int msg_length) {
   const int minimum_bytes_before_second_tab = sizeof("M\t1.2.3.4");
   if (msg_length <= minimum_bytes_before_second_tab) {
     mtevL(mtev_error, "Unable to retrieve timestamp from message: %s\n", msg);
@@ -1232,8 +1232,8 @@ check_duplicate(const char *payload, const size_t payload_len) {
     EVP_DigestUpdate(ctx, payload, payload_len);
     EVP_DigestFinal(ctx, digest, NULL);
     EVP_MD_CTX_free(ctx);
-    uint64_t whence = get_message_time(payload, payload_len);
-    ret_val = check_dedupe_hash(digest, whence);
+    uint64_t whence_s = get_message_time_s(payload, payload_len);
+    ret_val = check_dedupe_hash(digest, whence_s);
   }
   return ret_val;
 }
