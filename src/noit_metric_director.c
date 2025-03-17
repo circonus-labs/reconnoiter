@@ -1166,7 +1166,7 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
     EVP_DigestUpdate(ctx, &msg->value.whence_ms, sizeof(msg->value.whence_ms));
     EVP_DigestUpdate(ctx, &msg->id.account_id, sizeof(msg->id.account_id));
     EVP_DigestUpdate(ctx, msg->id.name, msg->id.name_len_with_tags);
-    EVP_DigestUpdate(ctx, &msg->id.id, sizeof(msg->id.id));
+    EVP_DigestUpdate(ctx, msg->id.id, sizeof(uuid_t));
     EVP_DigestUpdate(ctx, &msg->value.type, sizeof(msg->value.type));
     switch(msg->value.type) {
       case METRIC_STRING:
