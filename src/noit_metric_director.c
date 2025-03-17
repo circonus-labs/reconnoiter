@@ -1195,6 +1195,11 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
           msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
           msg->value.value.v_uint64);
         break;
+      case METRIC_ABSENT:
+        written = asprintf(&buffer, BASE_DUPLICATE_PRINT_FORMAT "%s", msg->value.whence_ms, msg->id.account_id,
+          msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+          "[[null]]");
+        break;
       default:
         // unsupported
         break;
