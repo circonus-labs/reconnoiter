@@ -1149,10 +1149,29 @@ check_dedupe_hash(unsigned char *digest, uint64_t whence) {
 static mtev_boolean
 check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
   mtev_boolean ret_val = mtev_false;
-  #if 0
-  if (1 || (msg && dedupe && msg->value.whence_ms > 0)) {
+  if (msg && dedupe && msg->value.whence_ms > 0) {
     char *buffer = NULL;
-    int written = asprintf(&buffer, "%.*s", msg->id.name_len_with_tags, msg->id.name);
+    char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
+    mtev_uuid_unparse_lower(msg->id.id, uuid_str);
+    bool is_string = false;
+    switch (msg->value.type) {
+      case 'H':
+      case 's':
+        is_string = true;
+      default:
+        break;
+    }
+    int written = 0;
+    if (is_string) {
+      written = asprintf(&buffer, "%lu\t%ld\t%.*s\t%s\t%c\t%s", msg->value.whence_ms, msg->id.account_id,
+        msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+        msg->value.value.v_string);
+    }
+    else {
+      written = asprintf(&buffer, "%lu\t%ld\t%.*s\t%s\t%c\t%.10f", msg->value.whence_ms, msg->id.account_id,
+        msg->id.name_len_with_tags, msg->id.name, uuid_str, (char)msg->value.type,
+        msg->value.value.v_double);
+    }
     unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
     const EVP_MD *md = EVP_get_digestbyname("MD5");
     mtevAssert(md);
@@ -1167,7 +1186,6 @@ check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
       free(digest);
     }
   }
-  #endif
   return ret_val;
 }
 
