@@ -1110,7 +1110,7 @@ handle_metric_buffer(const char *payload, int payload_len,
 }
 
 static uint64_t
-get_message_time(const char* msg, int msg_length) {
+get_message_time_s(const char* msg, int msg_length) {
   const int minimum_bytes_before_second_tab = sizeof("M\t1.2.3.4");
   if (msg_length <= minimum_bytes_before_second_tab) {
     mtevL(mtev_error, "Unable to retrieve timestamp from message: %s\n", msg);
@@ -1132,7 +1132,76 @@ get_message_time(const char* msg, int msg_length) {
 }
 
 static mtev_boolean
+check_dedupe_hash(unsigned char *digest, uint64_t whence) {
+  if(whence > 0) {
+    mtev_hash_table *hash = get_dedupe_hash(whence);
+    if (hash) {
+      int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
+      if (x == 0) {
+        /* this is a dupe */
+        free(digest);
+        return mtev_true;
+      }
+    }
+    else {
+      free(digest);
+    }
+  }
+  else {
+    free(digest);
+  }
+  return mtev_false;
+}
+
+static mtev_boolean
+check_duplicate_from_noit_metric_message(noit_metric_message_t *msg) {
+  mtev_boolean ret_val = mtev_false;
+  if (msg && dedupe && msg->value.whence_ms > 0) {
+    unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
+    const EVP_MD *md = EVP_get_digestbyname("MD5");
+    mtevAssert(md);
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(ctx, md, NULL);
+    EVP_DigestUpdate(ctx, &msg->value.whence_ms, sizeof(msg->value.whence_ms));
+    EVP_DigestUpdate(ctx, &msg->id.account_id, sizeof(msg->id.account_id));
+    EVP_DigestUpdate(ctx, msg->id.name, msg->id.name_len_with_tags);
+    EVP_DigestUpdate(ctx, msg->id.id, sizeof(uuid_t));
+    EVP_DigestUpdate(ctx, &msg->value.type, sizeof(msg->value.type));
+    switch(msg->value.type) {
+      case METRIC_STRING:
+      case METRIC_HISTOGRAM:
+      case METRIC_HISTOGRAM_CUMULATIVE:
+        EVP_DigestUpdate(ctx, msg->value.value.v_string, strlen(msg->value.value.v_string));
+        break;
+      case METRIC_DOUBLE:
+        EVP_DigestUpdate(ctx, &msg->value.value.v_double, sizeof(msg->value.value.v_double));
+        break;
+      case METRIC_INT32:
+        EVP_DigestUpdate(ctx, &msg->value.value.v_int32, sizeof(msg->value.value.v_int32));
+        break;
+      case METRIC_INT64:
+        EVP_DigestUpdate(ctx, &msg->value.value.v_int64, sizeof(msg->value.value.v_int64));
+        break;
+      case METRIC_UINT32:
+        EVP_DigestUpdate(ctx, &msg->value.value.v_uint32, sizeof(msg->value.value.v_uint32));
+        break;
+      case METRIC_UINT64:
+        EVP_DigestUpdate(ctx, &msg->value.value.v_uint64, sizeof(msg->value.value.v_uint64));
+        break;
+      default:
+        //treat METRIC_GUESS and METRIC_ABSENT as zero-length
+        break;
+    }
+    EVP_DigestFinal(ctx, digest, NULL);
+    EVP_MD_CTX_free(ctx);
+    ret_val = check_dedupe_hash(digest, msg->value.whence_ms / 1000);
+  }
+  return ret_val;
+}
+
+static mtev_boolean
 check_duplicate(const char *payload, const size_t payload_len) {
+  mtev_boolean ret_val = mtev_false;
   if (dedupe) {
     unsigned char *digest = malloc(MD5_DIGEST_LENGTH);
     const EVP_MD *md = EVP_get_digestbyname("MD5");
@@ -1142,25 +1211,10 @@ check_duplicate(const char *payload, const size_t payload_len) {
     EVP_DigestUpdate(ctx, payload, payload_len);
     EVP_DigestFinal(ctx, digest, NULL);
     EVP_MD_CTX_free(ctx);
-
-    uint64_t whence = get_message_time(payload, payload_len);
-    if(whence > 0) {
-      mtev_hash_table *hash = get_dedupe_hash(whence);
-      if (hash) {
-        int x = mtev_hash_store(hash, (const char *)digest, MD5_DIGEST_LENGTH, (void *)0x1);
-        if (x == 0) {
-          /* this is a dupe */
-          free(digest);
-          return mtev_true;
-        }
-      } else {
-        free(digest);
-      }
-    } else {
-      free(digest);
-    }
+    uint64_t whence_s = get_message_time_s(payload, payload_len);
+    ret_val = check_dedupe_hash(digest, whence_s);
   }
-  return mtev_false;
+  return ret_val;
 }
 
 static void
@@ -1200,7 +1254,9 @@ handle_prometheus_message(const int64_t account_id,
         noit_metric_message_t *message = noit_prometheus_translate_to_noit_metric_message(&coercion,
           account_id, check_uuid, metric_data, ts->samples[j]);
         if (message) {
-          distribute_message(message);
+          if (!check_duplicate_from_noit_metric_message(message)) {
+            distribute_message(message);
+          }
           noit_metric_director_message_deref(message);
         }
       }
@@ -1222,15 +1278,18 @@ handle_prometheus_message(const int64_t account_id,
       histogram_t *h = hist_create_approximation_from_adhoc(HIST_APPROX_HIGH, hip->bins, hip->nbins, 0);
       ssize_t est = hist_serialize_b64_estimate(h);
       if(est > 0) {
-        char *hist_encoded = (char *)malloc(est);
+        char *hist_encoded = (char *)malloc(est+1);
         ssize_t hist_encoded_len = hist_serialize_b64(h, hist_encoded, est);
+        hist_encoded[hist_encoded_len] = 0;
         if (hist_encoded_len >= 0) {
           int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
           noit_metric_message_t *message = noit_prometheus_create_histogram_noit_metric_object(account_id,
             check_uuid, hip->name, hip->untagged_name_len, hip->tagged_name_len, timestamp_ms,
             hist_encoded);
           if (message) {
-            distribute_message(message);
+            if (!check_duplicate_from_noit_metric_message(message)) {
+              distribute_message(message);
+            }
             noit_metric_director_message_deref(message);
           }
         }
