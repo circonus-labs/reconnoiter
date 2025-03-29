@@ -36,6 +36,7 @@
 #include <string.h>
 #include <mtev_uuid.h>
 #include <ctype.h>
+#include <mtev_b64.h>
 #include <mtev_log.h>
 #include <mtev_str.h>
 
@@ -429,9 +430,9 @@ noit_metric_tags_count(const char *str, size_t strlen) {
   return rval;
 }
 
-const char *
-noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
-                           noit_metric_tag_t *output, mtev_boolean *toolong) {
+const char *parse_metric_tag(const char *const tagnm, const size_t tagnmlen,
+                             noit_metric_tag_t *output, mtev_boolean *toolong,
+                             const size_t max_tag_length) {
   size_t colon_pos = 0;
   size_t cur_size = 0;
   *toolong = mtev_false;
@@ -464,8 +465,8 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
   /* make sure we covered everything */
   if(colon_pos == 0) return 0;
   output->total_size = cur_size;
-  /* tag category and name must combined be <= NOIT_TAG_MAX_PAIR_LEN */
-  if(cur_size > NOIT_TAG_MAX_PAIR_LEN) {
+  /* tag category and name must combined be <= max_tag_length */
+  if (cur_size > max_tag_length) {
     *toolong = mtev_true;
     return tagnm + cur_size;
   }
@@ -474,15 +475,39 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
   return tagnm + cur_size;
 }
 
-static int
-tag_canonical_size(noit_metric_tag_t *tag) {
-  int len;
-  char dbuff[NOIT_TAG_MAX_PAIR_LEN];
-  len = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tag->tag, tag->total_size);
-  if(len < 0) return 0;
-  len = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, len);
-  if(len < 0) return 0;
-  return len;
+const char *noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
+                                       noit_metric_tag_t *output,
+                                       mtev_boolean *toolong) {
+  return parse_metric_tag(tagnm, tagnmlen, output, toolong,
+                          NOIT_TAG_MAX_PAIR_LEN);
+}
+
+const char *noit_metric_tags_parse_one_implicit(const char *const tagnm, const size_t tagnmlen,
+                                       noit_metric_tag_t *output,
+                                       mtev_boolean *toolong) {
+  return parse_metric_tag(tagnm, tagnmlen, output, toolong,
+                          NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+}
+
+static int tag_canonical_size(noit_metric_tag_t *tag) {
+  mtev_dyn_buffer_t dbuff;
+  mtev_dyn_buffer_init(&dbuff);
+  const size_t max_ensured_len = tag->total_size + 1; //+1 for colon added to cat-only tags
+  mtev_dyn_buffer_ensure(&dbuff, max_ensured_len);
+  int len =
+      noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
+                                    max_ensured_len, tag->tag, tag->total_size);
+  if (len >= 0) {
+    len = noit_metric_tagset_encode_tag(
+        (char *)mtev_dyn_buffer_data(&dbuff), max_ensured_len,
+        (char *)mtev_dyn_buffer_data(&dbuff), len);
+    if (len >= 0) {
+      mtev_dyn_buffer_destroy(&dbuff);
+      return len;
+    }
+  }
+  mtev_dyn_buffer_destroy(&dbuff);
+  return 0;
 }
 
 size_t
@@ -594,46 +619,61 @@ noit_metric_tags_parse(const char *tagnm, size_t tagnmlen,
   return noit_metric_tags_parse_with_context(tagnm, tagnmlen, tags, tag_count, canonical_size_out, NULL);
 }
 
-ssize_t
-noit_metric_tags_canonical(const noit_metric_tag_t *tags,
-                           size_t tag_count, char *tagnm, size_t tagnmlen,
-                           mtev_boolean already_decoded) {
-  char dbuff[NOIT_TAG_MAX_PAIR_LEN];
+ssize_t noit_metric_tags_canonical(const noit_metric_tag_t *tags,
+                                   size_t tag_count, char *tagnm,
+                                   size_t tagnmlen,
+                                   mtev_boolean already_decoded) {
   if(!tag_count) return 0;
+  mtev_dyn_buffer_t dbuff;
+  mtev_dyn_buffer_init(&dbuff);
+  const size_t max_decode_len =
+      already_decoded ? tagnmlen : mtev_b64_max_decode_len(tagnmlen) + 1;
+  const size_t max_ensured_len = mtev_b64_encode_len(max_decode_len);
+  mtev_dyn_buffer_ensure(&dbuff, max_ensured_len);
+
   size_t rval = 0;
   while(tag_count > 0) {
     int dlen;
     if(already_decoded) {
-      dlen = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), tags->tag, tags->total_size);
-      if(dlen < 0) return -1;
+      dlen = noit_metric_tagset_encode_tag((char *)mtev_dyn_buffer_data(&dbuff),
+                                           max_ensured_len, tags->tag,
+                                           tags->total_size);
     } else {
-      dlen = noit_metric_tagset_decode_tag(dbuff, sizeof(dbuff), tags->tag, tags->total_size);
-      if(dlen < 0) return -1;
-      dlen = noit_metric_tagset_encode_tag(dbuff, sizeof(dbuff), dbuff, dlen);
-      if(dlen < 0) return -1;
+      dlen = noit_metric_tagset_decode_tag((char *)mtev_dyn_buffer_data(&dbuff),
+                                           max_ensured_len, tags->tag,
+                                           tags->total_size);
+      if (dlen >= 0) {
+        dlen = noit_metric_tagset_encode_tag(
+            (char *)mtev_dyn_buffer_data(&dbuff), max_ensured_len,
+            (char *)mtev_dyn_buffer_data(&dbuff), dlen);
+      }
     }
-    if(tagnmlen < dlen) return -1;
-    memcpy(tagnm, dbuff, dlen);
+    if (dlen < 0 || tagnmlen < dlen) {
+      mtev_dyn_buffer_destroy(&dbuff);
+      return -1;
+    }
+    memcpy(tagnm, (char *)mtev_dyn_buffer_data(&dbuff), dlen);
     tagnm += dlen;
     tagnmlen -= dlen;
     rval += dlen;
     tags++;
     tag_count--;
     if(tag_count > 0) {
-      if (tagnmlen <= 0) return -1;
+      if (tagnmlen <= 0) {
+        mtev_dyn_buffer_destroy(&dbuff);
+        return -1;
+      }
       *tagnm++ = ',';
       rval++;
       tagnmlen--;
     }
   }
+  mtev_dyn_buffer_destroy(&dbuff);
   return rval;
 }
 
-char *
-noit_metric_tagset_from_tags(noit_metric_tagset_t *lookup,
-                             noit_metric_tag_t *tags,
-                             size_t tag_count,
-                             size_t canonical_size) {
+char *get_canonical_name(noit_metric_tag_t *tags, size_t tag_count,
+                         size_t canonical_size) {
   /* the canonical representation does not include a trailing NULL, but we make room for one
    * anyway... helps our display logic. */
   char *canonical = malloc(canonical_size + 1);
@@ -668,8 +708,8 @@ noit_metric_tagset_init_with_context(noit_metric_tagset_t *lookup,
     free((void *) tags);
     return -1;
   }
-  lookup->tags = realloc(tags, tag_count * sizeof(noit_metric_tag_t));
-  lookup->tag_count = tag_count;
+  lookup->tags = realloc(tags, parsed_tag_count * sizeof(noit_metric_tag_t));
+  lookup->tag_count = parsed_tag_count;
   lookup->canonical_size = canonical_size;
   return 0;
 }
@@ -710,14 +750,14 @@ noit_metric_tagset_builder_clean(noit_metric_tagset_builder_t *builder) {
   builder->tag_count = 0;
 }
 
-mtev_boolean
-noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
-                                    const char *tagstr, size_t tagstr_len) {
+mtev_boolean add_tags_to_tagset_builder(noit_metric_tagset_builder_t *builder,
+                                        const char *tagstr, size_t tagstr_len,
+                                        const size_t max_tag_length) {
   if(builder->tag_count < 0) return mtev_false;
   noit_metric_tag_t tag;
   while(tagstr_len > 0) {
     mtev_boolean toolong = mtev_false;
-    const char *next = noit_metric_tags_parse_one(tagstr, tagstr_len, &tag, &toolong);
+    const char *next = parse_metric_tag(tagstr, tagstr_len, &tag, &toolong, max_tag_length);
     if(toolong) {
       /* do nothing at all, the tag must be dropped */
     } else if(next && (tag.total_size == tagstr_len || *next == ',')) {
@@ -744,25 +784,32 @@ noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
 }
 
 mtev_boolean
+noit_metric_tagset_builder_add_many(noit_metric_tagset_builder_t *builder,
+                                    const char *tagstr, size_t tagstr_len) {
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_TAG_MAX_PAIR_LEN);
+}
+
+mtev_boolean
+noit_metric_tagset_builder_add_many_implicit(
+    noit_metric_tagset_builder_t *builder, const char *tagstr,
+    size_t tagstr_len) {
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+}
+
+mtev_boolean
 noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder,
                                    const char *tagstr, size_t tagstr_len) {
-  if(builder->tag_count < 0) return mtev_false;
-  noit_metric_tag_t tag;
-  mtev_boolean toolong = mtev_false;
-  if(!noit_metric_tags_parse_one(tagstr, tagstr_len, &tag, &toolong) || tag.total_size != tagstr_len) {
-    noit_metric_tagset_builder_clean(builder);
-    builder->tag_count = -1;
-    return mtev_false;
-  }
-  if(toolong) return mtev_true;
-  noit_metric_tagset_builder_el_t *el =
-    (noit_metric_tagset_builder_el_t *) calloc(1, sizeof(noit_metric_tagset_builder_el_t));
-  el->tag = tag;
-  el->next = builder->list;
-  builder->list = el;
-  builder->sum_tag_size += tag.total_size;
-  builder->tag_count++;
-  return mtev_true;
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_TAG_MAX_PAIR_LEN);
+}
+
+mtev_boolean
+noit_metric_tagset_builder_add_one_implicit(
+    noit_metric_tagset_builder_t *builder, const char *tagstr, size_t tagstr_len) {
+  return add_tags_to_tagset_builder(builder, tagstr, tagstr_len,
+                                    NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
 }
 
 mtev_boolean
@@ -773,8 +820,15 @@ noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder,
   }
   mtev_boolean success = mtev_true;
 
-  if(out) {
-    out->tags = (noit_metric_tag_t *) realloc(out->tags, (out->tag_count + builder->tag_count) * sizeof(noit_metric_tag_t));
+  if (out && builder) {
+    if (out->tags) {
+      out->tags = (noit_metric_tag_t *)realloc(
+          out->tags,
+          (out->tag_count + builder->tag_count) * sizeof(noit_metric_tag_t));
+    } else {
+      out->tags = (noit_metric_tag_t *)calloc(
+          out->tag_count + builder->tag_count, sizeof(noit_metric_tag_t));
+    }
     size_t tag_index = out->tag_count;
     noit_metric_tagset_builder_el_t *iter = builder->list;
     while (iter) {
@@ -788,7 +842,7 @@ noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder,
     if(builder->tag_count != tag_index)
       out->tags = (noit_metric_tag_t *) realloc((void *)out->tags, out->tag_count * sizeof(noit_metric_tag_t));
     if(canon) {
-      *canon = noit_metric_tagset_from_tags(out, out->tags, out->tag_count, canonical_size);
+      *canon = get_canonical_name(out->tags, out->tag_count, canonical_size);
       if(*canon == NULL) success = mtev_false;
     }
   }

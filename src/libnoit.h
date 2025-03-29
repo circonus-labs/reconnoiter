@@ -31,7 +31,15 @@
 #ifndef LIBNOIT_H
 #define LIBNOIT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 API_EXPORT(void)
   libnoit_init_globals(void);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif
