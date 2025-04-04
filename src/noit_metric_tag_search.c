@@ -457,8 +457,7 @@ graphite_expand_braces(const char *pre, const char *s, const char *suf, struct g
     if (len_suf > 0) {
       MTEV_MAYBE_DECL_VARS(char, prefix, 256);
       MTEV_MAYBE_REALLOC(prefix, len_s + len_pre + 2);
-      if (snprintf(prefix, MTEV_MAYBE_SIZE(prefix), "%s%s", pre, s) > MTEV_MAYBE_SIZE(prefix))
-      {
+      if (snprintf(prefix, MTEV_MAYBE_SIZE(prefix), "%s%s", pre, s) > MTEV_MAYBE_SIZE(prefix)) {
         mtevFatal(mtev_error, "%s: Failed to write to buffer while expanding graphite braces\n", __func__);
       }
       graphite_expand_braces(prefix, suf, "", g);
