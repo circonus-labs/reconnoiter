@@ -31,13 +31,14 @@
 #include "noit_filters.h"
 #include "noit_lmdb_tools.h"
 #include "noit_fb.h"
+#include <mtev_conf.h>
+#include <mtev_memory.h>
+#include <mtev_watchdog.h>
+
 #include "flatbuffers/filterset_builder.h"
 #include "flatbuffers/filterset_verifier.h"
 #include "flatbuffers/filterset_rule_builder.h"
 #include "flatbuffers/filterset_rule_verifier.h"
-#include <mtev_conf.h>
-#include <mtev_memory.h>
-#include <mtev_watchdog.h>
 
 static int32_t global_default_filter_flush_period_ms = DEFAULT_FILTER_FLUSH_PERIOD_MS;
 static pcre *fallback_no_match = NULL;

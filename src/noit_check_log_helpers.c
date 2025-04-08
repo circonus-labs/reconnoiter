@@ -46,10 +46,11 @@
 #include "bundle.pb-c.h"
 #include "noit_metric.h"
 #include "noit_check_log_helpers.h"
+#include "noit_message_decoder.h"
+
 #include "flatbuffers/metric_reader.h"
 #include "flatbuffers/metric_batch_reader.h"
 #include "flatbuffers/metric_batch_verifier.h"
-#include "noit_message_decoder.h"
 
 static void *__c_allocator_alloc(void *d, size_t size) {
   return malloc(size);

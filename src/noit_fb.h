@@ -42,10 +42,6 @@
 extern "C" {
 #endif
 
-#include <flatbuffers/metric_batch_builder.h>
-#include <flatbuffers/metric_common_builder.h>
-#include <flatbuffers/metric_list_builder.h>
-
 /*!
   \fn noit_fb_serialize_metricbatch(uint64_t whence_ms, uuid_t check_uuid, const char *check_name, int account_id, metric_t *m,size_t* out_size)
   \brief Create a MetricBatch flatbuffer representing a set of records

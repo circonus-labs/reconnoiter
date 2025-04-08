@@ -33,8 +33,12 @@
  */
 
 #include "noit_fb.h"
-#include "flatbuffers/metric_list_reader.h"
 #include <mtev_log.h>
+
+#include "flatbuffers/metric_list_reader.h"
+#include "flatbuffers/metric_batch_builder.h"
+#include "flatbuffers/metric_common_builder.h"
+#include "flatbuffers/metric_list_builder.h"
 
 static void
 flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t generation)
