@@ -81,7 +81,6 @@
  */
 
 static mtev_log_stream_t check_log = NULL;
-static mtev_log_stream_t filterset_log = NULL;
 static mtev_log_stream_t status_log = NULL;
 static mtev_log_stream_t delete_log = NULL;
 static mtev_log_stream_t bundle_log = NULL;
@@ -260,8 +259,6 @@ noit_check_log_bundle_metric_flatbuffer_serialize_log(mtev_log_stream_t ls,
   int rv = -1;
   char check_name[256 * 3] = {0};
   int len = sizeof(check_name);
-
-  static char *ip_str = "ip";
 
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
   if(m->logged) return 0;
@@ -546,16 +543,13 @@ _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m)
 static int
 noit_check_log_bundle_fb_serialize(mtev_log_stream_t ls, noit_check_t *check, const struct timeval *w, mtev_hash_table *in_metrics) {
   int rv_sum = 0, rv_err = 0;
-  static char *ip_str = "ip";
   char check_name[256 * 3] = {0};
   int len = sizeof(check_name);
   const char *key;
-  int klen, i=0, j;
-  unsigned int out_size;
+  int klen;
   stats_t *c;
   void *vm;
   const struct timeval *whence;
-  char *buf, *out_buf;
   mtev_hash_table *metrics;
 
   c = noit_check_get_stats_current(check);
@@ -674,8 +668,6 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check, const
   int metrics_per_bundle = 0;
   if(v_mpb) metrics_per_bundle = atoi(v_mpb);
   if(metrics_per_bundle <= 0) metrics_per_bundle = METRICS_PER_BUNDLE;
-
-  struct timeval latest_metric_whence = { 0, 0 };
 
   // Get a bundle
   c = noit_check_get_stats_current(check);
