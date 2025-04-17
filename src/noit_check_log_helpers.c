@@ -126,9 +126,8 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
                                      unsigned int len_in,
                                      char *buf_out,
                                      unsigned int *len_out) {
-  int rv = 0;
-  size_t initial_dlen, dlen, rawlen;
-  char *compbuff, *rawbuff;
+  size_t initial_dlen, dlen;
+  char *compbuff = NULL;
 
   /* Decode */
   initial_dlen = (((len_in + 3) / 4) * 3);
@@ -375,11 +374,11 @@ static int
 noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
 {
   unsigned int ulen;
-  int i, size;
-  const char *cp1, *cp2, *rest, *error_str = NULL;
-  char *target, *module, *name, *whence_str = NULL, *ulen_str = NULL, *nipstr = NULL;
+  int size;
+  const char *cp1 = NULL, *cp2 = NULL, *rest = NULL, *error_str = NULL;
+  char *whence_str = NULL, *ulen_str = NULL;
   unsigned char *raw_data = NULL;
-  const char *value_str;
+  const char *value_str = NULL;
   size_t value_size;
   size_t metrics_len = 0;
   char scratch[64];
@@ -441,7 +440,6 @@ noit_check_log_bf_to_sm(const char *line, int len, char ***out, int noit_ip)
   char check_uuid[UUID_STR_LEN+1];
   mtev_uuid_unparse_lower(check_uuid_raw, check_uuid);
 
-  int account_id = noit_ns(MetricBatch_account_id(message));
   noit_ns(MetricValue_vec_t) metrics = noit_ns(MetricBatch_metrics(message));
   metrics_len = noit_ns(MetricValue_vec_len(metrics));
   int total_lines = 0;
