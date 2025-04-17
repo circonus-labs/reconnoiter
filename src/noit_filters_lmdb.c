@@ -750,7 +750,6 @@ noit_filters_lmdb_load_one_from_db_locked(void *fb_data, size_t fb_size) {
 
     noit_ns(FiltersetRuleInfo_vec_t)rule_info_vec = noit_ns(FiltersetRule_info(fs_rule));
     size_t num_run_info = noit_ns(FiltersetRuleInfo_vec_len(rule_info_vec));
-    noit_ns(FiltersetRuleHashValue_table_t) v;
     for (j = 0; j < num_run_info; j++) {
       noit_ns(FiltersetRuleInfo_table_t)rule_info_table = noit_ns(FiltersetRuleInfo_vec_at(rule_info_vec, j));
       flatbuffers_string_t info_type = noit_ns(FiltersetRuleInfo_type(rule_info_table));
@@ -868,7 +867,6 @@ static int
 noit_filters_lmdb_remove_from_db(char *name) {
   int rc = MDB_SUCCESS;
   MDB_txn *txn = NULL;
-  MDB_cursor *cursor = NULL;
   MDB_val mdb_key;
   char *key = NULL;
   size_t key_size;
@@ -1513,11 +1511,6 @@ noit_filters_lmdb_rest_delete_filter(mtev_http_rest_closure_t *restc,
                                      int npats, char **pats,
                                      eventer_jobq_t *jobq) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
-  int rc = 0;
-  MDB_txn *txn = NULL;
-  MDB_val mdb_key;
-  char *key = NULL;
-  size_t key_size;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
 
   mtevAssert(instance != NULL);
@@ -1563,7 +1556,7 @@ noit_filters_lmdb_cull_unused() {
   MDB_txn *txn = NULL;
   MDB_cursor *cursor = NULL;
   MDB_val mdb_key, mdb_data;
-  int i, n_uses = 0, n_declares = 0, removed = 0;
+  int n_uses = 0, removed = 0;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
   
   mtevAssert(instance != NULL);
@@ -1735,13 +1728,10 @@ noit_filters_lmdb_rest_set_filter(mtev_http_rest_closure_t *restc,
                                   int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL, indoc = NULL;
-  xmlNodePtr parent, root;
-  char xpath[1024];
+  xmlNodePtr root;
   int error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
-  char *error_str = NULL;
   noit_lmdb_instance_t *instance = noit_filters_get_lmdb_instance();
-  int rv = 0;
 
   mtevAssert(instance != NULL);
 
