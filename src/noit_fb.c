@@ -44,7 +44,6 @@ static void
 flatbuffer_encode_metric(flatcc_builder_t *B, metric_t *m, const uint16_t generation)
 {
   char uuid_str[256*3+37];
-  int len = sizeof(uuid_str);
 
   noit_ns(MetricValue_name_create_str(B, noit_metric_get_full_metric_name(m)));
   noit_ns(MetricValue_samples_start(B));
