@@ -1,13 +1,15 @@
-#include <stdio.h>
-#include <string.h>
+#include "noit_message_decoder.h"
 #include "noit_metric.h"
 #include "noit_metric_tag_search.h"
-#include "noit_message_decoder.h"
-#include "libnoit.h"
-#include <mtev_hash.h>
-#include <mtev_b64.h>
-#include <mtev_perftimer.h>
 #include <assert.h>
+#include "libnoit.h"
+#include <fmt/core.h>
+#include <mtev_b64.h>
+#include <mtev_hash.h>
+#include <mtev_perftimer.h>
+#include <stdio.h>
+#include <string.h>
+#include <string>
 #include <sys/time.h>
 
 bool benchmark = false;
@@ -110,7 +112,6 @@ const char *testtags[][2] = {
 
 struct Matches {
   const char *tagstring;
-  mtev_boolean tagstring_is_valid;
   struct {
     const char *query;
     mtev_boolean match;
@@ -118,10 +119,25 @@ struct Matches {
   } queries[14];
 };
 
+// the substring "123" is included at the end so the test can ensure the tag is not truncated
+std::string max_length_tag_pair =
+    fmt::format("max_length_tag:max_length{}123",
+                std::string(NOIT_TAG_MAX_PAIR_LEN -
+                                (sizeof("max_length_tag:max_length123") - 1),
+                            '0'));
+std::string too_long_tag_pair =
+    fmt::format("too_long_tag:too_long{}",
+                std::string(NOIT_TAG_MAX_PAIR_LEN + 1 -
+                                (sizeof("too_long_tag:too_long") - 1),
+                            '0'));
+std::string max_length_test =
+    fmt::format("tag1:value1,tag2:value2,{},tag4:value4", max_length_tag_pair);
+std::string too_long_test =
+    fmt::format("tag1:value1,tag2:value2,{},tag4:value4", too_long_tag_pair);
+
 struct Matches testmatches[] = {
   { 
     "__name:f1.f2.f3.f4.f5.f6",
-    mtev_true,
     {
       // f1.{f2,foo}.f{3,4,5}.*.*.f6 (encoded on next line)
       { "and(__name:b[graphite]\"ZjEue2YyLGZvb30uZnszLDQsNX0uKi4qLmY2\")", mtev_true },
@@ -131,12 +147,11 @@ struct Matches testmatches[] = {
       { "and(__name:[graphite]f1.**)", mtev_true },
       { "and(__name:[graphite]f1.f2.*.f4.f5.f6)", mtev_true },
       { "and(__name:[graphite]f1.f2.f3.f4.f5.f6)", mtev_true },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
     "foo:bar,b\"c29tZTpzdHVmZltoZXJlXQ==\":/value,empty:",
-    mtev_true,
     {
       { "and(foo:bar)", mtev_true },
       { "and(foo:/)", mtev_false },
@@ -151,12 +166,11 @@ struct Matches testmatches[] = {
       { "not(empty:/^$/)", mtev_false },
       { "not(empty:)", mtev_false },
       { "not(empty)", mtev_false },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
     "b\"KGZvbyk=\":bar",
-    mtev_true,
     {
       { "and(*:*)", mtev_true },
       { "and(*:bar)", mtev_true },
@@ -164,63 +178,106 @@ struct Matches testmatches[] = {
       { "and(*:/ba(.?)r/)", mtev_true },
       { "and(b\"KGZvbyk=\":bar)", mtev_true },
       { "and(b/XChm/:bar)", mtev_true },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
     "b\"W2Jhcl0=\":b\"Kipmb28qKg==\"",
-    mtev_true,
     {
       { "and(b\"W2Jhcl0=\":*)", mtev_true },
       { "and(*:b!Kipmb28qKg==!)", mtev_true },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
     "b\"Kipmb28qKg==\":b\"W2Jhcl0=\"",
-    mtev_true,
     {
       { "and(*:b\"W2Jhcl0=\")", mtev_true },
       { "and(b\"Kipmb28qKg==\":*)", mtev_true },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
     "b\"P2Zvbz8=\":b\"W2Jhcl0=\"",
-    mtev_true,
     {
       { "and(*:b\"W2Jhcl0=\")", mtev_true },
       { "and(b\"P2Yq\":*)", mtev_true },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
     "b\"Lz9oaXN0b2dyYW0vKC4rKSQp\":quux",
-    mtev_true,
     {
       { "and(*:*)", mtev_true },
       { "and(hint(*:*))", mtev_true },
       { "and(hint(*:*,index:none))", mtev_true },
       { "hint(and(b!Lz9oaXN0b2dyYW0vKC4rKSQp!:quux),foo:bar)", mtev_true },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
     "b\"L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp\":bar",
-    mtev_true,
     {
       { "and(*:bar)", mtev_true },
       { "and(b\"L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp\":bar)", mtev_false },
       { "and(b!L2Zvby8oXig/OlswLTldezJ9LSkvKC4rKSQp!:bar)", mtev_true },
-      { NULL, 0 }
+      { NULL, mtev_false }
     }
   },
   {
-    "tag:this_tag_pair_is_too_long_0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    "0000000000000000000000000000000257",
-    mtev_false,
+    too_long_tag_pair.c_str(),
     {
-      { NULL, 0 }
+      { "and(too_long_tag:too_long*)", mtev_false },
+      { NULL, mtev_false }
+    }
+  },
+  {
+    max_length_test.c_str(),
+    {
+      { "and(tag1:value1)", mtev_true },
+      { "and(tag2:value2)", mtev_true },
+      { "and(max_length_tag:max_length*)", mtev_true },
+      { "and(max_length_tag:*123)", mtev_true },
+      { "and(tag4:value4)", mtev_true },
+      { NULL, mtev_false }
+    }
+  },
+  { 
+    too_long_test.c_str(),
+    {
+      { "and(tag1:value1)", mtev_true },
+      { "and(tag2:value2)", mtev_true },
+      { "and(too_long_tag:too_long*)", mtev_false },
+      { "and(tag4:value4)", mtev_true },
+      { NULL, mtev_false }
+    }
+  }
+};
+
+std::string max_length_implicit_tag_pair =
+    fmt::format("__name:max_length{}123",
+                std::string(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN -
+                                (sizeof("__name:max_length123") - 1),
+                            '0'));
+std::string too_long_implicit_tag_pair =
+    fmt::format("__name:too_long{}",
+                std::string(NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + 1 -
+                                (sizeof("__name:too_long") - 1),
+                            '0'));
+std::string check_uuid_tag_pair = "__check_uuid:b946274b-183d-4553-814a-ada8130c560d";
+std::string implicit_testmatch = max_length_implicit_tag_pair + "," + too_long_implicit_tag_pair + "," + check_uuid_tag_pair;
+
+struct Matches implicit_testmatches[] = {
+  
+  { 
+    implicit_testmatch.c_str(),
+    {
+      { "and(__name:max_length*)", mtev_true },
+      { "and(__name:*123)", mtev_true },
+      { "and(__name:*value_not_in_name*)", mtev_false },
+      { "and(__name:too_long*)", mtev_false },
+      { "and(__check_uuid:*b946274b*)", mtev_true },
+      { NULL, mtev_false }
     }
   }
 };
@@ -265,7 +322,7 @@ void test_tag_decode()
 {
   char decoded[512] = {0};
   
-  for(int i = 0; i < sizeof(testtags) / sizeof(*testtags); i++) {
+  for(size_t i = 0; i < sizeof(testtags) / sizeof(*testtags); i++) {
     const char *encoded = testtags[i][0];
     int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
 					      encoded, strlen(encoded));
@@ -279,7 +336,7 @@ void test_tag_decode()
 void test_ast_decode()
 {
   int erroroffset;
-  noit_metric_tag_search_ast_t *ast, *not;
+  noit_metric_tag_search_ast_t *ast, *arg;
   const char *query;
   char *unparse;
 
@@ -370,10 +427,10 @@ void test_ast_decode()
     test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(noit_metric_tag_search_get_arg(ast,0))),"foo") == 0);
     test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(noit_metric_tag_search_get_arg(ast,0))),"bar") == 0);
     test_assert(noit_metric_tag_search_get_op(noit_metric_tag_search_get_arg(ast,1)) == OP_NOT_ARGS);
-    not = noit_metric_tag_search_get_arg(noit_metric_tag_search_get_arg(ast,1),0);
-    test_assert(not != NULL);
-    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(not)),"some:stuff[here]") == 0);
-    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(not)),"value") == 0);
+    arg = noit_metric_tag_search_get_arg(noit_metric_tag_search_get_arg(ast,1),0);
+    test_assert(arg != NULL);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(arg)),"some:stuff[here]") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(arg)),"value") == 0);
     noit_metric_tag_search_free(ast);
   }
   else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
@@ -390,11 +447,11 @@ void test_ast_decode()
     test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(noit_metric_tag_search_get_arg(ast,0))),"foo") == 0);
     test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(noit_metric_tag_search_get_arg(ast,0))),"bar") == 0);
     test_assert(noit_metric_tag_search_get_op(noit_metric_tag_search_get_arg(ast,1)) == OP_NOT_ARGS);
-    not = noit_metric_tag_search_get_arg(noit_metric_tag_search_get_arg(ast,1),0);
-    test_assert(not != NULL);
-    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(not)),"some.*") == 0);
-    test_assert(strcmp(noit_var_impl_name(noit_metric_tag_search_get_cat(not)),"re") == 0);
-    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(not)),"value") == 0);
+    arg = noit_metric_tag_search_get_arg(noit_metric_tag_search_get_arg(ast,1),0);
+    test_assert(arg != NULL);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_cat(arg)),"some.*") == 0);
+    test_assert(strcmp(noit_var_impl_name(noit_metric_tag_search_get_cat(arg)),"re") == 0);
+    test_assert(strcmp(noit_var_val(noit_metric_tag_search_get_name(arg)),"value") == 0);
     noit_metric_tag_search_free(ast);
   }
   else test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, query);
@@ -453,18 +510,17 @@ void test_tag_match()
   noit_metric_tagset_builder_t builder;
   noit_metric_tag_search_ast_t *ast;
   mtev_boolean match;
-  char *canonical;
 
-  for(int i = 0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
+  test_assert(max_length_tag_pair.length() == NOIT_TAG_MAX_PAIR_LEN);
+  test_assert(too_long_tag_pair.length() > NOIT_TAG_MAX_PAIR_LEN);
+
+  for(size_t i = 0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
+    char *canonical = NULL;
+    test_assert_namef(true, "testing tagset '%s'", testmatches[i].tagstring);
     noit_metric_tagset_builder_start(&builder);
-    mtev_boolean tagset_add = noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
-    memset(&tagset, 0, sizeof(tagset));
-    mtev_boolean tagset_end = noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
-    if (tagset.tag_count == 0){
-      assert(testmatches[i].tagstring_is_valid == mtev_false);
-      continue;
-    }
-    test_assert_namef(tagset_add && tagset_end, "'%s' is valid tagset", testmatches[i].tagstring);
+    noit_metric_tagset_builder_add_many(&builder, testmatches[i].tagstring, strlen(testmatches[i].tagstring));
+    noit_metric_tagset_init(&tagset, 0, 0);
+    noit_metric_tagset_builder_end(&builder, &tagset, &canonical);
 
     for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
       ast = noit_metric_tag_search_parse_lazy(testmatches[i].queries[j].query, &erroroffset);
@@ -487,7 +543,59 @@ void test_tag_match()
         test_assert_namef(ast != NULL, "parsing error at %d in '%s'", erroroffset, testmatches[i].queries[j].query);
       }
     }
-    free(tagset.tags);
+    noit_metric_tagset_cleanup(&tagset);
+    free(canonical);
+  }
+}
+
+void test_implicit_tag_match() {
+  int erroroffset;
+  noit_metric_tagset_t tagset = {};
+  noit_metric_tag_search_ast_t *ast;
+  mtev_boolean match;
+
+  test_assert(max_length_implicit_tag_pair.length() == NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+  test_assert(too_long_implicit_tag_pair.length() > NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+  test_assert(check_uuid_tag_pair.length() == sizeof("__check_uuid:") - 1 + UUID_STR_LEN);
+
+  for (size_t i = 0;
+       i < sizeof(implicit_testmatches) / sizeof(*implicit_testmatches); i++) {
+    char *canonical = NULL;
+    test_assert_namef(true, "testing tagset '%s'",
+                      implicit_testmatches[i].tagstring);
+    noit_metric_tagset_init(&tagset, 0, 0);
+    noit_metric_add_implicit_tags_to_tagset(
+        implicit_testmatches[i].tagstring,
+        strlen(implicit_testmatches[i].tagstring), &tagset, &canonical);
+
+    for (int j = 0; implicit_testmatches[i].queries[j].query != NULL; j++) {
+      ast = noit_metric_tag_search_parse_lazy(
+          implicit_testmatches[i].queries[j].query, &erroroffset);
+      if (ast) {
+        if (benchmark) {
+          mtev_perftimer_t btimer;
+          mtev_perftimer_start(&btimer);
+          for (int b = 0; b < BENCH_ITERS; b++) {
+            match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+          }
+          implicit_testmatches[i].queries[j].bench_ns =
+              mtev_perftimer_elapsed(&btimer);
+        } else {
+          match = noit_metric_tag_search_evaluate_against_tags(ast, &tagset);
+        }
+        test_assert_namef(match == implicit_testmatches[i].queries[j].match,
+                          "'%s' %s", implicit_testmatches[i].queries[j].query,
+                          match ? "matches" : "doesn't match");
+        /* clone if only to test cloning */
+        noit_metric_tag_search_free(noit_metric_tag_search_clone(ast));
+        noit_metric_tag_search_free(ast);
+      } else {
+        test_assert_namef(ast != NULL, "parsing error at %d in '%s'",
+                          erroroffset,
+                          implicit_testmatches[i].queries[j].query);
+      }
+    }
+    noit_metric_tagset_cleanup(&tagset);
     free(canonical);
   }
 }
@@ -552,7 +660,7 @@ void test_fuzz_canon() {
         /* We can only operate on metric names up to sizeof(out), so just elide the testing
          * from longer names. */
         if(strlen(_obuff) <= sizeof(out)) {
-          char *copy = malloc(strlen(_obuff));
+          char *copy = (char *)malloc(strlen(_obuff));
           memcpy(copy, _obuff, strlen(_obuff));
           int len = noit_metric_canonicalize(copy, strlen(_obuff), out, sizeof(out), mtev_true);
           free(copy);
@@ -620,13 +728,12 @@ void test_line(const char *name, const char *in, const char *expect, int rval_ex
   test_assert_namef(allocd != (message.id.alloc_name == NULL), "test_line(%s) allocd", name);
   test_assert_namef(rval == rval_expect, "test_line(%s) rval [%d should be %d]", name, rval, rval_expect);
   if(expect != NULL) {
-     int v = strlen(expect) == message.id.name_len_with_tags &&
-             !memcmp(message.id.name, expect, message.id.name_len_with_tags);
-     test_assert_namef(v,
-                       "test_line(%s) metric match", name);
-     if(v == 0) {
-       printf("\nFAILURE:\nRESULT: '%.*s'\nEXPECT: '%s'\n\n",
-              (int)message.id.name_len_with_tags, message.id.name, expect);
+    int v = strlen(expect) == (size_t)message.id.name_len_with_tags &&
+            !memcmp(message.id.name, expect, message.id.name_len_with_tags);
+    test_assert_namef(v, "test_line(%s) metric match", name);
+    if (v == 0) {
+      printf("\nFAILURE:\nRESULT: '%.*s'\nEXPECT: '%s'\n\n",
+             (int)message.id.name_len_with_tags, message.id.name, expect);
      }
   }
   else {
@@ -654,13 +761,11 @@ void metric_parsing(void) {
   test_assert_namef(len > 0, "'%s' -> '%s'", dbuff, ebuff);
   test_assert_namef(strcmp("foo:http://12.3.3.4:80/this?is=it", ebuff) == 0, "'%s' equals 'foo:http://12.3.3.4:80/this?is=it'", ebuff);
 
-  int i;
-
-  for(i=0; i<sizeof(testlines)/sizeof(*testlines); i++) {
+  for(size_t i=0; i<sizeof(testlines)/sizeof(*testlines); i++) {
     test_line(testlines[i].name, testlines[i].input, testlines[i].output, testlines[i].rval, testlines[i].allocd);
   }
 
-  for(int i=0; i<sizeof(tcpairs)/sizeof(*tcpairs); i++) {
+  for(size_t i=0; i<sizeof(tcpairs)/sizeof(*tcpairs); i++) {
     test_canon(tcpairs[i][0], tcpairs[i][1]);
   }
   test_fuzz_canon();
@@ -671,7 +776,7 @@ void query_parsing(void) {
   noit_metric_tag_search_ast_t *ast;
   char *unparse;
 
-  for(int i = 0; i < sizeof(testqueries) / sizeof(*testqueries); i++) {
+  for(size_t i = 0; i < sizeof(testqueries) / sizeof(*testqueries); i++) {
     ast = noit_metric_tag_search_parse(testqueries[i], &erroroffset);
     if(ast) {
       unparse = noit_metric_tag_search_unparse(ast);
@@ -720,11 +825,11 @@ void query_argument_swapping(void) {
   }
 }
 
-void loop(char *str) {
+void loop(const std::string &str) {
   int len;
   const int nloop = 100000;
   struct timeval start, end;
-  char *hbuff = strdup(str);
+  char *hbuff = strdup(str.c_str());
   int hlen = strlen(hbuff);
   char obuff[MAX_METRIC_TAGGED_NAME];
   gettimeofday(&start, NULL);
@@ -735,7 +840,7 @@ void loop(char *str) {
   gettimeofday(&end, NULL);
   double elapsed = sub_timeval_d(end, start);
   free(hbuff);
-  printf("canonicalize('%s') -> %f ns/op\n", str, (elapsed * 1000000000.0) / (double)nloop);
+  printf("canonicalize('%s') -> %f ns/op\n", str.c_str(), (elapsed * 1000000000.0) / (double)nloop);
 }
 
 void test_tag_at_limit(void) {
@@ -772,6 +877,43 @@ void test_tag_at_limit(void) {
   assert(memcmp(tag_name, dbuff + NOIT_TAG_MAX_PAIR_LEN, NOIT_TAG_MAX_PAIR_LEN) == 0);
 }
 
+void test_implicit_tag_at_limit(void) {
+  mtev_boolean too_long = mtev_false;
+  noit_metric_tag_t tag;
+  ssize_t len;
+  char dbuff[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN * 3];
+
+  assert(max_length_implicit_tag_pair.size() == NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+
+  noit_metric_tags_parse_one_implicit(max_length_implicit_tag_pair.c_str(), max_length_implicit_tag_pair.size(), &tag,
+                                      &too_long);
+  assert(too_long == mtev_false);
+
+  memset(dbuff, 0xff, NOIT_IMPLICIT_TAG_MAX_PAIR_LEN * 3);
+  len = noit_metric_tagset_decode_tag(dbuff + NOIT_IMPLICIT_TAG_MAX_PAIR_LEN,
+                                      NOIT_IMPLICIT_TAG_MAX_PAIR_LEN, tag.tag,
+                                      tag.total_size);
+
+  assert(len >= 0);
+  assert((uint8_t)dbuff[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN - 1] == 0xff);
+  assert(
+      (uint8_t)dbuff[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + NOIT_IMPLICIT_TAG_MAX_PAIR_LEN] ==
+      0xff);
+  assert(memcmp(max_length_implicit_tag_pair.c_str(), dbuff + NOIT_IMPLICIT_TAG_MAX_PAIR_LEN,
+                NOIT_IMPLICIT_TAG_MAX_PAIR_LEN) != 0);
+  assert((uint8_t)dbuff[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN] == '_');
+  assert(
+      (uint8_t)dbuff[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN + NOIT_IMPLICIT_TAG_MAX_PAIR_LEN] ==
+      0xff);
+
+  len = noit_metric_tagset_encode_tag(
+      dbuff + NOIT_IMPLICIT_TAG_MAX_PAIR_LEN, NOIT_IMPLICIT_TAG_MAX_PAIR_LEN,
+      dbuff + NOIT_IMPLICIT_TAG_MAX_PAIR_LEN, NOIT_IMPLICIT_TAG_MAX_PAIR_LEN);
+  assert(len >= 0);
+  assert(memcmp(max_length_implicit_tag_pair.c_str(), dbuff + NOIT_IMPLICIT_TAG_MAX_PAIR_LEN,
+                NOIT_IMPLICIT_TAG_MAX_PAIR_LEN) == 0);
+}
+
 int main(int argc, char * const *argv)
 {
   int opt;
@@ -802,7 +944,9 @@ int main(int argc, char * const *argv)
   test_tag_decode();
   test_ast_decode();
   test_tag_match();
+  test_implicit_tag_match();
   test_tag_at_limit();
+  test_implicit_tag_at_limit();
   metric_parsing();
   query_parsing();
   query_argument_swapping();
@@ -812,7 +956,7 @@ int main(int argc, char * const *argv)
   loop("testing_this_long_untagged_metric");
   printf("\n%d tests failed.\n", failures);
   if(benchmark) {
-    for(int i=0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
+    for(size_t i=0; i < sizeof(testmatches) / sizeof(*testmatches); i++) {
       for(int j = 0; testmatches[i].queries[j].query != NULL; j++) {
         printf("%s on %s -> %f ns/op\n", testmatches[i].queries[j].query, testmatches[i].tagstring,
                (double)testmatches[i].queries[j].bench_ns / (double)BENCH_ITERS);

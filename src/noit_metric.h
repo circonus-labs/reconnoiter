@@ -105,6 +105,9 @@ typedef enum {
 #define NOIT_TAG_MAX_CAT_LEN  254
 #define NOIT_TAG_DECODED_SEPARATOR 0x1f
 
+static const size_t NOIT_IMPLICIT_TAG_MAX_PAIR_LEN =
+    MAX_METRIC_TAGGED_NAME + sizeof("__name:") - 1;
+
 typedef struct {
   uint16_t total_size;
   uint8_t category_size;
@@ -233,12 +236,19 @@ API_EXPORT(mtev_boolean)
                                       const char *tagset,
                                       size_t tagstr_len);
 API_EXPORT(mtev_boolean)
-  noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder,
-                                     const char *tagset,
-                                     size_t tagstr_len);
+  noit_metric_tagset_builder_add_many_implicit(noit_metric_tagset_builder_t *builder,
+                                      const char *tagset,
+                                      size_t tagstr_len);
 API_EXPORT(mtev_boolean)
-  noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder, noit_metric_tagset_t *out,
-                                 char **canonical);
+noit_metric_tagset_builder_add_one(noit_metric_tagset_builder_t *builder,
+                                   const char *tagset, size_t tagstr_len);
+API_EXPORT(mtev_boolean)
+noit_metric_tagset_builder_add_one_implicit(
+    noit_metric_tagset_builder_t *builder, const char *tagset,
+    size_t tagstr_len);
+API_EXPORT(mtev_boolean)
+noit_metric_tagset_builder_end(noit_metric_tagset_builder_t *builder,
+                               noit_metric_tagset_t *out, char **canonical);
 
 API_EXPORT(ssize_t)
   noit_metric_tags_canonical(const noit_metric_tag_t *tags,
@@ -271,15 +281,26 @@ MTEV_HOOK_PROTO(noit_metric_tagset_fixup,
                 (void *closure, noit_metric_tagset_class_t cls, noit_metric_tagset_t *tagset))
 
 API_EXPORT(const char *)
-  noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
-                             noit_metric_tag_t *output, mtev_boolean *toolong);
+noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
+                           noit_metric_tag_t *output, mtev_boolean *toolong);
+
+API_EXPORT(const char *)
+noit_metric_tags_parse_one_implicit(const char *const tagnm,
+                                    const size_t tagnmlen,
+                                    noit_metric_tag_t *output,
+                                    mtev_boolean *toolong);
 
 API_EXPORT(metric_t *)
   noit_metric_alloc(void);
 API_EXPORT(const char *)
   noit_metric_get_full_metric_name(metric_t *m);
 
-API_EXPORT(noit_metric_tagset_context_t *)
+  API_EXPORT(bool)
+  noit_metric_add_implicit_tags_to_tagset(const char *value, size_t length,
+                                          noit_metric_tagset_t *out,
+                                          char **canonical);
+
+  API_EXPORT(noit_metric_tagset_context_t *)
   noit_metric_tagset_context_alloc(void);
 
 API_EXPORT(void)
