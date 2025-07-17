@@ -277,11 +277,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
         mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp4->icmp_type);
         continue;
       }
-      if(icp4->icmp_id != (((uintptr_t)self) & 0xffff)) {
+      if((icp4->icmp_id & 0xff00) != (((uintptr_t)self) & 0xff00)) {
         mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp4->icmp_id, ntohs(icp4->icmp_seq),
-                 (unsigned long)(((uintptr_t)self) & 0xffff));
+                 (unsigned long)(((uintptr_t)self) & 0xff00));
         continue;
       }
     }
@@ -297,11 +297,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
         mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp6->icmp6_type);
         continue;
       }
-      if(icp6->icmp6_id != (((uintptr_t)self) & 0xffff)) {
+      if((icp6->icmp6_id & 0xff00) != (((uintptr_t)self) & 0xff00)) {
         mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp6->icmp6_id, ntohs(icp6->icmp6_seq),
-                 (unsigned long)(((uintptr_t)self) & 0xffff));
+                 (unsigned long)(((uintptr_t)self) & 0xff00));
         continue;
       }
     }
@@ -681,16 +681,16 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
       icp4->icmp_type = ICMP_ECHO;
       icp4->icmp_code = 0;
       icp4->icmp_cksum = 0;
+      icp4->icmp_id = (((uintptr_t)self) & 0xff00) | (ci->seq & 0xff);
       icp4->icmp_seq = htons(ci->seq++);
-      icp4->icmp_id = (((uintptr_t)self) & 0xffff);
     }
     else if(check->target_family == AF_INET6) {
       struct icmp6_hdr *icp6 = icp;
       icp6->icmp6_type = ICMP6_ECHO_REQUEST;
       icp6->icmp6_code = 0;
       icp6->icmp6_cksum = 0;
+      icp6->icmp6_id = (((uintptr_t)self) & 0xff00) | (ci->seq & 0xff);
       icp6->icmp6_seq = htons(ci->seq++);
-      icp6->icmp6_id = (((uintptr_t)self) & 0xffff);
     }
 
     payload->addr_of_check = (uintptr_t)check ^ random_num;
