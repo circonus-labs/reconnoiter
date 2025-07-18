@@ -326,6 +326,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     // if we don't get a match, need to also scan test checks if that module is loaded
     if(!check) {
       check = NOIT_TESTCHECK_LOOKUP(k.checkid);
+      if(check) noit_check_ref(check);
     }
     if(!check) {
       mtevLT(nldeb, now,
@@ -582,7 +583,9 @@ static int ping_icmp_real_send(eventer_t e, int mask,
              pcl->check->target, pcl->check->target_ip, strerror(errno));
   }
  cleanup:
+  mtev_memory_begin();
   noit_check_deref(pcl->check);
+  mtev_memory_end();
   free(pcl->payload);
   free(pcl);
   return 0;
@@ -657,8 +660,6 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   memcpy(&check->last_fire_time, &when, sizeof(when));
 
   /* Setup some stuff used in the loop */
-  p_int.tv_sec = interval / 1000;
-  p_int.tv_usec = (interval % 1000) * 1000;
   icp_len = (check->target_family == AF_INET6) ?
               sizeof(struct icmp6_hdr) : sizeof(struct icmp);
   packet_len = icp_len + PING_PAYLOAD_LEN;
@@ -707,6 +708,8 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     pcl->payload_len = packet_len;
     pcl->icp_len = icp_len;
 
+    p_int.tv_sec = (i * interval) / 1000;
+    p_int.tv_usec = ((i * interval) % 1000) * 1000;
     newe = eventer_in(ping_icmp_real_send, pcl, p_int);
     eventer_add(newe);
   }

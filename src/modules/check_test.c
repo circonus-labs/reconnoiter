@@ -98,6 +98,12 @@ check_test_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
 
+static void
+deref_and_free_check(void *vp) {
+  noit_check_t *p = (noit_check_t *)vp;
+  noit_check_deref(p);
+  noit_poller_free_check(p);
+}
 noit_check_t *
 noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   char *target = NULL, *name = NULL, *module = NULL, *filterset = NULL;
@@ -180,8 +186,9 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   c->flags |= NP_DISABLED; /* this is hack to know we haven't run it yet */
   if(NOIT_CHECK_SHOULD_RESOLVE(c))
     noit_check_resolve(c);
+  noit_check_ref(c);
   mtev_hash_replace(&test_checks, (char *)c->checkid, UUID_SIZE, c, NULL,
-                    (NoitHashFreeFunc)noit_poller_free_check);
+                    deref_and_free_check);
 
  error:
   if(conf_hash) {
@@ -249,6 +256,7 @@ rest_test_check_result(struct check_test_closure *cl) {
 
   // this should free the check automatically with noit_poller_free_check
   mtev_hash_delete(&test_checks, (char *)cl->check->checkid, UUID_SIZE, NULL, NULL);
+  noit_check_deref(cl->check);
   free(cl);
 }
 
