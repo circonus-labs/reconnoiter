@@ -277,11 +277,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
         mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp4->icmp_type);
         continue;
       }
-      if(icp4->icmp_id != (((uintptr_t)self) & 0xffff)) {
+      if((icp4->icmp_id & 0xff00) != (((uintptr_t)self) & 0xff00)) {
         mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp4->icmp_id, ntohs(icp4->icmp_seq),
-                 (unsigned long)(((uintptr_t)self) & 0xffff));
+                 (unsigned long)(((uintptr_t)self) & 0xff00));
         continue;
       }
     }
@@ -297,11 +297,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
         mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp6->icmp6_type);
         continue;
       }
-      if(icp6->icmp6_id != (((uintptr_t)self) & 0xffff)) {
+      if((icp6->icmp6_id & 0xff00) != (((uintptr_t)self) & 0xff00)) {
         mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp6->icmp6_id, ntohs(icp6->icmp6_seq),
-                 (unsigned long)(((uintptr_t)self) & 0xffff));
+                 (unsigned long)(((uintptr_t)self) & 0xff00));
         continue;
       }
     }
@@ -326,6 +326,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     // if we don't get a match, need to also scan test checks if that module is loaded
     if(!check) {
       check = NOIT_TESTCHECK_LOOKUP(k.checkid);
+      if(check) noit_check_ref(check);
     }
     if(!check) {
       mtevLT(nldeb, now,
@@ -582,7 +583,9 @@ static int ping_icmp_real_send(eventer_t e, int mask,
              pcl->check->target, pcl->check->target_ip, strerror(errno));
   }
  cleanup:
+  mtev_memory_begin();
   noit_check_deref(pcl->check);
+  mtev_memory_end();
   free(pcl->payload);
   free(pcl);
   return 0;
@@ -657,8 +660,6 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   memcpy(&check->last_fire_time, &when, sizeof(when));
 
   /* Setup some stuff used in the loop */
-  p_int.tv_sec = interval / 1000;
-  p_int.tv_usec = (interval % 1000) * 1000;
   icp_len = (check->target_family == AF_INET6) ?
               sizeof(struct icmp6_hdr) : sizeof(struct icmp);
   packet_len = icp_len + PING_PAYLOAD_LEN;
@@ -681,16 +682,16 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
       icp4->icmp_type = ICMP_ECHO;
       icp4->icmp_code = 0;
       icp4->icmp_cksum = 0;
+      icp4->icmp_id = (((uintptr_t)self) & 0xff00) | (ci->seq & 0xff);
       icp4->icmp_seq = htons(ci->seq++);
-      icp4->icmp_id = (((uintptr_t)self) & 0xffff);
     }
     else if(check->target_family == AF_INET6) {
       struct icmp6_hdr *icp6 = icp;
       icp6->icmp6_type = ICMP6_ECHO_REQUEST;
       icp6->icmp6_code = 0;
       icp6->icmp6_cksum = 0;
+      icp6->icmp6_id = (((uintptr_t)self) & 0xff00) | (ci->seq & 0xff);
       icp6->icmp6_seq = htons(ci->seq++);
-      icp6->icmp6_id = (((uintptr_t)self) & 0xffff);
     }
 
     payload->addr_of_check = (uintptr_t)check ^ random_num;
@@ -707,6 +708,8 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
     pcl->payload_len = packet_len;
     pcl->icp_len = icp_len;
 
+    p_int.tv_sec = (i * interval) / 1000;
+    p_int.tv_usec = ((i * interval) % 1000) * 1000;
     newe = eventer_in(ping_icmp_real_send, pcl, p_int);
     eventer_add(newe);
   }
