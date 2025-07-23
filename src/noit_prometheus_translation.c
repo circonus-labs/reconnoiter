@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#include "noit_prometheus_translation.h"
+#include "noit_prometheus_translation_internal.h"
 #include <mtev_defines.h>
 #include <mtev_memory.h>
 

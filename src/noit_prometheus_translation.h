@@ -36,8 +36,6 @@
 #include <stdbool.h>
 #include <circllhist.h>
 #include "noit_metric.h"
-#include "prometheus.pb-c.h"
-#include "prometheus_types.pb-c.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,28 +66,11 @@ typedef struct {
 
 void noit_prometheus_metric_name_free(void *vpmn);
 
-prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
-                                                                  size_t label_count,
-                                                                  const char *units,
-                                                                  bool coerce_hist);
-
 bool noit_prometheus_snappy_uncompress(mtev_dyn_buffer_t *uncompressed_data_out,
                                        size_t *uncompressed_size_out,
                                        const void *data_in,
                                        size_t data_in_len);
 
-prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **labels,
-                                                         size_t label_count,
-                                                         bool do_units,
-                                                         bool do_hist,
-                                                         const char **allowed_units);
-
-noit_metric_message_t *
-noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
-                                                 const int64_t account_id,
-                                                 const uuid_t check_uuid,
-                                                 const prometheus_metric_name_t *metric_name,
-                                                 const Prometheus__Sample *sample);
 noit_metric_message_t *
 noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
                                                     const uuid_t check_uuid,

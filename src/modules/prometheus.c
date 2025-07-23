@@ -55,7 +55,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_mtev_bridge.h"
-#include "noit_prometheus_translation.h"
+#include "noit_prometheus_translation_internal.h"
 
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;

@@ -54,7 +54,7 @@
 #include <noit_metric_tag_search.h>
 #include <noit_check_log_helpers.h>
 #include <noit_message_decoder.h>
-#include "noit_prometheus_translation.h"
+#include "noit_prometheus_translation_internal.h"
 #include "noit_ssl10_compat.h"
 
 /* This is a hot mess designed to optimize metric selection on a variety of vectors.
