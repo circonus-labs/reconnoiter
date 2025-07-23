@@ -39,6 +39,10 @@
 #include "prometheus.pb-c.h"
 #include "prometheus_types.pb-c.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   const char *units;
   bool is_histogram;
@@ -103,5 +107,9 @@ noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
                                 struct timeval w);
 void
 noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progress_t *hip);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
