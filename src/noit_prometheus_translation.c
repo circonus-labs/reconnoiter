@@ -364,7 +364,7 @@ noit_prometheus_noit_prometheus_translate_to_noit_metric_message(prometheus_coer
   metric_t *metric = noit_metric_alloc();
   mtevAssert(metric);
 
-  metric->metric_name = strdup(metric_name);
+  metric->metric_name = strdup(metric_name->name);
   metric->expanded_metric_name = NULL;
   // TODO: Fill in the rest
 
