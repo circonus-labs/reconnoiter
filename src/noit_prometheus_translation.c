@@ -59,6 +59,20 @@
 
 #include <snappy/snappy.h>
 
+static void *__c_allocator_alloc(void *d, size_t size) {
+  return malloc(size);
+}
+static void __c_allocator_free(void *d, void *p) {
+  free(p);
+}
+static ProtobufCAllocator __c_allocator = {
+  .alloc = __c_allocator_alloc,
+  .free = __c_allocator_free,
+  .allocator_data = NULL
+};
+#define protobuf_c_system_allocator __c_allocator
+
+
 static const char *_allowed_units[] = {"seconds",  "requests", "responses", "transactions",
                                        "packets", "bytes", "octets", NULL};
 
@@ -420,5 +434,31 @@ noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progres
   for(int s=1; s<hip->nbins; s++) {
     hip->bins[s].lower = hip->bins[s-1].upper;
     hip->bins[s].count -= hip->bins[s-1].count;
+  }
+}
+
+void
+noit_prometheus_translate_snappy_data(const int64_t account_id,
+                                      const uuid_t check_uuid,
+                                      const void *data,
+                                      size_t data_len)
+{
+  mtev_dyn_buffer_t uncompressed;
+  mtev_dyn_buffer_init(&uncompressed);
+  size_t uncompressed_size = 0;
+
+  if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size,
+                                         data, data_len)) {
+    mtevL(mtev_error, "ERROR: Cannot snappy decompress incoming prometheus\n");
+    return;
+  }
+  mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
+  Prometheus__WriteRequest *write = prometheus__write_request__unpack(&protobuf_c_system_allocator,
+                                                                      mtev_dyn_buffer_used(&uncompressed),
+                                                                      mtev_dyn_buffer_data(&uncompressed));
+  if(!write) {
+    mtev_dyn_buffer_destroy(&uncompressed);
+    mtevL(mtev_error, "Prometheus__WriteRequest decode: protobuf invalid\n");
+    return;
   }
 }
