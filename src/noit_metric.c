@@ -894,3 +894,31 @@ noit_metric_tagset_context_execute_validate_function(const noit_metric_tagset_co
   return true;
 }
 
+metric_list_t*
+noit_metric_list_alloc(uint64_t size)
+{
+  metric_list_t *empty_list = (metric_list_t *)calloc(1, sizeof(metric_list_t));
+  empty_list->capacity = size;
+  empty_list->metrics = malloc(size * sizeof(metric_t *));
+}
+
+void
+noit_metric_list_free(metric_list_t *list)
+{
+  for (int i = 0; i < list->size; i++) {
+    mtev_memory_safe_free(list->metrics[i]);
+  }
+  free(list->metrics);
+  free(list);
+}
+
+int
+noit_metric_list_append(metric_list_t *list, metric_t *metric)
+{
+  if (list->size >= list->capacity) {
+    mtevL(mtev_error, "ERROR: %s: trying to add to a list that is already full\n");
+    return -1;
+  }
+  list->metrics[list->size++] = metric;
+  return 0;
+}

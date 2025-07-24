@@ -341,6 +341,36 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   return message;
 }
 
+static metric_t *
+noit_prometheus_noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
+                                                                 const int64_t account_id,
+                                                                 const uuid_t check_uuid,
+                                                                 const prometheus_metric_name_t *metric_name,
+                                                                 const Prometheus__Sample *sample)
+{
+  if (!coercion || !metric_name || !sample) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
+    return NULL;
+  }
+  if (sample->timestamp < 0) {
+    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name->name);
+    return NULL;
+  }
+  if (coercion->is_histogram) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected histogram argument (metric %s)\n", __func__,
+      metric_name->name);
+    return NULL;
+  }
+  metric_t *metric = noit_metric_alloc();
+  mtevAssert(metric);
+
+  metric->metric_name = strdup(metric_name);
+  metric->expanded_metric_name = NULL;
+  // TODO: Fill in the rest
+
+  return metric;
+}
+
 noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
                                                                            const uuid_t check_uuid,
                                                                            const char *metric_name,
@@ -460,5 +490,32 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
     mtev_dyn_buffer_destroy(&uncompressed);
     mtevL(mtev_error, "Prometheus__WriteRequest decode: protobuf invalid\n");
     return;
+  }
+  mtev_hash_table *hists = NULL;
+  for (size_t i = 0; i < write->n_timeseries; i++) {
+    Prometheus__TimeSeries *ts = write->timeseries[i];
+    /* each timeseries has a list of labels (Tags) and a list of samples */
+    prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
+                                                                        false, true, NULL);
+    prometheus_metric_name_t *metric_data = noit_prometheus_metric_name_from_labels(ts->labels,
+        ts->n_labels, coercion.units, coercion.is_histogram);
+    for (size_t j = 0; j < ts->n_samples; j++) {
+      if (!coercion.is_histogram) {
+        metric_t *metric = noit_prometheus_noit_prometheus_translate_to_noit_metric_message(&coercion,
+          account_id, check_uuid, metric_data, ts->samples[j]);
+        if (metric) {
+          // TODO: Add to list
+        }
+      }
+      else {
+        // TODO
+        /*Prometheus__Sample *sample = ts->samples[j];
+        struct timeval tv;
+        tv.tv_sec = (time_t)(sample->timestamp / 1000L);
+        tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
+        noit_prometheus_track_histogram(&hists, metric_data, coercion.hist_boundary, sample->value, tv);*/
+      }
+    }
+    noit_prometheus_metric_name_free(metric_data);
   }
 }
