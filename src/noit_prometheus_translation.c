@@ -342,11 +342,9 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
 }
 
 static metric_t *
-noit_prometheus_noit_prometheus_translate_to_noit_metric_message(prometheus_coercion_t *coercion,
-                                                                 const int64_t account_id,
-                                                                 const uuid_t check_uuid,
-                                                                 const prometheus_metric_name_t *metric_name,
-                                                                 const Prometheus__Sample *sample)
+noit_prometheus_translate_to_metric(prometheus_coercion_t *coercion,
+                                    const prometheus_metric_name_t *metric_name,
+                                    const Prometheus__Sample *sample)
 {
   if (!coercion || !metric_name || !sample) {
     mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
@@ -504,8 +502,8 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
         ts->n_labels, coercion.units, coercion.is_histogram);
     for (size_t j = 0; j < ts->n_samples; j++) {
       if (!coercion.is_histogram) {
-        metric_t *metric = noit_prometheus_noit_prometheus_translate_to_noit_metric_message(&coercion,
-          account_id, check_uuid, metric_data, ts->samples[j]);
+        metric_t *metric = noit_prometheus_translate_to_metric(&coercion,
+          metric_data, ts->samples[j]);
         if (metric) {
           // TODO: Add to list
         }
