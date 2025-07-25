@@ -900,6 +900,7 @@ noit_metric_list_alloc(uint64_t size)
   metric_list_t *empty_list = (metric_list_t *)calloc(1, sizeof(metric_list_t));
   empty_list->capacity = size;
   empty_list->metrics = malloc(size * sizeof(metric_t *));
+  return empty_list;
 }
 
 void
