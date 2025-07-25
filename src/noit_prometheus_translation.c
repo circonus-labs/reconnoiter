@@ -366,8 +366,11 @@ noit_prometheus_noit_prometheus_translate_to_noit_metric_message(prometheus_coer
 
   metric->metric_name = strdup(metric_name->name);
   metric->expanded_metric_name = NULL;
-  // TODO: Fill in the rest
-
+  metric->whence.tv_sec = sample->timestamp / 1000;
+  metric->whence.tv_usec = (sample->timestamp % 1000) * 1000;
+  metric->metric_type = METRIC_DOUBLE;
+  metric->metric_value.vp = malloc(sizeof(double));
+  *(metric->metric_value.n) = sample->value;
   return metric;
 }
 
