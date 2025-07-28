@@ -41,6 +41,8 @@
 extern "C" {
 #endif
 
+typedef void(*noit_prometheus_translate_cb_t)(metric_t *metric, void *closure);
+
 typedef struct {
   const char *units;
   bool is_histogram;
@@ -93,7 +95,9 @@ metric_list_t *
 noit_prometheus_translate_snappy_data(const int64_t account_id,
                                       const uuid_t check_uuid,
                                       const void *data,
-                                      size_t data_len);
+                                      size_t data_len,
+                                      noit_prometheus_translate_cb_t cb,
+                                      void *cb_closure);
 
 #ifdef __cplusplus
 }

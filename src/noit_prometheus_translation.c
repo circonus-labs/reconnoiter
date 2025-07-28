@@ -472,7 +472,9 @@ metric_list_t *
 noit_prometheus_translate_snappy_data(const int64_t account_id,
                                       const uuid_t check_uuid,
                                       const void *data,
-                                      size_t data_len)
+                                      size_t data_len,
+                                      noit_prometheus_translate_cb_t cb,
+                                      void *cb_closure)
 {
   mtev_dyn_buffer_t uncompressed;
   mtev_dyn_buffer_init(&uncompressed);
@@ -505,8 +507,8 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
       if (!coercion.is_histogram) {
         metric_t *metric = noit_prometheus_translate_to_metric(&coercion,
           metric_data, ts->samples[j]);
-        if (metric) {
-          noit_metric_list_append(metric_list, metric);
+        if (metric && cb) {
+          cb(metric, cb_closure);
         }
       }
       else {
@@ -519,6 +521,9 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
       }
     }
     noit_prometheus_metric_name_free(metric_data);
+  }
+  if (hists) {
+    // TODO
   }
   return metric_list;
 }
