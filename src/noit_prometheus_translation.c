@@ -397,6 +397,31 @@ noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const
   return message;
 }
 
+static metric_t *
+noit_prometheus_translate_to_histogram_metric(const char *metric_name,
+                                              const int64_t timestamp_ms,
+                                              const char *histogram_string)
+{
+  if (!metric_name) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
+    return NULL;
+  }
+  if (timestamp_ms < 0) {
+    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name);
+    return NULL;
+  }
+  metric_t *metric = noit_metric_alloc();
+  mtevAssert(metric);
+
+  metric->metric_name = strdup(metric_name);
+  metric->expanded_metric_name = NULL;
+  metric->whence.tv_sec = timestamp_ms / 1000;
+  metric->whence.tv_usec = (timestamp_ms % 1000) * 1000;
+  metric->metric_type = METRIC_HISTOGRAM_CUMULATIVE;
+  metric->metric_value.vp = (void *)strdup(histogram_string);
+  return metric;
+}
+
 void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
                                      const prometheus_metric_name_t *name,
                                      double boundary,
@@ -480,6 +505,11 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
   mtev_dyn_buffer_init(&uncompressed);
   size_t uncompressed_size = 0;
 
+  if (!cb) {
+    // If there's no callback, there's nothing to do, so just bail
+    return NULL;
+  }
+
   if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size,
                                          data, data_len)) {
     mtevL(mtev_error, "ERROR: Cannot snappy decompress incoming prometheus\n");
@@ -507,23 +537,45 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
       if (!coercion.is_histogram) {
         metric_t *metric = noit_prometheus_translate_to_metric(&coercion,
           metric_data, ts->samples[j]);
-        if (metric && cb) {
+        if (metric) {
           cb(metric, cb_closure);
         }
       }
       else {
-        // TODO
-        /*Prometheus__Sample *sample = ts->samples[j];
+        Prometheus__Sample *sample = ts->samples[j];
         struct timeval tv;
         tv.tv_sec = (time_t)(sample->timestamp / 1000L);
         tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
-        noit_prometheus_track_histogram(&hists, metric_data, coercion.hist_boundary, sample->value, tv);*/
+        noit_prometheus_track_histogram(&hists, metric_data, coercion.hist_boundary, sample->value, tv);
       }
     }
     noit_prometheus_metric_name_free(metric_data);
   }
   if (hists) {
-    // TODO
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    while(mtev_hash_adv(hists, &iter)) {
+      prometheus_hist_in_progress_t *hip = iter.value.ptr;
+      noit_prometheus_sort_and_dedupe_histogram_in_progress(hip);
+      histogram_t *h = hist_create_approximation_from_adhoc(HIST_APPROX_HIGH, hip->bins, hip->nbins, 0);
+      ssize_t est = hist_serialize_b64_estimate(h);
+      if(est > 0) {
+        char *hist_encoded = (char *)malloc(est+1);
+        ssize_t hist_encoded_len = hist_serialize_b64(h, hist_encoded, est);
+        hist_encoded[hist_encoded_len] = 0;
+        if (hist_encoded_len >= 0) {
+          int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
+          metric_t *metric = noit_prometheus_translate_to_histogram_metric(hip->name, timestamp_ms,
+            hist_encoded);
+          if (metric) {
+            cb(metric, cb_closure);
+          }
+        }
+        free(hist_encoded);
+      }
+      hist_free(h);
+    }
+    mtev_hash_destroy(hists, NULL, noit_prometheus_hist_in_progress_free);
+    free(hists);
   }
   return metric_list;
 }
