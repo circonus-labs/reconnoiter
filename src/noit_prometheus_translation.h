@@ -91,7 +91,7 @@ noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
 void
 noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progress_t *hip);
 
-metric_list_t *
+int
 noit_prometheus_translate_snappy_data(const int64_t account_id,
                                       const uuid_t check_uuid,
                                       const void *data,

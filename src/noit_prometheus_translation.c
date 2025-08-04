@@ -493,7 +493,7 @@ noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progres
   }
 }
 
-metric_list_t *
+int
 noit_prometheus_translate_snappy_data(const int64_t account_id,
                                       const uuid_t check_uuid,
                                       const void *data,
@@ -507,13 +507,13 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
 
   if (!cb) {
     // If there's no callback, there's nothing to do, so just bail
-    return NULL;
+    return 0;
   }
 
   if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size,
                                          data, data_len)) {
     mtevL(mtev_error, "ERROR: Cannot snappy decompress incoming prometheus\n");
-    return NULL;
+    return -1;
   }
   mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
   Prometheus__WriteRequest *write = prometheus__write_request__unpack(&protobuf_c_system_allocator,
@@ -522,10 +522,9 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
   if(!write) {
     mtev_dyn_buffer_destroy(&uncompressed);
     mtevL(mtev_error, "Prometheus__WriteRequest decode: protobuf invalid\n");
-    return NULL;
+    return -1;
   }
   mtev_hash_table *hists = NULL;
-  metric_list_t *metric_list = noit_metric_list_alloc(write->n_timeseries);
   for (size_t i = 0; i < write->n_timeseries; i++) {
     Prometheus__TimeSeries *ts = write->timeseries[i];
     /* each timeseries has a list of labels (Tags) and a list of samples */
@@ -577,5 +576,5 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
     mtev_hash_destroy(hists, NULL, noit_prometheus_hist_in_progress_free);
     free(hists);
   }
-  return metric_list;
+  return 0;
 }
