@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#include "noit_prometheus_translation.h"
+#include "noit_prometheus_translation_internal.h"
 #include <mtev_defines.h>
 #include <mtev_memory.h>
 
@@ -58,6 +58,20 @@
 #include "noit_mtev_bridge.h"
 
 #include <snappy/snappy.h>
+
+static void *__c_allocator_alloc(void *d, size_t size) {
+  return malloc(size);
+}
+static void __c_allocator_free(void *d, void *p) {
+  free(p);
+}
+static ProtobufCAllocator __c_allocator = {
+  .alloc = __c_allocator_alloc,
+  .free = __c_allocator_free,
+  .allocator_data = NULL
+};
+#define protobuf_c_system_allocator __c_allocator
+
 
 static const char *_allowed_units[] = {"seconds",  "requests", "responses", "transactions",
                                        "packets", "bytes", "octets", NULL};
@@ -327,6 +341,37 @@ noit_metric_message_t *noit_prometheus_translate_to_noit_metric_message(promethe
   return message;
 }
 
+static metric_t *
+noit_prometheus_translate_to_metric(prometheus_coercion_t *coercion,
+                                    const prometheus_metric_name_t *metric_name,
+                                    const Prometheus__Sample *sample)
+{
+  if (!coercion || !metric_name || !sample) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
+    return NULL;
+  }
+  if (sample->timestamp < 0) {
+    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name->name);
+    return NULL;
+  }
+  if (coercion->is_histogram) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected histogram argument (metric %s)\n", __func__,
+      metric_name->name);
+    return NULL;
+  }
+  metric_t *metric = noit_metric_alloc();
+  mtevAssert(metric);
+
+  metric->metric_name = strdup(metric_name->name);
+  metric->expanded_metric_name = NULL;
+  metric->whence.tv_sec = sample->timestamp / 1000;
+  metric->whence.tv_usec = (sample->timestamp % 1000) * 1000;
+  metric->metric_type = METRIC_DOUBLE;
+  metric->metric_value.vp = malloc(sizeof(double));
+  *(metric->metric_value.n) = sample->value;
+  return metric;
+}
+
 noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const int64_t account_id,
                                                                            const uuid_t check_uuid,
                                                                            const char *metric_name,
@@ -350,6 +395,31 @@ noit_metric_message_t *noit_prometheus_create_histogram_noit_metric_object(const
   message->value.is_null = false;
   message->value.value.v_string = strdup(histogram_string);
   return message;
+}
+
+static metric_t *
+noit_prometheus_translate_to_histogram_metric(const char *metric_name,
+                                              const int64_t timestamp_ms,
+                                              const char *histogram_string)
+{
+  if (!metric_name) {
+    mtevL(mtev_error, "%s: misuse of function, received unexpected null argument\n", __func__);
+    return NULL;
+  }
+  if (timestamp_ms < 0) {
+    mtevL(mtev_error, "%s: timestamp for metric %s is less than zero, skipping\n", __func__, metric_name);
+    return NULL;
+  }
+  metric_t *metric = noit_metric_alloc();
+  mtevAssert(metric);
+
+  metric->metric_name = strdup(metric_name);
+  metric->expanded_metric_name = NULL;
+  metric->whence.tv_sec = timestamp_ms / 1000;
+  metric->whence.tv_usec = (timestamp_ms % 1000) * 1000;
+  metric->metric_type = METRIC_HISTOGRAM_CUMULATIVE;
+  metric->metric_value.vp = (void *)strdup(histogram_string);
+  return metric;
 }
 
 void noit_prometheus_track_histogram(mtev_hash_table **hist_hash,
@@ -421,4 +491,94 @@ noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progres
     hip->bins[s].lower = hip->bins[s-1].upper;
     hip->bins[s].count -= hip->bins[s-1].count;
   }
+}
+
+int
+noit_prometheus_translate_snappy_data(const int64_t account_id,
+                                      const uuid_t check_uuid,
+                                      const void *data,
+                                      size_t data_len,
+                                      noit_prometheus_translate_cb_t cb,
+                                      void *cb_closure)
+{
+  mtev_dyn_buffer_t uncompressed;
+  mtev_dyn_buffer_init(&uncompressed);
+  size_t uncompressed_size = 0;
+
+  if (!cb) {
+    // If there's no callback, there's nothing to do, so just bail
+    return 0;
+  }
+
+  if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size,
+                                         data, data_len)) {
+    const char *error = "ERROR: Cannot snappy decompress incoming prometheus";
+    cb(NOIT_PROMETHEUS_SNAPPY_ERROR, (noit_prometheus_snappy_data_t){ .error = error }, cb_closure);
+    return -1;
+  }
+  mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
+  Prometheus__WriteRequest *write = prometheus__write_request__unpack(&protobuf_c_system_allocator,
+                                                                      mtev_dyn_buffer_used(&uncompressed),
+                                                                      mtev_dyn_buffer_data(&uncompressed));
+  if(!write) {
+    mtev_dyn_buffer_destroy(&uncompressed);
+    const char *error = "Prometheus__WriteRequest decode: protobuf invalid";
+    cb(NOIT_PROMETHEUS_SNAPPY_ERROR, (noit_prometheus_snappy_data_t){ .error = error }, cb_closure);
+    return -1;
+  }
+  mtev_hash_table *hists = NULL;
+  for (size_t i = 0; i < write->n_timeseries; i++) {
+    Prometheus__TimeSeries *ts = write->timeseries[i];
+    /* each timeseries has a list of labels (Tags) and a list of samples */
+    prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
+                                                                        false, true, NULL);
+    prometheus_metric_name_t *metric_data = noit_prometheus_metric_name_from_labels(ts->labels,
+        ts->n_labels, coercion.units, coercion.is_histogram);
+    for (size_t j = 0; j < ts->n_samples; j++) {
+      if (!coercion.is_histogram) {
+        metric_t *metric = noit_prometheus_translate_to_metric(&coercion,
+          metric_data, ts->samples[j]);
+        if (metric) {
+          cb(NOIT_PROMETHEUS_SNAPPY_METRIC, (noit_prometheus_snappy_data_t){ .metric = metric },
+            cb_closure);
+        }
+      }
+      else {
+        Prometheus__Sample *sample = ts->samples[j];
+        struct timeval tv;
+        tv.tv_sec = (time_t)(sample->timestamp / 1000L);
+        tv.tv_usec = (suseconds_t)((sample->timestamp % 1000L) * 1000);
+        noit_prometheus_track_histogram(&hists, metric_data, coercion.hist_boundary, sample->value, tv);
+      }
+    }
+    noit_prometheus_metric_name_free(metric_data);
+  }
+  if (hists) {
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    while(mtev_hash_adv(hists, &iter)) {
+      prometheus_hist_in_progress_t *hip = iter.value.ptr;
+      noit_prometheus_sort_and_dedupe_histogram_in_progress(hip);
+      histogram_t *h = hist_create_approximation_from_adhoc(HIST_APPROX_HIGH, hip->bins, hip->nbins, 0);
+      ssize_t est = hist_serialize_b64_estimate(h);
+      if(est > 0) {
+        char *hist_encoded = (char *)malloc(est+1);
+        ssize_t hist_encoded_len = hist_serialize_b64(h, hist_encoded, est);
+        hist_encoded[hist_encoded_len] = 0;
+        if (hist_encoded_len >= 0) {
+          int64_t timestamp_ms = (hip->whence.tv_sec * 1000) + (hip->whence.tv_usec / 1000);
+          metric_t *metric = noit_prometheus_translate_to_histogram_metric(hip->name, timestamp_ms,
+            hist_encoded);
+          if (metric) {
+            cb(NOIT_PROMETHEUS_SNAPPY_METRIC, (noit_prometheus_snappy_data_t){ .metric = metric },
+              cb_closure);
+          }
+        }
+        free(hist_encoded);
+      }
+      hist_free(h);
+    }
+    mtev_hash_destroy(hists, NULL, noit_prometheus_hist_in_progress_free);
+    free(hists);
+  }
+  return 0;
 }

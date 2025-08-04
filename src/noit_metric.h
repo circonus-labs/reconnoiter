@@ -92,6 +92,12 @@ typedef struct {
   mtev_boolean logged;
 } metric_t;
 
+typedef struct {
+  uint64_t size;
+  uint64_t capacity;
+  metric_t **metrics;
+} metric_list_t;
+
 typedef enum {
   MESSAGE_TYPE_C = 'C',
   MESSAGE_TYPE_D = 'D',
@@ -301,6 +307,16 @@ API_EXPORT(bool)
                                                        const size_t cat_len,
                                                        const char *val,
                                                        const size_t val_len);
+
+API_EXPORT(metric_list_t *)
+  noit_metric_list_alloc(uint64_t size);
+
+API_EXPORT(void)
+  noit_metric_list_free(metric_list_t *list);
+
+API_EXPORT(int)
+  noit_metric_list_append(metric_list_t *list, metric_t *metric);
+
 
 static inline int
 noit_metric_tags_compare(const void *v_l, const void *v_r) {
