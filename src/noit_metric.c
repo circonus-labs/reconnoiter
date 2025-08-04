@@ -917,7 +917,7 @@ int
 noit_metric_list_append(metric_list_t *list, metric_t *metric)
 {
   if (list->size >= list->capacity) {
-    mtevL(mtev_error, "ERROR: %s: trying to add to a list that is already full\n");
+    mtevL(mtev_debug, "ERROR: %s: trying to add to a list that is already full\n", __func__);
     return -1;
   }
   list->metrics[list->size++] = metric;
