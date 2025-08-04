@@ -41,7 +41,18 @@
 extern "C" {
 #endif
 
-typedef void(*noit_prometheus_translate_cb_t)(metric_t *metric, void *closure);
+typedef enum {
+  NOIT_PROMETHEUS_SNAPPY_METRIC,
+  NOIT_PROMETHEUS_SNAPPY_ERROR
+} noit_prometheus_snappy_datatype_e;
+
+typedef union {
+  metric_t *metric;
+  const char *error;
+} noit_prometheus_snappy_data_t;
+
+typedef void(*noit_prometheus_translate_cb_t)(noit_prometheus_snappy_datatype_e result_type,
+   noit_prometheus_snappy_data_t data, void *closure);
 
 typedef struct {
   const char *units;

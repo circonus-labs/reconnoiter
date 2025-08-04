@@ -512,7 +512,8 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
 
   if (!noit_prometheus_snappy_uncompress(&uncompressed, &uncompressed_size,
                                          data, data_len)) {
-    mtevL(mtev_error, "ERROR: Cannot snappy decompress incoming prometheus\n");
+    const char *error = "ERROR: Cannot snappy decompress incoming prometheus";
+    cb(NOIT_PROMETHEUS_SNAPPY_ERROR, (noit_prometheus_snappy_data_t){ .error = error }, cb_closure);
     return -1;
   }
   mtev_dyn_buffer_advance(&uncompressed, uncompressed_size);
@@ -521,7 +522,8 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
                                                                       mtev_dyn_buffer_data(&uncompressed));
   if(!write) {
     mtev_dyn_buffer_destroy(&uncompressed);
-    mtevL(mtev_error, "Prometheus__WriteRequest decode: protobuf invalid\n");
+    const char *error = "Prometheus__WriteRequest decode: protobuf invalid";
+    cb(NOIT_PROMETHEUS_SNAPPY_ERROR, (noit_prometheus_snappy_data_t){ .error = error }, cb_closure);
     return -1;
   }
   mtev_hash_table *hists = NULL;
@@ -537,7 +539,8 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
         metric_t *metric = noit_prometheus_translate_to_metric(&coercion,
           metric_data, ts->samples[j]);
         if (metric) {
-          cb(metric, cb_closure);
+          cb(NOIT_PROMETHEUS_SNAPPY_METRIC, (noit_prometheus_snappy_data_t){ .metric = metric },
+            cb_closure);
         }
       }
       else {
@@ -566,7 +569,8 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
           metric_t *metric = noit_prometheus_translate_to_histogram_metric(hip->name, timestamp_ms,
             hist_encoded);
           if (metric) {
-            cb(metric, cb_closure);
+            cb(NOIT_PROMETHEUS_SNAPPY_METRIC, (noit_prometheus_snappy_data_t){ .metric = metric },
+              cb_closure);
           }
         }
         free(hist_encoded);
