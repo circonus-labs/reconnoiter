@@ -110,6 +110,14 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
                                       noit_prometheus_translate_cb_t cb,
                                       void *cb_closure);
 
+int
+noit_prometheus_translate_snappy_data_canonical(const int64_t account_id,
+                                                const uuid_t check_uuid,
+                                                const void *data,
+                                                size_t data_len,
+                                                noit_prometheus_translate_cb_t cb,
+                                                void *cb_closure);
+
 #ifdef __cplusplus
 }
 #endif

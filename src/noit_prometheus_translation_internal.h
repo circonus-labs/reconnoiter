@@ -18,6 +18,12 @@ prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__La
                                                                   const char *units,
                                                                   bool coerce_hist);
 
+prometheus_metric_name_t *noit_prometheus_metric_name_from_labels_canonical(Prometheus__Label **labels,
+                                                                            size_t label_count,
+                                                                            const char *units,
+                                                                            bool coerce_hist);
+
+
 prometheus_coercion_t noit_prometheus_metric_name_coerce(Prometheus__Label **labels,
                                                          size_t label_count,
                                                          bool do_units,
