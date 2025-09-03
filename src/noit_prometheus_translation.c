@@ -522,13 +522,14 @@ noit_prometheus_sort_and_dedupe_histogram_in_progress(prometheus_hist_in_progres
   }
 }
 
-int
-noit_prometheus_translate_snappy_data(const int64_t account_id,
-                                      const uuid_t check_uuid,
-                                      const void *data,
-                                      size_t data_len,
-                                      noit_prometheus_translate_cb_t cb,
-                                      void *cb_closure)
+static int
+translate_snappy_data(const int64_t account_id,
+                      const uuid_t check_uuid,
+                      const void *data,
+                      size_t data_len,
+                      noit_prometheus_translate_cb_t cb,
+                      void *cb_closure,
+                      bool canonicalize_metric_name)
 {
   mtev_dyn_buffer_t uncompressed;
   mtev_dyn_buffer_init(&uncompressed);
@@ -561,8 +562,15 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
     /* each timeseries has a list of labels (Tags) and a list of samples */
     prometheus_coercion_t coercion = noit_prometheus_metric_name_coerce(ts->labels, ts->n_labels,
                                                                         false, true, NULL);
-    prometheus_metric_name_t *metric_data = noit_prometheus_metric_name_from_labels(ts->labels,
-        ts->n_labels, coercion.units, coercion.is_histogram);
+    prometheus_metric_name_t *metric_data = NULL;
+    if (canonicalize_metric_name) {
+      metric_data = noit_prometheus_metric_name_from_labels_canonical(ts->labels, ts->n_labels,
+        coercion.units, coercion.is_histogram);
+    }
+    else {
+      metric_data = noit_prometheus_metric_name_from_labels(ts->labels, ts->n_labels,
+        coercion.units, coercion.is_histogram);
+    }
     for (size_t j = 0; j < ts->n_samples; j++) {
       if (!coercion.is_histogram) {
         metric_t *metric = noit_prometheus_translate_to_metric(&coercion,
@@ -610,4 +618,26 @@ noit_prometheus_translate_snappy_data(const int64_t account_id,
     free(hists);
   }
   return 0;
+}
+
+int
+noit_prometheus_translate_snappy_data(const int64_t account_id,
+                                      const uuid_t check_uuid,
+                                      const void *data,
+                                      size_t data_len,
+                                      noit_prometheus_translate_cb_t cb,
+                                      void *cb_closure)
+{
+  return translate_snappy_data(account_id, check_uuid, data, data_len, cb, cb_closure, false);
+}
+
+int
+noit_prometheus_translate_snappy_data_canonical(const int64_t account_id,
+                                                const uuid_t check_uuid,
+                                                const void *data,
+                                                size_t data_len,
+                                                noit_prometheus_translate_cb_t cb,
+                                                void *cb_closure)
+{
+  return translate_snappy_data(account_id, check_uuid, data, data_len, cb, cb_closure, true);
 }
