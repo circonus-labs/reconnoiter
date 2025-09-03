@@ -174,11 +174,9 @@ prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__La
   }
   strlcat(name, "]", sizeof(final_name));
 
-  char canonicalized_final_name[MAX_METRIC_TAGGED_NAME + 1];
-  noit_metric_canonicalize(final_name, strlen(final_name), canonicalized_final_name, MAX_METRIC_TAGGED_NAME + 1, mtev_true);
-
-  metric_data->name = strdup(canonicalized_final_name);
-  metric_data->tagged_len = strlen(canonicalized_final_name);
+  /* we don't have to canonicalize here as reconnoiter will do that for us */
+  metric_data->name = strdup(final_name);
+  metric_data->tagged_len = strlen(final_name);
   return metric_data;
 }
 
