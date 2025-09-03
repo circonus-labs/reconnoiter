@@ -88,13 +88,14 @@ void noit_prometheus_metric_name_free(void *vpmn) {
   free(pmn);
 }
 
-prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
-                                                                  size_t label_count,
-                                                                  const char *units,
-                                                                  bool coerce_hist)
+static prometheus_metric_name_t *get_prometheus_metric_name(Prometheus__Label **labels,
+                                                            const size_t label_count,
+                                                            const char *units,
+                                                            const bool coerce_hist,
+                                                            char *name_buffer,
+                                                            const size_t name_buffer_len)
 {
-  char final_name[MAX_METRIC_TAGGED_NAME] = {0};
-  char *name = final_name;
+  char *name = name_buffer;
   char buffer[MAX_METRIC_TAGGED_NAME] = {0};
   char encode_buffer[MAX_METRIC_TAGGED_NAME] = {0};
   char *b = buffer;
@@ -103,7 +104,7 @@ prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__La
   for (size_t i = 0; i < label_count; i++) {
     Prometheus__Label *l = labels[i];
     if (strcmp("__name__", l->name) == 0) {
-      strncpy(name, l->value, sizeof(final_name) - 1);
+      strncpy(name, l->value, name_buffer_len - 1);
     }
     else {
       /* if we're coercing histograms, remove the "le" label */
@@ -151,32 +152,60 @@ prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__La
     }
   }
   metric_data->untagged_len = strlen(name);
-  strlcat(name, "|ST[", sizeof(final_name));
-  strlcat(name, buffer, sizeof(final_name));
+  strlcat(name, "|ST[", name_buffer_len);
+  strlcat(name, buffer, name_buffer_len);
   if (units) {
     if (noit_metric_tagset_is_taggable_value(units, strlen(units))) {
       if (strlen(buffer) > 0)
-        strlcat(name, ",", sizeof(final_name));
-      strlcat(name, "units:", sizeof(final_name));
-      strlcat(name, units, sizeof(final_name));
+        strlcat(name, ",", name_buffer_len);
+      strlcat(name, "units:", name_buffer_len);
+      strlcat(name, units, name_buffer_len);
     }
     else {
       int len = mtev_b64_encode((const unsigned char *) units, strlen(units), encode_buffer,
                                 sizeof(encode_buffer) - 1);
       if (len > 0) {
         if (strlen(buffer) > 0)
-          strlcat(name, ",", sizeof(final_name));
-        strlcat(name, "units:", sizeof(final_name));
+          strlcat(name, ",", name_buffer_len);
+        strlcat(name, "units:", name_buffer_len);
         encode_buffer[len] = '\0';
-        strlcat(name, encode_buffer, sizeof(final_name));
+        strlcat(name, encode_buffer, name_buffer_len);
       }
     }
   }
-  strlcat(name, "]", sizeof(final_name));
+  strlcat(name, "]", name_buffer_len);
+  return metric_data;
+}
 
-  /* we don't have to canonicalize here as reconnoiter will do that for us */
+prometheus_metric_name_t *noit_prometheus_metric_name_from_labels(Prometheus__Label **labels,
+                                                                  size_t label_count,
+                                                                  const char *units,
+                                                                  bool coerce_hist)
+{
+  char final_name[MAX_METRIC_TAGGED_NAME] = {0};
+  prometheus_metric_name_t *metric_data =
+    get_prometheus_metric_name(labels, label_count, units, coerce_hist, final_name, MAX_METRIC_TAGGED_NAME);
+
   metric_data->name = strdup(final_name);
   metric_data->tagged_len = strlen(final_name);
+  return metric_data;
+}
+
+prometheus_metric_name_t *noit_prometheus_metric_name_from_labels_canonical(Prometheus__Label **labels,
+                                                                            size_t label_count,
+                                                                            const char *units,
+                                                                            bool coerce_hist)
+{
+  char final_name[MAX_METRIC_TAGGED_NAME] = {0};
+  prometheus_metric_name_t *metric_data =
+    get_prometheus_metric_name(labels, label_count, units, coerce_hist, final_name, MAX_METRIC_TAGGED_NAME);
+
+  char canonicalized_final_name[MAX_METRIC_TAGGED_NAME + 1];
+  noit_metric_canonicalize(final_name, strlen(final_name), canonicalized_final_name, MAX_METRIC_TAGGED_NAME + 1, mtev_true);
+
+  metric_data->name = strdup(canonicalized_final_name);
+  metric_data->tagged_len = strlen(canonicalized_final_name);
+
   return metric_data;
 }
 
