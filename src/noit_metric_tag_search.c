@@ -1327,24 +1327,21 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
                                                   const noit_metric_id_t *id) {
   mtev_memory_begin();
 
-#define MKTAGSETCOPY(name) \
-  noit_metric_tag_t name##_tags[MAX_TAGS]; \
-  memcpy(&name##_tags, name.tags, name.tag_count * sizeof(noit_metric_tag_t)); \
+#define MKTAGSETCOPY(name)                                                     \
+  noit_metric_tag_t *name##_tags = (noit_metric_tag_t *)calloc(name.tag_count + 1, sizeof(noit_metric_tag_t)); \
+  memcpy(name##_tags, name.tags, name.tag_count * sizeof(noit_metric_tag_t));   \
   name.tags = name##_tags
 
   // setup check tags
   noit_metric_tagset_t tagset_check = id->check;
-  // Add in extra tags: __uuid
-  if (tagset_check.tag_count > MAX_TAGS - 1) {
-    mtev_memory_end();
-    return 0;
-  }
   MKTAGSETCOPY(tagset_check);
-  char uuid_str[13 + UUID_STR_LEN + 1];
-  strcpy(uuid_str, "__check_uuid:");
-  mtev_uuid_unparse_lower(id->id, uuid_str + 13);
-  noit_metric_tag_t uuid_tag = { .tag = uuid_str, .total_size = strlen(uuid_str), .category_size = 13 };
-  tagset_check.tags[tagset_check.tag_count++] = uuid_tag;
+  char check_uuid_str[sizeof("__check_uuid:") + UUID_PRINTABLE_STRING_LENGTH];
+  const size_t uuid_index =
+      snprintf(check_uuid_str, sizeof(check_uuid_str), "__check_uuid:");
+  mtev_uuid_unparse_lower(id->id, check_uuid_str + uuid_index);
+  noit_metric_add_implicit_tags_to_tagset(
+      check_uuid_str, sizeof(check_uuid_str), &tagset_check,
+      NULL);
   if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_CHECK, &tagset_check) == MTEV_HOOK_ABORT) {
     mtev_memory_end();
     return mtev_false;
@@ -1352,16 +1349,12 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
 
   // setup stream tags
   noit_metric_tagset_t tagset_stream = id->stream;
-  // Add in extra tags: __name
-  if (tagset_stream.tag_count > MAX_TAGS - 1) {
-    mtev_memory_end();
-    return 0;
-  }
   MKTAGSETCOPY(tagset_stream);
-  char name_str[NOIT_TAG_MAX_PAIR_LEN + 1];
+  char name_str[NOIT_IMPLICIT_TAG_MAX_PAIR_LEN];
   snprintf(name_str, sizeof(name_str), "__name:%.*s", id->name_len, id->name);
-  noit_metric_tag_t name_tag = { .tag = name_str, .total_size = strlen(name_str), .category_size = 7 };
-  tagset_stream.tags[tagset_stream.tag_count++] = name_tag;
+  noit_metric_add_implicit_tags_to_tagset(
+      name_str, strlen(name_str), &tagset_stream,
+      NULL);
   if(noit_metric_tagset_fixup_hook_invoke(NOIT_METRIC_TAGSET_STREAM, &tagset_stream) == MTEV_HOOK_ABORT) {
     mtev_memory_end();
     return mtev_false;
@@ -1375,8 +1368,13 @@ noit_metric_tag_search_evaluate_against_metric_id(const noit_metric_tag_search_a
     return mtev_false;
   }
 
-  const noit_metric_tagset_t *tagsets[3] = { &tagset_check, &tagset_stream, &tagset_measurement };
-  mtev_boolean ok = noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 3);
+  const noit_metric_tagset_t *tagsets[3] = {&tagset_check, &tagset_stream,
+                                            &tagset_measurement};
+  const mtev_boolean ok =
+      noit_metric_tag_search_evaluate_against_tags_multi(search, tagsets, 3);
+  free(tagset_check.tags);
+  free(tagset_stream.tags);
+  free(tagset_measurement.tags);
   mtev_memory_end();
   return ok;
 }

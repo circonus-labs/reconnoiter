@@ -54,6 +54,7 @@ DEPS_BUILD="
 DEPS_CIRC="
     circonus-platform-lua-luasocket
     circonus-developer-mtevbusted
+    circonus-platform-library-fmt
 "
 
 echo "Installing buildenv and reconnoiter deps"
