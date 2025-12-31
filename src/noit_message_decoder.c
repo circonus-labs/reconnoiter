@@ -434,25 +434,49 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
                            noit_metric_tag_t *output, mtev_boolean *toolong) {
   size_t colon_pos = 0;
   size_t cur_size = 0;
+  mtev_boolean in_quotes = mtev_false;
+  mtev_boolean escape = mtev_false;
   *toolong = mtev_false;
   while(cur_size < tagnmlen) {
     char test_char = tagnm[cur_size];
-    if(test_char == ':' && !colon_pos) {
-      if(!cur_size) {
-        /* need at least one byte for category name. */
-        return 0;
-      }
+    /* Handle escaped characters */
+    if(escape) {
+      escape = mtev_false;
+      cur_size++;
+      continue;
+    }
+    if(test_char == '\\') {
+      escape = mtev_true;
+      cur_size++;
+      continue;
+    }
+    /* Track quoted values */
+    if(test_char == '"') {
+      in_quotes = !in_quotes;
+      cur_size++;
+      continue;
+    }
+    /* Key/value separator (outside quotes only) */
+    if(test_char == ':' && !colon_pos && !in_quotes) {
+      if(!cur_size) return 0;
       colon_pos = cur_size;
       if(!noit_metric_tagset_is_taggable_key(tagnm, cur_size)) return 0;
     }
-    else if(test_char == ',') {
-      /* tag-separation char, terminates this loop. */
+    /* Tag separator (outside quotes only) */
+    else if(test_char == ',' && !in_quotes) {
       if(!colon_pos) colon_pos = cur_size;
-      if(cur_size == colon_pos) break; // tag not tag:value
-      if(!(cur_size>colon_pos) ||
-         !noit_metric_tagset_is_taggable_value(&tagnm[colon_pos+1], cur_size-colon_pos-1)) return 0;
+      if(cur_size == colon_pos) break;
+      size_t vlen = cur_size - colon_pos - 1;
+      const char *val = &tagnm[colon_pos + 1];
+      /* Escaped quotes → treat value as literal */
+      if(memmem(val, vlen, "\\\"", 2) == NULL) {
+        if(!noit_metric_tagset_is_taggable_value(val, vlen)) {
+          return 0;
+        }
+      }
       break;
     }
+    /* Key-only tag at end */
     else if(cur_size == tagnmlen - 1 && !colon_pos) {
       cur_size++;
       colon_pos = cur_size;
@@ -463,6 +487,17 @@ noit_metric_tags_parse_one(const char *tagnm, size_t tagnmlen,
   }
   /* make sure we covered everything */
   if(colon_pos == 0) return 0;
+  /* Validate value for last tag (no comma case) */
+  if(colon_pos < cur_size) {
+    size_t vlen = cur_size - colon_pos - 1;
+    const char *val = &tagnm[colon_pos + 1];
+
+    if(memmem(val, vlen, "\\\"", 2) == NULL) {
+      if(!noit_metric_tagset_is_taggable_value(val, vlen)) {
+        return 0;
+      }
+    }
+  }
   output->total_size = cur_size;
   /* tag category and name must combined be <= NOIT_TAG_MAX_PAIR_LEN */
   if(cur_size > NOIT_TAG_MAX_PAIR_LEN) {
