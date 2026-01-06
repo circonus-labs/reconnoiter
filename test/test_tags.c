@@ -99,6 +99,14 @@ const struct {
     "foo|ST[color:orange]",
     1, mtev_false
    },
+   {
+    "escaped_base64_tag_literal",
+    "H1\t1525385460.000\tpush`httptrap`c_1::httptrap`11111111-1111-1111-1111-111111111111\t"
+    "example|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]\tAA==",
+    "example|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
+    1,
+    mtev_true
+  },
 };
 
 const char *testtags[][2] = {
