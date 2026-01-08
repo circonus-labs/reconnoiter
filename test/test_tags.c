@@ -99,21 +99,15 @@ const struct {
     "foo|ST[color:orange]",
     1, mtev_false
    },
-   {
-    "escaped_base64_tag_literal",
-    "H1\t1525385460.000\tpush`httptrap`c_1::httptrap`11111111-1111-1111-1111-111111111111\t"
-    "example|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]\tAA==",
-    "example|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
-    1,
-    mtev_true
-  },
 };
 
 const char *testtags[][2] = {
   { "b\"Zm9vOmJhcltzdHVmZl0=\":value", "foo:bar[stuff]\037value" },
   { "b\"Zm9vOmJhcltzdHVmZl0=\":b\"Zm9vOmJhcltzdHVmZl0=\"", "foo:bar[stuff]\037foo:bar[stuff]" },
   { "category:b\"Zm9vOmJhcltzdHVmZl0=\"", "category\037foo:bar[stuff]" },
-  { "category:value", "category\037value" }
+  { "category:value", "category\037value" },
+  { "tag:b\"LyhedGVzdF9wcm9tJCk=\"", "tag\037/(^test_prom$)" },
+  { "tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"", "tag\037b\\\"LyhedGVzdF9wcm9tJCk=\\\"" }
 };
 
 struct Matches {
@@ -780,6 +774,77 @@ void test_tag_at_limit(void) {
   assert(memcmp(tag_name, dbuff + NOIT_TAG_MAX_PAIR_LEN, NOIT_TAG_MAX_PAIR_LEN) == 0);
 }
 
+void test_metric_locator_base64_stream_tag_variants(void) {
+  struct variant {
+    const char *description;
+    const char *metric_name;
+    mtev_boolean canonical_matches;
+  };
+
+  printf(">>> RUNNING test_metric_locator_base64_stream_tag_variants\n");
+  static const struct variant variants[] = {
+    { "correctly encoded, single tag",
+      "example1|ST[tag:b\"LyhedGVzdF9wcm9tJCk=\"]",
+      mtev_true },
+    { "incorrectly encoded, single tag",
+      "example2|ST[tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"]",
+      mtev_false },
+    { "correctly encoded, first tag",
+      "example3|ST[tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
+      mtev_true },
+    { "incorrectly encoded, first tag",
+      "example4|ST[tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]",
+      mtev_false },
+    { "correctly encoded, last tag",
+      "example5|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\"]",
+      mtev_true },
+    { "incorrectly encoded, last tag",
+      "example6|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"]",
+      mtev_false },
+    { "correctly encoded, middle tag",
+      "example7|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
+      mtev_true },
+    { "incorrectly encoded, middle tag",
+      "example8|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]",
+      mtev_false },
+  };
+
+  char canonical[MAX_METRIC_TAGGED_NAME];
+
+  for(size_t i = 0; i < sizeof(variants) / sizeof(*variants); i++) {
+    const struct variant *variant = &variants[i];
+    ssize_t len = noit_metric_canonicalize(variant->metric_name, strlen(variant->metric_name),
+                                           canonical, sizeof(canonical), mtev_true);
+    test_assert_namef(len > 0, "base64 variant [%s] canonicalizes", variant->description);
+    if(variant->canonical_matches) {
+      test_assert_namef(strcmp(canonical, variant->metric_name) == 0,
+                        "base64 variant [%s] is unchanged", variant->description);
+    } else {
+      test_assert_namef(strcmp(canonical, variant->metric_name) != 0,
+                        "base64 variant [%s] is rewritten", variant->description);
+    }
+  }
+}
+
+
+void test_escaped_base64_literal_tag(void) {
+  printf(">>> RUNNING test_escaped_base64_literal_tag\n");
+  const char *tagstr =
+    "a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z";
+
+  noit_metric_tag_t tag;
+  mtev_boolean too_long = mtev_false;
+
+  const char *test_tag =
+    noit_metric_tags_parse_one(tagstr, strlen(tagstr), &tag, &too_long);
+
+  test_assert(test_tag != NULL);
+
+  test_assert(!too_long);
+
+  test_assert(test_tag > tagstr);
+}
+
 int main(int argc, char * const *argv)
 {
   int opt;
@@ -814,6 +879,8 @@ int main(int argc, char * const *argv)
   metric_parsing();
   query_parsing();
   query_argument_swapping();
+  test_metric_locator_base64_stream_tag_variants();
+  test_escaped_base64_literal_tag();
   printf("\nPerformance:\n====================\n");
   loop("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");
