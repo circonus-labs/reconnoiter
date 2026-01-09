@@ -753,6 +753,7 @@ void test_tag_at_limit(void) {
 
   assert(tag_name_len - 1 == NOIT_TAG_MAX_PAIR_LEN);
 
+  printf(">>> RUNNING awd noit_metric_tags_parse_one\n");
   noit_metric_tags_parse_one(tag_name, tag_name_len - 1, &tag, &too_long);
   assert(too_long == mtev_false);
 
@@ -775,6 +776,7 @@ void test_tag_at_limit(void) {
 }
 
 void test_metric_locator_base64_stream_tag_variants(void) {
+  //char decoded[512] = {0};
   struct variant {
     const char *description;
     const char *metric_name;
@@ -819,6 +821,10 @@ void test_metric_locator_base64_stream_tag_variants(void) {
     if(variant->canonical_matches) {
       test_assert_namef(strcmp(canonical, variant->metric_name) == 0,
                         "base64 variant [%s] is unchanged", variant->description);
+  
+      /*int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
+                    variant->metric_name, strlen(variant->metric_name));
+      test_assert_namef(rval > 0, "'%s' is valid tag", decoded);*/
     } else {
       test_assert_namef(strcmp(canonical, variant->metric_name) != 0,
                         "base64 variant [%s] is rewritten", variant->description);
@@ -826,9 +832,9 @@ void test_metric_locator_base64_stream_tag_variants(void) {
   }
 }
 
-
 void test_escaped_base64_literal_tag(void) {
   printf(">>> RUNNING test_escaped_base64_literal_tag\n");
+  char decoded[512] = {0};
   const char *tagstr =
     "a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z";
 
@@ -843,6 +849,12 @@ void test_escaped_base64_literal_tag(void) {
   test_assert(!too_long);
 
   test_assert(test_tag > tagstr);
+  
+  int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
+					      test_tag, strlen(test_tag));
+  test_assert_namef(rval > 0, "'%s' is valid tag", decoded);
+  int eq = strncmp(test_tag, decoded, rval);
+    test_assert_namef(eq == 0, "'%s' equals '%s'", test_tag, decoded);
 }
 
 int main(int argc, char * const *argv)
