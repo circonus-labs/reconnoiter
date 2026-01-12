@@ -776,7 +776,7 @@ void test_tag_at_limit(void) {
 }
 
 void test_metric_locator_base64_stream_tag_variants(void) {
-  //char decoded[512] = {0};
+  char decoded[512] = {0};
   struct variant {
     const char *description;
     const char *metric_name;
@@ -822,9 +822,9 @@ void test_metric_locator_base64_stream_tag_variants(void) {
       test_assert_namef(strcmp(canonical, variant->metric_name) == 0,
                         "base64 variant [%s] is unchanged", variant->description);
   
-      /*int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
+      int rval  = noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
                     variant->metric_name, strlen(variant->metric_name));
-      test_assert_namef(rval > 0, "'%s' is valid tag", decoded);*/
+      test_assert_namef(rval > 0, "'%s' is valid tag", decoded);
     } else {
       test_assert_namef(strcmp(canonical, variant->metric_name) != 0,
                         "base64 variant [%s] is rewritten", variant->description);
@@ -855,6 +855,225 @@ void test_escaped_base64_literal_tag(void) {
   test_assert_namef(rval > 0, "'%s' is valid tag", decoded);
   int eq = strncmp(test_tag, decoded, rval);
     test_assert_namef(eq == 0, "'%s' equals '%s'", test_tag, decoded);
+}
+
+void test_base64_stream_tag_variants(void) {
+  printf(">>> RUNNING test_base64_stream_tag_variants\n");
+
+  struct test_case {
+    const char *desc;
+    const char *input_metric;
+    const char *expected_decoded_value;
+    mtev_boolean unchanged;
+  } cases[] = {
+
+    {
+      "correctly encoded single tag",
+      "example1|ST[tag:b\"LyhedGVzdF9wcm9tJCk=\"]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly escaped first tag",
+      "example4|ST[tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    },
+    {
+      "correctly encoded first tag",
+      "example3|ST[tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly escaped middle tag",
+      "example8|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    },
+    {
+      "correctly encoded middle tag",
+      "example7|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly escaped middle tag",
+      "example8|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    },
+    {
+      "correctly encoded last tag",
+      "example5|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\"]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly escaped last tag",
+      "example6|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    }
+  };
+
+  for(size_t i = 0; i < sizeof(cases)/sizeof(*cases); i++) {
+    const struct test_case *tc = &cases[i];
+    printf("\n  → %s\n", tc->desc);
+
+    /* Step 1: canonicalize */
+    char canonical[MAX_METRIC_TAGGED_NAME];
+    ssize_t len = noit_metric_canonicalize(
+      tc->input_metric, strlen(tc->input_metric),
+      canonical, sizeof(canonical), mtev_true
+    );
+    test_assert_namef(len > 0, "[%s] canonicalizes", tc->desc);
+
+    if(tc->unchanged) {
+      test_assert_namef(strcmp(canonical, tc->input_metric) == 0,
+                        "[%s] unchanged by canonicalization", tc->desc);
+    } else {
+      test_assert_namef(strcmp(canonical, tc->input_metric) != 0,
+                        "[%s] rewritten by canonicalization", tc->desc);
+    }
+
+    /* Step 2: parse tags */
+    noit_metric_tag_t stags[MAX_TAGS];
+    noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+    noit_metric_tag_t mtags[MAX_TAGS];
+    noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+
+    ssize_t name_len =
+      noit_metric_parse_tags(canonical, strlen(canonical), &stset, &mtset);
+    test_assert_namef(name_len > 0, "[%s] tags parsed", tc->desc);
+
+    /* Step 3: find tag: */
+    noit_metric_tag_t *found = NULL;
+    for(int t = 0; t < stset.tag_count; t++) {
+      if(strncmp(stset.tags[t].tag, "tag:", 4) == 0) {
+        found = &stset.tags[t];
+        break;
+      }
+    }
+    test_assert_namef(found != NULL, "[%s] found stream tag", tc->desc);
+
+    /* Step 4: decode tag */
+    char decoded[512] = {0};
+    int dlen = noit_metric_tagset_decode_tag(
+      decoded, sizeof(decoded), found->tag, found->total_size
+    );
+    test_assert_namef(dlen > 0, "[%s] tag decodes", tc->desc);
+
+    /* Step 5: extract value after \037 */
+    char *sep = strchr(decoded, '\037');
+    test_assert_namef(sep != NULL, "[%s] tag separator found", tc->desc);
+
+    char *val = sep + 1;
+    printf("     decoded value: %s\n", val);
+
+    test_assert_namef(strcmp(val, tc->expected_decoded_value) == 0,
+      "[%s] decoded value '%s' matches expected '%s'",
+      tc->desc, val, tc->expected_decoded_value);
+  }
+}
+
+void test_base64_decode(void) {
+  printf(">>> test_base64_decode\n");
+
+  char out[256] = {0};
+
+  const char *tag = "tag:b\"LyhedGVzdF9wcm9tJCk=\"";
+
+  int len = noit_metric_tagset_decode_tag(out, sizeof(out),
+                                          tag, strlen(tag));
+
+  test_assert(len > 0);
+
+  printf("decoded: '%s'\n", out);
+}
+
+void test_escaped_base64_literal(void) {
+  printf(">>> test_escaped_base64_literal\n");
+
+  char out[256] = {0};
+
+  const char *tag = "tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"";
+
+  int len = noit_metric_tagset_decode_tag(out, sizeof(out),
+                                          tag, strlen(tag));
+
+  test_assert(len > 0);
+
+  printf("decoded: '%s'\n", out);
+}
+
+void test_canonicalize(void) {
+  printf(">>> test_canonicalize\n");
+
+  const char *metric =
+    "example|ST[tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]";
+
+  char out[MAX_METRIC_TAGGED_NAME];
+
+  ssize_t len = noit_metric_canonicalize(metric, strlen(metric),
+                                         out, sizeof(out), mtev_true);
+
+  test_assert(len > 0);
+
+  printf("before: %s\n", metric);
+  printf("after : %s\n", out);
+}
+
+void test_parse_tags(void) {
+  printf(">>> test_parse_tags\n");
+
+  const char *metric =
+    "example|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\"]";
+
+  noit_metric_tag_t stags[MAX_TAGS];
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tag_t mtags[MAX_TAGS];
+  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+
+  ssize_t len =
+    noit_metric_parse_tags(metric, strlen(metric), &stset, &mtset);
+
+  test_assert(len > 0);
+
+  printf("stream tags:\n");
+  for(int i = 0; i < stset.tag_count; i++) {
+    printf("  %.*s\n",
+           (int)stset.tags[i].total_size,
+           stset.tags[i].tag);
+  }
+}
+
+void test_find_and_decode_tag(void) {
+  printf(">>> test_find_and_decode_tag\n");
+
+  const char *metric =
+    "example|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\"]";
+
+  char canonical[MAX_METRIC_TAGGED_NAME];
+  noit_metric_canonicalize(metric, strlen(metric),
+                            canonical, sizeof(canonical), mtev_true);
+
+  noit_metric_tag_t stags[MAX_TAGS];
+  noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+  noit_metric_tag_t mtags[MAX_TAGS];
+  noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+
+  noit_metric_parse_tags(canonical, strlen(canonical), &stset, &mtset);
+
+  for(int i = 0; i < stset.tag_count; i++) {
+    if(strncmp(stset.tags[i].tag, "tag:", 4) == 0) {
+      char decoded[256];
+      noit_metric_tagset_decode_tag(decoded, sizeof(decoded),
+                                    stset.tags[i].tag,
+                                    stset.tags[i].total_size);
+      printf("decoded tag: %s\n", decoded);
+    }
+  }
 }
 
 int main(int argc, char * const *argv)
@@ -891,8 +1110,13 @@ int main(int argc, char * const *argv)
   metric_parsing();
   query_parsing();
   query_argument_swapping();
-  test_metric_locator_base64_stream_tag_variants();
-  test_escaped_base64_literal_tag();
+  test_base64_stream_tag_variants();
+  test_base64_decode();
+  test_escaped_base64_literal();
+  test_canonicalize();
+  test_parse_tags();
+  test_find_and_decode_tag();
+  //test_escaped_base64_literal_tag();
   printf("\nPerformance:\n====================\n");
   loop("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");
