@@ -887,7 +887,6 @@ void test_base64_stream_tag_variants(void) {
     test_assert_namef(sep != NULL, "[%s] tag separator found", tc->desc);
 
     char *val = sep + 1;
-    printf("     decoded value: %s\n", val);
 
     test_assert_namef(strcmp(val, tc->expected_decoded_value) == 0,
       "[%s] decoded value '%s' matches expected '%s'",
