@@ -753,7 +753,6 @@ void test_tag_at_limit(void) {
 
   assert(tag_name_len - 1 == NOIT_TAG_MAX_PAIR_LEN);
 
-  printf(">>> RUNNING awd noit_metric_tags_parse_one\n");
   noit_metric_tags_parse_one(tag_name, tag_name_len - 1, &tag, &too_long);
   assert(too_long == mtev_false);
 
@@ -776,8 +775,6 @@ void test_tag_at_limit(void) {
 }
 
 void test_base64_stream_tag_variants(void) {
-  printf(">>> RUNNING test_base64_stream_tag_variants\n");
-
   struct test_case {
     const char *desc;
     const char *input_metric;
