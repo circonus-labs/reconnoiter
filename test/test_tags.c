@@ -105,7 +105,9 @@ const char *testtags[][2] = {
   { "b\"Zm9vOmJhcltzdHVmZl0=\":value", "foo:bar[stuff]\037value" },
   { "b\"Zm9vOmJhcltzdHVmZl0=\":b\"Zm9vOmJhcltzdHVmZl0=\"", "foo:bar[stuff]\037foo:bar[stuff]" },
   { "category:b\"Zm9vOmJhcltzdHVmZl0=\"", "category\037foo:bar[stuff]" },
-  { "category:value", "category\037value" }
+  { "category:value", "category\037value" },
+  { "tag:b\"LyhedGVzdF9wcm9tJCk=\"", "tag\037/(^test_prom$)" },
+  { "tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"", "tag\037b\\\"LyhedGVzdF9wcm9tJCk=\\\"" }
 };
 
 struct Matches {
@@ -772,6 +774,123 @@ void test_tag_at_limit(void) {
   assert(memcmp(tag_name, dbuff + NOIT_TAG_MAX_PAIR_LEN, NOIT_TAG_MAX_PAIR_LEN) == 0);
 }
 
+void test_base64_stream_tag_variants(void) {
+  struct test_case {
+    const char *desc;
+    const char *input_metric;
+    const char *expected_decoded_value;
+    mtev_boolean unchanged;
+  } cases[] = {
+
+    {
+      "correctly encoded single tag",
+      "example1|ST[tag:b\"LyhedGVzdF9wcm9tJCk=\"]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly encoded, single tag",
+      "example2|ST[tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    },
+    {
+      "correctly encoded first tag",
+      "example3|ST[tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly encoded, first tag",
+      "example4|ST[tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    },
+    {
+      "correctly encoded, last tag",
+      "example5|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\"]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly encoded, last tag",
+      "example6|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\"]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    },
+    {
+      "correctly encoded, middle tag",
+      "example7|ST[a:b,tag:b\"LyhedGVzdF9wcm9tJCk=\",y:z]",
+      "/(^test_prom$)",
+      mtev_true
+    },
+    {
+      "incorrectly encoded, middle tag",
+      "example8|ST[a:b,tag:b\\\"LyhedGVzdF9wcm9tJCk=\\\",y:z]",
+      "b\\\"LyhedGVzdF9wcm9tJCk=\\\"",
+      mtev_false
+    }
+  };
+
+  for(size_t i = 0; i < sizeof(cases)/sizeof(*cases); i++) {
+    const struct test_case *tc = &cases[i];
+    printf("\n  → %s\n", tc->desc);
+
+    /* Step 1: canonicalize */
+    char canonical[MAX_METRIC_TAGGED_NAME];
+    ssize_t len = noit_metric_canonicalize(
+      tc->input_metric, strlen(tc->input_metric),
+      canonical, sizeof(canonical), mtev_true
+    );
+    test_assert_namef(len > 0, "[%s] canonicalizes", tc->desc);
+
+    if(tc->unchanged) {
+      test_assert_namef(strcmp(canonical, tc->input_metric) == 0,
+                        "[%s] unchanged by canonicalization", tc->desc);
+    } else {
+      test_assert_namef(strcmp(canonical, tc->input_metric) != 0,
+                        "[%s] rewritten by canonicalization", tc->desc);
+    }
+
+    /* Step 2: parse tags */
+    noit_metric_tag_t stags[MAX_TAGS];
+    noit_metric_tagset_t stset = { .tags = stags, .tag_count = MAX_TAGS };
+    noit_metric_tag_t mtags[MAX_TAGS];
+    noit_metric_tagset_t mtset = { .tags = mtags, .tag_count = MAX_TAGS };
+
+    ssize_t name_len =
+      noit_metric_parse_tags(canonical, strlen(canonical), &stset, &mtset);
+    test_assert_namef(name_len > 0, "[%s] tags parsed", tc->desc);
+
+    /* Step 3: find tag: */
+    noit_metric_tag_t *found = NULL;
+    for(int t = 0; t < stset.tag_count; t++) {
+      if(strncmp(stset.tags[t].tag, "tag:", 4) == 0) {
+        found = &stset.tags[t];
+        break;
+      }
+    }
+    test_assert_namef(found != NULL, "[%s] found stream tag", tc->desc);
+
+    /* Step 4: decode tag */
+    char decoded[512] = {0};
+    int dlen = noit_metric_tagset_decode_tag(
+      decoded, sizeof(decoded), found->tag, found->total_size
+    );
+    test_assert_namef(dlen > 0, "[%s] tag decodes", tc->desc);
+
+    /* Step 5: extract value after \037 */
+    char *sep = strchr(decoded, '\037');
+    test_assert_namef(sep != NULL, "[%s] tag separator found", tc->desc);
+
+    char *val = sep + 1;
+
+    test_assert_namef(strcmp(val, tc->expected_decoded_value) == 0,
+      "[%s] decoded value '%s' matches expected '%s'",
+      tc->desc, val, tc->expected_decoded_value);
+  }
+}
+
 int main(int argc, char * const *argv)
 {
   int opt;
@@ -806,6 +925,7 @@ int main(int argc, char * const *argv)
   metric_parsing();
   query_parsing();
   query_argument_swapping();
+  test_base64_stream_tag_variants();
   printf("\nPerformance:\n====================\n");
   loop("woop|ST[a:b,c:d]|MT{foo:bar}|ST[c:d,e:f,a:b]");
   loop("testing_this|ST[cluster:mta2,customer:noone,b\"bjo6Og==\":a=b,node:j.mta2vrest.prd.acme]");
