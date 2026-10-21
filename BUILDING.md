@@ -33,7 +33,6 @@ Required Libraries:
  * [nghttp2](https://nghttp2.org/) 1.39.0+, for HTTP/2 support in libcurl.
  * [lz4](https://github.com/lz4/lz4)
  * [JLog](https://github.com/omniti-labs/jlog)
- * [Picklingtools](http://www.picklingtools.com) ([Patch required](THIRDPARTY-LIBS.md#picklingtools))
  * PostgreSQL 8.4+
  * Protobuf 3.23+
  * Protobuf-C 1.4+ ([Patch required](THIRDPARTY-LIBS.md#protobuf-c))

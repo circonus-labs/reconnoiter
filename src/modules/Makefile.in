@@ -204,9 +204,9 @@ prometheus.lo:	prometheus.xmlh
 
 graphite.@MODULEEXT@:	graphite.lo
 	@echo "- linking $@"
-	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ graphite.lo -lptools
+	$(Q)$(MODULELD) $(SHLDFLAGS) -fPIC -o $@ graphite.lo
 
-graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite_pickle.xmlh graphite.cpp
+graphite.lo:	graphite_tls.xmlh graphite_plain.xmlh graphite.cpp
 
 OTEL_METRICS_OBJS=opentelemetry/proto/metrics/v1/metrics.pb.lo \
 		  opentelemetry/proto/common/v1/common.pb.lo \

@@ -370,37 +370,6 @@ PGCFLAGS=$CFLAGS
 LIBS=$old_LIBS
 CFLAGS=$old_CFLAGS
 
-AC_LANG_PUSH([C++])
-old_LIBS=$LIBS
-AC_CHECK_LIB(resolv, inet_net_pton)
-AC_CHECK_LIB(socket, getaddrinfo)
-AC_MSG_CHECKING([can link pickletools])
-LIBS="$LIBS -lptools"
-AC_TRY_LINK([
-	#pragma GCC diagnostic push
-	#if defined(__clang__)
-	#pragma GCC diagnostic ignored "-Wmismatched-tags"
-	#pragma GCC diagnostic ignored "-Wdeprecated-register"
-	#endif
-	#if defined(__clang__) || __GNUC__ >= 6
-	#pragma GCC diagnostic ignored "-Wshift-negative-value"
-	#endif
-	#if defined(__clang__) || __GNUC__ >= 5
-	#pragma GCC diagnostic ignored "-Wlogical-not-parentheses"
-	#endif
-	#include "pickleloader.h"
-	#pragma GCC diagnostic pop
-	],
-	[
-	Val result;
-	PickleLoader pl("",0);
-	pl.loads(result);
-	],
-	[ AC_MSG_RESULT([works]) ],
-	[ AC_MSG_ERROR([failed]) ])
-PTOOLSLIBS="$LIBS"
-LIBS="$old_LIBS"
-AC_LANG_POP([C++])
 
 AC_CHECK_HEADERS(gcrypt.h)
 AC_CHECK_HEADERS(mysql.h mysql/mysql.h)
@@ -657,7 +626,6 @@ AC_SUBST(LIBNOIT_LIBS)
 AC_SUBST(YAJLLIBS)
 AC_SUBST(PGLIBS)
 AC_SUBST(PGCFLAGS)
-AC_SUBST(PTOOLSLIBS)
 AC_SUBST(MYCFLAGS)
 AC_SUBST(MYLIBS)
 AC_SUBST(LIBNETSNMP)

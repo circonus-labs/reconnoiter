@@ -417,10 +417,10 @@ noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs) {
 
 /* eventer pool selection works by exploring the pool name space
  * looking for the first available pool by name as follows (using
- * graphite_pickle as an example module):
+ * graphite_plain as an example module):
  *
  *    noit_check_ (if check based)
- *    noit_module_graphite_pickle
+ *    noit_module_graphite_plain
  *    noit_module_graphite
  *    noit_module
  *    noit
