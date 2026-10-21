@@ -272,22 +272,6 @@ sudo make -C mibs mibsinstall
 ```
 
 
-## PicklingTools
-
-Obtain source for 1.7.0 or later from the [download
-page](http://www.picklingtools.com/downloads) and extract it.
-
-One only needs the C++ library.
-
-```
-patch -p1 < [reconnoiter source]/patches/picklingtools-Makefile.Linux.factored.patch
-patch -p1 < [reconnoiter source]/patches/picklingtools-warnings.patch
-cd C++
-make -f Makefile.Linux.factored libptools.so
-sudo cp libptools.so /usr/local/lib/
-sudo cp *.h opencontainers_1_8_5/include/*.h /usr/local/include/
-```
-
 ## protobuf
 
 Reconnoiter requires version 3.19 or later.
